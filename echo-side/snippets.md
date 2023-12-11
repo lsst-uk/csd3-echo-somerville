@@ -20,7 +20,7 @@ default_args = {
 dag = DAG(
     's3_data_monitor',
     default_args=default_args,
-    description='Monitor S3 bucket for new fits files, checksum them, and verify them in memory',
+    description='Monitor S3 bucket for new fits files, checksum them, and remove them',
     schedule_interval='@daily',
 )
 
@@ -28,6 +28,7 @@ def download_and_checksum_files():
     s3_conn = S3Hook()
 
     # Get the list of .fits files in the S3 bucket
+    # Should prefix be suffix??
     fits_files = s3_conn.list_objects(bucket_name='your-ceph-s3-bucket',
                                      prefix='*.fits')['Contents']
 
@@ -40,7 +41,7 @@ def download_and_checksum_files():
                                           key=file_key)
         file_data = file_object['Body'].read()
 
-        # Calculate the checksum of the .fits file directly in memory
+        # Calculate the checksum of the .fits file
         md5_checksum = hashlib.md5(file_data).hexdigest()
 
         # Verify the checksum against the corresponding .md5 file
@@ -50,5 +51,8 @@ def download_and_checksum_files():
         checksum_data = checksum_object['Body'].read().decode('utf-8')
 
         if md5_checksum == checksum_data:
+            # Remove the downloaded .fits file
+            s3_conn.delete_object(bucket_name='your-ceph-s3-bucket', key=file_key)
             verified_files.append(file_key)
+
 ```
