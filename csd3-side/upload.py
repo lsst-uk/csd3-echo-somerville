@@ -6,15 +6,20 @@ import bucket_manager
 from datetime import datetime
 import hashlib
 
-def dryrun_upload_to_bucket(bucket_name,filename,destination_key):
-	checksum_key = destination_key + '.checksum'
-	file_data = open(filename, 'rb').read()
-	checksum = hashlib.md5(file_data).hexdigest().encode('utf-8')
+def dryrun_upload_to_bucket(bucket_name,filename,destination_key,perform_checksum):
+	if perform_checksum:
+		checksum_key = destination_key + '.checksum'
+		file_data = open(filename, 'rb').read()
+		checksum = hashlib.md5(file_data).hexdigest().encode('utf-8')
 	# Upload the file to the bucket
         #s3.Object(bucket_name, destination_key).upload_file(filename)
 	#with open(log, 'a') as logfile:
 	#	logfile.write(f'--dryrun-- local: {filename}, {os.stat(filename).st_size} remote ({bucket_name}): {destination_key}\n')
-	return f'--dryrun-- local: {filename}, {os.stat(filename).st_size}, remote ({bucket_name}): {destination_key}\n--dryrun-- checksum: {checksum}, {len(checksum)}, remote ({bucket_name}): {checksum_key}'
+	return_string = f'--dryrun-- local: {filename}, {os.stat(filename).st_size}, remote ({bucket_name}): {destination_key}'
+	if perform_checksum:
+		return_string += f'\n--dryrun-- checksum: {checksum}, {len(checksum)}, remote ({bucket_name}): {checksum_key}'
+
+	return return_string
 
 def upload_to_bucket():
 	"""
@@ -24,7 +29,7 @@ def upload_to_bucket():
 	"""
 	pass
 
-def process_files(bucket_name, source_dir, destination_dir, ncores, log):
+def process_files(bucket_name, source_dir, destination_dir, ncores, perform_checksum, log):
 	i = 0
 	#processed_files = []
 	with Pool(ncores) as pool: # use 4 CPUs by default
@@ -39,15 +44,15 @@ def process_files(bucket_name, source_dir, destination_dir, ncores, log):
 				
 				# upload files in parallel and log output
 				with open(log, 'a') as logfile:
-					for result in pool.starmap(dryrun_upload_to_bucket, zip(repeat(bucket_name), folder_files, destination_keys)):
+					for result in pool.starmap(dryrun_upload_to_bucket, zip(repeat(bucket_name), folder_files, destination_keys, repeat(perform_checksum))):
 						logfile.write(f'{result}\n')
 
 				# testing - stop after 3 folders
 				i+=1
 				if i == 3:
 					break
-		# Upload log file
-		dryrun_upload_to_bucket(bucket_name, log, os.path.basename(log))
+	# Upload log file
+	dryrun_upload_to_bucket(bucket_name, log, os.path.basename(log), False)
 
 if __name__ == '__main__':
 	# Initiate timing
@@ -59,6 +64,7 @@ if __name__ == '__main__':
 	folders = []
 	folder_files = []
 	ncores = 4 # change to adjust number of CPUs (= number of concurrent connections)
+	perform_checksum = True
 	
 	# Setup bucket
 	s3_host = 'echo.stfc.ac.uk'
@@ -79,7 +85,7 @@ if __name__ == '__main__':
 	
 	# Process the files in parallel
 	print(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}')
-	processed = process_files(bucket_name, source_dir, destination_dir, ncores, log)
+	process_files(bucket_name, source_dir, destination_dir, ncores, perform_checksum, log)
 
 	# Complete
 	total_time = datetime.now() - start
@@ -94,4 +100,4 @@ if __name__ == '__main__':
 
 	# note added +1 to total_time.seconds for testing - remove later
 	print(f'{file_count} files uploaded in {total_time.seconds} seconds, {file_count / (total_time.seconds + 1)} files/sec')
-	print(f'{total_size} bytes uploaded in {total_time.seconds} seconds, {total_size / 1024**3 / (total_time.seconds + 1)} GiB/sec')
+	print(f'{total_size} bytes uploaded in {total_time.seconds} seconds, {total_size / 1024**2 / (total_time.seconds + 1)} MiB/sec')
