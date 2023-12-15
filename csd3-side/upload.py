@@ -21,12 +21,21 @@ def dryrun_upload_to_bucket(bucket_name,filename,destination_key,perform_checksu
 
 	return return_string
 
-def upload_to_bucket():
+def upload_to_bucket(bucket_name,filename,destination_key,perform_checksum):
+	if perform_checksum:
+                checksum_key = destination_key + '.checksum'
+                file_data = open(filename, 'rb').read()
+                checksum = hashlib.md5(file_data).hexdigest().encode('utf-8')
 	"""
 	- Upload the file to the bucket
-	- Checksum file
-	- Upload checksum to bucket
 	"""
+	#example from file
+	#key = bucket.new_key('logo.png')
+	#key.set_contents_from_filename('logo.png')
+
+	#example from string (use for checksum)
+	#key = bucket.new_key('hello.txt')
+	#key.set_contents_from_string('Hello World!')
 	pass
 
 def process_files(bucket_name, source_dir, destination_dir, ncores, perform_checksum, log):
