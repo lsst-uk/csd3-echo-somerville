@@ -1,3 +1,4 @@
+import sys
 import os
 import re
 from multiprocessing import Pool
@@ -6,39 +7,44 @@ import bucket_manager
 from datetime import datetime
 import hashlib
 
-def dryrun_upload_to_bucket(bucket_name,filename,destination_key,perform_checksum):
+def dryrun_upload_to_bucket(bucket,filename,destination_key,perform_checksum):
 	if perform_checksum:
 		checksum_key = destination_key + '.checksum'
 		file_data = open(filename, 'rb').read()
 		checksum = hashlib.md5(file_data).hexdigest().encode('utf-8')
 	# Upload the file to the bucket
-        #s3.Object(bucket_name, destination_key).upload_file(filename)
+        #s3.Object(bucket.name, destination_key).upload_file(filename)
 	#with open(log, 'a') as logfile:
-	#	logfile.write(f'--dryrun-- local: {filename}, {os.stat(filename).st_size} remote ({bucket_name}): {destination_key}\n')
-	return_string = f'--dryrun-- local: {filename}, {os.stat(filename).st_size}, remote ({bucket_name}): {destination_key}'
+	#	logfile.write(f'--dryrun-- local: {filename}, {os.stat(filename).st_size} remote ({bucket.name}): {destination_key}\n')
+	return_string = f'--dryrun-- local: {filename}, {os.stat(filename).st_size}, remote ({bucket.name}): {destination_key}'
 	if perform_checksum:
-		return_string += f'\n--dryrun-- checksum: {checksum}, {len(checksum)}, remote ({bucket_name}): {checksum_key}'
+		return_string += f'\n--dryrun-- checksum: {checksum}, {len(checksum)}, remote ({bucket.name}): {checksum_key}'
 
 	return return_string
 
-def upload_to_bucket(bucket_name,filename,destination_key,perform_checksum):
+def upload_to_bucket(bucket,filename,destination_key,perform_checksum):
 	if perform_checksum:
                 checksum_key = destination_key + '.checksum'
                 file_data = open(filename, 'rb').read()
                 checksum = hashlib.md5(file_data).hexdigest().encode('utf-8')
+		#create checksum object
+		key = bucket.new_key(checksum_key)
+		key.set_contents_from_string(checksum)
 	"""
 	- Upload the file to the bucket
 	"""
-	#example from file
-	#key = bucket.new_key('logo.png')
-	#key.set_contents_from_filename('logo.png')
+	key = bucket.new_key(destination_key)
+	key.set_contents_from_filename(filename)
 
-	#example from string (use for checksum)
-	#key = bucket.new_key('hello.txt')
-	#key.set_contents_from_string('Hello World!')
-	pass
+	"""
+	report actions
+	"""
+	return_string = f'local: {filename}, {os.stat(filename).st_size}, remote ({bucket.name}): {destination_key}'
+	if perform_checksum:
+		return_string += f'\nchecksum: {checksum}, {len(checksum)}, remote ({bucket.name}): {checksum_key}'
+	return return_string
 
-def process_files(bucket_name, source_dir, destination_dir, ncores, perform_checksum, log):
+def process_files(bucket, source_dir, destination_dir, ncores, perform_checksum, log):
 	i = 0
 	#processed_files = []
 	with Pool(ncores) as pool: # use 4 CPUs by default
@@ -53,7 +59,7 @@ def process_files(bucket_name, source_dir, destination_dir, ncores, perform_chec
 				
 				# upload files in parallel and log output
 				with open(log, 'a') as logfile:
-					for result in pool.starmap(dryrun_upload_to_bucket, zip(repeat(bucket_name), folder_files, destination_keys, repeat(perform_checksum))):
+					for result in pool.starmap(upload_to_bucket, zip(repeat(bucket), folder_files, destination_keys, repeat(perform_checksum))):
 						logfile.write(f'{result}\n')
 
 				# testing - stop after 3 folders
@@ -61,7 +67,7 @@ def process_files(bucket_name, source_dir, destination_dir, ncores, perform_chec
 				if i == 3:
 					break
 	# Upload log file
-	dryrun_upload_to_bucket(bucket_name, log, os.path.basename(log), False)
+	upload_to_bucket(bucket_name, log, os.path.basename(log), False)
 
 if __name__ == '__main__':
 	# Initiate timing
@@ -87,14 +93,15 @@ if __name__ == '__main__':
 	
 	if bucket_name not in [bucket.name for bucket in conn.get_all_buckets()]:
 		# commented out while testing
-        	#mybucket = conn.create_bucket(mybucket_name)
+        	mybucket = conn.create_bucket(mybucket_name)
         	print(f'Added bucket: {bucket_name}')
 	else:
         	print(f'Bucket exists: {bucket_name}')
+		sys.exit('Bucket exists.')
 	
 	# Process the files in parallel
 	print(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}')
-	process_files(bucket_name, source_dir, destination_dir, ncores, perform_checksum, log)
+	process_files(mybucket, source_dir, destination_dir, ncores, perform_checksum, log)
 
 	# Complete
 	total_time = datetime.now() - start
