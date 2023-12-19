@@ -24,9 +24,9 @@ def dryrun_upload_to_bucket(bucket,filename,destination_key,perform_checksum):
 
 def upload_to_bucket(bucket,filename,destination_key,perform_checksum):
 	if perform_checksum:
-                checksum_key = destination_key + '.checksum'
-                file_data = open(filename, 'rb').read()
-                checksum = hashlib.md5(file_data).hexdigest().encode('utf-8')
+		checksum_key = destination_key + '.checksum'
+		file_data = open(filename, 'rb').read()
+		checksum = hashlib.md5(file_data).hexdigest().encode('utf-8')
 		#create checksum object
 		key = bucket.new_key(checksum_key)
 		key.set_contents_from_string(checksum)
@@ -62,12 +62,12 @@ def process_files(bucket, source_dir, destination_dir, ncores, perform_checksum,
 					for result in pool.starmap(upload_to_bucket, zip(repeat(bucket), folder_files, destination_keys, repeat(perform_checksum))):
 						logfile.write(f'{result}\n')
 
-				# testing - stop after 3 folders
+				# testing - stop after 1 folders
 				i+=1
-				if i == 3:
+				if i == 1:
 					break
 	# Upload log file
-	upload_to_bucket(bucket_name, log, os.path.basename(log), False)
+	upload_to_bucket(bucket, log, os.path.basename(log), False)
 
 if __name__ == '__main__':
 	# Initiate timing
@@ -93,10 +93,10 @@ if __name__ == '__main__':
 	
 	if bucket_name not in [bucket.name for bucket in conn.get_all_buckets()]:
 		# commented out while testing
-        	mybucket = conn.create_bucket(mybucket_name)
+        	mybucket = conn.create_bucket(bucket_name)
         	print(f'Added bucket: {bucket_name}')
 	else:
-        	print(f'Bucket exists: {bucket_name}')
+		print(f'Bucket exists: {bucket_name}')
 		sys.exit('Bucket exists.')
 	
 	# Process the files in parallel
