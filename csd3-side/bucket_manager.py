@@ -16,9 +16,6 @@ def get_keys(json_file):
 		keys = json.load(keyfile)
 	return keys
 
-#access_key = keys['access_key']
-#secret_key = keys['secret_key']
-
 def get_conn(access_key, secret_key, host):
 	return boto.connect_s3(
 		aws_access_key_id = access_key,
