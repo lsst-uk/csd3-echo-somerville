@@ -15,10 +15,10 @@ def dryrun_upload_to_bucket(bucket,filename,destination_key,perform_checksum):
 	# Upload the file to the bucket
         #s3.Object(bucket.name, destination_key).upload_file(filename)
 	#with open(log, 'a') as logfile:
-	#	logfile.write(f'--dryrun-- local: {filename}, {os.stat(filename).st_size} remote ({bucket.name}): {destination_key}\n')
-	return_string = f'--dryrun-- local: {filename}, {os.stat(filename).st_size}, remote ({bucket.name}): {destination_key}'
+	#	logfile.write(f'--dryrun-- csd3: {filename}, {os.stat(filename).st_size} echo ({bucket.name}): {destination_key}\n')
+	return_string = f'--dryrun-- csd3: {filename}, {os.stat(filename).st_size}, echo ({bucket.name}): {destination_key}'
 	if perform_checksum:
-		return_string += f'\n--dryrun-- checksum: {checksum}, {len(checksum)}, remote ({bucket.name}): {checksum_key}'
+		return_string += f'\n--dryrun-- checksum: {checksum}, {len(checksum)}, echo ({bucket.name}): {checksum_key}'
 
 	return return_string
 
@@ -39,9 +39,9 @@ def upload_to_bucket(bucket,filename,destination_key,perform_checksum):
 	"""
 	report actions
 	"""
-	return_string = f'local: {filename}, {os.stat(filename).st_size}, remote ({bucket.name}): {destination_key}'
+	return_string = f'csd3: {filename}, {os.stat(filename).st_size}, echo ({bucket.name}): {destination_key}'
 	if perform_checksum:
-		return_string += f'\nchecksum: {checksum}, {len(checksum)}, remote ({bucket.name}): {checksum_key}'
+		return_string += f'\nchecksum: {checksum}, {len(checksum)}, echo ({bucket.name}): {checksum_key}'
 	return return_string
 
 def process_files(bucket, source_dir, destination_dir, ncores, perform_checksum, log):
