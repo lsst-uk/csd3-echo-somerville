@@ -34,14 +34,12 @@ def upload_to_bucket(bucket,folder,filename,destination_key,perform_checksum):
 		header: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY
 	"""
 	return_string = f'{folder},{filename},{os.stat(filename).st_size},{bucket_name},{destination_key}'
-	if perform_checksum:
-		return_string += f',{checksum}'
+	if perform_checksum and upload_checksum:
+		return_string += f',{checksum},{len(checksum)},{checksum_key}'
+	elif perform_checksum:
+		return_string += f',{checksum},,'
 	else:
-		 return_string += ','
-	if upload_checksum:
-		return_string += f',{len(checksum)},{checksum_key}'
-	else:
-		return_string += ',,'
+		return_string += ',,,'
 	return return_string
 
 def process_files(bucket, source_dir, destination_dir, ncores, perform_checksum, log):
@@ -71,7 +69,7 @@ def process_files(bucket, source_dir, destination_dir, ncores, perform_checksum,
 					break
 	# Upload log file
 	if not dryrun:
-		upload_to_bucket(bucket, log, os.path.basename(log), False)
+		upload_to_bucket(bucket, '/', log, os.path.basename(log), False)
 
 def print_stats(log,folder):
 	elapsed_time = datetime.now() - start
@@ -80,8 +78,9 @@ def print_stats(log,folder):
 	log_results.where(log_results['LOCAL_FOLDER'] == folder, inplace=True)
 	file_count = len(log_results)
 	total_size = sum(log_results['FILE_SIZE'])
-	print(f'{file_count} files uploaded in {elapsed_time.seconds} seconds, {file_count / elapsed_time.seconds:.2f} files/sec')
-	print(f'{total_size} bytes uploaded in {elapsed_time.seconds} seconds, {total_size / 1024**2 / elapsed_time.seconds:.2f} MiB/sec')
+	if not upload_checksum:
+		print(f'{file_count} files uploaded in {elapsed_time.seconds} seconds, {file_count / elapsed_time.seconds:.2f} files/sec')
+		print(f'{total_size} bytes uploaded in {elapsed_time.seconds} seconds, {total_size / 1024**2 / elapsed_time.seconds:.2f} MiB/sec')
 	if upload_checksum:
 		checksum_size = sum(log_results['CHECKSUM_SIZE'])
 		total_size += checksum_size
@@ -138,3 +137,4 @@ if __name__ == '__main__':
 	process_files(mybucket, source_dir, destination_dir, ncores, perform_checksum, log)
 
 	# Complete
+	print(f'Finished at {datetime.now()}, elapsed time = {datetime.now() - start}')
