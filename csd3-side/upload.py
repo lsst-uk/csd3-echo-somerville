@@ -7,6 +7,7 @@ import bucket_manager
 from datetime import datetime
 import hashlib
 import pandas as pd
+import numpy as np
 
 def upload_to_bucket(bucket,folder,filename,destination_key,perform_checksum):
 	if type(bucket) is not str:
@@ -65,28 +66,29 @@ def process_files(bucket, source_dir, destination_dir, ncores, perform_checksum,
 
 				# testing - stop after 1 folders
 				i+=1
-				if i == 1:
+				if i == 10:
 					break
 	# Upload log file
 	if not dryrun:
 		upload_to_bucket(bucket, '/', log, os.path.basename(log), False)
 
 def print_stats(log,folder):
-	elapsed_time = datetime.now() - start
-	print(f'Finished folder {folder}, elapsed time = {elapsed_time}')
+	elapsed = datetime.now() - start
+	print(f'Finished folder {folder}, elapsed time = {elapsed}')
+	elapsed_seconds = elapsed.seconds + elapsed.microseconds / 1e6
 	log_results = pd.read_csv(log)
 	log_results.where(log_results['LOCAL_FOLDER'] == folder, inplace=True)
 	file_count = len(log_results)
-	total_size = sum(log_results['FILE_SIZE'])
+	total_size = np.sum(log_results['FILE_SIZE'])
 	if not upload_checksum:
-		print(f'{file_count} files uploaded in {elapsed_time.seconds} seconds, {file_count / elapsed_time.seconds:.2f} files/sec')
-		print(f'{total_size} bytes uploaded in {elapsed_time.seconds} seconds, {total_size / 1024**2 / elapsed_time.seconds:.2f} MiB/sec')
+		print(f'{file_count} files uploaded in {elapsed_seconds:.2f} seconds, {file_count / elapsed_seconds:.2f} files/sec')
+		print(f'{total_size} bytes uploaded in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/sec')
 	if upload_checksum:
-		checksum_size = sum(log_results['CHECKSUM_SIZE'])
+		checksum_size = np.sum(log_results['CHECKSUM_SIZE'])
 		total_size += checksum_size
 		file_count *= 2
-		print(f'{file_count} files uploaded (including checksum files) in {elapsed_time.seconds} seconds, {file_count / elapsed_time.seconds:.2f} files/sec')
-		print(f'{total_size} bytes uploaded (including checksum files) in {elapsed_time.seconds} seconds, {total_size / 1024**2 / elapsed_time.seconds:.2f} MiB/sec')
+		print(f'{file_count} files uploaded (including checksum files) in {elapsed_seconds:.2f} seconds, {file_count / elapsed_seconds:.2f} files/sec')
+		print(f'{total_size} bytes uploaded (including checksum files) in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/sec')
 
 
 
@@ -95,7 +97,7 @@ if __name__ == '__main__':
 	start = datetime.now()
 	# Set the source directory, bucket name, and destination directory
 	source_dir = "/rds/project/rds-rPTGgs6He74/data/private/VISTA/VIDEO/"
-	log = f"{'-'.join(source_dir.split('/')[-2:])}_files.csv"
+	log = f"{'-'.join(source_dir.split('/')[-2:])}-files.csv"
 	destination_dir = "VIDEO"
 	folders = []
 	folder_files = []
@@ -117,13 +119,13 @@ if __name__ == '__main__':
 	conn = bucket_manager.get_conn(access_key, secret_key, s3_host)
 	
 	bucket_name = 'dm-test'
+	if dryrun:
+		mybucket = 'dummy_bucket'
 	
 	if bucket_name not in [bucket.name for bucket in conn.get_all_buckets()]:
 		if not dryrun:
         		mybucket = conn.create_bucket(bucket_name)
         		print(f'Added bucket: {bucket_name}')
-		else:
-			mybucket = 'dummy_bucket'
 	else:
 		if not dryrun:
 			print(f'Bucket exists: {bucket_name}')
