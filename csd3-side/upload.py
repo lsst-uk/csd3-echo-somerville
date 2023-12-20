@@ -8,7 +8,7 @@ from datetime import datetime
 import hashlib
 import pandas as pd
 
-def upload_to_bucket(bucket,filename,destination_key,perform_checksum):
+def upload_to_bucket(bucket,folder,filename,destination_key,perform_checksum):
 	if type(bucket) is not str:
 		bucket_name = bucket.name
 	else:
@@ -31,9 +31,9 @@ def upload_to_bucket(bucket,filename,destination_key,perform_checksum):
 	"""
 		report actions
 		CSV formatted
-		header: LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY
+		header: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY
 	"""
-	return_string = f'{filename},{os.stat(filename).st_size},{bucket_name},{destination_key}'
+	return_string = f'{folder},{filename},{os.stat(filename).st_size},{bucket_name},{destination_key}'
 	if perform_checksum:
 		return_string += f',{checksum}'
 	else:
@@ -60,8 +60,10 @@ def process_files(bucket, source_dir, destination_dir, ncores, perform_checksum,
 				# upload files in parallel and log output
 				print(f'Uploading {len(files)} files from {folder} using {ncores} processes.')
 				with open(log, 'a') as logfile:
-					for result in pool.starmap(upload_to_bucket, zip(repeat(bucket), folder_files, destination_keys, repeat(perform_checksum))):
+					for result in pool.starmap(upload_to_bucket, zip(repeat(bucket), repeat(folder), folder_files, destination_keys, repeat(perform_checksum))):
 						logfile.write(f'{result}\n')
+
+				print_stats(log, folder)
 
 				# testing - stop after 1 folders
 				i+=1
@@ -70,6 +72,24 @@ def process_files(bucket, source_dir, destination_dir, ncores, perform_checksum,
 	# Upload log file
 	if not dryrun:
 		upload_to_bucket(bucket, log, os.path.basename(log), False)
+
+def print_stats(log,folder):
+	elapsed_time = datetime.now() - start
+	print(f'Finished folder {folder}, elapsed time = {elapsed_time}')
+	log_results = pd.read_csv(log)
+	log_results.where(log_results['LOCAL_FOLDER'] == folder, inplace=True)
+	file_count = len(log_results)
+	total_size = sum(log_results['FILE_SIZE'])
+	print(f'{file_count} files uploaded in {elapsed_time.seconds} seconds, {file_count / elapsed_time.seconds:.2f} files/sec')
+	print(f'{total_size} bytes uploaded in {elapsed_time.seconds} seconds, {total_size / 1024**2 / elapsed_time.seconds:.2f} MiB/sec')
+	if upload_checksum:
+		checksum_size = sum(log_results['CHECKSUM_SIZE'])
+		total_size += checksum_size
+		file_count *= 2
+		print(f'{file_count} files uploaded (including checksum files) in {elapsed_time.seconds} seconds, {file_count / elapsed_time.seconds:.2f} files/sec')
+		print(f'{total_size} bytes uploaded (including checksum files) in {elapsed_time.seconds} seconds, {total_size / 1024**2 / elapsed_time.seconds:.2f} MiB/sec')
+
+
 
 if __name__ == '__main__':
 	# Initiate timing
@@ -82,12 +102,12 @@ if __name__ == '__main__':
 	folder_files = []
 	ncores = 4 # change to adjust number of CPUs (= number of concurrent connections)
 	perform_checksum = True
-	upload_checksum = False
-	dryrun = True
+	upload_checksum = True
+	dryrun = False
 
 	# Add titles to log file
 	with open(log, 'w') as logfile: # elsewhere open(log, 'a')
-		logfile.write('LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY\n')
+		logfile.write('LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY\n')
 	
 	# Setup bucket
 	s3_host = 'echo.stfc.ac.uk'
@@ -118,17 +138,3 @@ if __name__ == '__main__':
 	process_files(mybucket, source_dir, destination_dir, ncores, perform_checksum, log)
 
 	# Complete
-	total_time = datetime.now() - start
-	print(f'Finished at {datetime.now()}, elapsed time = {total_time}')
-	log_results = pd.read_csv(log)
-	file_count = len(log_results)
-	total_size = sum(log_results['FILESIZE'])
-	print(f'{file_count} files uploaded in {total_time.seconds} seconds, {file_count / (total_time.seconds + 1)} files/sec')
-	print(f'{total_size} bytes uploaded in {total_time.seconds} seconds, {total_size / 1024**2 / (total_time.seconds + 1)} MiB/sec')
-	if upload_checksum:
-		checksum_size = sum(log_results['CHECKSUM_SIZE'])
-		total_size += checksum_size
-		file_count *= 2
-		print(f'{file_count} files uploaded (including checksum files) in {total_time.seconds} seconds, {file_count / (total_time.seconds + 1)} files/sec')
-		print(f'{total_size} bytes uploaded (including checksum files) in {total_time.seconds} seconds, {total_size / 1024**2 / (total_time.seconds + 1)} MiB/sec')
-
