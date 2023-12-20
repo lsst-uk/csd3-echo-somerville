@@ -120,7 +120,7 @@ if __name__ == '__main__':
 	# Complete
 	total_time = datetime.now() - start
 	print(f'Finished at {datetime.now()}, elapsed time = {total_time}')
-	log_results = pd.from_csv(log)
+	log_results = pd.read_csv(log)
 	file_count = len(log_results)
 	total_size = sum(log_results['FILESIZE'])
 	print(f'{file_count} files uploaded in {total_time.seconds} seconds, {file_count / (total_time.seconds + 1)} files/sec')
