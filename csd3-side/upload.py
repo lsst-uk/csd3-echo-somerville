@@ -80,14 +80,14 @@ def print_stats(log,folder,file_count,total_size,folder_start,folder_end):
 	elapsed_seconds = elapsed.seconds + elapsed.microseconds / 1e6
 	avg_file_size = total_size / file_count / 1024**2
 	if not upload_checksum:
-		print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded in {elapsed_seconds:.2f} seconds, {file_count / elapsed_seconds:.2f} files/sec')
-		print(f'{total_size / 1024**2:.2f} bytes uploaded in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/sec')
+		print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded in {elapsed_seconds:.2f} seconds, {file_count / elapsed_seconds:.2f} files/s',flush=True)
+		print(f'{total_size / 1024**2:.2f} MiB uploaded in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/s',flush=True)
 	if upload_checksum:
 		checksum_size = 32*file_count # checksum byte strings are 32 bytes
 		total_size += checksum_size
 		file_count *= 2
-		print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded (including checksum files) in {elapsed_seconds:.2f} seconds, {file_count / elapsed_seconds:.2f} files/sec')
-		print(f'{total_size / 1024**2:.2f} bytes uploaded (including checksum files) in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/sec')
+		print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded (including checksum files) in {elapsed_seconds:.2f} seconds, {file_count / elapsed_seconds:.2f} files/s',flush=True)
+		print(f'{total_size / 1024**2:.2f} MiB uploaded (including checksum files) in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/s',flush=True)
 
 
 
