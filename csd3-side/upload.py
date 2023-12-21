@@ -55,16 +55,18 @@ def process_files(bucket, source_dir, destination_dir, ncores, perform_checksum,
 				folder_files = [ os.sep.join([folder,filename]) for filename in files ]
 				# keys to files on s3
 				destination_keys = [ os.sep.join([destination_dir, os.path.relpath(filename, source_dir)]) for filename in folder_files ]
-				
+				folder_start = datetime.now()
+				file_count = len(files)
 				# upload files in parallel and log output
-				print(f'Uploading {len(files)} files from {folder} using {ncores} processes.')
+				print(f'Uploading {file_count} files from {folder} using {ncores} processes.')
 				with open(log, 'a') as logfile:
 					for result in pool.starmap(upload_to_bucket, zip(repeat(bucket), repeat(folder), folder_files, destination_keys, repeat(perform_checksum))):
 						logfile.write(f'{result}\n')
+				folder_end = datetime.now()
+				folder_files_size = np.sum(np.array([os.path.getsize(filename) for filename in folder_files]))
+				print_stats(log, folder, file_count, folder_files_size, folder_start, folder_end)
 
-				print_stats(log, folder)
-
-				# testing - stop after 1 folders
+				# testing - stop after 10 folders
 				i+=1
 				if i == 10:
 					break
@@ -72,23 +74,20 @@ def process_files(bucket, source_dir, destination_dir, ncores, perform_checksum,
 	if not dryrun:
 		upload_to_bucket(bucket, '/', log, os.path.basename(log), False)
 
-def print_stats(log,folder):
-	elapsed = datetime.now() - start
+def print_stats(log,folder,file_count,total_size,folder_start,folder_end):
+	elapsed = folder_end - folder_start
 	print(f'Finished folder {folder}, elapsed time = {elapsed}')
 	elapsed_seconds = elapsed.seconds + elapsed.microseconds / 1e6
-	log_results = pd.read_csv(log)
-	log_results.where(log_results['LOCAL_FOLDER'] == folder, inplace=True)
-	file_count = len(log_results)
-	total_size = np.sum(log_results['FILE_SIZE'])
+	avg_file_size = total_size / file_count / 1024**2
 	if not upload_checksum:
-		print(f'{file_count} files uploaded in {elapsed_seconds:.2f} seconds, {file_count / elapsed_seconds:.2f} files/sec')
-		print(f'{total_size} bytes uploaded in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/sec')
+		print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded in {elapsed_seconds:.2f} seconds, {file_count / elapsed_seconds:.2f} files/sec')
+		print(f'{total_size / 1024**2:.2f} bytes uploaded in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/sec')
 	if upload_checksum:
-		checksum_size = np.sum(log_results['CHECKSUM_SIZE'])
+		checksum_size = 32*file_count # checksum byte strings are 32 bytes
 		total_size += checksum_size
 		file_count *= 2
-		print(f'{file_count} files uploaded (including checksum files) in {elapsed_seconds:.2f} seconds, {file_count / elapsed_seconds:.2f} files/sec')
-		print(f'{total_size} bytes uploaded (including checksum files) in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/sec')
+		print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded (including checksum files) in {elapsed_seconds:.2f} seconds, {file_count / elapsed_seconds:.2f} files/sec')
+		print(f'{total_size / 1024**2:.2f} bytes uploaded (including checksum files) in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/sec')
 
 
 
@@ -103,7 +102,7 @@ if __name__ == '__main__':
 	folder_files = []
 	ncores = 4 # change to adjust number of CPUs (= number of concurrent connections)
 	perform_checksum = True
-	upload_checksum = True
+	upload_checksum = False
 	dryrun = False
 
 	# Add titles to log file
