@@ -5,6 +5,7 @@ from multiprocessing import Pool
 from itertools import repeat
 import bucket_manager
 from datetime import datetime
+from time import sleep
 import hashlib
 import pandas as pd
 import numpy as np
@@ -80,13 +81,13 @@ def print_stats(log,folder,file_count,total_size,folder_start,folder_end):
 	elapsed_seconds = elapsed.seconds + elapsed.microseconds / 1e6
 	avg_file_size = total_size / file_count / 1024**2
 	if not upload_checksum:
-		print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded in {elapsed_seconds:.2f} seconds, {file_count / elapsed_seconds:.2f} files/s',flush=True)
+		print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded in {elapsed_seconds:.2f} seconds, {elapsed_seconds/file_count:.2f} s/file',flush=True)
 		print(f'{total_size / 1024**2:.2f} MiB uploaded in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/s',flush=True)
 	if upload_checksum:
 		checksum_size = 32*file_count # checksum byte strings are 32 bytes
 		total_size += checksum_size
 		file_count *= 2
-		print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded (including checksum files) in {elapsed_seconds:.2f} seconds, {file_count / elapsed_seconds:.2f} files/s',flush=True)
+		print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded (including checksum files) in {elapsed_seconds:.2f} seconds, {elapsed_seconds/file_count:.2f} s/file',flush=True)
 		print(f'{total_size / 1024**2:.2f} MiB uploaded (including checksum files) in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/s',flush=True)
 
 
@@ -95,12 +96,12 @@ if __name__ == '__main__':
 	# Initiate timing
 	start = datetime.now()
 	# Set the source directory, bucket name, and destination directory
-	source_dir = "/rds/project/rds-rPTGgs6He74/data/private/VISTA/VIDEO/"
+	source_dir = f"/rds/project/rds-rPTGgs6He74/data/private/VISTA/VIDEO/{sys.argv[1]}"
 	log = f"{'-'.join(source_dir.split('/')[-2:])}-files.csv"
-	destination_dir = "VIDEO"
+	destination_dir = f"VIDEO/{sys.argv[1]}"
 	folders = []
 	folder_files = []
-	ncores = 4 # change to adjust number of CPUs (= number of concurrent connections)
+	ncores = 2 # change to adjust number of CPUs (= number of concurrent connections)
 	perform_checksum = True
 	upload_checksum = False
 	dryrun = False
@@ -128,7 +129,8 @@ if __name__ == '__main__':
 	else:
 		if not dryrun:
 			print(f'Bucket exists: {bucket_name}')
-			sys.exit('Bucket exists.')
+			#sys.exit('Bucket exists.')
+			mybucket = conn.get_bucket(bucket_name)
 		else:
 			print(f'Bucket exists: {bucket_name}')
 			print('dryrun = True, so continuing.')
