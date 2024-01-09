@@ -47,7 +47,7 @@ print(end_size)
 elapsed = end_time - start_time
 elapsed_seconds = elapsed.seconds + elapsed.microseconds / 1e6
 size_diff = end_size - start_size
-size_diff_MiB = size_diff * 1024**2
+size_diff_MiB = size_diff / 1024**2
 
 transfer_speed = size_diff_MiB / elapsed_seconds
 
