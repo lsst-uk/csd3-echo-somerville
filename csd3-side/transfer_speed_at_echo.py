@@ -34,13 +34,21 @@ bucket = conn.get_bucket('dm-test')
 
 print('Connection established.')
 
-start_size = sum([key.size for key in bucket.list()])
+start_num_files = 0
+start_size = 0
+for key in bucket.list():
+	start_num_files+=1
+	start_size+=key.size
 start_time = datetime.now()
 print(start_size)
 for i in range(5):
 	print(i)
 	time.sleep(1)
-end_size = sum([key.size for key in bucket.list()])
+end_num_files = 0
+end_size = 0
+for key in bucket.list():
+        end_num_files+=1
+        end_size+=key.size
 end_time = datetime.now()
 print(end_size)
 
@@ -48,7 +56,12 @@ elapsed = end_time - start_time
 elapsed_seconds = elapsed.seconds + elapsed.microseconds / 1e6
 size_diff = end_size - start_size
 size_diff_MiB = size_diff / 1024**2
+files_diff = end_num_files - start_num_files
 
 transfer_speed = size_diff_MiB / elapsed_seconds
+if files_diff > 0:
+	seconds_per_file = elapsed_seconds / files_diff
+else:
+	seconds_per_file = 0
 
-print(f'Transfer speed = {transfer_speed:.3f} MiB/s')
+print(f'Transfer speed = {transfer_speed:.2f} MiB/s - {seconds_per_file:.2f} s/file')
