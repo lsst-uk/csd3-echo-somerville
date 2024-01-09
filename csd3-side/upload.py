@@ -101,7 +101,7 @@ if __name__ == '__main__':
 	destination_dir = f"VIDEO/{sys.argv[1]}"
 	folders = []
 	folder_files = []
-	ncores = 2 # change to adjust number of CPUs (= number of concurrent connections)
+	ncores = 1 # change to adjust number of CPUs (= number of concurrent connections)
 	perform_checksum = True
 	upload_checksum = False
 	dryrun = False
