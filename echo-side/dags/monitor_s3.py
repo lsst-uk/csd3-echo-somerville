@@ -53,4 +53,12 @@ def download_and_checksum_files():
         #if md5_checksum == checksum_data:
             #verified_files.append(file_key)
 
-download_and_checksum_files
+#operators
+dl_chk = PythonOperator(
+        task_id = 'download_and_checksum',
+        python_callable = download_and_checksum_files,
+        dag = dag,
+        )
+
+#graph
+dl_chk
