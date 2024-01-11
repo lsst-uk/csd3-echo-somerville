@@ -8,9 +8,6 @@ default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
     'start_date': datetime.now() - timedelta(days = 1),
-    'email': ['d.mckay@epcc.ed.ac.uk'],
-    'email_on_failure': True,
-    'email_on_retry': True,
 }
 
 dag = DAG(
@@ -24,8 +21,7 @@ def download_and_checksum_files():
     s3_conn = S3Hook(aws_conn_id='EchoS3')
 
     # Get the list of .fits files in the S3 bucket
-    # Should prefix be suffix??
-    fits_files = s3_conn.list_objects(bucket_name='dm-test',
+    fits_files = s3_conn.list_keys(bucket_name='dm-test',
                                      prefix='*.fits')['Contents']
     print(fits_files)
     file_list_object = s3_conn.get_object(bucket_name='dm-test',key='VIDEO-20180819-files.csv')
