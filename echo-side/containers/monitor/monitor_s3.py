@@ -20,15 +20,13 @@ secret_key = sys.argv[2]
 #
 
 s3_host = 'echo.stfc.ac.uk'
-access_key = sys.argv[1]
-secret_key = sys.argv[2]
-
-print(f'{access_key[-4:]},{secret_key[-4:]}',file=sys.stderr)
+access_key = sys.argv[2]
+secret_key = sys.argv[3]
 
 conn = get_conn(access_key, secret_key, s3_host)
 
-#for bucket in conn.get_all_buckets():
-        #print("{name}\t{created}".format(
-                #name = bucket.name,
-                #created = bucket.creation_date,
-        #))
+for bucket in conn.get_all_buckets():
+        print("{name}\t{created}".format(
+                name = bucket.name,
+                created = bucket.creation_date,
+        ))
