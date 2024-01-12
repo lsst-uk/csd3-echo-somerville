@@ -27,7 +27,7 @@ dag = DAG(
 
 monitor = KubernetesPodOperator(
     namespace='airflow',
-    image='localhost:32000/monitor:registry',
+    image='localhost:32000/monitor:latest',
     name='monitor',
     task_id='monitor',
     dag=dag,
