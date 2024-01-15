@@ -15,7 +15,7 @@ connection = BaseHook.get_connection('EchoS3')
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': datetime.now() - timedelta(days = 1),
+    'start_date': datetime.now(),
 }
 
 dag = DAG(
