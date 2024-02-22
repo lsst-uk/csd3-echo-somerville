@@ -10,7 +10,7 @@ access_key = keys['access_key']
 secret_key = keys['secret_key']
 
 conn = bucket_manager.get_conn(access_key, secret_key, s3_host)
-bucket = conn.get_bucket('dm-test')
+bucket = conn.get_bucket('csd3-backup-test')
 
 for key in bucket.list():
 	print("{name}\t{size}\t{modified}".format(
