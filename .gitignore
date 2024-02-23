@@ -2,6 +2,7 @@
 *.log
 *.err
 *.csv
+slurm*.out
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
