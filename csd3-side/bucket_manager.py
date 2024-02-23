@@ -6,11 +6,15 @@ Helper functions for using an s3 bucket
 import boto3
 import json
 import os
+import warnings
+
+with warnings.catch_warnings():
+    warnings.filterwarnings('ignore')
 
 def print_buckets(client):
-	response = client.list_buckets()
-	for bucket in response['Buckets']:
-        	print(f"{bucket['Name']}\t{bucket['CreationDate']}")
+    response = client.list_buckets()
+    for bucket in response['Buckets']:
+        print(f"{bucket['Name']}\t{bucket['CreationDate']}")
 
 def get_keys(json_file):
 	with open(json_file, 'r') as keyfile:
@@ -28,3 +32,9 @@ def get_client(access_key, secret_key, host):
         verify=False  # Disable SSL verification for non-AWS S3 endpoints
     )
 
+def bucket_list(client):
+    response = client.list_buckets()
+    return [ b['Name'] for b in response['Buckets'] ]
+
+def create_bucket(client,bucket_name):
+    return client.create_bucket(Bucket=bucket_name)
