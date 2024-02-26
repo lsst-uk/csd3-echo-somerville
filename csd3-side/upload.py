@@ -203,4 +203,4 @@ if __name__ == '__main__':
     log_df = pd.read_csv(log)
     final_size = log_df["FILE_SIZE"].sum() / 1024**2
     print(f'Finished at {datetime.now()}, elapsed time = {final_time}')
-    print(f'Total: {len(log_df)} files; {(final_size):.2f} MiB; {(final_size/final_time_seconds):.2f} MiB/s; {(final_time_seconds/len(log_df)):.2f} s/file')
+    print(f'Total: {len(log_df)} files; {(final_size):.2f} MiB; {(final_size/final_time_seconds):.2f} MiB/s including setup time; {(final_time_seconds/len(log_df)):.2f} s/file including setup time')
