@@ -132,7 +132,7 @@ def process_files(s3_host,access_key,secret_key, bucket_name, current_objects, s
 
 # # Go!
 if __name__ == '__main__':
-    usage = "python upload.py source_path sub_dirs prefix\nWhere:\n\t\"source_path\" is an absolute path to a folder to be uploaded;\n\t\"sub_dirs\" is the section at the end of that path to be used in S3 object keys;\n\t\ and \"prefix\" is the prefix to be used in S3 object keys.\n\tExample: \`python upload.py /home/dave/data /dave/data test\`\n\tWould upload files (and non-empty subfolders) from /home/dave/data to test/dave/data."
+    usage = "Usage:\n\tpython upload.py source_path prefix sub_dirs\nWhere:\n\t\"source_path\" is an absolute path to a folder to be uploaded;\n\t\"sub_dirs\" is the section at the end of that path to be used in S3 object keys;\n\tand \"prefix\" is the prefix to be used in S3 object keys.\nExample:\n\tpython upload.py /home/dave/work/data test /data\n\tWould upload files (and non-empty subfolders) from /home/dave/work/data to test/data."
     
     if len(sys.argv) != 4:
         sys.exit(usage)
@@ -141,10 +141,10 @@ if __name__ == '__main__':
     start = datetime.now()
     # Set the source directory, bucket name, and destination directory
     source_dir = sys.argv[1]
-    sub_dirs = sys.argv[2]
+    sub_dirs = sys.argv[3]
     if sub_dirs not in source_dir:
         sys.exit(usage)
-    prefix = sys.argv[3]
+    prefix = sys.argv[2]
     log = f"{prefix}-{'-'.join(sub_dirs.split('/'))}-files.csv"
     destination_dir = f"{prefix}/{sub_dirs}" 
     folders = []
@@ -198,4 +198,9 @@ if __name__ == '__main__':
         process_files(s3_host,access_key,secret_key, bucket_name, current_objects, source_dir, destination_dir, ncores, perform_checksum, upload_checksum, dryrun, log)
     
     # Complete
-    print(f'Finished at {datetime.now()}, elapsed time = {datetime.now() - start}')
+    final_time = datetime.now() - start
+    final_time_seconds = final_time.seconds + final_time.microseconds / 1e6
+    log_df = pd.read_csv(log)
+    final_size = log_df["FILE_SIZE"].sum()/1024**2
+    print(f'Finished at {datetime.now()}, elapsed time = {final_time}')
+    print(f'Total: {len(log_df)} files; {final_size/1024**2):.2f} MiB; {final_size/1024**2/final_time_seconds:.2f} MiB/s; {final_time_seconds/len(log_df):.2f} s/file')
