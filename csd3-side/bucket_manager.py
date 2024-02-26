@@ -9,50 +9,39 @@ import os, sys
 import warnings
 from botocore.exceptions import ClientError
 
-def print_buckets(client):
-    with warnings.catch_warnings():
-        warnings.filterwarnings('ignore')
-        response = client.list_buckets()
-    for bucket in response['Buckets']:
-        print(f"{bucket['Name']}\t{bucket['CreationDate']}")
-
+def print_buckets(resource):
+    for b in resource.buckets.all():
+        print(b.name)
+    
 def get_keys(json_file):
 	with open(json_file, 'r') as keyfile:
 		keys = json.load(keyfile)
 	return keys
 
-def get_client(access_key, secret_key, host):
+def get_resource(access_key, secret_key, s3_host):
     session = boto3.Session(
         aws_access_key_id=access_key,
         aws_secret_access_key=secret_key
     )
-    return session.client(
+    return session.resource(
         service_name='s3',
-        endpoint_url=f'https://{host}',
+        endpoint_url=f'https://{s3_host}',
         verify=False  # Disable SSL verification for non-AWS S3 endpoints
     )
 
-def bucket_list(client):
-    with warnings.catch_warnings():
-        warnings.filterwarnings('ignore')
-        response = client.list_buckets()
-    return [ b['Name'] for b in response['Buckets'] ]
+def bucket_list(resource):
+    return [ b.name for b in resource.buckets.all() ]
 
-def create_bucket(client,bucket_name):
+def create_bucket(resource):
     try:
-        with warnings.catch_warnings():
-            warnings.filterwarnings('ignore')
-            client.create_bucket(Bucket=bucket_name)
-    except ClientError as e:
-        print(f'ClientError {e}')
-        return False
-    except Error as e:
-        print(f'Error {e}')
-        return False
+        resource.create_bucket(Bucket=bucket_name)
+    except Exception as e:
+        print(e)
     return True
 
-def object_list(client,bucket_name):
-    with warnings.catch_warnings():
-        warnings.filterwarnings('ignore')
-        response = client.list_objects(Bucket=bucket_name)
-    return [ c['Key'] for c in response['Contents'] ]
+def print_objects(bucket):
+    for obj in bucket.objects.all():
+        print(obj.key)
+
+def object_list(bucket):
+    return [ obj.key for obj in bucket.objects.all() ]

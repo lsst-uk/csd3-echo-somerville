@@ -1,26 +1,77 @@
-import boto
-import json
+#!/usr/bin/env python
+# coding: utf-8
+# D. McKay Feb 2024
+
+"""
+Delete a bucket given its name.
+"""
+
+import sys
+if len(sys.argv) != 2:
+    sys.exit('Provide a bucket name as an argument.')
 import os
-import boto.s3.connection
-import bucket_manager
+from datetime import datetime
+import boto3
+import json
+
+
+import bucket_manager as bm
+
+
 
 s3_host = 'echo.stfc.ac.uk'
-keys = bucket_manager.get_keys(os.sep.join([os.environ['HOME'],'lsst_keys.json']))
+keys = bm.get_keys(os.sep.join([os.environ['HOME'],'lsst_keys.json']))
 access_key = keys['access_key']
 secret_key = keys['secret_key']
 
-conn = bucket_manager.get_conn(access_key, secret_key, s3_host)
-bucket = conn.get_bucket('csd3-backup-test')
 
-for key in bucket.list():
-	print("{name}\t{size}\t{modified}".format(
-		name = key.name,
-		size = key.size,
-		modified = key.last_modified,
-	))
+import warnings
+warnings.filterwarnings('ignore')
 
-for key in bucket.list():
-	print(f'Deleting {key}')
-	bucket.delete_key(key)
-print(f'Deleting bucket {bucket.name}')
-conn.delete_bucket(bucket.name)
+
+s3 = bm.get_resource(access_key, secret_key, s3_host)
+
+
+bucket_name = sys.argv[1]
+
+if not bucket_name in bm.bucket_list(s3):
+    sys.exit('Bucket does not exist.')
+
+sure = input("Are you sure? [y/n]\n").lower()
+
+if sure == 'n':
+    sys.exit('Aborted.')
+elif sure == 'y':
+    print('Proceeding')
+else:
+    sys.exit('Aborted.')
+
+bucket = s3.Bucket(bucket_name)
+
+if len(list(bucket.objects.all())) > 0:
+    response = bucket.objects.all().delete()
+    
+    
+    try:
+        deleted = [ d['Key'] for d in response[0]['Deleted'] ]
+        for d in deleted:
+            print(f'Deleted object: {d}')
+    except Exception as e:
+        print(e)
+    
+    
+    #Confirm
+    if len(list(bucket.objects.all())) == 0:
+        print(f'Bucket {bucket_name} emptied.')
+
+try:
+    bucket.delete()
+except Exception as e:
+    if '(BucketNotEmpty)' in str(e).split():
+        print(f'Error: {bucket_name} BucketNotEmpty. Cannot delete.')
+    else:
+        print(e)
+
+#Confirm
+if not bucket_name in bm.bucket_list(s3):
+    print(f'Bucket {bucket_name} deleted.')
