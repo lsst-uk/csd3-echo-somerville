@@ -56,7 +56,7 @@ def upload_to_bucket(s3_host,access_key,secret_key,bucket_name,folder,filename,o
     return return_string
 
 
-def print_stats(log,folder,file_count,total_size,folder_start,folder_end,upload_checksum):
+def print_stats(folder,file_count,total_size,folder_start,folder_end,upload_checksum):
     elapsed = folder_end - folder_start
     print(f'Finished folder {folder}, elapsed time = {elapsed}')
     elapsed_seconds = elapsed.seconds + elapsed.microseconds / 1e6
@@ -117,7 +117,7 @@ def process_files(s3_host,access_key,secret_key, bucket_name, current_objects, s
                         logfile.write(f'{result}\n')
                 folder_end = datetime.now()
                 folder_files_size = np.sum(np.array([os.path.getsize(filename) for filename in folder_files]))
-                print_stats(log, folder, file_count, folder_files_size, folder_start, folder_end, upload_checksum)
+                print_stats(folder, file_count, folder_files_size, folder_start, folder_end, upload_checksum)
 
                 # testing - stop after 1 folders
                 # i+=1
@@ -201,6 +201,6 @@ if __name__ == '__main__':
     final_time = datetime.now() - start
     final_time_seconds = final_time.seconds + final_time.microseconds / 1e6
     log_df = pd.read_csv(log)
-    final_size = log_df["FILE_SIZE"].sum()/1024**2
+    final_size = log_df["FILE_SIZE"].sum() / 1024**2
     print(f'Finished at {datetime.now()}, elapsed time = {final_time}')
-    print(f'Total: {len(log_df)} files; {final_size/1024**2):.2f} MiB; {final_size/1024**2/final_time_seconds:.2f} MiB/s; {final_time_seconds/len(log_df):.2f} s/file')
+    print(f'Total: {len(log_df)} files; {(final_size):.2f} MiB; {(final_size/final_time_seconds):.2f} MiB/s; {(final_time_seconds/len(log_df)):.2f} s/file')
