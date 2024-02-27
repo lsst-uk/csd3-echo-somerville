@@ -149,7 +149,7 @@ if __name__ == '__main__':
     destination_dir = f"{prefix}/{sub_dirs}" 
     folders = []
     folder_files = []
-    ncores = 1 # change to adjust number of CPUs (= number of concurrent connections)
+    ncores = 4 # change to adjust number of CPUs (= number of concurrent connections)
     perform_checksum = True
     upload_checksum = False
     dryrun = False
