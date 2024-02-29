@@ -4,12 +4,13 @@
 #Script to parse a Butler export YAML file for paths and create a list of all paths, with any symlinks resolved
 
 import os
+import sys
 from tqdm import tqdm
 import pandas as pd
 
-butler_base_dir = '/rds/project/rds-lT5YGmtKack/ras81/butler_wide_20220930'
+butler_base_dir = sys.argv[1] #'/rds/project/rds-lT5YGmtKack/ras81/butler_wide_20220930'
 butler_data_dir = f'{butler_base_dir}/data'
-butler_export_path = f'{butler_base_dir}/exports_deepCoadd_calexp_video_20230525.yaml' # smallest butler export yaml file
+butler_export_path = f'{butler_base_dir}/{sys.argv[2]}' # exports_deepCoadd_calexp_video_20230525.yaml' # smallest butler export yaml file
 
 #Note Butler export YAML files contain non-standard YAML flags.
 #We just need paths, so simply parse for paths.
