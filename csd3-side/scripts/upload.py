@@ -255,8 +255,8 @@ example:
 '''
     parser = argparse.ArgumentParser(
         description='Upload files from a local directory to an S3 bucket in parallel.',
-        epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter,
-        allow_abbrev=False,
+        epilog=epilog,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument('bucket_name', type=str, help='Name of the S3 bucket')
     parser.add_argument('source_path', type=str, help='Absolute path to the folder to be uploaded')
@@ -268,8 +268,6 @@ example:
     source_dir = args.source_path
     prefix = args.S3_prefix
     sub_dirs = args.S3_folder
-    if sub_dirs.startswith('/'):
-        sub_dirs = sub_dirs[1:]
     bucket_name = args.bucket_name
 
     if not source_dir or not prefix or not sub_dirs or not bucket_name:
