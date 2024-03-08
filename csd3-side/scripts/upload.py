@@ -199,16 +199,21 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 folder_start = datetime.now()
                 
                 print('checking for symlinks')
-                for i, f in range(len(folder_files)): # do not iterate over the list itself as adding to it
+                symlink_targets = []
+                symlink_obj_names = []
+                for i in range(len(folder_files)):
                     if os.path.islink(folder_files[i]):
                         #rename link in object_names
                         symlink_obj_name = object_names[i]
                         object_names[i] = '.'.join([object_names[i], 'symlink'])
-                        #add symlink target to file list
-                        folder_files.append(os.path.realpath(folder_files[i]))
-                        #add real file to object_names (will take place of original symlink)
-                        object_names.append(symlink_obj_name)
-                        #raise Exception("Not dealing with symlinks here yet.")
+                        #add symlink target to symlink_targets list
+                        symlink_targets.append(os.path.realpath(folder_files[i]))
+                        #add real file to symlink_obj_names list
+                        symlink_obj_names.append(symlink_obj_name)
+
+                # append symlink_targets and symlink_obj_names to folder_files and object_names
+                folder_files.extend(symlink_targets)
+                object_names.extend(symlink_obj_names)
                 
                 file_count = len(object_names)
                 print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
