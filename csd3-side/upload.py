@@ -98,18 +98,28 @@ def process_files(s3_host,access_key,secret_key, bucket_name, current_objects, s
                     if on in current_objects:
                         object_names.remove(on)
                         del folder_files[oni]
-                file_count = len(object_names)
+                pre_linkcheck_file_count = len(object_names)
                 if init_len - file_count > 0:
                     print(f'Skipping {init_len - file_count} existing files.')
                 # print(f'folder_files: {folder_files}')
                 # print(f'object_names: {object_names}')
                 folder_start = datetime.now()
                 
-                # print('check for symlinks')
-                for f in files:
-                    if os.path.islink(f):
-                        print(os.path.islink(f))
-                        raise Exception("Not dealing with symlinks here yet.")
+                print('checking for symlinks')
+                for i, f in range(len(folder_files)): # do not iterate over the list itself as adding to it
+                    if os.path.islink(folder_files[i]):
+                        #rename link in object_names
+                        symlink_obj_name = object_names[i]
+                        object_names[i] = '.'.join([object_names[i],'symlink'])
+                        #add symlink target to file list
+                        folder_files.append(os.path.realpath(folder_files[i]))
+                        #add real file to object_names (will take place of original symlink)
+                        object_names.append(symlink_obj_name)
+                        #raise Exception("Not dealing with symlinks here yet.")
+                
+                file_count = len(object_names)
+                print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renames to <filename>.symlink')
+                        
                 # upload files in parallel and log output
                 print(f'Uploading {file_count} files from {folder} using {ncores} processes.')
                 with open(log, 'a') as logfile:
