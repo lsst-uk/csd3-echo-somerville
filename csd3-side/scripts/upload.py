@@ -192,8 +192,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         object_names.remove(on)
                         del folder_files[oni]
                 pre_linkcheck_file_count = len(object_names)
-                if init_len - file_count > 0:
-                    print(f'Skipping {init_len - file_count} existing files.')
+                if init_len - pre_linkcheck_file_count > 0:
+                    print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.')
                 # print(f'folder_files: {folder_files}')
                 # print(f'object_names: {object_names}')
                 folder_start = datetime.now()
@@ -252,6 +252,9 @@ Where:
 Example:
     python upload.py /home/dave/work/data test /data
     Would upload files (and non-empty subfolders) from /home/dave/work/data to test/data.
+
+Note:
+    `bucket_name` is hard-coded to 'csd3-backup-test' in this script.
 '''
     
     if len(sys.argv) != 4:
