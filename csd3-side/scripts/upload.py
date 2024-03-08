@@ -270,16 +270,14 @@ example:
 
     args = parser.parse_args()
 
-    if len(sys.argv) < 5:
-        sys.exit(parser.print_usage(sys.stderr))
-
     source_dir = args.source_path
     prefix = args.S3_prefix
     sub_dirs = args.S3_folder
     bucket_name = args.bucket_name
 
     if not source_dir or not prefix or not sub_dirs or not bucket_name:
-        sys.exit(parser.print_help())
+        parser.print_help()
+        sys.exit(1)
 
     # Initiate timing
     start = datetime.now()
