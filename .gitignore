@@ -1,3 +1,6 @@
+#Visual Studio Code IDE files
+.vscode/
+
 # log files
 *.log
 *.err
