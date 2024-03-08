@@ -59,6 +59,7 @@ import bucket_manager.bucket_manager as bm
 
 import hashlib
 import os
+import argparse
 
 def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, upload_checksum, dryrun):
     """
@@ -240,34 +241,43 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
 # # Go!
 if __name__ == '__main__':
-    usage = '''
-Usage:
-    python upload.py source_path prefix sub_dirs
-
-Where:
+    epilog = '''
+where:
+    "bucket_name" is the name of the S3 bucket.
     "source_path" is an absolute path to a folder to be uploaded;
-    "sub_dirs" is the section at the end of that path to be used in S3 object keys;
-    and "prefix" is the prefix to be used in S3 object keys.
+    "S3_prefix" is the prefix to be used in S3 object keys;
+    "S3_folder" is the section at the end of that path to be used in S3 object keys;
+    
 
-Example:
-    python upload.py /home/dave/work/data test /data
-    Would upload files (and non-empty subfolders) from /home/dave/work/data to test/data.
-
-Note:
-    `bucket_name` is hard-coded to 'csd3-backup-test' in this script.
+example:
+    python upload.py my-bucket /home/dave/work/data test data
+    would upload files (and non-empty subfolders) from /home/dave/work/data to test/data in my-bucket.
 '''
-    
-    if len(sys.argv) != 4:
-        sys.exit(usage)
-    
+    parser = argparse.ArgumentParser(
+        description='Upload files from a local directory to an S3 bucket in parallel.',
+        epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter,
+        allow_abbrev=False,
+    )
+    parser.add_argument('bucket_name', type=str, help='Name of the S3 bucket')
+    parser.add_argument('source_path', type=str, help='Absolute path to the folder to be uploaded')
+    parser.add_argument('S3_prefix', type=str, help='Prefix to be used in S3 object keys')
+    parser.add_argument('S3_folder', type=str, help='Section at the end of the source path to be used in S3 object keys')
+
+    args = parser.parse_args()
+
+    source_dir = args.source_path
+    prefix = args.S3_prefix
+    sub_dirs = args.S3_folder
+    if sub_dirs.startswith('/'):
+        sub_dirs = sub_dirs[1:]
+    bucket_name = args.bucket_name
+
+    if not source_dir or not prefix or not sub_dirs or not bucket_name:
+        sys.exit(parser.print_usage())
+
     # Initiate timing
     start = datetime.now()
-    # Set the source directory, bucket name, and destination directory
-    source_dir = sys.argv[1]
-    sub_dirs = sys.argv[3]
-    if sub_dirs not in source_dir:
-        sys.exit(usage)
-    prefix = sys.argv[2]
+
     log = f"{prefix}-{'-'.join(sub_dirs.split('/'))}-files.csv"
     destination_dir = f"{prefix}/{sub_dirs}" 
     folders = []
@@ -288,16 +298,7 @@ Note:
     secret_key = keys['secret_key']
     
     s3 = bm.get_resource(access_key, secret_key, s3_host)
-    
-    print(s3)
-    
-    bucket_name = 'csd3-backup-test'
-    if dryrun:
-        mybucket = 'dummy_bucket'
-    
-    
     bucket_list = bm.bucket_list(s3)
-    
     
     if bucket_name not in bucket_list:
         if not dryrun:
@@ -306,10 +307,16 @@ Note:
     else:
         if not dryrun:
             print(f'Bucket exists: {bucket_name}')
-            #sys.exit('Bucket exists.')
+            continue_ = input("Continue? [y/n]\n").lower()
+            if continue_ == 'n':
+                sys.exit('Bucket exists.')
+            elif continue_ == 'y':
+                print('Continuing')
+            else:
+                sys.exit('Invalid input.')
         else:
             print(f'Bucket exists: {bucket_name}')
-            print('dryrun = True, so continuing.')
+            print('dryrun == True, so continuing.')
     
     bucket = s3.Bucket(bucket_name)
     current_objects = bm.object_list(bucket)
