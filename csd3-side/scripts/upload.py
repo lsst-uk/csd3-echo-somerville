@@ -265,6 +265,9 @@ example:
 
     args = parser.parse_args()
 
+    if len(sys.argv) < 5:
+        sys.exit(parser.print_help())
+
     source_dir = args.source_path
     prefix = args.S3_prefix
     sub_dirs = args.S3_folder
