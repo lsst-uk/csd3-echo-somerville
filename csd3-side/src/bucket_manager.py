@@ -40,6 +40,8 @@ def get_keys(api='S3'):
         user = os.environ['ECHO_SWIFT_USER']
         secret_key = os.environ['ECHO_SWIFT_SECRET_KEY']
         return {'user': user, 'secret_key': secret_key}
+    else:
+        raise ValueError(f'Invalid API: {api}')
 
 def get_resource(access_key, secret_key, s3_host):
     """
