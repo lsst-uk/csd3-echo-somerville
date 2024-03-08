@@ -3,34 +3,24 @@
 # D. McKay Feb 2024
 
 """
-Delete a bucket given its name.
+This script allows you to delete a bucket in an S3-compatible storage service.
 """
 
 import sys
-if len(sys.argv) != 2:
-    sys.exit('Provide a bucket name as an argument.')
 import os
-from datetime import datetime
-import boto3
-import json
+import warnings
 
-
-import bucket_manager as bm
-
-
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import bucket_manager.bucket_manager as bm
 
 s3_host = 'echo.stfc.ac.uk'
-keys = bm.get_keys(os.sep.join([os.environ['HOME'],'lsst_keys.json']))
+keys = bm.get_keys(api='S3')
 access_key = keys['access_key']
 secret_key = keys['secret_key']
 
-
-import warnings
 warnings.filterwarnings('ignore')
 
-
 s3 = bm.get_resource(access_key, secret_key, s3_host)
-
 
 bucket_name = sys.argv[1]
 
@@ -51,16 +41,14 @@ bucket = s3.Bucket(bucket_name)
 if len(list(bucket.objects.all())) > 0:
     response = bucket.objects.all().delete()
     
-    
     try:
-        deleted = [ d['Key'] for d in response[0]['Deleted'] ]
+        deleted = [d['Key'] for d in response[0]['Deleted']]
         for d in deleted:
             print(f'Deleted object: {d}')
     except Exception as e:
         print(e)
     
-    
-    #Confirm
+    # Confirm
     if len(list(bucket.objects.all())) == 0:
         print(f'Bucket {bucket_name} emptied.')
 
@@ -72,6 +60,6 @@ except Exception as e:
     else:
         print(e)
 
-#Confirm
+# Confirm
 if not bucket_name in bm.bucket_list(s3):
     print(f'Bucket {bucket_name} deleted.')
