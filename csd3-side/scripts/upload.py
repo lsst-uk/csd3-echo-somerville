@@ -253,7 +253,12 @@ example:
     python upload.py my-bucket /home/dave/work/data test data
     would upload files (and non-empty subfolders) from /home/dave/work/data to test/data in my-bucket.
 '''
-    parser = argparse.ArgumentParser(
+    class MyParser(argparse.ArgumentParser):
+        def error(self, message):
+            sys.stderr.write(f'error: {message}\n\n')
+            self.print_help()
+            sys.exit(2)
+    parser = MyParser(
         description='Upload files from a local directory to an S3 bucket in parallel.',
         epilog=epilog,
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -266,7 +271,7 @@ example:
     args = parser.parse_args()
 
     if len(sys.argv) < 5:
-        sys.exit(parser.print_help())
+        sys.exit(parser.print_usage(sys.stderr))
 
     source_dir = args.source_path
     prefix = args.S3_prefix
