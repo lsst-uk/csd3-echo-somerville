@@ -83,7 +83,7 @@ def bucket_list(resource):
     """
     return [ b.name for b in resource.buckets.all() ]
 
-def create_bucket(resource):
+def create_bucket(resource, bucket_name):
     """
     Creates a new bucket in the S3 endpoint.
 
@@ -138,7 +138,7 @@ def print_containers_swift(conn):
     for container in conn.get_account()[1]:
         print(container['name'])
 
-def print_contents_swift(container_name):
+def print_contents_swift(conn,container_name):
     """
     Prints the names, sizes, and last modified timestamps of all objects in the specified container.
 
