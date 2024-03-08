@@ -2,11 +2,7 @@
 # coding: utf-8
 # D. McKay Feb 2024
 
-import sys
 import os
-from datetime import datetime
-import boto3
-import json
 import bucket_manager as bm
 
 s3_host = 'echo.stfc.ac.uk'
