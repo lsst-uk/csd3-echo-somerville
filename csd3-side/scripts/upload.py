@@ -106,9 +106,9 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
         CSV formatted
         header: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY
     """
-    return_string = f'{folder},{filename},{os.stat(filename).st_size},{bucket_name},{object_key}'
+    return_string = f'"{folder}","{filename}",{os.stat(filename).st_size},"{bucket_name}","{object_key}"'
     if perform_checksum and upload_checksum:
-        return_string += f',{checksum},{len(checksum)},{checksum_key}'
+        return_string += f',{checksum},{len(checksum)},"{checksum_key}"'
     elif perform_checksum:
         return_string += f',{checksum},n/a,n/a'
     else:
