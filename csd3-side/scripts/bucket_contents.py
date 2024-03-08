@@ -6,13 +6,11 @@ import sys
 if len(sys.argv) != 2:
     sys.exit('Provide a bucket name as an argument.')
 import os
-from datetime import datetime
-import boto3
-import json
-import bucket_manager as bm
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import bucket_manager.bucket_manager as bm
 
 s3_host = 'echo.stfc.ac.uk'
-keys = bm.get_keys(os.sep.join([os.environ['HOME'],'lsst_keys.json']))
+keys = bm.get_keys()
 access_key = keys['access_key']
 secret_key = keys['secret_key']
 

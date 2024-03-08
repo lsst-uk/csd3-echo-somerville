@@ -1,7 +1,11 @@
 import os
 import unittest
 from unittest.mock import patch
-from bucket_manager import get_keys
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from bucket_manager.bucket_manager import get_keys
+
+
 
 class TestBucketManager(unittest.TestCase):
     @patch.dict(os.environ, {'ECHO_ACCESS_KEY': 's3_access_key', 'ECHO_SECRET_KEY': 's3_secret_key'})
