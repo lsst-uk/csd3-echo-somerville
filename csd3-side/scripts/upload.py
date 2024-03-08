@@ -2,9 +2,44 @@
 # coding: utf-8
 #D.McKay Feb 2024
 
+"""
+This script is used to upload files from a local directory to an S3 bucket in parallel.
+
+Usage:
+    python upload.py source_path prefix sub_dirs
+
+Where:
+    - "source_path" is an absolute path to a folder to be uploaded.
+    - "sub_dirs" is the section at the end of that path to be used in S3 object keys.
+    - "prefix" is the prefix to be used in S3 object keys.
+
+Example:
+    python upload.py /home/dave/work/data test /data
+    Would upload files (and non-empty subfolders) from /home/dave/work/data to test/data.
+
+The script utilizes multiprocessing to upload files in parallel. It calculates checksums for the files and can optionally upload checksum files along with the files. It also provides statistics on the upload process, including the number of files uploaded, total size, and elapsed time.
+
+The main function in this script is "process_files", which takes the following arguments:
+
+Args:
+    s3_host (str): The hostname of the S3 server.
+    access_key (str): The access key for the S3 server.
+    secret_key (str): The secret key for the S3 server.
+    bucket_name (str): The name of the S3 bucket.
+    current_objects (list): A list of object names already present in the S3 bucket.
+    source_dir (str): The local directory containing the files to upload.
+    destination_dir (str): The destination directory in the S3 bucket.
+    ncores (int): The number of CPU cores to use for parallel processing.
+    perform_checksum (bool): Flag indicating whether to perform checksum validation during upload.
+    upload_checksum (bool): Flag indicating whether to upload checksum files along with the files.
+    dryrun (bool): Flag indicating whether to perform a dry run without actually uploading the files.
+    log (str): The path to the log file.
+
+Returns:
+    None
+"""
 import sys
 import os
-import re
 from multiprocessing import Pool
 from itertools import repeat
 import warnings
@@ -22,7 +57,32 @@ import bucket_manager.bucket_manager as bm
 
 
 
-def upload_to_bucket(s3_host,access_key,secret_key,bucket_name,folder,filename,object_key,perform_checksum,upload_checksum,dryrun):
+import hashlib
+import os
+
+def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, upload_checksum, dryrun):
+    """
+    Uploads a file to an S3 bucket.
+    Optionally calculates a checksum for the file
+    Optionally uploads the checksum to file.ext.checksum alongside file.ext.
+    
+    Args:
+        s3_host (str): The S3 host URL.
+        access_key (str): The access key for the S3 bucket.
+        secret_key (str): The secret key for the S3 bucket.
+        bucket_name (str): The name of the S3 bucket.
+        folder (str): The local folder containing the file to upload.
+        filename (str): The name of the file to upload.
+        object_key (str): The key to assign to the uploaded file in the S3 bucket.
+        perform_checksum (bool): Flag indicating whether to perform a checksum on the file.
+        upload_checksum (bool): Flag indicating whether to upload the checksum to the S3 bucket.
+        dryrun (bool): Flag indicating whether to perform a dry run (no actual upload).
+
+    Returns:
+        str: A string containing information about the uploaded file in CSV format.
+            The format is: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY
+            Where: CHECKSUM, CHECKSUM_SIZE and CHECKSUM_KEY are n/a if checksum was not performed and/or a .checksum file was not uploaded.
+    """
     s3 = bm.get_resource(access_key, secret_key, s3_host)
     bucket = s3.Bucket(bucket_name)
     file_data = open(filename, 'rb')
@@ -34,12 +94,12 @@ def upload_to_bucket(s3_host,access_key,secret_key,bucket_name,folder,filename,o
         if upload_checksum and not dryrun:
             checksum_key = object_key + '.checksum'
             #create checksum object
-            bucket.put_object(Body=checksum,ContentEncoding='utf-8',Key=checksum_key)
+            bucket.put_object(Body=checksum, ContentEncoding='utf-8', Key=checksum_key)
     """
     - Upload the file to the bucket
     """
     if not dryrun:
-        bucket.upload_fileobj(file_data,object_key)
+        bucket.upload_fileobj(file_data, object_key)
 
     """
         report actions
@@ -56,34 +116,67 @@ def upload_to_bucket(s3_host,access_key,secret_key,bucket_name,folder,filename,o
     return return_string
 
 
-def print_stats(folder,file_count,total_size,folder_start,folder_end,upload_checksum):
+def print_stats(folder, file_count, total_size, folder_start, folder_end, upload_checksum):
+    """
+    Prints the statistics of the upload process.
+
+    Args:
+        folder (str): The name of the folder being uploaded.
+        file_count (int): The number of files uploaded.
+        total_size (int): The total size of the uploaded files in bytes.
+        folder_start (datetime): The start time of the folder upload.
+        folder_end (datetime): The end time of the folder upload.
+        upload_checksum (bool): Indicates whether checksum files were uploaded.
+
+    Returns:
+        None
+    """
     elapsed = folder_end - folder_start
     print(f'Finished folder {folder}, elapsed time = {elapsed}')
     elapsed_seconds = elapsed.seconds + elapsed.microseconds / 1e6
     avg_file_size = total_size / file_count / 1024**2
     if not upload_checksum:
-        print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded in {elapsed_seconds:.2f} seconds, {elapsed_seconds/file_count:.2f} s/file',flush=True)
-        print(f'{total_size / 1024**2:.2f} MiB uploaded in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/s',flush=True)
+        print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded in {elapsed_seconds:.2f} seconds, {elapsed_seconds/file_count:.2f} s/file', flush=True)
+        print(f'{total_size / 1024**2:.2f} MiB uploaded in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/s', flush=True)
     if upload_checksum:
-        checksum_size = 32*file_count # checksum byte strings are 32 bytes
+        checksum_size = 32 * file_count  # checksum byte strings are 32 bytes
         total_size += checksum_size
         file_count *= 2
-        print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded (including checksum files) in {elapsed_seconds:.2f} seconds, {elapsed_seconds/file_count:.2f} s/file',flush=True)
-        print(f'{total_size / 1024**2:.2f} MiB uploaded (including checksum files) in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/s',flush=True)
+        print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded (including checksum files) in {elapsed_seconds:.2f} seconds, {elapsed_seconds/file_count:.2f} s/file', flush=True)
+        print(f'{total_size / 1024**2:.2f} MiB uploaded (including checksum files) in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/s', flush=True)
 
+def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, source_dir, destination_dir, ncores, perform_checksum, upload_checksum, dryrun, log):
+    """
+    Uploads files from a local directory to an S3 bucket in parallel.
 
-def process_files(s3_host,access_key,secret_key, bucket_name, current_objects, source_dir, destination_dir, ncores, perform_checksum, upload_checksum, dryrun, log):
+    Args:
+        s3_host (str): The hostname of the S3 server.
+        access_key (str): The access key for the S3 server.
+        secret_key (str): The secret key for the S3 server.
+        bucket_name (str): The name of the S3 bucket.
+        current_objects (list): A list of object names already present in the S3 bucket.
+        source_dir (str): The local directory containing the files to upload.
+        destination_dir (str): The destination directory in the S3 bucket.
+        ncores (int): The number of CPU cores to use for parallel processing.
+        perform_checksum (bool): Flag indicating whether to perform checksum validation during upload.
+        upload_checksum (bool): Flag indicating whether to upload checksum files along with the files.
+        dryrun (bool): Flag indicating whether to perform a dry run without actually uploading the files.
+        log (str): The path to the log file.
+
+    Returns:
+        None
+    """
     i = 0
     #processed_files = []
     with Pool(ncores) as pool: # use 4 CPUs by default - very little speed-up, might drop multiprocessing and parallelise at shell level
         #recursive loop over local folder
-        for folder,subfolders,files in os.walk(source_dir):
+        for folder, subfolders, files in os.walk(source_dir):
             # check folder isn't empty
             if len(files) > 0:
                 # all files within folder
-                folder_files = [ os.sep.join([folder,filename]) for filename in files ]
+                folder_files = [os.sep.join([folder, filename]) for filename in files]
                 # keys to files on s3
-                object_names = [ os.sep.join([destination_dir, os.path.relpath(filename, source_dir)]) for filename in folder_files ]
+                object_names = [os.sep.join([destination_dir, os.path.relpath(filename, source_dir)]) for filename in folder_files]
                 # print(f'folder_files: {folder_files}')
                 # print(f'object_names: {object_names}')
                 init_len = len(object_names)
@@ -92,9 +185,9 @@ def process_files(s3_host,access_key,secret_key, bucket_name, current_objects, s
                 # print(f'current_objects: {current_objects}')
                 if all([obj in current_objects for obj in object_names]):
                     #all files in this subfolder already in bucket
-                    print(f'Skipping subfoler - all files exist.')
+                    print(f'Skipping subfolder - all files exist.')
                     continue
-                for oni,on in enumerate(object_names):
+                for oni, on in enumerate(object_names):
                     if on in current_objects:
                         object_names.remove(on)
                         del folder_files[oni]
@@ -110,7 +203,7 @@ def process_files(s3_host,access_key,secret_key, bucket_name, current_objects, s
                     if os.path.islink(folder_files[i]):
                         #rename link in object_names
                         symlink_obj_name = object_names[i]
-                        object_names[i] = '.'.join([object_names[i],'symlink'])
+                        object_names[i] = '.'.join([object_names[i], 'symlink'])
                         #add symlink target to file list
                         folder_files.append(os.path.realpath(folder_files[i]))
                         #add real file to object_names (will take place of original symlink)
@@ -118,12 +211,12 @@ def process_files(s3_host,access_key,secret_key, bucket_name, current_objects, s
                         #raise Exception("Not dealing with symlinks here yet.")
                 
                 file_count = len(object_names)
-                print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renames to <filename>.symlink')
+                print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
                         
                 # upload files in parallel and log output
                 print(f'Uploading {file_count} files from {folder} using {ncores} processes.')
                 with open(log, 'a') as logfile:
-                    for result in pool.starmap(upload_to_bucket, zip(repeat(s3_host),repeat(access_key),repeat(secret_key), repeat(bucket_name), repeat(folder), folder_files, object_names, repeat(perform_checksum), repeat(upload_checksum), repeat(dryrun))):
+                    for result in pool.starmap(upload_to_bucket, zip(repeat(s3_host), repeat(access_key), repeat(secret_key), repeat(bucket_name), repeat(folder), folder_files, object_names, repeat(perform_checksum), repeat(upload_checksum), repeat(dryrun))):
                         logfile.write(f'{result}\n')
                 folder_end = datetime.now()
                 folder_files_size = np.sum(np.array([os.path.getsize(filename) for filename in folder_files]))
@@ -134,15 +227,27 @@ def process_files(s3_host,access_key,secret_key, bucket_name, current_objects, s
                 # if i == 100:
                 #     break
             else:
-                print(f'Skipping subfoler - empty.')
+                print(f'Skipping subfolder - empty.')
     # Upload log file
     if not dryrun:
-        upload_to_bucket(s3_host,access_key,secret_key,bucket_name, '/', log, os.path.basename(log), False, False, False)
+        upload_to_bucket(s3_host, access_key, secret_key, bucket_name, '/', log, os.path.basename(log), False, False, False)
 
 
 # # Go!
 if __name__ == '__main__':
-    usage = "Usage:\n\tpython upload.py source_path prefix sub_dirs\nWhere:\n\t\"source_path\" is an absolute path to a folder to be uploaded;\n\t\"sub_dirs\" is the section at the end of that path to be used in S3 object keys;\n\tand \"prefix\" is the prefix to be used in S3 object keys.\nExample:\n\tpython upload.py /home/dave/work/data test /data\n\tWould upload files (and non-empty subfolders) from /home/dave/work/data to test/data."
+    usage = '''
+Usage:
+    python upload.py source_path prefix sub_dirs
+
+Where:
+    "source_path" is an absolute path to a folder to be uploaded;
+    "sub_dirs" is the section at the end of that path to be used in S3 object keys;
+    and "prefix" is the prefix to be used in S3 object keys.
+
+Example:
+    python upload.py /home/dave/work/data test /data
+    Would upload files (and non-empty subfolders) from /home/dave/work/data to test/data.
+'''
     
     if len(sys.argv) != 4:
         sys.exit(usage)
