@@ -13,12 +13,12 @@ from time import sleep
 import hashlib
 import pandas as pd
 import numpy as np
-import json
 
 
 import warnings
 warnings.filterwarnings('ignore')
-import bucket_manager as bm
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import bucket_manager.bucket_manager as bm
 
 
 
@@ -170,7 +170,7 @@ if __name__ == '__main__':
     
     # Setup bucket
     s3_host = 'echo.stfc.ac.uk'
-    keys = bm.get_keys(os.sep.join([os.environ['HOME'],'lsst_keys.json']))
+    keys = bm.get_keys()
     access_key = keys['access_key']
     secret_key = keys['secret_key']
     
