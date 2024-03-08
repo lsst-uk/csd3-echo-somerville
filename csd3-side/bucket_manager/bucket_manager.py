@@ -33,12 +33,18 @@ def get_keys(api='S3'):
     For Swift API: a dictionary containing the user and secret key.
     """
     if api == 'S3':
-        access_key = os.environ['ECHO_ACCESS_KEY']
-        secret_key = os.environ['ECHO_SECRET_KEY']
+        try:
+            access_key = os.environ['ECHO_S3_ACCESS_KEY']
+            secret_key = os.environ['ECHO_S3_SECRET_KEY']
+        except KeyError:
+            raise KeyError('Set ECHO_S3_ACCESS_KEY and ECHO_S3_SECRET_KEY environment variables.')
         return {'access_key': access_key, 'secret_key': secret_key}
     elif api == 'Swift':
-        user = os.environ['ECHO_SWIFT_USER']
-        secret_key = os.environ['ECHO_SWIFT_SECRET_KEY']
+        try:
+            user = os.environ['ECHO_SWIFT_USER']
+            secret_key = os.environ['ECHO_SWIFT_SECRET_KEY']
+        except KeyError:
+            raise KeyError('Set ECHO_SWIFT_USER and ECHO_SWIFT_SECRET_KEY environment variables.')
         return {'user': user, 'secret_key': secret_key}
     else:
         raise ValueError(f'Invalid API: {api}')
