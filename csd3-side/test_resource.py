@@ -1,16 +1,8 @@
 import boto3
-import json
-import os, sys
+import os
 
-def get_keys(json_file):
-	with open(json_file, 'r') as keyfile:
-		keys = json.load(keyfile)
-	return keys
-
-keys = get_keys(os.sep.join([os.environ['HOME'],'lsst_keys.json']))
-
-access_key = keys['access_key']
-secret_key = keys['secret_key']
+access_key = os.environ['ECHO_ACCESS_KEY']
+secret_key = os.environ['ECHO_SECRET_KEY']
 
 s3_host = 'echo.stfc.ac.uk'
 
