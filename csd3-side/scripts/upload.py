@@ -273,7 +273,7 @@ example:
     bucket_name = args.bucket_name
 
     if not source_dir or not prefix or not sub_dirs or not bucket_name:
-        sys.exit(parser.print_usage())
+        sys.exit(parser.print_help())
 
     # Initiate timing
     start = datetime.now()
