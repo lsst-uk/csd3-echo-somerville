@@ -8,56 +8,57 @@ import time
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import bucket_manager.bucket_manager as bm
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings('ignore')
 
+    s3_host = 'echo.stfc.ac.uk'
+    keys = bm.get_keys(api='S3')
 
+    access_key = keys['access_key']
+    secret_key = keys['secret_key']
 
-s3_host = 'echo.stfc.ac.uk'
-keys = bm.get_keys(api='S3')
+    s3 = bm.get_resource(access_key, secret_key, s3_host)
 
-access_key = keys['access_key']
-secret_key = keys['secret_key']
+    bucket_name = sys.argv[1]
+    bucket = s3.Bucket(bucket_name)
 
-s3 = bm.get_resource(access_key, secret_key, s3_host)
+    print('Connection established.')
 
-bucket_name = sys.argv[1]
-bucket = s3.Bucket(bucket_name)
+    start_num_files = 0
+    start_size = 0
 
-print('Connection established.')
+    start_time = datetime.now()  # Move the start_time assignment here
 
-start_num_files = 0
-start_size = 0
+    for ob in bucket.objects.all():
+        start_num_files += 1
+        start_size += s3.Object(bucket_name,ob.key).content_length
+        print(s3.Object(bucket_name,ob.key).content_length)
 
-start_time = datetime.now()  # Move the start_time assignment here
+    print(start_size)
 
-for ob in bucket.objects.all():
-    start_num_files += 1
-    start_size += s3.Object(bucket_name,ob.key).content_length
-    print(s3.Object(bucket_name,ob.key).content_length)
+    for i in range(5):
+        print(i)
+        time.sleep(1)
 
-print(start_size)
+    end_num_files = 0
+    end_size = 0
+    for ob in bucket.objects.all():
+        start_num_files+=1
+        start_size += s3.Object(bucket_name,ob.key).content_length
+    end_time = datetime.now()
+    print(end_size)
 
-for i in range(5):
-    print(i)
-    time.sleep(1)
+    elapsed = end_time - start_time
+    elapsed_seconds = elapsed.seconds + elapsed.microseconds / 1e6
+    size_diff = end_size - start_size
+    size_diff_MiB = size_diff / 1024**2
+    files_diff = end_num_files - start_num_files
 
-end_num_files = 0
-end_size = 0
-for ob in bucket.objects.all():
-	start_num_files+=1
-	start_size += s3.Object(bucket_name,ob.key).content_length
-end_time = datetime.now()
-print(end_size)
+    transfer_speed = size_diff_MiB / elapsed_seconds
+    if files_diff > 0:
+        seconds_per_file = elapsed_seconds / files_diff
+    else:
+        seconds_per_file = 0
 
-elapsed = end_time - start_time
-elapsed_seconds = elapsed.seconds + elapsed.microseconds / 1e6
-size_diff = end_size - start_size
-size_diff_MiB = size_diff / 1024**2
-files_diff = end_num_files - start_num_files
-
-transfer_speed = size_diff_MiB / elapsed_seconds
-if files_diff > 0:
-	seconds_per_file = elapsed_seconds / files_diff
-else:
-	seconds_per_file = 0
-
-print(f'Transfer speed = {transfer_speed:.2f} MiB/s - {seconds_per_file:.2f} s/file')
+    print(f'Transfer speed = {transfer_speed:.2f} MiB/s - {seconds_per_file:.2f} s/file')
