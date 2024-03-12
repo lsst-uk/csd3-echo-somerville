@@ -26,15 +26,20 @@ print('Connection established.')
 
 start_num_files = 0
 start_size = 0
+
+start_time = datetime.now()  # Move the start_time assignment here
+
 for ob in bucket.objects.all():
-	start_num_files+=1
-	start_size+=ob.size
-	print(ob.key,ob.size)
-start_time = datetime.now()
+    start_num_files += 1
+    start_size += ob.size
+    print(ob)
+
 print(start_size)
+
 for i in range(5):
-	print(i)
-	time.sleep(1)
+    print(i)
+    time.sleep(1)
+
 end_num_files = 0
 end_size = 0
 for ob in bucket.objects.all():
