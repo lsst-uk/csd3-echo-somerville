@@ -1,36 +1,21 @@
-import boto
-import json
 import os
-import boto.s3.connection
 from datetime import datetime
 import time
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import bucket_manager.bucket_manager as bm
 
-def print_buckets(conn):
-    for bucket in conn.get_all_buckets():
-            print("{name}\t{created}".format(name = bucket.name,created = bucket.creation_date))
-def get_keys(json_file):
-    with open(json_file, 'r') as keyfile:
-        keys = json.load(keyfile)
-    return keys
-
-def get_conn(access_key, secret_key, host):
-    return boto.connect_s3(
-        aws_access_key_id = access_key,
-        aws_secret_access_key = secret_key,
-        host = host,
-        calling_format = boto.s3.connection.OrdinaryCallingFormat(),
-    )
 
 
 s3_host = 'echo.stfc.ac.uk'
-keys = get_keys(os.sep.join([os.environ['HOME'],'lsst_keys.json']))
+keys = bm.get_keys(api='S3')
 
 access_key = keys['access_key']
 secret_key = keys['secret_key']
 
-conn = get_conn(access_key, secret_key, s3_host)
+s3 = bm.get_resource(access_key, secret_key, s3_host)
 
-bucket = conn.get_bucket('dm-test')
+bucket_name = sys.argv[1]
+bucket = s3.Bucket(bucket_name)
 
 print('Connection established.')
 
