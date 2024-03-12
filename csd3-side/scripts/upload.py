@@ -309,8 +309,9 @@ example:
     dryrun = False
     
     # Add titles to log file
-    with open(log, 'w') as logfile: # elsewhere open(log, 'a')
-        logfile.write('LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY\n')
+    if not os.path.exists(log):
+        with open(log, 'w') as logfile: # elsewhere open(log, 'a')
+            logfile.write('LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY\n')
     
     # Setup bucket
     s3_host = 'echo.stfc.ac.uk'
