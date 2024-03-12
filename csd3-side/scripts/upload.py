@@ -205,6 +205,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 folder_start = datetime.now()
                 
                 print('checking for symlinks')
+                #always do this AFTER removing "current_objects" to avoid re-uploading
                 symlink_targets = []
                 symlink_obj_names = []
                 for i in range(len(folder_files)):
