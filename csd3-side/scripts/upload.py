@@ -255,8 +255,8 @@ where:
     
 
 example:
-    python upload.py my-bucket /home/dave/work/data test data
-    would upload files (and non-empty subfolders) from /home/dave/work/data to test/data in my-bucket.
+    python upload.py my-bucket /home/dave/work/data test data --exclude do_not_backup*
+    would upload files (and non-empty subfolders) from /home/dave/work/data to test/data in my-bucket, excluding files and folders starting in /home/dave/work/data that start with "do_not_backup".
 '''
     class MyParser(argparse.ArgumentParser):
         def error(self, message):
@@ -272,7 +272,7 @@ example:
     parser.add_argument('source_path', type=str, help='Absolute path to the folder to be uploaded')
     parser.add_argument('S3_prefix', type=str, help='Prefix to be used in S3 object keys')
     parser.add_argument('S3_folder', type=str, help='Section at the end of the source path to be used in S3 object keys')
-    parser.add_argument('--exclude', nargs='+', help='Folders to exclude from upload as pythonic list or wildcard string')
+    parser.add_argument('--exclude', nargs='+', help='Folders to exclude from upload as a list or wildcard')
     args = parser.parse_args()
 
     source_dir = args.source_path
