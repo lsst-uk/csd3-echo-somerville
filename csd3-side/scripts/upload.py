@@ -256,7 +256,8 @@ where:
 
 example:
     python upload.py my-bucket /home/dave/work/data test data --exclude do_not_backup*
-    would upload files (and non-empty subfolders) from /home/dave/work/data to test/data in my-bucket, excluding files and folders starting in /home/dave/work/data that start with "do_not_backup".
+    would upload files (and non-empty subfolders) from /home/dave/work/data to test/data in my-bucket,
+    excluding files and folders starting in /home/dave/work/data that start with "do_not_backup".
 '''
     class MyParser(argparse.ArgumentParser):
         def error(self, message):
