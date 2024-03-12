@@ -329,13 +329,14 @@ example:
     else:
         if not dryrun:
             print(f'Bucket exists: {bucket_name}')
-            continue_ = input("Continue? [y/n]\n").lower()
-            if continue_ == 'n':
-                sys.exit('Bucket exists.')
-            elif continue_ == 'y':
-                print('Continuing')
-            else:
-                sys.exit('Invalid input.')
+            print('Existing files will be skipped.')
+            # continue_ = input("Continue? [y/n]\n").lower()
+            # if continue_ == 'n':
+            #     sys.exit('Bucket exists.')
+            # elif continue_ == 'y':
+            #     print('Continuing')
+            # else:
+            #     sys.exit('Invalid input.')
         else:
             print(f'Bucket exists: {bucket_name}')
             print('dryrun == True, so continuing.')
