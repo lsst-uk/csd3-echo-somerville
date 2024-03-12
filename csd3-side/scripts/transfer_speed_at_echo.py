@@ -32,8 +32,8 @@ with warnings.catch_warnings():
 
     for ob in bucket.objects.all():
         start_num_files += 1
-        start_size += s3.Object(bucket_name,ob.key).content_length
-        print(s3.Object(bucket_name,ob.key).content_length)
+        start_size += ob.size
+        print(ob.size)
 
     print(start_size)
 
@@ -45,7 +45,7 @@ with warnings.catch_warnings():
     end_size = 0
     for ob in bucket.objects.all():
         start_num_files+=1
-        start_size += s3.Object(bucket_name,ob.key).content_length
+        start_size += ob.size
     end_time = datetime.now()
     print(end_size)
 
