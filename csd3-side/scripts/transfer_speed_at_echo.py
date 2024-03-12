@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+# coding: utf-8
+# D. McKay March 2024
+
 import os
 from datetime import datetime
 import time
@@ -25,6 +29,7 @@ start_size = 0
 for ob in bucket.objects.all():
 	start_num_files+=1
 	start_size+=ob.size
+	print(ob.key,ob.size)
 start_time = datetime.now()
 print(start_size)
 for i in range(5):
