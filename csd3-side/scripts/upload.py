@@ -48,6 +48,7 @@ from time import sleep
 import hashlib
 import pandas as pd
 import numpy as np
+import glob
 
 
 import warnings
@@ -146,7 +147,7 @@ def print_stats(folder, file_count, total_size, folder_start, folder_end, upload
         print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded (including checksum files) in {elapsed_seconds:.2f} seconds, {elapsed_seconds/file_count:.2f} s/file', flush=True)
         print(f'{total_size / 1024**2:.2f} MiB uploaded (including checksum files) in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/s', flush=True)
 
-def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, source_dir, destination_dir, ncores, perform_checksum, upload_checksum, dryrun, log):
+def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, exclude, source_dir, destination_dir, ncores, perform_checksum, upload_checksum, dryrun, log):
     """
     Uploads files from a local directory to an S3 bucket in parallel.
 
@@ -172,6 +173,10 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     with Pool(ncores) as pool: # use 4 CPUs by default - very little speed-up, might drop multiprocessing and parallelise at shell level
         #recursive loop over local folder
         for folder, subfolders, files in os.walk(source_dir):
+            # check if folder is in the exclude list
+            if folder in exclude:
+                print(f'Skipping subfolder {folder} - excluded.')
+                continue
             # check folder isn't empty
             if len(files) > 0:
                 # all files within folder
@@ -267,13 +272,23 @@ example:
     parser.add_argument('source_path', type=str, help='Absolute path to the folder to be uploaded')
     parser.add_argument('S3_prefix', type=str, help='Prefix to be used in S3 object keys')
     parser.add_argument('S3_folder', type=str, help='Section at the end of the source path to be used in S3 object keys')
-
+    parser.add_argument('--exclude', nargs='+', help='Folders to exclude from upload as pythonic list or wildcard string')
     args = parser.parse_args()
 
     source_dir = args.source_path
     prefix = args.S3_prefix
     sub_dirs = args.S3_folder
     bucket_name = args.bucket_name
+    exclude = []
+    if args.exclude:
+        if '*' not in ''.join(args.exclude):
+            # treat as list
+            exclude = [f'{source_dir}/{excl}' for excl in args.exclude[0].split(',')]
+        else:
+            # treat as wildcard string
+            exclude = [item for sublist in [glob.glob(f'{source_dir}/{excl}') for excl in args.exclude] for item in sublist]
+            # exclude = glob.glob(f'{source_dir}/{args.exclude}')
+    print(f'Excluding {exclude}')
 
     if not source_dir or not prefix or not sub_dirs or not bucket_name:
         parser.print_help()
@@ -284,8 +299,8 @@ example:
 
     log = f"{prefix}-{'-'.join(sub_dirs.split('/'))}-files.csv"
     destination_dir = f"{prefix}/{sub_dirs}" 
-    folders = []
-    folder_files = []
+    # folders = []
+    # folder_files = []
     ncores = 4 # change to adjust number of CPUs (= number of concurrent connections)
     perform_checksum = True
     upload_checksum = False
@@ -329,7 +344,7 @@ example:
     print(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}')
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore')
-        process_files(s3_host,access_key,secret_key, bucket_name, current_objects, source_dir, destination_dir, ncores, perform_checksum, upload_checksum, dryrun, log)
+        process_files(s3_host,access_key, secret_key, bucket_name, current_objects, exclude, source_dir, destination_dir, ncores, perform_checksum, upload_checksum, dryrun, log)
     
     # Complete
     final_time = datetime.now() - start
