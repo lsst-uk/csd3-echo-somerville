@@ -31,8 +31,8 @@ start_time = datetime.now()  # Move the start_time assignment here
 
 for ob in bucket.objects.all():
     start_num_files += 1
-    start_size += ob.content_length
-    print(ob)
+    start_size += s3.Object(bucket_name,ob.key).content_length
+    print(s3.Object(bucket_name,ob.key).content_length)
 
 print(start_size)
 
@@ -44,7 +44,7 @@ end_num_files = 0
 end_size = 0
 for ob in bucket.objects.all():
 	start_num_files+=1
-	start_size+=ob.content_length
+	start_size += s3.Object(bucket_name,ob.key).content_length
 end_time = datetime.now()
 print(end_size)
 
