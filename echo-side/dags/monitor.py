@@ -13,6 +13,7 @@ from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor
 from datetime import timedelta
 
 new_keys = []
+connection = S3Hook(aws_conn_id='EchoS3')
 
 def run_on_new_file(**kwargs):
     s3_hook = S3Hook(aws_conn_id='EchoS3')
@@ -60,16 +61,16 @@ run_on_new_file = PythonOperator(
     op_kwargs={'ds': '{{ ds }}'},
 )
 
-check_key = KubernetesPodOperator(
+check_csv = KubernetesPodOperator(
     task_id="check_key",
     name="check-key",
     namespace="airflow",
-    image="localhost:32000/check-key:latest",
+    image="localhost:32000/check-csv:latest",
     cmds=["python", "-c"],
-    arguments=[new_keys],
+    arguments=[new_keys,connection.access_key,connection.secret_key],
     get_logs=True,
     dag=dag,
 )
 
 #graph
-s3_sensor >> run_on_new_file >> check_key
+s3_sensor >> run_on_new_file >> check_csv
