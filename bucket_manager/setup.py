@@ -17,5 +17,5 @@ setup(
         'Programming Language :: Python :: 3.8',
     ],
     keywords='s3 bucket management cephs3 swift',
-    install_requires=['boto3', 'swiftclient'],
+    install_requires=['boto3', 'python-swiftclient'],
 )
