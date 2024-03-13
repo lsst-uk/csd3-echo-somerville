@@ -8,7 +8,7 @@ import sys
 import os
 from dask import dataframe as dd
 import pandas as pd
-from distributed import Client, wait #, progress
+from distributed import Client, wait, as_completed #, progress
 import hashlib
 from tqdm import tqdm
 import numpy as np
@@ -40,7 +40,7 @@ def get_checksum_a(args):
 
 if __name__ == '__main__':
 
-    client = Client(n_workers=8,threads_per_worker=1,memory_limit="1Gi")
+    client = Client(n_workers=16,threads_per_worker=1,memory_limit="1Gi")
 
     keys = bm.get_keys('S3')
     s3_host = 'echo.stfc.ac.uk'
@@ -69,7 +69,6 @@ if __name__ == '__main__':
     upload_log = dd.read_csv(upload_log_path)[['FILE_SIZE', 'DESTINATION_KEY', 'CHECKSUM']]
     # upload_log.
     upload_log = upload_log[upload_log['DESTINATION_KEY'].str.endswith('.symlink') == False]
-    upload_log = upload_log.compute()[:1]
 
     # print(upload_log)
 
@@ -81,7 +80,7 @@ if __name__ == '__main__':
         pass
     
     new_checksum = [future.result() for future in checksum_futures]
-    print(new_checksum)
+#    print(new_checksum)
     print(f'Dask timing: {datetime.now()-start}')
 
     # close Dask client
@@ -91,6 +90,7 @@ if __name__ == '__main__':
     checksums_match = None
     sizes_match = None
     # Compare checksums
+    upload_log = upload_log.compute()
     upload_log['NEW_CHECKSUM'] = new_checksum
     upload_log['CHECKSUM_MATCH'] = upload_log['CHECKSUM'] == upload_log['NEW_CHECKSUM']
     
