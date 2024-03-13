@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 #Visual Studio Code IDE files
 .vscode/
 
@@ -7,6 +8,8 @@
 *.csv
 slurm*.out
 
+=======
+>>>>>>> origin/main
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
