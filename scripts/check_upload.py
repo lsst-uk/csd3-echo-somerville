@@ -1,10 +1,12 @@
 from datetime import datetime, timedelta
 import sys
 import os
-import bucket_manager as bm
 import pandas as pd
 import hashlib
 from tqdm import tqdm
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import bucket_manager.bucket_manager as bm
 
 keys = bm.get_keys('S3')
 s3_host = 'echo.stfc.ac.uk'
@@ -17,19 +19,16 @@ s3 = bm.get_resource(access_key,secret_key,s3_host)
 bucket_name = sys.argv[1]
 bucket = s3.Bucket(bucket_name)
 
-try:
-    for ob in bucket.objects.all():
-        # print(ob.key)
-        if not ob.key.endswith('.symlink'):
-            files_to_checksum.append(ob.key)
-except Exception as e:
-    if '(NoSuchBucket)' in str(e).split():
-        print('NoSuchBucket')
-
 upload_log_URI = sys.argv[2]
 upload_log_path = os.path.join(os.getcwd(),'upload_log.csv')
 
-s3.meta.client.download_file(bucket_name, upload_log_URI, 'upload_log.csv')
+try:
+    s3.meta.client.download_file(bucket_name, upload_log_URI, 'upload_log.csv')
+except Exception as e:
+    if '(NoSuchBucket)' in str(e).split():
+        print(f'NoSuchBucket {bucket_name}')
+    elif '(NoSuchKey)' in str(e).split():
+        print(f'NoSuchKey {upload_log_URI}')
 
 upload_log = pd.read_csv(upload_log_path)[['FILE_SIZE', 'DESTINATION_KEY', 'CHECKSUM']]
 upload_log = upload_log[upload_log['DESTINATION_KEY'].str.endswith('.symlink') == False]
