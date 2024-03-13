@@ -3,7 +3,8 @@ import sys
 import os
 import bucket_manager as bm
 import pandas as pd
-
+import hashlib
+from tqdm import tqdm
 
 keys = bm.get_keys('S3')
 s3_host = 'echo.stfc.ac.uk'
@@ -15,8 +16,6 @@ s3 = bm.get_resource(access_key,secret_key,s3_host)
 
 bucket_name = sys.argv[1]
 bucket = s3.Bucket(bucket_name)
-
-files_to_checksum = []
 
 try:
     for ob in bucket.objects.all():
@@ -32,18 +31,43 @@ upload_log_path = os.path.join(os.getcwd(),'upload_log.csv')
 
 s3.meta.client.download_file(bucket_name, upload_log_URI, 'upload_log.csv')
 
-upload_log = pd.read_csv(upload_log_path)
+upload_log = pd.read_csv(upload_log_path)[['FILE_SIZE', 'DESTINATION_KEY', 'CHECKSUM']]
+upload_log = upload_log[upload_log['DESTINATION_KEY'].str.endswith('.symlink') == False]
 
-print(upload_log)
+# print(upload_log)
 
-#def download_and_checksum_files():
-    #s3_conn = S3Hook(aws_conn_id='EchoS3')
-#
-    ## Get the list of .fits files in the S3 bucket
-    #fits_files = s3_conn.list_keys(bucket_name='dm-test',
-                                     #prefix='*.fits')['Contents']
-    #print(fits_files)
-    #file_list_object = s3_conn.get_object(bucket_name='dm-test',key='VIDEO-20180819-files.csv')
-    #file_list_data = file_list_object['Body'].read().decode('utf-8')
-    #print(file_list_data)
-#
+# Get objects "and checksum them"
+new_checksum = [hashlib.md5(s3.Object(bucket_name, URI).get()['Body'].read()).hexdigest().encode('utf-8') for URI in tqdm(upload_log['DESTINATION_KEY'])]
+
+# match booleans
+checksums_match = None
+sizes_match = None
+# Compare checksums
+upload_log['NEW_CHECKSUM'] = new_checksum
+upload_log['CHECKSUM_MATCH'] = upload_log['CHECKSUM'] == upload_log['NEW_CHECKSUM']
+if upload_log['CHECKSUM_MATCH'].all():
+    checksums_match = True
+    print('Checksums match.')
+else:    
+    checksums_match = False
+    print('Checksums do not match.')
+# Compare file sizes
+upload_log['SIZE_ON_S3'] = [s3.Object(bucket_name, URI).content_length for URI in tqdm(upload_log['DESTINATION_KEY'])]
+upload_log['SIZE_MATCH'] = upload_log['SIZE_ON_S3'] == upload_log['FILE_SIZE']
+if upload_log['SIZE_MATCH'].all():
+    sizes_match = True
+    print('Sizes match.')
+else:
+    sizes_match = False
+    print('Sizes do not match.')
+
+if checksums_match and sizes_match:
+    print('Upload successful.')
+    # Clean up
+    os.remove(upload_log_path)
+    sys.exit(0)
+else:
+    print('Upload failed.')
+    # Clean up
+    os.remove(upload_log_path)
+    sys.exit(1)
