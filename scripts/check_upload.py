@@ -8,7 +8,7 @@ import sys
 import os
 from dask import dataframe as dd
 import pandas as pd
-from distributed import Client, wait, as_completed
+from distributed import Client, wait #, progress
 import hashlib
 from tqdm import tqdm
 import numpy as np
@@ -80,25 +80,20 @@ if __name__ == '__main__':
     for _ in tqdm(as_completed(checksum_futures), total=len(upload_log)):
         pass
     
-    wait(checksum_futures)
     new_checksum = [future.result() for future in checksum_futures]
     print(new_checksum)
     print(f'Dask timing: {datetime.now()-start}')
+
+    # close Dask client
+    client.close()
 
     # match booleans
     checksums_match = None
     sizes_match = None
     # Compare checksums
-    print(b'cbf89cff1c9a8c7baf474f61b5fb027c' == b'cbf89cff1c9a8c7baf474f61b5fb027c')
-    print('cbf89cff1c9a8c7baf474f61b5fb027c' == 'cbf89cff1c9a8c7baf474f61b5fb027c')
     upload_log['NEW_CHECKSUM'] = new_checksum
-    print(upload_log['CHECKSUM'], upload_log['NEW_CHECKSUM'])
-    # print(np.subtract(upload_log['CHECKSUM'].values, upload_log['NEW_CHECKSUM'].values))
-    print(type(upload_log['CHECKSUM'].iloc[0])), type(upload_log['NEW_CHECKSUM'].iloc[0])
-    upload_log['CHECKSUM_MATCH'] = [chk[2:-1] == nchk for chk, nchk in zip(upload_log['CHECKSUM'], upload_log['NEW_CHECKSUM'])]
-    print(upload_log['CHECKSUM'].dtype, upload_log['NEW_CHECKSUM'].dtype)
-    # upload_log['CHECKSUM_MATCH'] = upload_log['CHECKSUM'][2:-1] == upload_log['NEW_CHECKSUM']
-    print(upload_log['CHECKSUM_MATCH'])
+    upload_log['CHECKSUM_MATCH'] = upload_log['CHECKSUM'] == upload_log['NEW_CHECKSUM']
+    
     if upload_log['CHECKSUM_MATCH'].all():
         checksums_match = True
         print('Checksums match.')
