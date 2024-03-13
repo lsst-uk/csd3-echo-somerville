@@ -92,7 +92,9 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
         """
         - Create checksum object
         """
+        file_data.seek(0)  # Ensure we're at the start of the file
         checksum = hashlib.md5(file_data.read()).hexdigest().encode('utf-8')
+        file_data.seek(0)  # Reset the file pointer to the start
         if upload_checksum and not dryrun:
             checksum_key = object_key + '.checksum'
             #create checksum object
@@ -102,7 +104,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
     """
     if not dryrun:
         bucket.upload_fileobj(file_data, object_key)
-
+    file_data.close()
     """
         report actions
         CSV formatted
