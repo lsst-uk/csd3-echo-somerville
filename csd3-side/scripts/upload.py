@@ -29,7 +29,7 @@ Args:
     current_objects (list): A list of object names already present in the S3 bucket.
     source_dir (str): The local directory containing the files to upload.
     destination_dir (str): The destination directory in the S3 bucket.
-    ncores (int): The number of CPU cores to use for parallel processing.
+    nprocs (int): The number of CPU cores to use for parallel processing.
     perform_checksum (bool): Flag indicating whether to perform checksum validation during upload.
     upload_checksum (bool): Flag indicating whether to upload checksum files along with the files.
     dryrun (bool): Flag indicating whether to perform a dry run without actually uploading the files.
@@ -149,7 +149,7 @@ def print_stats(folder, file_count, total_size, folder_start, folder_end, upload
         print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded (including checksum files) in {elapsed_seconds:.2f} seconds, {elapsed_seconds/file_count:.2f} s/file', flush=True)
         print(f'{total_size / 1024**2:.2f} MiB uploaded (including checksum files) in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/s', flush=True)
 
-def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, exclude, source_dir, destination_dir, ncores, perform_checksum, upload_checksum, dryrun, log):
+def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, exclude, source_dir, destination_dir, nprocs, perform_checksum, upload_checksum, dryrun, log):
     """
     Uploads files from a local directory to an S3 bucket in parallel.
 
@@ -161,7 +161,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         current_objects (list): A list of object names already present in the S3 bucket.
         source_dir (str): The local directory containing the files to upload.
         destination_dir (str): The destination directory in the S3 bucket.
-        ncores (int): The number of CPU cores to use for parallel processing.
+        nprocs (int): The number of CPU cores to use for parallel processing.
         perform_checksum (bool): Flag indicating whether to perform checksum validation during upload.
         upload_checksum (bool): Flag indicating whether to upload checksum files along with the files.
         dryrun (bool): Flag indicating whether to perform a dry run without actually uploading the files.
@@ -172,7 +172,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     """
     i = 0
     #processed_files = []
-    with Pool(ncores) as pool: # use 4 CPUs by default - very little speed-up, might drop multiprocessing and parallelise at shell level
+    with Pool(nprocs) as pool: # use 4 CPUs by default - very little speed-up, might drop multiprocessing and parallelise at shell level
         #recursive loop over local folder
         for folder, subfolders, files in os.walk(source_dir):
             # check if folder is in the exclude list
@@ -228,7 +228,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
                         
                 # upload files in parallel and log output
-                print(f'Uploading {file_count} files from {folder} using {ncores} processes.')
+                print(f'Uploading {file_count} files from {folder} using {nprocs} processes.')
                 with open(log, 'a') as logfile:
                     for result in pool.starmap(upload_to_bucket, zip(repeat(s3_host), repeat(access_key), repeat(secret_key), repeat(bucket_name), repeat(folder), folder_files, object_names, repeat(perform_checksum), repeat(upload_checksum), repeat(dryrun))):
                         logfile.write(f'{result}\n')
@@ -277,12 +277,14 @@ example:
     parser.add_argument('S3_prefix', type=str, help='Prefix to be used in S3 object keys')
     parser.add_argument('S3_folder', type=str, help='Section at the end of the source path to be used in S3 object keys')
     parser.add_argument('--exclude', nargs='+', help='Folders to exclude from upload as a list or wildcard')
+    parser.add_argument('--nprocs', type=int, default=4, help='Number of CPU cores to use for parallel upload')
     args = parser.parse_args()
 
     source_dir = args.source_path
     prefix = args.S3_prefix
     sub_dirs = args.S3_folder
     bucket_name = args.bucket_name
+    nprocs = args.nprocs # change to adjust number of CPUs (= number of concurrent connections)
     exclude = []
     if args.exclude:
         if '*' not in ''.join(args.exclude):
@@ -305,7 +307,7 @@ example:
     destination_dir = f"{prefix}/{sub_dirs}" 
     # folders = []
     # folder_files = []
-    ncores = 4 # change to adjust number of CPUs (= number of concurrent connections)
+    
     perform_checksum = True
     upload_checksum = False
     dryrun = False
@@ -350,7 +352,7 @@ example:
     print(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}')
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore')
-        process_files(s3_host,access_key, secret_key, bucket_name, current_objects, exclude, source_dir, destination_dir, ncores, perform_checksum, upload_checksum, dryrun, log)
+        process_files(s3_host,access_key, secret_key, bucket_name, current_objects, exclude, source_dir, destination_dir, nprocs, perform_checksum, upload_checksum, dryrun, log)
     
     # Complete
     final_time = datetime.now() - start

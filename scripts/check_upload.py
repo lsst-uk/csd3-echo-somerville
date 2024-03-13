@@ -1,3 +1,8 @@
+#!/usr/bin/env python
+# coding: utf-8
+#D.McKay Feb 2024
+# Check the checksums of files in an S3 bucket by verifying against the checksums in the upload log.
+
 from datetime import datetime
 import sys
 import os
@@ -16,9 +21,21 @@ def get_checksum(URI, access_key, secret_key, s3_host):
     s3 = bm.get_resource(access_key,secret_key,s3_host)
     return hashlib.md5(s3.Object(bucket_name, URI).get()['Body'].read()).hexdigest()#.encode('utf-8')
 
+import hashlib
+
 def get_checksum_a(args):
+    """
+    Calculate the MD5 checksum of an object in an S3 bucket.
+
+    Args:
+        args (tuple): A tuple containing the URI, access key, secret key, and S3 host.
+
+    Returns:
+        str: The MD5 checksum of the object.
+
+    """
     URI, access_key, secret_key, s3_host = args
-    s3 = bm.get_resource(access_key,secret_key,s3_host)
+    s3 = bm.get_resource(access_key, secret_key, s3_host)
     return hashlib.md5(s3.Object(bucket_name, URI).get()['Body'].read()).hexdigest()#.encode('utf-8')
 
 if __name__ == '__main__':
@@ -67,25 +84,6 @@ if __name__ == '__main__':
     new_checksum = [future.result() for future in checksum_futures]
     print(new_checksum)
     print(f'Dask timing: {datetime.now()-start}')
-    # print('mp')
-    # with mp.Pool(8) as pool:
-    #     new_checksum = list(
-    #         tqdm(
-    #             pool.imap(
-    #                 get_checksum_a, 
-    #                 zip(upload_log['DESTINATION_KEY'][:10], 
-    #                 repeat(access_key), 
-    #                 repeat(secret_key), 
-    #                 repeat(s3_host))
-                    
-    #             ), 
-    #             total=10#len(upload_log['DESTINATION_KEY'])
-    #         )
-    #     )
-    # print(f'mp timing: {datetime.now()-start}')
-    # print('serial')
-    # new_checksum = [hashlib.md5(s3.Object(bucket_name, URI).get()['Body'].read()).hexdigest().encode('utf-8') for URI in tqdm(upload_log['DESTINATION_KEY'][:10])]
-    # print(f'serial timing: {datetime.now()-start}')
 
     # match booleans
     checksums_match = None
