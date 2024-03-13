@@ -53,7 +53,7 @@ import glob
 
 import warnings
 warnings.filterwarnings('ignore')
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 import bucket_manager.bucket_manager as bm
 
 
