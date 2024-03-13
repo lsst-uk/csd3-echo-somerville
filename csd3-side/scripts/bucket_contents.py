@@ -6,7 +6,7 @@ import sys
 if len(sys.argv) != 2:
     sys.exit('Provide a bucket name as an argument.')
 import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 import bucket_manager.bucket_manager as bm
 
 s3_host = 'echo.stfc.ac.uk'
@@ -22,8 +22,10 @@ s3 = bm.get_resource(access_key,secret_key,s3_host)
 bucket_name = sys.argv[1]
 bucket = s3.Bucket(bucket_name)
 try:
+    print('Contents of bucket: ',bucket_name)
+    print('Object, Size / MiB, LastModified')
     for ob in bucket.objects.all():
-        print(ob.key)
+        print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}')
 except Exception as e:
     if '(NoSuchBucket)' in str(e).split():
         print('NoSuchBucket')

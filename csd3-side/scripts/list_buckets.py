@@ -2,7 +2,7 @@
 # coding: utf-8
 # D. McKay Feb 2024
 import sys, os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 import bucket_manager.bucket_manager as bm
 
 s3_host = 'echo.stfc.ac.uk'
