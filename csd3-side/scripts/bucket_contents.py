@@ -6,7 +6,6 @@ import sys
 if len(sys.argv) != 2:
     sys.exit('Provide a bucket name as an argument.')
 import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 import bucket_manager.bucket_manager as bm
 
 s3_host = 'echo.stfc.ac.uk'

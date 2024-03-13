@@ -1,8 +1,8 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='bucket_manager',
-    version='0.1',
+    name='bucket-manager',
+    version='0.0.1',
     packages=find_packages(),
     description='Helper functions for using an s3 bucket',
     author='Dave McKay',
