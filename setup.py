@@ -1,5 +1,5 @@
 from setuptools import setup, find_packages
-
+# note only the contents of the "bucket_manager" folder are installable
 setup(
     name='bucket-manager',
     version='0.0.1',
