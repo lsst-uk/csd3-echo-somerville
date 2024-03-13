@@ -31,8 +31,6 @@ monitor = KubernetesPodOperator(
     name='monitor',
     task_id='monitor',
     dag=dag,
-    arguments=[connection.login,connection.password],
-    get_logs=True
 )
 
 #graph
