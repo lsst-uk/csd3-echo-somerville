@@ -20,12 +20,15 @@ s3 = bm.get_resource(access_key,secret_key,s3_host)
 
 bucket_name = sys.argv[1]
 bucket = s3.Bucket(bucket_name)
+total_size = 0
 try:
     print('Contents of bucket: ',bucket_name)
     print('Object, Size / MiB, LastModified')
     for ob in bucket.objects.all():
         print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}')
+        total_size += ob.size
 except Exception as e:
     if '(NoSuchBucket)' in str(e).split():
         print('NoSuchBucket')
 
+print(f'Total size of bucket: {total_size/1024**3:.2f} GiB')
