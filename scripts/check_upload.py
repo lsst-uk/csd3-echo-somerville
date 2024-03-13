@@ -5,7 +5,7 @@ import pandas as pd
 import hashlib
 from tqdm import tqdm
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import bucket_manager.bucket_manager as bm
 
 keys = bm.get_keys('S3')

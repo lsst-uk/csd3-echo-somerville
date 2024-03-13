@@ -10,7 +10,6 @@ import sys
 import os
 import warnings
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 import bucket_manager.bucket_manager as bm
 
 s3_host = 'echo.stfc.ac.uk'
