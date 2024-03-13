@@ -1,0 +1,1 @@
+Scripts based on bucket_manager.py to interact with Echo through either S3 API or Swift API.

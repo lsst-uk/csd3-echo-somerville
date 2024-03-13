@@ -1,3 +1,15 @@
+<<<<<<< HEAD
+#Visual Studio Code IDE files
+.vscode/
+
+# log files
+*.log
+*.err
+*.csv
+slurm*.out
+
+=======
+>>>>>>> origin/main
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
