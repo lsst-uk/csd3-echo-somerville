@@ -45,7 +45,7 @@ if __name__ == '__main__':
         sys.exit(1)
     upload_log_path = os.path.join(os.getcwd(),'upload_log.csv')
     verification_path = os.path.join(os.getcwd(),'verification.csv')
-    verification_URI = upload_log_URI.replace('.csv','-verification.csv')
+    verification_URI = upload_log_URI.replace('-files.csv','-verification.csv')
     try:
         s3.meta.client.download_file(bucket_name, upload_log_URI, 'upload_log.csv')
     except Exception as e:
