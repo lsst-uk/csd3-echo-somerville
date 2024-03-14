@@ -8,10 +8,10 @@ import sys
 import os
 from dask import dataframe as dd
 import pandas as pd
-from distributed import Client, wait, as_completed #, progress
+from distributed import Client, wait, as_completed
+from multiprocessing import cpu_count
 import hashlib
 from tqdm import tqdm
-import numpy as np
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -21,26 +21,13 @@ def get_checksum(URI, access_key, secret_key, s3_host):
     s3 = bm.get_resource(access_key,secret_key,s3_host)
     return hashlib.md5(s3.Object(bucket_name, URI).get()['Body'].read()).hexdigest()#.encode('utf-8')
 
-import hashlib
-
-def get_checksum_a(args):
-    """
-    Calculate the MD5 checksum of an object in an S3 bucket.
-
-    Args:
-        args (tuple): A tuple containing the URI, access key, secret key, and S3 host.
-
-    Returns:
-        str: The MD5 checksum of the object.
-
-    """
-    URI, access_key, secret_key, s3_host = args
-    s3 = bm.get_resource(access_key, secret_key, s3_host)
-    return hashlib.md5(s3.Object(bucket_name, URI).get()['Body'].read()).hexdigest()#.encode('utf-8')
+def upload_verification_file(bucket_name, verification_path, verification_URI, access_key, secret_key, s3_host):
+    s3 = bm.get_resource(access_key,secret_key,s3_host)
+    s3.meta.client.upload_file(verification_path, bucket_name, verification_URI)
 
 if __name__ == '__main__':
 
-    client = Client(n_workers=16,threads_per_worker=1,memory_limit="1Gi")
+    client = Client(n_workers=cpu_count()-2,threads_per_worker=1,memory_limit="2Gi")
 
     keys = bm.get_keys('S3')
     s3_host = 'echo.stfc.ac.uk'
@@ -53,8 +40,12 @@ if __name__ == '__main__':
     bucket = s3.Bucket(bucket_name)
 
     upload_log_URI = sys.argv[2]
+    if not upload_log_URI.endswith('.csv'):
+        print('Upload log must be a .csv file.')
+        sys.exit(1)
     upload_log_path = os.path.join(os.getcwd(),'upload_log.csv')
-
+    verification_path = os.path.join(os.getcwd(),'verification.csv')
+    verification_URI = upload_log_URI.replace('.csv','-verification.csv')
     try:
         s3.meta.client.download_file(bucket_name, upload_log_URI, 'upload_log.csv')
     except Exception as e:
@@ -78,7 +69,7 @@ if __name__ == '__main__':
     checksum_futures = [client.submit(get_checksum, object_key, access_key, secret_key, s3_host, retries=2) for object_key in upload_log['DESTINATION_KEY']]
     for _ in tqdm(as_completed(checksum_futures), total=len(upload_log)):
         pass
-    
+    wait(checksum_futures)
     new_checksum = [future.result() for future in checksum_futures]
 #    print(new_checksum)
     print(f'Dask timing: {datetime.now()-start}')
@@ -112,8 +103,12 @@ if __name__ == '__main__':
 
     if checksums_match and sizes_match:
         print('Upload successful.')
+        verification = upload_log[['DESTINATION_KEY', 'CHECKSUM', 'CHECKSUM_MATCH', 'NEW_CHECKSUM', 'FILE_SIZE', 'SIZE_ON_S3', 'SIZE_MATCH']]
+        verification.to_csv(verification_path, index=False)
+        upload_verification_file(bucket_name, verification_path, verification_URI, access_key, secret_key, s3_host)
         # Clean up
         os.remove(upload_log_path)
+        os.remove(verification_path)
         sys.exit(0)
     else:
         print('Upload failed.')
