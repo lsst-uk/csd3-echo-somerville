@@ -106,6 +106,7 @@ if __name__ == '__main__':
         verification = upload_log[['DESTINATION_KEY', 'CHECKSUM', 'CHECKSUM_MATCH', 'NEW_CHECKSUM', 'FILE_SIZE', 'SIZE_ON_S3', 'SIZE_MATCH']]
         verification.to_csv(verification_path, index=False)
         upload_verification_file(bucket_name, verification_path, verification_URI, access_key, secret_key, s3_host)
+        print('Verification file uploaded.')
         # Clean up
         os.remove(upload_log_path)
         os.remove(verification_path)
