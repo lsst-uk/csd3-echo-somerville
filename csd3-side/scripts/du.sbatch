@@ -17,7 +17,7 @@ do
 	cd $path
 	date
 	pwd -P
-	find . -type f -print0 | xargs -P 36 -0 du 2>/dev/null| awk '{SUM+=$1} END {print SUM/1048576}'
+	find . -print0 | xargs -P 36 -0 du -L 2>/dev/null| awk '{SUM+=$1} END {print SUM/1048576}'
 	echo gibibytes
 	date
 done
