@@ -7,7 +7,6 @@ This script allows you to delete a bucket in an S3-compatible storage service.
 """
 
 import sys
-import os
 import warnings
 
 import bucket_manager.bucket_manager as bm
