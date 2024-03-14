@@ -314,7 +314,7 @@ example:
     
     # Add titles to log file
     if not os.path.exists(log):
-        with open(log, 'w') as logfile: # elsewhere open(log, 'a')
+        with open(log, 'a') as logfile: # don't open as 'w' in case this is a continuation
             logfile.write('LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY\n')
     
     # Setup bucket

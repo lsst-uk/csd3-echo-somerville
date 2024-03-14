@@ -9,7 +9,7 @@
 #SBATCH --mem=3420mb
 
 # Change to job working directory
-top_path=/rds/project/rds-rPTGgs6He74/ras81/lsst-ir-fusion/dmu5
+top_path=/rds/project/rds-lT5YGmtKack/ras81/butler_full_20221201/data/hscImports/pdr3_wide_full/deepCoadd
 paths=( $(find $top_path -maxdepth 1 -type d) )
 
 for path in "${paths[@]:1}" # ignore index zero as it will be '.'
@@ -17,7 +17,7 @@ do
 	cd $path
 	date
 	pwd -P
-	find . -type f -print0 | xargs -P 36 -0 du 2>/dev/null| awk '{SUM+=$1} END {print SUM/1048576}'
+	find . -print0 | xargs -P 36 -0 du -L 2>/dev/null| awk '{SUM+=$1} END {print SUM/1048576}'
 	echo gibibytes
 	date
 done
