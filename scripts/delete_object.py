@@ -49,5 +49,5 @@ except Exception as e:
     print(e)
 
 # Confirm
-if not URI in bm.object_list(s3, bucket_name):
+if not URI in bm.object_list(bucket):
     print(f'Object {URI} deleted.')
