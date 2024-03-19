@@ -33,7 +33,7 @@ with warnings.catch_warnings():
     for ob in bucket.objects.all():
         start_num_files += 1
         start_size += ob.size
-        print(ob.size)
+        #print(ob.size)
 
     print(start_size)
 
@@ -44,8 +44,8 @@ with warnings.catch_warnings():
     end_num_files = 0
     end_size = 0
     for ob in bucket.objects.all():
-        start_num_files+=1
-        start_size += ob.size
+        end_num_files+=1
+        end_size += ob.size
     end_time = datetime.now()
     print(end_size)
 
