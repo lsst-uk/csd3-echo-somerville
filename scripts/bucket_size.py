@@ -23,7 +23,7 @@ bucket_name = sys.argv[1]
 bucket = s3.Bucket(bucket_name)
 try:
     print('Calculating bucket size...')
-    sizes = tqdm([ob.size for ob in bucket.objects.all()])
+    sizes = tqdm([ob.size for ob in bucket.objects.all()], total=len(bucket.objects.all()))
 except Exception as e:
     if '(NoSuchBucket)' in str(e).split():
         print('NoSuchBucket')
