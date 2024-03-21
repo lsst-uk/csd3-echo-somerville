@@ -1,13 +1,17 @@
 #!/usr/bin/env python
 # coding: utf-8
 #D.McKay Feb 2024
+
 # Check the checksums of files in an S3 bucket by verifying against the checksums in the upload log.
+# The upload log is a CSV file with columns including 'FILE_SIZE', 'DESTINATION_KEY', and 'CHECKSUM'.
+# The verification file is a CSV file with columns including 'DESTINATION_KEY', 'CHECKSUM', 'CHECKSUM_MATCH', 'NEW_CHECKSUM', 'FILE_SIZE', 'SIZE_ON_S3', and 'SIZE_MATCH'.
+# The verification file is uploaded to the S3 bucket with the same name as the upload log but with '-verification' appended to the filename.
+# Uses Dask for parallel processing.
 
 from datetime import datetime
 import sys
 import os
 from dask import dataframe as dd
-import pandas as pd
 from distributed import Client, wait, as_completed
 from multiprocessing import cpu_count
 import hashlib
@@ -18,11 +22,38 @@ warnings.filterwarnings('ignore')
 import bucket_manager.bucket_manager as bm
 
 def get_checksum(URI, access_key, secret_key, s3_host):
-    s3 = bm.get_resource(access_key,secret_key,s3_host)
+    """
+    Calculate the MD5 checksum of an object stored in an S3 bucket.
+
+    Parameters:
+    URI (str): The URI of the object in the S3 bucket.
+    access_key (str): The access key for the S3 bucket.
+    secret_key (str): The secret key for the S3 bucket.
+    s3_host (str): The hostname of the S3 service.
+
+    Returns:
+    str: The MD5 checksum of the object.
+
+    """
+    s3 = bm.get_resource(access_key, secret_key, s3_host)
     return hashlib.md5(s3.Object(bucket_name, URI).get()['Body'].read()).hexdigest()#.encode('utf-8')
 
 def upload_verification_file(bucket_name, verification_path, verification_URI, access_key, secret_key, s3_host):
-    s3 = bm.get_resource(access_key,secret_key,s3_host)
+    """
+    Uploads a verification file to the specified S3 bucket.
+
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        verification_path (str): The local path of the verification file.
+        verification_URI (str): The URI of the verification file in the S3 bucket.
+        access_key (str): The access key for the S3 bucket.
+        secret_key (str): The secret key for the S3 bucket.
+        s3_host (str): The hostname of the S3 service.
+
+    Returns:
+        None
+    """
+    s3 = bm.get_resource(access_key, secret_key, s3_host)
     s3.meta.client.upload_file(verification_path, bucket_name, verification_URI)
 
 if __name__ == '__main__':
