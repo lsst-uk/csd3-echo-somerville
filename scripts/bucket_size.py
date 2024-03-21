@@ -21,6 +21,7 @@ s3 = bm.get_resource(access_key,secret_key,s3_host)
 
 bucket_name = sys.argv[1]
 bucket = s3.Bucket(bucket_name)
+
 try:
     print('Calculating bucket size...')
     sizes = tqdm([ob.size for ob in bucket.objects.all()], total=len(bucket.objects.all()))
