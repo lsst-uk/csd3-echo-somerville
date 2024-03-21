@@ -42,4 +42,4 @@ except Exception as e:
 
 # total_size = sum(sizes)
 
-print(f'Total size of bucket: {total_size/1024**3:.2f} GiB')
+print(f'Total size of bucket: {i} files; {total_size/1024**3:.2f} GiB')
