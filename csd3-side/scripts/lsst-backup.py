@@ -319,7 +319,11 @@ example:
     
     # Setup bucket
     s3_host = 'echo.stfc.ac.uk'
-    keys = bm.get_keys()
+    try:
+        keys = bm.get_keys()
+    except KeyError as e:
+        print(e)
+        sys.exit()
     access_key = keys['access_key']
     secret_key = keys['secret_key']
     
