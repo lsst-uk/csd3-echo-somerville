@@ -60,7 +60,11 @@ if __name__ == '__main__':
 
     client = Client(n_workers=cpu_count()-2,threads_per_worker=1,memory_limit="2Gi")
 
-    keys = bm.get_keys('S3')
+    try:
+        keys = bm.get_keys('S3')
+    except KeyError as e:
+        print(e)
+        sys.exit()
     s3_host = 'echo.stfc.ac.uk'
     access_key = keys['access_key']
     secret_key = keys['secret_key']
