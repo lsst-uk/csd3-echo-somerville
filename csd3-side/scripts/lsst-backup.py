@@ -120,7 +120,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
     return return_string
 
 
-def print_stats(folder, file_count, total_size, folder_start, folder_end, processing_elapsed, upload_checksum):
+def print_stats(folder, file_count, total_size, folder_start, folder_end, processing_elapsed, total_size_uploaded, total_files_uploaded, upload_checksum):
     """
     Prints the statistics of the upload process.
 
@@ -144,13 +144,20 @@ def print_stats(folder, file_count, total_size, folder_start, folder_end, proces
         print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded in {elapsed_seconds:.2f} seconds, {elapsed_seconds/file_count:.2f} s/file', flush=True)
         print(f'{total_size / 1024**2:.2f} MiB uploaded in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/s', flush=True)
         print(f'Total elapsed time = {processing_elapsed}')
+        print(f'Total files uploaded = {total_files_uploaded}')
+        print(f'Total size uploaded = {total_size_uploaded / 1024**3:.2f} GiB')
     if upload_checksum:
         checksum_size = 32 * file_count  # checksum byte strings are 32 bytes
         total_size += checksum_size
         file_count *= 2
+        total_size_uploaded += total_files_uploaded*32
+        total_files_uploaded *= 2
         print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded (including checksum files) in {elapsed_seconds:.2f} seconds, {elapsed_seconds/file_count:.2f} s/file', flush=True)
         print(f'{total_size / 1024**2:.2f} MiB uploaded (including checksum files) in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/s', flush=True)
         print(f'Total elapsed time = {processing_elapsed}')
+        print(f'Total files uploaded = {total_files_uploaded}')
+        print(f'Total size uploaded = {total_size_uploaded / 1024**3:.2f} GiB')
+
 
 def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, exclude, source_dir, destination_dir, nprocs, perform_checksum, upload_checksum, dryrun, log):
     """
@@ -174,6 +181,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         None
     """
     processing_start = datetime.now()
+    total_size_uploaded = 0
+    total_files_uploaded = 0
     i = 0
     #processed_files = []
     with Pool(nprocs) as pool: # use 4 CPUs by default - very little speed-up, might drop multiprocessing and parallelise at shell level
@@ -239,7 +248,9 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 folder_end = datetime.now()
                 folder_files_size = np.sum(np.array([os.path.getsize(filename) for filename in folder_files]))
                 processing_elapsed = folder_end - processing_start
-                print_stats(folder, file_count, folder_files_size, folder_start, folder_end, processing_elapsed, upload_checksum)
+                total_size_uploaded += folder_files_size
+                total_files_uploaded += file_count
+                print_stats(folder, file_count, folder_files_size, folder_start, folder_end, processing_elapsed, total_size_uploaded, total_files_uploaded, upload_checksum)
 
                 # testing - stop after 1 folders
                 # i+=1
