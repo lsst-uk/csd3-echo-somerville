@@ -26,7 +26,7 @@ bucket = s3.Bucket(bucket_name)
 total_size = 0
 i=0
 try:
-    print('Calculating bucket size (".": 1000 objects)')
+    print('Calculating bucket size ("." = 1000 objects)')
     for ob in bucket.objects.all():
         total_size += ob.size
         if i%1000==0:
