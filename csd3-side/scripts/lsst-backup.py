@@ -318,8 +318,8 @@ example:
 
     # Initiate timing
     start = datetime.now()
-
-    log = f"{prefix}-{'-'.join(sub_dirs.split('/'))}-files.csv"
+    log_suffix = 'lsst-backup.csv' # DO NOT CHANGE
+    log = f"{prefix}-{'-'.join(sub_dirs.split('/'))}-{log_suffix}"
     destination_dir = f"{prefix}/{sub_dirs}" 
     # folders = []
     # folder_files = []
