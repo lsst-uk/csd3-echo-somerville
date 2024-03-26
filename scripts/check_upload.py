@@ -109,7 +109,7 @@ if __name__ == '__main__':
     # upload_log = upload_log[upload_log['DESTINATION_KEY'].str.endswith('.symlink') == False]
 
     upload_log = dd.read_csv(upload_log_path)[['FILE_SIZE', 'DESTINATION_KEY', 'CHECKSUM']]
-    # upload_log.
+    # not verifying symlinks 
     upload_log = upload_log[upload_log['DESTINATION_KEY'].str.endswith('.symlink') == False]
 
     # print(upload_log)
