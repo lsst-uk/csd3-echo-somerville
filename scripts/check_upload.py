@@ -75,12 +75,22 @@ if __name__ == '__main__':
     bucket = s3.Bucket(bucket_name)
 
     upload_log_URI = sys.argv[2]
+
+    log_suffix = 'lsst-backup.csv'
+    previous_log_suffix = 'files.csv'
+    verification_suffix = 'lsst-backup-verification.csv'
+
     if not upload_log_URI.endswith('.csv'):
         print('Upload log must be a .csv file.')
         sys.exit(1)
     upload_log_path = os.path.join(os.getcwd(),'upload_log.csv')
     verification_path = os.path.join(os.getcwd(),'verification.csv')
-    verification_URI = upload_log_URI.replace('-files.csv','-verification.csv')
+
+    #if statement only for backwards compatibility - future uploads will use log_suffix
+    if upload_log_URI.endswith(previous_log_suffix):
+        verification_URI = upload_log_URI.replace(f'-{previous_log_suffix}',f'-{verification_suffix}')
+    else:
+        verification_URI = upload_log_URI.replace(f'-{log_suffix}',f'-{verification_suffix}')
     try:
         s3.meta.client.download_file(bucket_name, upload_log_URI, 'upload_log.csv')
     except Exception as e:

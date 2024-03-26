@@ -339,6 +339,7 @@ example:
             print(f'Renamed {previous_log} to {log}')
         else:
             # create new log
+            print(f'Created backup log file {log}')
             with open(log, 'a') as logfile: # don't open as 'w' in case this is a continuation
                 logfile.write('LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY\n')
     
