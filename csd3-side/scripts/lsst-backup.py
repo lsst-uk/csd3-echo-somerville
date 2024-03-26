@@ -330,8 +330,17 @@ example:
     
     # Add titles to log file
     if not os.path.exists(log):
-        with open(log, 'a') as logfile: # don't open as 'w' in case this is a continuation
-            logfile.write('LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY\n')
+        # check for previous suffix (remove after testing)
+        previous_suffix = 'files.csv'
+        previous_log = f"{prefix}-{'-'.join(sub_dirs.split('/'))}-{previous_suffix}"
+        if os.path.exists(previous_log):
+            # rename previous log
+            os.rename(previous_log, log)
+            print(f'Renamed {previous_log} to {log}')
+        else:
+            # create new log
+            with open(log, 'a') as logfile: # don't open as 'w' in case this is a continuation
+                logfile.write('LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY\n')
     
     # Setup bucket
     s3_host = 'echo.stfc.ac.uk'
