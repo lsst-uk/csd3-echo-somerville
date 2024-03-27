@@ -93,7 +93,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
     # Check if the file is a symlink
     # If it is, upload an object containing the target path instead
     if link:
-        file_data = os.path.realpath(filename).encode('utf-8')
+        file_data = os.path.realpath(filename)
     else:
         file_data = open(filename, 'rb')
         if perform_checksum:
@@ -112,9 +112,11 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
     - Upload the file to the bucket
     """
     if not dryrun:
-        bucket.upload_fileobj(file_data, object_key)
-    if not link:
-        file_data.close()
+        if link:
+            bucket.new_key(object_key).set_contents_from_string(file_data)
+        if not link:
+            bucket.upload_fileobj(file_data, object_key)
+            file_data.close()
     """
         report actions
         CSV formatted
