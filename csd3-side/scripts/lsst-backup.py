@@ -96,10 +96,10 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
     # Check if the file is a symlink
     # If it is, upload an object containing the target path instead
     if link:
-        print('file_data is the path to the real file')
+        print('file_data is the path to the real file', flush=True)
         file_data = os.path.realpath(filename)
     else:
-        print('file_data is the file contents')
+        print('file_data is the file contents', flush=True)
         file_data = open(filename, 'rb')
  
     
@@ -111,7 +111,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
             """
             - Upload the link target _path_ to an object
             """
-            print('putting an object with the link target as the body')
+            print('putting an object with the link target as the body', flush=True)
             bucket.put_object(Body=file_data, Key=object_key)
         if not link:
             if perform_checksum:
@@ -123,11 +123,11 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                 checksum_string = checksum_hash.hexdigest()
                 checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
                 file_data.seek(0)  # Reset the file pointer to the start
-                print('putting an object with the file contents as the body and the checksum as the ContentMD5')
+                print('putting an object with the file contents as the body and the checksum as the ContentMD5', flush=True)
                 bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64)
                 file_data.close()
             else:
-                print('putting an object with the file contents as the body')
+                print('putting an object with the file contents as the body', flush=True)
                 bucket.put_object(Body=file_data, Key=object_key)
     """
         report actions
