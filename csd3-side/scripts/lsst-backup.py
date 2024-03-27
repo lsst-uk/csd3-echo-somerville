@@ -113,8 +113,10 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
     """
     if not dryrun:
         if link:
+            print('Adding link information')
             bucket.new_key(object_key).set_contents_from_string(file_data)
         if not link:
+            print('Adding file')
             bucket.upload_fileobj(file_data, object_key)
             file_data.close()
     """
