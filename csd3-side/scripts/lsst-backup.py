@@ -257,7 +257,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     for result in pool.starmap(upload_to_bucket, zip(repeat(s3_host), repeat(access_key), repeat(secret_key), repeat(bucket_name), repeat(folder), folder_files, object_names, repeat(perform_checksum), repeat(dryrun))):
                         logfile.write(f'{result}\n')
                 folder_end = datetime.now()
-                folder_files_size = np.sum(np.array([os.path.getsize(filename) for filename in folder_files]))
+                folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
                 processing_elapsed = folder_end - processing_start
                 total_size_uploaded += folder_files_size
                 total_files_uploaded += file_count
