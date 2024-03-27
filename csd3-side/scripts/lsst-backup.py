@@ -134,7 +134,10 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
         CSV formatted
         header: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM
     """
-    return_string = f'"{folder}","{filename}",{os.stat(filename).st_size},"{bucket_name}","{object_key}"'
+    if link:
+        return_string = f'"{folder}","{filename}",{os.lstat(filename).st_size},"{bucket_name}","{object_key}"'
+    else:
+        return_string = f'"{folder}","{filename}",{os.stat(filename).st_size},"{bucket_name}","{object_key}"'
     if perform_checksum and not link:
         return_string += f',{checksum_string}'
     else:
