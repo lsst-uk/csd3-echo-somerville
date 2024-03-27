@@ -115,7 +115,7 @@ if __name__ == '__main__':
     # print(upload_log)
 
     # Get objects "and checksum them"
-    print('Calculating checksums...')
+    print(f'Calculating checksums using {cpu_count()-2} processes...')
     # start = datetime.now()
     checksum_futures = [client.submit(get_checksum, object_key, access_key, secret_key, s3_host, retries=2) for object_key in upload_log['DESTINATION_KEY']]
     for _ in tqdm(as_completed(checksum_futures), total=len(upload_log)):
