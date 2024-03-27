@@ -87,29 +87,34 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
     """
     s3 = bm.get_resource(access_key, secret_key, s3_host)
     bucket = s3.Bucket(bucket_name)
+    link = False
+    if os.path.islink(filename):
+        link = True
     # Check if the file is a symlink
     # If it is, upload an object containing the target path instead
-    if os.path.islink(filename):
+    if link:
         file_data = os.path.realpath(filename).encode('utf-8')
     else:
         file_data = open(filename, 'rb')
-    if perform_checksum:
-        """
-        - Create checksum object
-        """
-        file_data.seek(0)  # Ensure we're at the start of the file
-        checksum = hashlib.md5(file_data.read()).hexdigest()
-        file_data.seek(0)  # Reset the file pointer to the start
-        if upload_checksum and not dryrun:
-            checksum_key = object_key + '.checksum'
-            #create checksum object
-            bucket.put_object(Body=checksum, Key=checksum_key)
+        if perform_checksum:
+            """
+            - Create checksum object
+            """
+            file_data.seek(0)  # Ensure we're at the start of the file
+            checksum = hashlib.md5(file_data.read()).hexdigest()
+            file_data.seek(0)  # Reset the file pointer to the start
+            if upload_checksum and not dryrun:
+                checksum_key = object_key + '.checksum'
+                #create checksum object
+                bucket.put_object(Body=checksum, Key=checksum_key)
+    
     """
     - Upload the file to the bucket
     """
     if not dryrun:
         bucket.upload_fileobj(file_data, object_key)
-    file_data.close()
+    if not link:
+        file_data.close()
     """
         report actions
         CSV formatted
