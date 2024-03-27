@@ -89,14 +89,17 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
     """
     s3 = bm.get_resource(access_key, secret_key, s3_host)
     bucket = s3.Bucket(bucket_name)
+    print(folder,filename,os.path.islink(filename))
     link = False
     if os.path.islink(filename):
         link = True
     # Check if the file is a symlink
     # If it is, upload an object containing the target path instead
     if link:
+        print('file_data is the path to the real file')
         file_data = os.path.realpath(filename)
     else:
+        print('file_data is the file contents')
         file_data = open(filename, 'rb')
  
     
@@ -108,6 +111,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
             """
             - Upload the link target _path_ to an object
             """
+            print('putting an object with the link target as the body')
             bucket.put_object(Body=file_data, Key=object_key)
         if not link:
             if perform_checksum:
@@ -119,9 +123,11 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                 checksum_string = checksum_hash.hexdigest()
                 checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
                 file_data.seek(0)  # Reset the file pointer to the start
+                print('putting an object with the file contents as the body and the checksum as the ContentMD5')
                 bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64)
                 file_data.close()
             else:
+                print('putting an object with the file contents as the body')
                 bucket.put_object(Body=file_data, Key=object_key)
     """
         report actions
