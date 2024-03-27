@@ -265,7 +265,16 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 print(f'Skipping subfolder - empty.')
     # Upload log file
     if not dryrun:
-        upload_to_bucket(s3_host, access_key, secret_key, bucket_name, '/', log, os.path.basename(log), False, False, False)
+        upload_to_bucket(s3_host,
+                         access_key, 
+                         secret_key, 
+                         bucket_name, 
+                         '/', #path
+                         log, 
+                         os.path.basename(log), 
+                         False, # perform_checksum
+                         False, # dryrun
+                        )
 
 
 # # Go!
