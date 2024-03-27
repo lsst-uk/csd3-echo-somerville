@@ -126,13 +126,13 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
     """
         report actions
         CSV formatted
-        header: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY
+        header: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM
     """
     return_string = f'"{folder}","{filename}",{os.stat(filename).st_size},"{bucket_name}","{object_key}"'
-    if perform_checksum:
-        return_string += f',{checksum_string},n/a,n/a'
+    if perform_checksum and not link:
+        return_string += f',{checksum_string}'
     else:
-        return_string += ',n/a,n/a,n/a'
+        return_string += ',n/a'
     return return_string
 
 
@@ -342,7 +342,7 @@ example:
             # create new log
             print(f'Created backup log file {log}')
             with open(log, 'a') as logfile: # don't open as 'w' in case this is a continuation
-                logfile.write('LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY\n')
+                logfile.write('LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM\n')
     
     # Setup bucket
     s3_host = 'echo.stfc.ac.uk'
