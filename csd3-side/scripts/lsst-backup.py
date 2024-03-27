@@ -87,7 +87,12 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
     """
     s3 = bm.get_resource(access_key, secret_key, s3_host)
     bucket = s3.Bucket(bucket_name)
-    file_data = open(filename, 'rb')
+    # Check if the file is a symlink
+    # If it is, upload an object containing the target path instead
+    if os.path.islink(filename):
+        file_data = os.path.realpath(filename).encode('utf-8')
+    else:
+        file_data = open(filename, 'rb')
     if perform_checksum:
         """
         - Create checksum object
