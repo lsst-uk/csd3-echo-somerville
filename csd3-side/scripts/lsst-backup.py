@@ -85,7 +85,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
     Returns:
         str: A string containing information about the uploaded file in CSV format.
             The format is: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY
-            Where: CHECKSUM, CHECKSUM_SIZE and CHECKSUM_KEY are n/a if checksum was not performed and/or a .checksum file was not uploaded.
+            Where: CHECKSUM, CHECKSUM_SIZE are n/a if checksum was not performed.
     """
     s3 = bm.get_resource(access_key, secret_key, s3_host)
     bucket = s3.Bucket(bucket_name)
@@ -105,7 +105,9 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
     """
     if not dryrun:
         if link:
-            print('Adding link information')
+            """
+            - Upload the link target _path_ to an object
+            """
             bucket.put_object(Body=file_data, Key=object_key)
         if not link:
             if perform_checksum:
@@ -118,9 +120,9 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                 checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
                 file_data.seek(0)  # Reset the file pointer to the start
                 bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64)
-            print('Adding file')
-            bucket.upload_fileobj(file_data, object_key)
-            file_data.close()
+                file_data.close()
+            else:
+                bucket.put_object(Body=file_data, Key=object_key)
     """
         report actions
         CSV formatted
@@ -325,7 +327,6 @@ example:
     # folder_files = []
     
     perform_checksum = True
-    upload_checksum = False
     dryrun = False
     
     # Add titles to log file
