@@ -123,7 +123,7 @@ if __name__ == '__main__':
     done = 0
     for _ in as_completed(checksum_futures):
         done += 1
-        print(done, 'of', len(checksum_futures), 'checksums calculated.', end='\r')
+        print(done, 'of', len(checksum_futures), 'checksums calculated', end='\r')
         
     wait(checksum_futures)
     new_checksum = [future.result() for future in checksum_futures]
@@ -169,7 +169,7 @@ if __name__ == '__main__':
         verification = upload_log[['DESTINATION_KEY', 'CHECKSUM', 'CHECKSUM_MATCH', 'NEW_CHECKSUM', 'FILE_SIZE', 'SIZE_ON_S3', 'SIZE_MATCH']]
         verification.to_csv(verification_path, index=False)
         upload_verification_file(bucket_name, verification_path, verification_URI, access_key, secret_key, s3_host)
-        print(f'Verification file uploaded to {s3_host}/{bucket_name}/{verification_URI}.')
+        print(f'Verification file uploaded to s3://{s3_host}/{bucket_name}/{verification_URI}.')
         # Clean up
         os.remove(upload_log_path)
         os.remove(verification_path)
