@@ -63,7 +63,7 @@ if __name__ == '__main__':
     print(f'Upload verification started at {start} || Elapsed time: 0:00:00.000000')
 
     client = Client(n_workers=cpu_count()-2,threads_per_worker=1,memory_limit="2Gi")
-
+    print('Dask client started.')
     try:
         keys = bm.get_keys('S3')
     except KeyError as e:
@@ -77,7 +77,7 @@ if __name__ == '__main__':
 
     bucket_name = sys.argv[1]
     bucket = s3.Bucket(bucket_name)
-
+    print('Bucket found.')
     upload_log_URI = sys.argv[2]
 
     log_suffix = 'lsst-backup.csv'
@@ -96,6 +96,7 @@ if __name__ == '__main__':
     else:
         verification_URI = upload_log_URI.replace(f'-{log_suffix}',f'-{verification_suffix}')
     try:
+        print('Downloading upload log...')
         s3.meta.client.download_file(bucket_name, upload_log_URI, 'upload_log.csv')
     except Exception as e:
         if '(NoSuchBucket)' in str(e).split():
@@ -116,10 +117,14 @@ if __name__ == '__main__':
 
     # Get objects "and checksum them"
     print(f'Calculating checksums using {cpu_count()-2} processes...')
+    print(f'Monitor with Dask dashboard at {client.dashboard_link}')
     # start = datetime.now()
     checksum_futures = [client.submit(get_checksum, object_key, access_key, secret_key, s3_host, retries=2) for object_key in upload_log['DESTINATION_KEY']]
-    for _ in tqdm(as_completed(checksum_futures), total=len(upload_log)):
-        pass
+    done = 0
+    for _ in as_completed(checksum_futures):
+        done += 1
+        print(done, 'of', len(checksum_futures), 'checksums calculated.', end='\r')
+        
     wait(checksum_futures)
     new_checksum = [future.result() for future in checksum_futures]
 #    print(new_checksum)
