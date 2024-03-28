@@ -164,8 +164,9 @@ def print_stats(folder, file_count, total_size, folder_start, folder_end, proces
     print(f'Total files uploaded = {total_files_uploaded}')
     print(f'Total size uploaded = {total_size_uploaded / 1024**3:.2f} GiB')
 
-def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun, folder_start, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded):
+def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded):
     #repeat(s3_host), repeat(access_key), repeat(secret_key), repeat(bucket_name), repeat(folder), folder_files, object_names, repeat(perform_checksum), repeat(dryrun)
+    folder_start = datetime.now()
     result = upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun)
     folder_end = datetime.now()
     print_stats(folder, file_count, folder_files_size, folder_start, folder_end, processing_start, total_size_uploaded, total_files_uploaded)
@@ -230,7 +231,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.')
             # print(f'folder_files: {folder_files}')
             # print(f'object_names: {object_names}')
-            folder_start = datetime.now()
+            # folder_start = datetime.now()
             
             print('checking for symlinks')
             #always do this AFTER removing "current_objects" to avoid re-uploading
@@ -271,7 +272,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     object_names, 
                     repeat(perform_checksum), 
                     repeat(dryrun), 
-                    repeat(folder_start),
                     repeat(processing_start),
                     repeat(file_count),
                     repeat(folder_files_size),
