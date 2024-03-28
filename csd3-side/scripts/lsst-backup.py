@@ -172,7 +172,7 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, fi
     print_stats(folder, file_count, folder_files_size, folder_start, folder_end, processing_start, total_size_uploaded, total_files_uploaded)
     with open(log, 'a') as logfile:
         logfile.write(f'{result}\n')
-    # return result
+    return None
 
 def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, exclude, source_dir, destination_dir, nprocs, perform_checksum, dryrun, log):
     """
@@ -261,6 +261,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
             # upload files in parallel and log output
             print(f'Uploading {file_count} files from {folder} using {nprocs} processes.')
+            results=[]
             for i,args in enumerate(
                 zip(
                     repeat(s3_host), 
