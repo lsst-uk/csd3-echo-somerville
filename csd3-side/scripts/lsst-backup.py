@@ -260,24 +260,28 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
             # upload files in parallel and log output
             print(f'Uploading {file_count} files from {folder} using {nprocs} processes.')
-            for args in zip(
-                repeat(s3_host), 
-                repeat(access_key), 
-                repeat(secret_key), 
-                repeat(bucket_name), 
-                repeat(folder), 
-                folder_files, 
-                object_names, 
-                repeat(perform_checksum), 
-                repeat(dryrun), 
-                repeat(folder_start),
-                repeat(processing_start),
-                repeat(file_count),
-                repeat(folder_files_size),
-                repeat(total_size_uploaded),
-                repeat(total_files_uploaded)
-                ):
+            for i,args in enumerate(
+                zip(
+                    repeat(s3_host), 
+                    repeat(access_key), 
+                    repeat(secret_key), 
+                    repeat(bucket_name), 
+                    repeat(folder), 
+                    folder_files, 
+                    object_names, 
+                    repeat(perform_checksum), 
+                    repeat(dryrun), 
+                    repeat(folder_start),
+                    repeat(processing_start),
+                    repeat(file_count),
+                    repeat(folder_files_size),
+                    repeat(total_size_uploaded),
+                    repeat(total_files_uploaded)
+                )):
                 pool.apply_async(upload_and_callback, args=args)
+                if i % nprocs*4 == 0:
+                    pool.join()  # Wait until current processes in pool are finished
+                    
         else:
             print(f'Skipping subfolder - empty.')
     # Upload log file
