@@ -117,7 +117,7 @@ if __name__ == '__main__':
 
     # Get objects "and checksum them"
     print(f'Calculating checksums using {cpu_count()-2} processes...')
-    print(f'Monitor with Dask dashboard at {client.dashboard_link}')
+    # print(f'Monitor with Dask dashboard at {client.dashboard_link}')
     # start = datetime.now()
     checksum_futures = [client.submit(get_checksum, object_key, access_key, secret_key, s3_host, retries=2) for object_key in upload_log['DESTINATION_KEY']]
     done = 0
