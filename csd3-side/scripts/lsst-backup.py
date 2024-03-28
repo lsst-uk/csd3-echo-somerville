@@ -139,7 +139,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
     return return_string
 
 
-def print_stats(folder, file_count, total_size, folder_start, folder_end, processing_elapsed, total_size_uploaded, total_files_uploaded):
+def print_stats(folder, file_count, total_size, folder_start, folder_end, processing_start, total_size_uploaded, total_files_uploaded):
     """
     Prints the statistics of the upload process.
 
@@ -160,10 +160,18 @@ def print_stats(folder, file_count, total_size, folder_start, folder_end, proces
     avg_file_size = total_size / file_count / 1024**2
     print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded in {elapsed_seconds:.2f} seconds, {elapsed_seconds/file_count:.2f} s/file', flush=True)
     print(f'{total_size / 1024**2:.2f} MiB uploaded in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/s', flush=True)
-    print(f'Total elapsed time = {processing_elapsed}')
+    print(f'Total elapsed time = {folder_end-processing_start}')
     print(f'Total files uploaded = {total_files_uploaded}')
     print(f'Total size uploaded = {total_size_uploaded / 1024**3:.2f} GiB')
 
+def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun, folder_start, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded):
+    #repeat(s3_host), repeat(access_key), repeat(secret_key), repeat(bucket_name), repeat(folder), folder_files, object_names, repeat(perform_checksum), repeat(dryrun)
+    result = upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun)
+    folder_end = datetime.now()
+    print_stats(folder, file_count, folder_files_size, folder_start, folder_end, processing_start, total_size_uploaded, total_files_uploaded)
+    with open(log, 'a') as logfile:
+        logfile.write(f'{result}\n')
+    return result
 
 def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, exclude, source_dir, destination_dir, nprocs, perform_checksum, dryrun, log):
     """
@@ -190,79 +198,88 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     total_files_uploaded = 0
     i = 0
     #processed_files = []
-    with Pool(nprocs) as pool: # use 4 CPUs by default - very little speed-up, might drop multiprocessing and parallelise at shell level
-        #recursive loop over local folder
-        for folder, subfolders, files in os.walk(source_dir):
-            # check if folder is in the exclude list
-            if folder in exclude:
-                print(f'Skipping subfolder {folder} - excluded.')
+    pool = Pool(nprocs) # use 4 CPUs by default - very little speed-up, might drop multiprocessing and parallelise at shell level
+    #recursive loop over local folder
+    for folder, subfolders, files in os.walk(source_dir):
+        # check if folder is in the exclude list
+        if folder in exclude:
+            print(f'Skipping subfolder {folder} - excluded.')
+            continue
+        # check folder isn't empty
+        if len(files) > 0:
+            # all files within folder
+            folder_files = [os.sep.join([folder, filename]) for filename in files]
+            # keys to files on s3
+            object_names = [os.sep.join([destination_dir, os.path.relpath(filename, source_dir)]) for filename in folder_files]
+            # print(f'folder_files: {folder_files}')
+            # print(f'object_names: {object_names}')
+            init_len = len(object_names)
+            # remove current objects - avoids reuploading
+            # could provide overwrite flag if this is desirable
+            # print(f'current_objects: {current_objects}')
+            if all([obj in current_objects for obj in object_names]):
+                #all files in this subfolder already in bucket
+                print(f'Skipping subfolder - all files exist.')
                 continue
-            # check folder isn't empty
-            if len(files) > 0:
-                # all files within folder
-                folder_files = [os.sep.join([folder, filename]) for filename in files]
-                # keys to files on s3
-                object_names = [os.sep.join([destination_dir, os.path.relpath(filename, source_dir)]) for filename in folder_files]
-                # print(f'folder_files: {folder_files}')
-                # print(f'object_names: {object_names}')
-                init_len = len(object_names)
-                # remove current objects - avoids reuploading
-                # could provide overwrite flag if this is desirable
-                # print(f'current_objects: {current_objects}')
-                if all([obj in current_objects for obj in object_names]):
-                    #all files in this subfolder already in bucket
-                    print(f'Skipping subfolder - all files exist.')
-                    continue
-                for oni, on in enumerate(object_names):
-                    if on in current_objects:
-                        object_names.remove(on)
-                        del folder_files[oni]
-                pre_linkcheck_file_count = len(object_names)
-                if init_len - pre_linkcheck_file_count > 0:
-                    print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.')
-                # print(f'folder_files: {folder_files}')
-                # print(f'object_names: {object_names}')
-                folder_start = datetime.now()
-                
-                print('checking for symlinks')
-                #always do this AFTER removing "current_objects" to avoid re-uploading
-                symlink_targets = []
-                symlink_obj_names = []
-                for i in range(len(folder_files)):
-                    if os.path.islink(folder_files[i]):
-                        #rename link in object_names
-                        symlink_obj_name = object_names[i]
-                        object_names[i] = '.'.join([object_names[i], 'symlink'])
-                        #add symlink target to symlink_targets list
-                        symlink_targets.append(os.path.realpath(folder_files[i]))
-                        #add real file to symlink_obj_names list
-                        symlink_obj_names.append(symlink_obj_name)
+            for oni, on in enumerate(object_names):
+                if on in current_objects:
+                    object_names.remove(on)
+                    del folder_files[oni]
+            pre_linkcheck_file_count = len(object_names)
+            if init_len - pre_linkcheck_file_count > 0:
+                print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.')
+            # print(f'folder_files: {folder_files}')
+            # print(f'object_names: {object_names}')
+            folder_start = datetime.now()
+            
+            print('checking for symlinks')
+            #always do this AFTER removing "current_objects" to avoid re-uploading
+            symlink_targets = []
+            symlink_obj_names = []
+            for i in range(len(folder_files)):
+                if os.path.islink(folder_files[i]):
+                    #rename link in object_names
+                    symlink_obj_name = object_names[i]
+                    object_names[i] = '.'.join([object_names[i], 'symlink'])
+                    #add symlink target to symlink_targets list
+                    symlink_targets.append(os.path.realpath(folder_files[i]))
+                    #add real file to symlink_obj_names list
+                    symlink_obj_names.append(symlink_obj_name)
 
-                # append symlink_targets and symlink_obj_names to folder_files and object_names
-                folder_files.extend(symlink_targets)
-                object_names.extend(symlink_obj_names)
-                
-                file_count = len(object_names)
-                print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
-                        
-                # upload files in parallel and log output
-                print(f'Uploading {file_count} files from {folder} using {nprocs} processes.')
-                with open(log, 'a') as logfile:
-                    for result in pool.starmap(upload_to_bucket, zip(repeat(s3_host), repeat(access_key), repeat(secret_key), repeat(bucket_name), repeat(folder), folder_files, object_names, repeat(perform_checksum), repeat(dryrun))):
-                        logfile.write(f'{result}\n')
-                folder_end = datetime.now()
-                folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
-                processing_elapsed = folder_end - processing_start
-                total_size_uploaded += folder_files_size
-                total_files_uploaded += file_count
-                print_stats(folder, file_count, folder_files_size, folder_start, folder_end, processing_elapsed, total_size_uploaded, total_files_uploaded)
+            # append symlink_targets and symlink_obj_names to folder_files and object_names
 
-                # testing - stop after 1 folders
-                # i+=1
-                # if i == 100:
-                #     break
-            else:
-                print(f'Skipping subfolder - empty.')
+            folder_files.extend(symlink_targets)
+            object_names.extend(symlink_obj_names)
+
+            file_count = len(object_names)
+            # folder_end = datetime.now()
+            folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
+            total_size_uploaded += folder_files_size
+            total_files_uploaded += file_count
+            print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
+
+            # upload files in parallel and log output
+            print(f'Uploading {file_count} files from {folder} using {nprocs} processes.')
+            for args in zip(
+                repeat(s3_host), 
+                repeat(access_key), 
+                repeat(secret_key), 
+                repeat(bucket_name), 
+                repeat(folder), 
+                folder_files, 
+                object_names, 
+                repeat(perform_checksum), 
+                repeat(dryrun), 
+                repeat(folder_start),
+                repeat(processing_start),
+                repeat(file_count),
+                repeat(folder_files_size),
+                repeat(total_size_uploaded),
+                repeat(total_files_uploaded)
+                ):
+                pool.apply_async(upload_and_callback, args=args)
+        else:
+            print(f'Skipping subfolder - empty.')
     # Upload log file
     if not dryrun:
         upload_to_bucket(s3_host,
@@ -275,6 +292,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                          False, # perform_checksum
                          False, # dryrun
                         )
+    pool.close()
+    pool.join()
 
 
 # # Go!
