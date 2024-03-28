@@ -8,7 +8,7 @@ This script allows you to delete a bucket in an S3-compatible storage service.
 
 import sys
 import warnings
-
+from tqdm import tqdm
 import bucket_manager.bucket_manager as bm
 
 s3_host = 'echo.stfc.ac.uk'
@@ -41,7 +41,7 @@ else:
 bucket = s3.Bucket(bucket_name)
 
 if len(list(bucket.objects.all())) > 0:
-    response = bucket.objects.all().delete()
+    response = tqdm(bucket.objects.all().delete())
     
     try:
         deleted = [d['Key'] for d in response[0]['Deleted']]

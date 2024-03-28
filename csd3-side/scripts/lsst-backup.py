@@ -172,7 +172,7 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, fi
     print_stats(folder, file_count, folder_files_size, folder_start, folder_end, processing_start, total_size_uploaded, total_files_uploaded)
     with open(log, 'a') as logfile:
         logfile.write(f'{result}\n')
-    return result
+    # return result
 
 def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, exclude, source_dir, destination_dir, nprocs, perform_checksum, dryrun, log):
     """
@@ -278,10 +278,11 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     repeat(total_size_uploaded),
                     repeat(total_files_uploaded)
                 )):
-                pool.apply_async(upload_and_callback, args=args)
+                results.append(pool.apply_async(upload_and_callback, args=args))
                 if i % nprocs*4 == 0:
-                    pool.join()  # Wait until current processes in pool are finished
-                    
+                    for result in results:
+                        result.get()  # Wait until current processes in pool are finished
+                    results = []
         else:
             print(f'Skipping subfolder - empty.')
     # Upload log file
