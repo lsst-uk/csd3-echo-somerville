@@ -168,6 +168,8 @@ def print_stats(folder, file_count, total_size, folder_start, folder_end, proces
 
 def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded):
     #repeat(s3_host), repeat(access_key), repeat(secret_key), repeat(bucket_name), repeat(folder), folder_files, object_names, repeat(perform_checksum), repeat(dryrun)
+    # upload files in parallel and log output
+    print(f'Uploading {file_count} files from {folder}.')
     folder_start = datetime.now()
     result = upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun)
     folder_end = datetime.now()
@@ -235,7 +237,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             # print(f'object_names: {object_names}')
             # folder_start = datetime.now()
             
-            print('checking for symlinks')
+            # print('checking for symlinks')
             #always do this AFTER removing "current_objects" to avoid re-uploading
             symlink_targets = []
             symlink_obj_names = []
@@ -259,10 +261,9 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
             total_size_uploaded += folder_files_size
             total_files_uploaded += file_count
-            print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
+            # print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
 
-            # upload files in parallel and log output
-            print(f'Uploading {file_count} files from {folder}.')
+            
             results=[]
             for i,args in enumerate(
                 zip(
@@ -340,6 +341,7 @@ example:
             exclude = [item for sublist in [glob.glob(f'{source_dir}/{excl}') for excl in args.exclude] for item in sublist]
             # exclude = glob.glob(f'{source_dir}/{args.exclude}')
     print(f'Excluding {exclude}')
+    print(f'symlinks will be replaced with the target file. A new file <simlink_file>.symlink will contain the symlink target path.')
 
     if not source_dir or not prefix or not sub_dirs or not bucket_name:
         parser.print_help()
