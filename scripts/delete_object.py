@@ -40,18 +40,15 @@ sure = input("Are you sure? [y/n]\n").lower()
 if sure == 'n':
     sys.exit('Aborted.')
 elif sure == 'y':
-    print('Proceeding')
+    pass
 else:
     sys.exit('Aborted.')
-
-response = s3.Object(bucket_name, URI).delete()
 try:
-    deleted = [d['Key'] for d in response[0]['Deleted']]
-    for d in deleted:
-        print(f'Deleted object: {d}')
+    response = s3.Object(bucket_name, URI).delete()
 except Exception as e:
     print(e)
 
+
 # Confirm
-if not URI in bm.object_list(bucket):
+if response['ResponseMetadata']['HTTPStatusCode'] == 204 and not URI in bm.object_list(bucket):
     print(f'Object {URI} deleted.')
