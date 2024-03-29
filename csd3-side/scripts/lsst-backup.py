@@ -160,9 +160,11 @@ def print_stats(folder, file_count, total_size, folder_start, folder_end, proces
     avg_file_size = total_size / file_count / 1024**2
     print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded in {elapsed_seconds:.2f} seconds, {elapsed_seconds/file_count:.2f} s/file', flush=True)
     print(f'{total_size / 1024**2:.2f} MiB uploaded in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/s', flush=True)
-    print(f'Total elapsed time = {folder_end-processing_start}')
-    print(f'Total files uploaded = {total_files_uploaded}')
-    print(f'Total size uploaded = {total_size_uploaded / 1024**3:.2f} GiB')
+    print(f'Total elapsed time = {folder_end-processing_start}', flush=True)
+    print(f'Total files uploaded = {total_files_uploaded}', flush=True)
+    print(f'Total size uploaded = {total_size_uploaded / 1024**3:.2f} GiB', flush=True)
+    print(f'Running average speed = {total_size_uploaded / 1024**2 / (folder_end-processing_start).seconds:.2f} MiB/s', flush=True)
+    print(f'Running average rate = {(folder_end-processing_start).seconds / total_files_uploaded:.2f} s/file', flush=True)
 
 def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded):
     #repeat(s3_host), repeat(access_key), repeat(secret_key), repeat(bucket_name), repeat(folder), folder_files, object_names, repeat(perform_checksum), repeat(dryrun)
@@ -260,7 +262,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
 
             # upload files in parallel and log output
-            print(f'Uploading {file_count} files from {folder} using {nprocs} processes.')
+            print(f'Uploading {file_count} files from {folder}.')
             results=[]
             for i,args in enumerate(
                 zip(
@@ -406,6 +408,7 @@ example:
     
     # Process the files
     print(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}')
+    print(f'Using {nprocs} processes.')
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore')
         process_files(s3_host,access_key, secret_key, bucket_name, current_objects, exclude, source_dir, destination_dir, nprocs, perform_checksum, dryrun, log)
