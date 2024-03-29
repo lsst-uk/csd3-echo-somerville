@@ -286,18 +286,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     results = []
         else:
             print(f'Skipping subfolder - empty.')
-    # Upload log file
-    if not dryrun:
-        upload_to_bucket(s3_host,
-                         access_key, 
-                         secret_key, 
-                         bucket_name, 
-                         '/', #path
-                         log, 
-                         os.path.basename(log), 
-                         False, # perform_checksum
-                         False, # dryrun
-                        )
     pool.close()
     pool.join()
 
@@ -426,6 +414,24 @@ example:
     final_time = datetime.now() - start
     final_time_seconds = final_time.seconds + final_time.microseconds / 1e6
     log_df = pd.read_csv(log)
+    log_df = log_df.drop_duplicates(subset='DESTINATION_KEY', keep='last')
+    log_df = log_df.reset_index(drop=True)
+    log_df.to_csv(log, index=False)
+
+    # Upload log file
+    if not dryrun:
+        print('Uploading log file.')
+        upload_to_bucket(s3_host,
+                         access_key, 
+                         secret_key, 
+                         bucket_name, 
+                         '/', #path
+                         log, 
+                         os.path.basename(log), 
+                         False, # perform_checksum
+                         False, # dryrun
+                        )
+    
     final_size = log_df["FILE_SIZE"].sum() / 1024**2
     print(f'Finished at {datetime.now()}, elapsed time = {final_time}')
     print(f'Total: {len(log_df)} files; {(final_size):.2f} MiB; {(final_size/final_time_seconds):.2f} MiB/s including setup time; {(final_time_seconds/len(log_df)):.2f} s/file including setup time')
