@@ -51,6 +51,7 @@ import base64
 import pandas as pd
 import numpy as np
 import glob
+import subprocess
 
 
 
@@ -346,6 +347,10 @@ example:
     if not source_dir or not prefix or not sub_dirs or not bucket_name:
         parser.print_help()
         sys.exit(1)
+
+    #print hostname
+    uname = subprocess.run(['uname', '-n'], capture_output=True)
+    print(f'Running on {uname.stdout.decode().strip()}')
 
     # Initiate timing
     start = datetime.now()
