@@ -42,6 +42,6 @@ plt.subplot(212)
 plt.plot(smoothed_sec_per_file)
 plt.xlabel('Folders')
 plt.ylabel('s/file')
-
+plt.tight_layout()
 # Save the figure
 plt.savefig('transfer_speeds.png')
