@@ -26,12 +26,12 @@ with open(logfile, 'r') as lf:
 
 # Create the plots
 plt.figure(1)
-plt.suptitle('Transfer Speeds - Moving average over 100 folders')
+
 # Smooth out the data by calculating the moving average
-window_size = 100
+window_size = 1000
 smoothed_mib_per_sec = np.convolve(mib_per_sec, np.ones(window_size)/window_size, mode='valid')
 smoothed_sec_per_file = np.convolve(sec_per_file, np.ones(window_size)/window_size, mode='valid')
-
+plt.suptitle(f'Transfer Speeds - Moving average over {window_size} folders')
 # Plot the smoothed data
 plt.subplot(211)
 plt.plot(smoothed_mib_per_sec)
