@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import os, sys
+import numpy as np
 if len(sys.argv) != 2:
     print(f'Usage: {sys.argv[0]} <logfile>')
     sys.exit(1)
@@ -22,18 +23,25 @@ with open(logfile, 'r') as lf:
             elif 's/file' in line:
                 sec_per_file.append(float(line.split()[9]))
 
+
 # Create the plots
 plt.figure(1)
-plt.suptitle('Transfer Speeds')
+plt.suptitle('Transfer Speeds - Moving average over 100 folders')
+# Smooth out the data by calculating the moving average
+window_size = 100
+smoothed_mib_per_sec = np.convolve(mib_per_sec, np.ones(window_size)/window_size, mode='valid')
+smoothed_sec_per_file = np.convolve(sec_per_file, np.ones(window_size)/window_size, mode='valid')
+
+# Plot the smoothed data
 plt.subplot(211)
-plt.plot(mib_per_sec)
-plt.xlabel('Folder')
+plt.plot(smoothed_mib_per_sec)
+plt.xlabel('Folders')
 plt.ylabel('MiB/s')
 
 plt.subplot(212)
-plt.plot(sec_per_file)
-plt.xlabel('Folder')
+plt.plot(smoothed_sec_per_file)
+plt.xlabel('Folders')
 plt.ylabel('s/file')
 
-# Show the plots
+# Save the figure
 plt.savefig('transfer_speeds.png')
