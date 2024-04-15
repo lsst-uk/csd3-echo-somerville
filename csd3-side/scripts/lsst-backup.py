@@ -120,10 +120,16 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                 checksum_string = checksum_hash.hexdigest()
                 checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
                 file_data.seek(0)  # Reset the file pointer to the start
-                bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64)
+                try:
+                    bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64)
+                except Exception as e:
+                    print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
                 file_data.close()
             else:
-                bucket.put_object(Body=file_data, Key=object_key)
+                try:
+                    bucket.put_object(Body=file_data, Key=object_key)
+                except Exception as e:
+                    print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
     """
         report actions
         CSV formatted
