@@ -123,9 +123,11 @@ if __name__ == '__main__':
     upload_log = upload_log.repartition(npartitions=upload_log.shape[0] // batch_size)
 
     # Process each batch separately
-    print(f'Verifying upload... {upload_log.shape[0]} files to be verified using {upload_log.shape[0] // batch_size} batches on {cpu_count()-2} cores.')
+    print(upload_log.shape[0])
+    exit()
+    print(f'Verifying upload... {len(upload_log)} files to be verified using {upload_log.shape[0] // batch_size} batches on {cpu_count()-2} cores.')
 
-    for batch in tqdm(upload_log.to_delayed()):
+    for batch in upload_log.to_delayed():
         batch = batch.compute()  # Convert Dask DataFrame to Pandas DataFrame for this batch
 
         # Calculate checksums for this batch
