@@ -12,6 +12,7 @@ from datetime import datetime
 import sys
 import os
 from dask import dataframe as dd
+import pandas as pd
 from distributed import Client, wait, as_completed
 from multiprocessing import cpu_count
 import hashlib
@@ -116,8 +117,10 @@ if __name__ == '__main__':
     
     #remove previously verified files from the upload log
     if os.path.exists(verification_path):
-        verification = dd.read_csv(verification_path)
+        verification = pd.read_csv(verification_path)
         upload_log = upload_log[~upload_log['DESTINATION_KEY'].isin(verification['DESTINATION_KEY'])]
+    else:
+        os.system(f'echo "DESTINATION_KEY,CHECKSUM,CHECKSUM_MATCH,NEW_CHECKSUM,FILE_SIZE,SIZE_ON_S3,SIZE_MATCH"> {verification_path}')
 
     #batch the upload log
     upload_log = upload_log.repartition(npartitions=len(upload_log) // batch_size)
@@ -143,6 +146,7 @@ if __name__ == '__main__':
 
         # Append results for this batch to the verification file
         batch[['DESTINATION_KEY', 'CHECKSUM', 'CHECKSUM_MATCH', 'NEW_CHECKSUM', 'FILE_SIZE', 'SIZE_ON_S3', 'SIZE_MATCH']].to_csv(verification_path, mode='a', header=False, index=False)
+
 
     verification = dd.read_csv(verification_path)
 
