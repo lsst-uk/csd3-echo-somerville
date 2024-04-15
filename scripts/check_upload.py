@@ -109,65 +109,49 @@ if __name__ == '__main__':
     # upload_log = pd.read_csv(upload_log_path)[['FILE_SIZE', 'DESTINATION_KEY', 'CHECKSUM']]
     # upload_log = upload_log[upload_log['DESTINATION_KEY'].str.endswith('.symlink') == False]
 
+    batch_size = 1000
     upload_log = dd.read_csv(upload_log_path)[['FILE_SIZE', 'DESTINATION_KEY', 'CHECKSUM']]
     # not verifying symlinks 
     upload_log = upload_log[upload_log['DESTINATION_KEY'].str.endswith('.symlink') == False]
-
-    # print(upload_log)
-
-    # Get objects "and checksum them"
-    print(f'Calculating checksums using {cpu_count()-2} processes...')
-    # print(f'Monitor with Dask dashboard at {client.dashboard_link}')
-    # start = datetime.now()
-    checksum_futures = [client.submit(get_checksum, object_key, access_key, secret_key, s3_host, retries=2) for object_key in upload_log['DESTINATION_KEY']]
-    done = 0
-    for _ in as_completed(checksum_futures):
-        done += 1
-        print(done, 'of', len(checksum_futures), 'checksums calculated', end='\r')
-        
-    wait(checksum_futures)
-    new_checksum = [future.result() for future in checksum_futures]
-#    print(new_checksum)
-    print(f'Checksum generation completed at: {datetime.now()} || Elapsed time: {datetime.now()-start}')
-
     
+    #remove previously verified files from the upload log
+    if os.path.exists(verification_path):
+        verification = dd.read_csv(verification_path)
+        upload_log = upload_log[~upload_log['DESTINATION_KEY'].isin(verification['DESTINATION_KEY'])]
 
-    # match booleans
-    checksums_match = None
-    sizes_match = None
-    # Compare checksums
-    upload_log = upload_log.compute() # converts Dask dataframe to Pandas dataframe
-    # close Dask client
-    client.close()
+    #batch the upload log
+    upload_log = upload_log.repartition(npartitions=upload_log.shape[0] // batch_size)
 
-    print('Comparing checksums...')
-    upload_log['NEW_CHECKSUM'] = new_checksum
-    upload_log['CHECKSUM_MATCH'] = upload_log['CHECKSUM'] == upload_log['NEW_CHECKSUM']
-    
-    if upload_log['CHECKSUM_MATCH'].all():
-        checksums_match = True
-        print('Checksums match.')
-    else:    
-        checksums_match = False
-        print('Checksums do not match.')
-    
-    print(f'Checksum comparison completed at: {datetime.now()} || Elapsed time: {datetime.now()-start}')
-    print('Comparing file sizes...')
-    # Compare file sizes
-    upload_log['SIZE_ON_S3'] = [s3.Object(bucket_name, URI).content_length for URI in tqdm(upload_log['DESTINATION_KEY'])]
-    upload_log['SIZE_MATCH'] = upload_log['SIZE_ON_S3'] == upload_log['FILE_SIZE']
-    if upload_log['SIZE_MATCH'].all():
-        sizes_match = True
-        print('Sizes match.')
-    else:
-        sizes_match = False
-        print('Sizes do not match.')
-    print(f'Size comparison completed at: {datetime.now()} || Elapsed time: {datetime.now()-start}')
+    # Process each batch separately
+    print(f'Verifying upload... {upload_log.shape[0]} files to be verified using {upload_log.shape[0] // batch_size} batches on {cpu_count()-2} cores.')
+
+    for batch in tqdm(upload_log.to_delayed()):
+        batch = batch.compute()  # Convert Dask DataFrame to Pandas DataFrame for this batch
+
+        # Calculate checksums for this batch
+        checksum_futures = [client.submit(get_checksum, object_key, access_key, secret_key, s3_host, retries=2) for object_key in batch['DESTINATION_KEY']]
+        wait(checksum_futures)
+        new_checksum = [future.result() for future in checksum_futures]
+
+        # Compare checksums for this batch
+        batch['NEW_CHECKSUM'] = new_checksum
+        batch['CHECKSUM_MATCH'] = batch['CHECKSUM'] == batch['NEW_CHECKSUM']
+
+        # Compare file sizes for this batch
+        batch['SIZE_ON_S3'] = [s3.Object(bucket_name, URI).content_length for URI in batch['DESTINATION_KEY']]
+        batch['SIZE_MATCH'] = batch['SIZE_ON_S3'] == batch['FILE_SIZE']
+
+        # Append results for this batch to the verification file
+        batch[['DESTINATION_KEY', 'CHECKSUM', 'CHECKSUM_MATCH', 'NEW_CHECKSUM', 'FILE_SIZE', 'SIZE_ON_S3', 'SIZE_MATCH']].to_csv(verification_path, mode='a', header=False, index=False)
+
+    verification = dd.read_csv(verification_path)
+
+    checksums_match = verification['CHECKSUM_MATCH'].all().compute()
+    sizes_match = verification['SIZE_MATCH'].all().compute()
+
     if checksums_match and sizes_match:
         print('Upload successful.')
         print(f'Verification completed at: {datetime.now()} || Elapsed time: {datetime.now()-start}')
-        verification = upload_log[['DESTINATION_KEY', 'CHECKSUM', 'CHECKSUM_MATCH', 'NEW_CHECKSUM', 'FILE_SIZE', 'SIZE_ON_S3', 'SIZE_MATCH']]
-        verification.to_csv(verification_path, index=False)
         upload_verification_file(bucket_name, verification_path, verification_URI, access_key, secret_key, s3_host)
         print(f'Verification file uploaded to s3://{s3_host}/{bucket_name}/{verification_URI}.')
         # Clean up
