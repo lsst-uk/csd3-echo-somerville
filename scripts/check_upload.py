@@ -124,6 +124,7 @@ if __name__ == '__main__':
 
     # Process each batch separately
     print(upload_log.shape[0])
+    print(len(upload_log))
     exit()
     print(f'Verifying upload... {len(upload_log)} files to be verified using {upload_log.shape[0] // batch_size} batches on {cpu_count()-2} cores.')
 
