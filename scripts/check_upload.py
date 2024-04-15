@@ -120,13 +120,10 @@ if __name__ == '__main__':
         upload_log = upload_log[~upload_log['DESTINATION_KEY'].isin(verification['DESTINATION_KEY'])]
 
     #batch the upload log
-    upload_log = upload_log.repartition(npartitions=upload_log.shape[0] // batch_size)
+    upload_log = upload_log.repartition(npartitions=len(upload_log) // batch_size)
 
     # Process each batch separately
-    print(upload_log.shape[0])
-    print(len(upload_log))
-    exit()
-    print(f'Verifying upload... {len(upload_log)} files to be verified using {upload_log.shape[0] // batch_size} batches on {cpu_count()-2} cores.')
+    print(f'Verifying upload... {len(upload_log)} files to be verified using {len(upload_log) // batch_size} batches on {cpu_count()-2} cores.')
 
     for batch in upload_log.to_delayed():
         batch = batch.compute()  # Convert Dask DataFrame to Pandas DataFrame for this batch
