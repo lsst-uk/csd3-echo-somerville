@@ -71,6 +71,28 @@ def get_resource(access_key, secret_key, s3_host):
         verify=False  # Disable SSL verification for non-AWS S3 endpoints
     )
 
+def get_client(access_key, secret_key, s3_host):
+    """
+    Creates and returns an S3 client object for the specified S3 endpoint.
+
+    Parameters:
+    - access_key: The access key for the S3 endpoint.
+    - secret_key: The secret key for the S3 endpoint.
+    - s3_host: The hostname of the S3 endpoint.
+
+    Returns:
+    An S3 client object.
+    """
+    session = boto3.Session(
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key
+    )
+    return session.client(
+        service_name='s3',
+        endpoint_url=f'https://{s3_host}',
+        verify=False  # Disable SSL verification for non-AWS S3 endpoints
+    )
+
 def bucket_list(resource):
     """
     Returns a list of bucket names in the S3 endpoint.
