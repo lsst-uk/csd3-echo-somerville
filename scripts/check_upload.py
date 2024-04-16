@@ -123,7 +123,8 @@ if __name__ == '__main__':
         os.system(f'echo "DESTINATION_KEY,CHECKSUM,CHECKSUM_MATCH,NEW_CHECKSUM,FILE_SIZE,SIZE_ON_S3,SIZE_MATCH"> {verification_path}')
 
     #batch the upload log
-    upload_log = upload_log.repartition(npartitions=len(upload_log) // batch_size)
+    if len(upload_log) > batch_size:
+        upload_log = upload_log.repartition(npartitions=len(upload_log) // batch_size)
 
     # Process each batch separately
     print(f'Verifying upload... {len(upload_log)} files to be verified using {len(upload_log) // batch_size} batches on {cpu_count()-2} cores.')
