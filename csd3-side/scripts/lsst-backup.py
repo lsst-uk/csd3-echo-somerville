@@ -136,11 +136,12 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                             with open(filename, 'rb') as f:
                                 f.seek(start)
                                 chunk_data = f.read(end - start)
-                            mp_upload.upload_part_from_file(
-                                Fileobj=chunk_data,
-                                PartNumber=part_number
+                            obj.upload_part(
+                                Body=chunk_data,
+                                PartNumber=part_number,
+                                UploadId=mp_upload.id
                             )
-                        mp_upload.complete_upload()
+                        mp_upload.complete()
                     else:
                         """
                         - Upload the file to the bucket
