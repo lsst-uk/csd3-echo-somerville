@@ -121,17 +121,38 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                 checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
                 file_data.seek(0)  # Reset the file pointer to the start
                 try:
-                    response = bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64)
+                    if os.stat(filename).st_size > 5 * 1024 * 1024 * 1024:  # Check if file size is larger than 5GiB
+                        """
+                        - Use multipart upload for large files
+                        """
+                        mp_upload = bucket.initiate_multipart_upload(Key=object_key)
+                        chunk_size = 500 * 1024 * 1024  # Set chunk size to 500 MiB
+                        chunk_count = int(np.ceil(os.stat(filename).st_size / chunk_size))
+                        for i in range(chunk_count):
+                            start = i * chunk_size
+                            end = min(start + chunk_size, os.stat(filename).st_size)
+                            part_number = i + 1
+                            with open(filename, 'rb') as f:
+                                f.seek(start)
+                                chunk_data = f.read(end - start)
+                            mp_upload.upload_part_from_file(
+                                Fileobj=chunk_data,
+                                PartNumber=part_number
+                            )
+                        mp_upload.complete_upload()
+                    else:
+                        """
+                        - Upload the file to the bucket
+                        """
+                        bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64)
                 except Exception as e:
                     print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
-                    print(response)
-                file_data.close()
             else:
                 try:
-                    response = bucket.put_object(Body=file_data, Key=object_key)
+                    bucket.put_object(Body=file_data, Key=object_key)
                 except Exception as e:
                     print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
-                    print(response)
+            file_data.close()
     """
         report actions
         CSV formatted
