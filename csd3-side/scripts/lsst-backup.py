@@ -89,6 +89,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
             Where: CHECKSUM, CHECKSUM_SIZE are n/a if checksum was not performed.
     """
     s3 = bm.get_resource(access_key, secret_key, s3_host)
+    s3_client = s3.Client()
     bucket = s3.Bucket(bucket_name)
     link = False
     if os.path.islink(filename):
@@ -129,6 +130,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                         mp_upload = obj.initiate_multipart_upload()
                         chunk_size = 500 * 1024 * 1024  # Set chunk size to 500 MiB
                         chunk_count = int(np.ceil(os.stat(filename).st_size / chunk_size))
+                        parts = []
                         for i in range(chunk_count):
                             start = i * chunk_size
                             end = min(start + chunk_size, os.stat(filename).st_size)
@@ -136,12 +138,20 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                             with open(filename, 'rb') as f:
                                 f.seek(start)
                                 chunk_data = f.read(end - start)
-                            mp_upload.upload_part(
+                            part = s3_client.upload_part(
                                 Body=chunk_data,
+                                Bucket=bucket_name,
+                                Key=object_key,
                                 PartNumber=part_number,
                                 UploadId=mp_upload.id
                             )
-                        mp_upload.complete()
+                            parts.append({"PartNumber": part_number, "ETag": part["ETag"]})
+                        s3_client.complete_multipart_upload(
+                            Bucket=bucket_name,
+                            Key=object_key,
+                            UploadId=mp_upload.id,
+                            MultipartUpload={"Parts": parts}
+                        )
                     else:
                         """
                         - Upload the file to the bucket
