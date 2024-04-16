@@ -125,7 +125,8 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                         """
                         - Use multipart upload for large files
                         """
-                        mp_upload = bucket.initiate_multipart_upload(Key=object_key)
+                        obj = bucket.Object(object_key)
+                        mp_upload = obj.initiate_multipart_upload()
                         chunk_size = 500 * 1024 * 1024  # Set chunk size to 500 MiB
                         chunk_count = int(np.ceil(os.stat(filename).st_size / chunk_size))
                         for i in range(chunk_count):
