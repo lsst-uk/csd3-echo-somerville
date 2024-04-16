@@ -89,7 +89,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
             Where: CHECKSUM, CHECKSUM_SIZE are n/a if checksum was not performed.
     """
     s3 = bm.get_resource(access_key, secret_key, s3_host)
-    s3_client = s3.Client()
+    s3_client = bm.get_client(access_key, secret_key, s3_host)
     bucket = s3.Bucket(bucket_name)
     link = False
     if os.path.islink(filename):
