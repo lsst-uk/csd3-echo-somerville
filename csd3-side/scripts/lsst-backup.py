@@ -325,7 +325,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     repeat(total_files_uploaded)
                 )):
                 results.append(pool.apply_async(upload_and_callback, args=args))
-                if i % nprocs*4 == 0:
+                if i % nprocs*4 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
                     for result in results:
                         result.get()  # Wait until current processes in pool are finished
                     results = []
