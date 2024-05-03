@@ -47,4 +47,5 @@ if files_diff > 0:
 else:
     seconds_per_file = 0
 
-print(f'Transfer speed = {transfer_speed:.2f} MiB/s - {seconds_per_file:.2f} s/file')
+transfer_speed_gbps = transfer_speed * 8 / 1024  # Convert from MiB/s to Gbit/s
+print(f'Transfer speed = {transfer_speed:.2f} MiB/s - {transfer_speed_gbps:.2f} Gbit/s - {seconds_per_file:.2f} s/file')
