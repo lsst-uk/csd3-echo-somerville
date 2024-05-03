@@ -33,6 +33,8 @@ for root, dirs, files in os.walk(path):
 
 end_time = datetime.now()  # Move the end_time assignment here
 
+print(f'Ending number of files = {end_num_files}, ending size = {end_size}')
+
 elapsed = end_time - start_time
 elapsed_seconds = elapsed.seconds + elapsed.microseconds / 1e6
 size_diff = end_size - start_size
