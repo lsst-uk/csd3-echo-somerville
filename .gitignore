@@ -1,11 +1,15 @@
 #Visual Studio Code IDE files
 .vscode/
 
+#Plots
+*.png
+
 # log files
 *.log
 *.err
 *.csv
 slurm*.out
+*.tar.gz
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
