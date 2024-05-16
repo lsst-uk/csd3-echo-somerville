@@ -247,15 +247,27 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     #processed_files = []
     pool = Pool(nprocs) # use 4 CPUs by default - very little speed-up, might drop multiprocessing and parallelise at shell level
     #recursive loop over local folder
-    for folder, subfolders, files in os.walk(source_dir):
+    collate_files = False
+    results = []
+    for folder, _, files in os.walk(source_dir):
         # check if folder is in the exclude list
         if folder in exclude:
             print(f'Skipping subfolder {folder} - excluded.')
             continue
+
+        if not collate_files:
+            results = []
         # check folder isn't empty
         if len(files) > 0:
             # all files within folder
             folder_files = [os.sep.join([folder, filename]) for filename in files]
+            collate_files = False
+
+            # COLLATION of small files and small numbers of files per folder
+            if len(files) < 4 and sum([x.st_size for x in folder_files]) < 64*1024**2: # if there are less than 4 files totalling less than 64 MiB
+                collate_files = True
+                print(f'Collating files in {folder} by releasing folder process block.')
+            
             # keys to files on s3
             object_names = [os.sep.join([destination_dir, os.path.relpath(filename, source_dir)]) for filename in folder_files]
             # print(f'folder_files: {folder_files}')
@@ -305,8 +317,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             total_files_uploaded += file_count
             # print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
 
-            
-            results=[]
             for i,args in enumerate(
                 zip(
                     repeat(s3_host), 
@@ -325,10 +335,16 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     repeat(total_files_uploaded)
                 )):
                 results.append(pool.apply_async(upload_and_callback, args=args))
-                if i % nprocs*4 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
-                    for result in results:
-                        result.get()  # Wait until current processes in pool are finished
-                    results = []
+                if not collate_files:
+                    if i % nprocs*4 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
+                        for result in results:
+                            result.get()  # Wait until current processes in pool are finished
+
+            # release block of files if the list for results is greater than 4 times the number of processes
+            if collate_files and len(results) > nprocs*4:
+                for result in results:
+                    result.get()  # Wait until current processes in pool are finished
+                collate_files = False
         else:
             print(f'Skipping subfolder - empty.')
     pool.close()
