@@ -1,8 +1,8 @@
 #!/bin/bash
 # number of folders
-n=75
+n=150
 # number of files per folder
-f=2
+f=1
 # size of each file
 s=34
 
