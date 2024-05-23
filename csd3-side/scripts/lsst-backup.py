@@ -349,8 +349,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             for result in results:
                 result.get()  # Wait until current processes in pool are finished
             collate_files = False
-        pool.close()
-        pool.join()
+    pool.close()
+    pool.join()
 
 # # Go!
 if __name__ == '__main__':
