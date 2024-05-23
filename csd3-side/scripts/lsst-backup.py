@@ -336,23 +336,21 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     repeat(total_files_uploaded)
                 )):
                 results.append(pool.apply_async(upload_and_callback, args=args))
-                if not collate_files:
-                    if i % nprocs*4 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
-                        for result in results:
-                            result.get()  # Wait until current processes in pool are finished
-
+            if not collate_files:
+                if i % nprocs*4 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
+                    for result in results:
+                        result.get()  # Wait until current processes in pool are finished
         else:
             print(f'Skipping subfolder - empty.')
-    
-    # release block of files if the list for results is greater than 4 times the number of processes
-    ### MOVE THIS OUTSIDE THE LOOP SOMEHOW!
-    if collate_files and len(results) > nprocs*4:
-        for result in results:
-            result.get()  # Wait until current processes in pool are finished
-        collate_files = False
-    pool.close()
-    pool.join()
-
+        
+        # release block of files if the list for results is greater than 4 times the number of processes
+        ### MOVE THIS OUTSIDE THE LOOP SOMEHOW!
+        if collate_files and len(results) > nprocs*4:
+            for result in results:
+                result.get()  # Wait until current processes in pool are finished
+            collate_files = False
+        pool.close()
+        pool.join()
 
 # # Go!
 if __name__ == '__main__':
