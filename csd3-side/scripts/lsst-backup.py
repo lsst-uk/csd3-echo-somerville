@@ -263,7 +263,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             folder_files = [os.sep.join([folder, filename]) for filename in files]
             
             # COLLATION of small files and small numbers of files per folder
-            if len(files) < 4 and sum([os.stat(filename).st_size for filename in folder_files]) < 64*1024**2: # if there are less than 4 files totalling less than 64 MiB
+            if len(files) < 4 and sum([os.stat(filename).st_size for filename in folder_files]) < 128*1024**2: # if there are less than 4 files totalling less than 64 MiB
                 collate_files = True
                 print(f'Collating files in {folder} by releasing folder process block.')
             else:
