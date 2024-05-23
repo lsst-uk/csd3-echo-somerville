@@ -261,12 +261,13 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         if len(files) > 0:
             # all files within folder
             folder_files = [os.sep.join([folder, filename]) for filename in files]
-            collate_files = False
-
+            
             # COLLATION of small files and small numbers of files per folder
             if len(files) < 4 and sum([os.stat(filename).st_size for filename in folder_files]) < 64*1024**2: # if there are less than 4 files totalling less than 64 MiB
                 collate_files = True
                 print(f'Collating files in {folder} by releasing folder process block.')
+            else:
+                collate_files = False
             
             # keys to files on s3
             object_names = [os.sep.join([destination_dir, os.path.relpath(filename, source_dir)]) for filename in folder_files]
@@ -340,13 +341,15 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         for result in results:
                             result.get()  # Wait until current processes in pool are finished
 
-            # release block of files if the list for results is greater than 4 times the number of processes
-            if collate_files and len(results) > nprocs*4:
-                for result in results:
-                    result.get()  # Wait until current processes in pool are finished
-                collate_files = False
         else:
             print(f'Skipping subfolder - empty.')
+    
+    # release block of files if the list for results is greater than 4 times the number of processes
+    ### MOVE THIS OUTSIDE THE LOOP SOMEHOW!
+    if collate_files and len(results) > nprocs*4:
+        for result in results:
+            result.get()  # Wait until current processes in pool are finished
+        collate_files = False
     pool.close()
     pool.join()
 
