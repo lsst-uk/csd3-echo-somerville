@@ -196,6 +196,9 @@ def print_stats(folder, file_count, total_size, folder_start, folder_end, proces
     Returns:
         None
     """
+
+    # This give false information as it is called once per file, not once per folder.
+
     elapsed = folder_end - folder_start
     print(f'Finished folder {folder}, elapsed time = {elapsed}')
     elapsed_seconds = elapsed.seconds + elapsed.microseconds / 1e6
@@ -340,15 +343,15 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 if i % nprocs*4 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
                     for result in results:
                         result.get()  # Wait until current processes in pool are finished
+            
+            # release block of files if the list for results is greater than 4 times the number of processes
+            if collate_files and len(results) > nprocs*4:
+                for result in results:
+                    result.get()  # Wait until current processes in pool are finished
+                collate_files = False
         else:
             print(f'Skipping subfolder - empty.')
         
-        # release block of files if the list for results is greater than 4 times the number of processes
-        ### MOVE THIS OUTSIDE THE LOOP SOMEHOW!
-        if collate_files and len(results) > nprocs*4:
-            for result in results:
-                result.get()  # Wait until current processes in pool are finished
-            collate_files = False
     pool.close()
     pool.join()
 
