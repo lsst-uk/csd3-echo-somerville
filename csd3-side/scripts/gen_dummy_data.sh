@@ -28,10 +28,10 @@ while getopts "n:f:s:" opt; do
   esac
 done
 
-for i in {1..$n}
+for i in $(seq 1 $n)
 do
     mkdir $i
-    for j in {1..$f}
+    for j in $(seq 1 $f)
     do
         dd if=/dev/zero of=$i/${i}_${j}.f bs=1M count=$s &
     done
