@@ -60,11 +60,128 @@ warnings.filterwarnings('ignore')
 
 import bucket_manager.bucket_manager as bm
 
-
-
 import hashlib
 import os
 import argparse
+
+def upload_to_bucket_batch(s3_host, access_key, secret_key, bucket_name, folder, filenames, object_keys, perform_checksum, dryrun):
+    """
+    Uploads a file to an S3 bucket.
+    Optionally calculates a checksum for the file
+    Optionally uploads the checksum to file.ext.checksum alongside file.ext.
+    
+    Args:
+        s3_host (str): The S3 host URL.
+        access_key (str): The access key for the S3 bucket.
+        secret_key (str): The secret key for the S3 bucket.
+        bucket_name (str): The name of the S3 bucket.
+        folder (str): The local folder containing the file to upload.
+        filename (str): The name of the file to upload.
+        object_key (str): The key to assign to the uploaded file in the S3 bucket.
+        perform_checksum (bool): Flag indicating whether to perform a checksum on the file.
+        dryrun (bool): Flag indicating whether to perform a dry run (no actual upload).
+
+    Returns:
+        str: A string containing information about the uploaded file in CSV format.
+            The format is: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY
+            Where: CHECKSUM, CHECKSUM_SIZE are n/a if checksum was not performed.
+    """
+    s3 = bm.get_resource(access_key, secret_key, s3_host)
+    s3_client = bm.get_client(access_key, secret_key, s3_host)
+    bucket = s3.Bucket(bucket_name)
+
+    return_strings = []
+
+    for filename, object_key in zip(filenames, object_keys):
+        link = False
+        if os.path.islink(filename):
+            link = True
+        # Check if the file is a symlink
+        # If it is, upload an object containing the target path instead
+        if link:
+            file_data = os.path.realpath(filename)
+        else:
+            file_data = open(filename, 'rb')
+    
+        
+        """
+        - Upload the file to the bucket
+        """
+        if not dryrun:
+            if link:
+                """
+                - Upload the link target _path_ to an object
+                """
+                bucket.put_object(Body=file_data, Key=object_key)
+            if not link:
+                if perform_checksum:
+                    """
+                    - Create checksum object
+                    """
+                    file_data.seek(0)  # Ensure we're at the start of the file
+                    checksum_hash = hashlib.md5(file_data.read())
+                    checksum_string = checksum_hash.hexdigest()
+                    checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
+                    file_data.seek(0)  # Reset the file pointer to the start
+                    try:
+                        if os.stat(filename).st_size > 5 * 1024 * 1024 * 1024:  # Check if file size is larger than 5GiB
+                            """
+                            - Use multipart upload for large files
+                            """
+                            obj = bucket.Object(object_key)
+                            mp_upload = obj.initiate_multipart_upload()
+                            chunk_size = 500 * 1024 * 1024  # Set chunk size to 500 MiB
+                            chunk_count = int(np.ceil(os.stat(filename).st_size / chunk_size))
+                            parts = []
+                            for i in range(chunk_count):
+                                start = i * chunk_size
+                                end = min(start + chunk_size, os.stat(filename).st_size)
+                                part_number = i + 1
+                                with open(filename, 'rb') as f:
+                                    f.seek(start)
+                                    chunk_data = f.read(end - start)
+                                part = s3_client.upload_part(
+                                    Body=chunk_data,
+                                    Bucket=bucket_name,
+                                    Key=object_key,
+                                    PartNumber=part_number,
+                                    UploadId=mp_upload.id
+                                )
+                                parts.append({"PartNumber": part_number, "ETag": part["ETag"]})
+                            s3_client.complete_multipart_upload(
+                                Bucket=bucket_name,
+                                Key=object_key,
+                                UploadId=mp_upload.id,
+                                MultipartUpload={"Parts": parts}
+                            )
+                        else:
+                            """
+                            - Upload the file to the bucket
+                            """
+                            bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64)
+                    except Exception as e:
+                        print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
+                else:
+                    try:
+                        bucket.put_object(Body=file_data, Key=object_key)
+                    except Exception as e:
+                        print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
+                file_data.close()
+        """
+            report actions
+            CSV formatted
+            header: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM
+        """
+        if link:
+            return_string = f'"{folder}","{filename}",{os.lstat(filename).st_size},"{bucket_name}","{object_key}"'
+        else:
+            return_string = f'"{folder}","{filename}",{os.stat(filename).st_size},"{bucket_name}","{object_key}"'
+        if perform_checksum and not link:
+            return_string += f',{checksum_string}'
+        else:
+            return_string += ',n/a'
+        return_strings.append(return_string)
+    return "\n".join(return_strings)
 
 def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun):
     """
@@ -181,7 +298,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
     return return_string
 
 
-def print_stats(folder, file_count, total_size, folder_start, folder_end, processing_start, total_size_uploaded, total_files_uploaded):
+def print_stats(filename, file_count, total_size, file_start, file_end, processing_start, total_size_uploaded, total_files_uploaded):
     """
     Prints the statistics of the upload process.
 
@@ -199,26 +316,26 @@ def print_stats(folder, file_count, total_size, folder_start, folder_end, proces
 
     # This give false information as it is called once per file, not once per folder.
 
-    elapsed = folder_end - folder_start
-    print(f'Finished folder {folder}, elapsed time = {elapsed}')
+    elapsed = file_end - file_start
+    print(f'Uploaded {filename}, elapsed time = {elapsed}')
     elapsed_seconds = elapsed.seconds + elapsed.microseconds / 1e6
     avg_file_size = total_size / file_count / 1024**2
     print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded in {elapsed_seconds:.2f} seconds, {elapsed_seconds/file_count:.2f} s/file', flush=True)
     print(f'{total_size / 1024**2:.2f} MiB uploaded in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/s', flush=True)
-    print(f'Total elapsed time = {folder_end-processing_start}', flush=True)
+    print(f'Total elapsed time = {file_end-processing_start}', flush=True)
     print(f'Total files uploaded = {total_files_uploaded}', flush=True)
     print(f'Total size uploaded = {total_size_uploaded / 1024**3:.2f} GiB', flush=True)
-    print(f'Running average speed = {total_size_uploaded / 1024**2 / (folder_end-processing_start).seconds:.2f} MiB/s', flush=True)
-    print(f'Running average rate = {(folder_end-processing_start).seconds / total_files_uploaded:.2f} s/file', flush=True)
+    print(f'Running average speed = {total_size_uploaded / 1024**2 / (file_end-processing_start).seconds:.2f} MiB/s', flush=True)
+    print(f'Running average rate = {(file_end-processing_start).seconds / total_files_uploaded:.2f} s/file', flush=True)
 
 def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded):
     #repeat(s3_host), repeat(access_key), repeat(secret_key), repeat(bucket_name), repeat(folder), folder_files, object_names, repeat(perform_checksum), repeat(dryrun)
     # upload files in parallel and log output
     print(f'Uploading {file_count} files from {folder}.')
-    folder_start = datetime.now()
+    file_start = datetime.now()
     result = upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun)
-    folder_end = datetime.now()
-    print_stats(folder, file_count, folder_files_size, folder_start, folder_end, processing_start, total_size_uploaded, total_files_uploaded)
+    file_end = datetime.now()
+    print_stats(filename, file_count, folder_files_size, file_start, file_end, processing_start, total_size_uploaded, total_files_uploaded)
     with open(log, 'a') as logfile:
         logfile.write(f'{result}\n')
     return None
@@ -258,19 +375,15 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'Skipping subfolder {folder} - excluded.')
             continue
 
+        folder_files = [os.sep.join([folder, filename]) for filename in files]
+        total_filesize = sum([os.stat(filename).st_size for filename in folder_files])
         if not collate_files:
             results = []
         # check folder isn't empty
-        if len(files) > 0:
+        if len(files) > 4 and total_filesize > 96*1024**2:
             # all files within folder
-            folder_files = [os.sep.join([folder, filename]) for filename in files]
-            
-            # COLLATION of small files and small numbers of files per folder
-            if len(files) < 4 and sum([os.stat(filename).st_size for filename in folder_files]) < 128*1024**2: # if there are less than 4 files totalling less than 64 MiB
-                collate_files = True
-                print(f'Collating files in {folder} by releasing folder process block.')
-            else:
-                collate_files = False
+            print(f'Processing {len(files)} files (total size: {total_filesize}) individually in {folder}.')
+            collate_files = False
             
             # keys to files on s3
             object_names = [os.sep.join([destination_dir, os.path.relpath(filename, source_dir)]) for filename in folder_files]
@@ -339,12 +452,64 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     repeat(total_files_uploaded)
                 )):
                 results.append(pool.apply_async(upload_and_callback, args=args))
-            if not collate_files:
-                if i % nprocs*4 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
-                    for result in results:
-                        result.get()  # Wait until current processes in pool are finished
+
+            if i % nprocs*4 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
+                for result in results:
+                    result.get()  # Wait until current processes in pool are finished
             
             # release block of files if the list for results is greater than 4 times the number of processes
+
+        elif len(files) > 0:
+            # keys to files on s3
+            object_names = [os.sep.join([destination_dir, os.path.relpath(filename, source_dir)]) for filename in folder_files]
+            # print(f'folder_files: {folder_files}')
+            # print(f'object_names: {object_names}')
+            init_len = len(object_names)
+            # remove current objects - avoids reuploading
+            # could provide overwrite flag if this is desirable
+            # print(f'current_objects: {current_objects}')
+            if all([obj in current_objects for obj in object_names]):
+                #all files in this subfolder already in bucket
+                print(f'Skipping subfolder - all files exist.')
+                continue
+            for oni, on in enumerate(object_names):
+                if on in current_objects:
+                    object_names.remove(on)
+                    del folder_files[oni]
+            pre_linkcheck_file_count = len(object_names)
+            if init_len - pre_linkcheck_file_count > 0:
+                print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.')
+            # print(f'folder_files: {folder_files}')
+            # print(f'object_names: {object_names}')
+            # folder_start = datetime.now()
+            
+            # print('checking for symlinks')
+            #always do this AFTER removing "current_objects" to avoid re-uploading
+            symlink_targets = []
+            symlink_obj_names = []
+            for i in range(len(folder_files)):
+                if os.path.islink(folder_files[i]):
+                    #rename link in object_names
+                    symlink_obj_name = object_names[i]
+                    object_names[i] = '.'.join([object_names[i], 'symlink'])
+                    #add symlink target to symlink_targets list
+                    symlink_targets.append(os.path.realpath(folder_files[i]))
+                    #add real file to symlink_obj_names list
+                    symlink_obj_names.append(symlink_obj_name)
+
+            # append symlink_targets and symlink_obj_names to folder_files and object_names
+
+            folder_files.extend(symlink_targets)
+            object_names.extend(symlink_obj_names)
+
+            file_count = len(object_names)
+            # folder_end = datetime.now()
+            folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
+            total_size_uploaded += folder_files_size
+            total_files_uploaded += file_count
+            # print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
+
+
             if collate_files and len(results) > nprocs*4:
                 for result in results:
                     result.get()  # Wait until current processes in pool are finished
