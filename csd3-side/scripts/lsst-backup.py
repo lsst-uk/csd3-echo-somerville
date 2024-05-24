@@ -64,7 +64,7 @@ import hashlib
 import os
 import argparse
 
-def upload_to_bucket_batch(s3_host, access_key, secret_key, bucket_name, folder, filenames, object_keys, perform_checksum, dryrun):
+def upload_to_bucket_collate(s3_host, access_key, secret_key, bucket_name, folder, filenames, object_keys, perform_checksum, dryrun):
     """
     Uploads a file to an S3 bucket.
     Optionally calculates a checksum for the file
@@ -360,6 +360,13 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     Returns:
         None
     """
+
+    # CHANGE THIS COMPLETELY
+    # GENERATE TWO LISTS: FOLDERS TO UPLOAD AND ZIP BOOLEANS
+    # ITERATE, SEND FOLDERS WITH ZIP==FALSE TO upload_and_callback (AS A LIST OF FILES)
+    # SEND FOLDERS WITH ZIP==TRUE TO upload_to_bucket_collate (AS A LIST OF FOLDERS)
+
+
     processing_start = datetime.now()
     total_size_uploaded = 0
     total_files_uploaded = 0
