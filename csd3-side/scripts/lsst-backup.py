@@ -52,6 +52,7 @@ import pandas as pd
 import numpy as np
 import glob
 import subprocess
+import yaml
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -74,19 +75,19 @@ def zip_folders(parent_folder,subfolders_to_collate,folders_files):
     """
     import io
     import zipfile
-    print(f'parent_folder: {parent_folder}')
-    print(f'subfolders_to_collate: {subfolders_to_collate}')
-    print(f'folders_files: {folders_files}')
+
+    # print(f'subfolders_to_collate: {subfolders_to_collate}')
+    # print(f'folders_files: {folders_files}')
 
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
         for i,folder in enumerate(subfolders_to_collate):
             for file in folders_files[i]:
                 file_path = os.path.join(folder, file)
-                print(f'Adding {file_path} to zip with archive path {os.path.relpath(file_path, parent_folder)}.')
+                # print(f'Adding {file_path} to zip with archive path {os.path.relpath(file_path, parent_folder)}.')
                 zip_file.write(file_path, os.path.relpath(file_path, parent_folder))
-    print(f'{parent_folder}/collated.zip')
-    return zip_buffer.getvalue(), f'{parent_folder}/collated.zip'
+    # zip_buffer.seek(0)
+    return parent_folder, zip_buffer.getvalue()
 
 def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, object_key, perform_checksum, dryrun, collated):
     """
@@ -115,7 +116,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, file_
     s3_client = bm.get_client(access_key, secret_key, s3_host)
     bucket = s3.Bucket(bucket_name)
     link = False
-    print(object_key)
+    print(f'object_key {object_key}')
 
     if collated and type(file_name_or_data) == str:
         print('Expecting bytes object for collated upload. Exiting.')
@@ -137,12 +138,15 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, file_
     else: # expect zip file data in memory
         file_data = file_name_or_data
     
-    file_data.seek(0, os.SEEK_END)
-    file_data_size = file_data.tell()
-    file_data.seek(0)
+    # print(file_data)
+    print(type(file_data))
+    # print('length of bytes data:', len(file_data))
+    # file_data.seek(0, os.SEEK_END)
+    # file_data_size = file_data.tell()
+    # file_data.seek(0)
     
 
-    print(f'Uploading {filename} {file_name_or_data} {folder} to {bucket_name}/{object_key}, {file_data_size} bytes, checksum = {perform_checksum}, dryrun = {dryrun}, collated = {collated}')
+    print(f'Uploading {filename} {file_name_or_data} {folder} to {bucket_name}/{object_key}, {file_data_size} bytes, checksum = {perform_checksum}, dryrun = {dryrun}, collated = {collated}', flush=True)
     """
     - Upload the file to the bucket
     """
@@ -440,7 +444,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             total_size_uploaded += folder_files_size
             total_files_uploaded += file_count
             # print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
-            print(f'folder {folder} has {len(files)} files (total size: {folder_files_size/1024**2:.0f} MiB); will be uploaded as part of a collated upload.')
+            # print(f'folder {folder} has {len(files)} files (total size: {folder_files_size/1024**2:.0f} MiB); will be uploaded as part of a collated upload.')
             
             to_collate[parent_folder]['folders'].append(folder)
             to_collate[parent_folder]['object_names'].append(object_names)
@@ -454,32 +458,45 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
         print(f'Collating {len([to_collate[parent_folder]["folders"] for parent_folder in to_collate.keys()])} folders into {len(to_collate)} zip files.')
         # call zip_folder in parallel
-        print(to_collate)
-        for parent_folder in to_collate.keys():
-            print(parent_folder)
-            zip_results.append(pool.apply_async(zip_folders, args=(parent_folder,to_collate[parent_folder]['folders'],to_collate[parent_folder]['folder_files'])))
+        # print(to_collate)
+        for zip_tuple in to_collate.items():
+            parent_folder = zip_tuple[0]
+            folders = zip_tuple[1]['folders']
+            folder_files = zip_tuple[1]['folder_files']
+            print(f'parent_folder before zip: {parent_folder}')
+            zip_results.append(pool.apply_async(zip_folders, args=(parent_folder,folders,folder_files)))
         for result in zip_results:
-            zip_data, zip_object_name = result.get()
+            parent_folder, zip_data = result.get()
+            print(f'temp_zip_object_name: {parent_folder}/collated.zip')
             to_collate[parent_folder]['zip_data'] = zip_data
-            to_collate[parent_folder]['zip_object_name'] = zip_object_name.replace(source_dir, '')
-            print(zip_object_name)
-            print(source_dir)
+            #[os.sep.join([destination_dir, os.path.relpath(filename, source_dir)]) for filename in folder_files]
+            to_collate[parent_folder]['zip_object_name'] = str(os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated.zip', source_dir)]))
+            print(f"final zip_object_name: {to_collate[parent_folder]['zip_object_name']}")
+
 
         print('Uploading collated folders.')
-        for i,parent_folder in enumerate(to_collate.keys()):
+        # print(to_collate.items())
+        for zip_tuple in to_collate.items():
+            parent_folder = zip_tuple[0]
+            zip_data = zip_tuple[1]['zip_data']
+            zip_object_name = zip_tuple[1]['zip_object_name']
+            print(zip_tuple[1]['parent_folder'])
+            print(f"parent_folder here: {parent_folder}")
+            print(len(zip_data))
+            print(f"zip object name here: {zip_object_name}")
             results.append(pool.apply_async(upload_and_callback, args=(
                 s3_host,
                 access_key,
                 secret_key,
                 bucket_name,
-                to_collate[parent_folder]['parent_folder'],
-                to_collate[parent_folder]['zip_data'],
-                to_collate[parent_folder]['zip_object_name'],
+                parent_folder,
+                zip_data,
+                zip_object_name,
                 perform_checksum,
                 dryrun,
                 processing_start,
-                len(to_collate[parent_folder]['folders']),
-                np.sum([[os.lstat(filename).st_size for filename in filenames] for filenames in to_collate[parent_folder]['folder_files']]),
+                len(zip_tuple[1]['object_names']),
+                len(zip_data),
                 total_size_uploaded,
                 total_files_uploaded,
                 True,
@@ -606,6 +623,10 @@ example:
     
     bucket = s3.Bucket(bucket_name)
     current_objects = bm.object_list(bucket)
+
+    # check source_dir formatting
+    while source_dir[-1] == '/':
+        source_dir = source_dir[:-1]
     
     # Process the files
     print(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}')
