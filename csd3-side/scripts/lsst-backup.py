@@ -82,8 +82,8 @@ def zip_folders(parent_folder,subfolders_to_collate,folders_files):
     zip_buffer = io.BytesIO()
     # zipfile.ZIP_STORED = no compression
     # zipfile.ZIP_DEFLATED = standard compression
-    compression = zipfile.ZIP_DEFLATED
-    with zipfile.ZipFile(zip_buffer, "a", compression, False) as zip_file:
+    compression = zipfile.ZIP_STORED
+    with zipfile.ZipFile(zip_buffer, "a", compression, True) as zip_file:
         for i,folder in enumerate(subfolders_to_collate):
             for file in folders_files[i]:
                 file_path = os.path.join(folder, file)
