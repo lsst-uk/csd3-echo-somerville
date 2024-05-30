@@ -92,7 +92,9 @@ def zip_folders(parent_folder,subfolders_to_collate,folders_files,use_compressio
                 file_path = os.path.join(folder, file)
                 # print(f'Adding {file_path} to zip with archive path {os.path.relpath(file_path, parent_folder)}.')
                 zip_file.write(file_path, os.path.relpath(file_path, parent_folder))
+                print('size',zip_file.__sizeof__())
     # zip_buffer.seek(0)
+    print('len',len(zip_buffer.getvalue()))
     return parent_folder, zip_buffer.getvalue()
 
 def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun):
