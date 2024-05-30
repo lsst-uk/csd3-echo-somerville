@@ -63,7 +63,7 @@ import hashlib
 import os
 import argparse
 
-def zip_folders(parent_folder,subfolders_to_collate,folders_files):
+def zip_folders(parent_folder,subfolders_to_collate,folders_files,use_compression):
     """
     Collates the specified folders into a zip file.
 
@@ -80,9 +80,12 @@ def zip_folders(parent_folder,subfolders_to_collate,folders_files):
     # print(f'folders_files: {folders_files}')
 
     zip_buffer = io.BytesIO()
-    # zipfile.ZIP_STORED = no compression
-    # zipfile.ZIP_DEFLATED = standard compression
-    compression = zipfile.ZIP_STORED
+    if use_compression:
+        # zipfile.ZIP_DEFLATED = standard compression
+        compression = zipfile.ZIP_DEFLATED
+    else:
+        # zipfile.ZIP_STORED = no compression
+        compression = zipfile.ZIP_STORED
     with zipfile.ZipFile(zip_buffer, "a", compression, True) as zip_file:
         for i,folder in enumerate(subfolders_to_collate):
             for file in folders_files[i]:
@@ -393,7 +396,7 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, fi
         logfile.write(f'{result}\n')
     return None
 
-def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, exclude, source_dir, destination_dir, nprocs, perform_checksum, dryrun, log, global_collate):
+def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, exclude, source_dir, destination_dir, nprocs, perform_checksum, dryrun, log, global_collate, use_compression):
     """
     Uploads files from a local directory to an S3 bucket in parallel.
 
@@ -582,7 +585,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             folders = zip_tuple[1]['folders']
             folder_files = zip_tuple[1]['folder_files']
             print(f'parent_folder before zip: {parent_folder}')
-            zip_results.append(pool.apply_async(zip_folders, args=(parent_folder,folders,folder_files)))
+            zip_results.append(pool.apply_async(zip_folders, args=(parent_folder,folders,folder_files,use_compression)))
         for result in zip_results:
             parent_folder, zip_data = result.get()
             print(f'temp_zip_object_name: {parent_folder}/collated.zip')
@@ -659,6 +662,9 @@ example:
     parser.add_argument('--exclude', nargs='+', help='Folders to exclude from upload as a list or wildcard.')
     parser.add_argument('--nprocs', type=int, default=4, help='Number of CPU cores to use for parallel upload.')
     parser.add_argument('--no-collate', default=False, action='store_true', help='Turn off collation of subfolders containing small numbers of small files into zip files.')
+    parser.add_argument('--dryrun', default=False, action='store_true', help='Perform a dry run without uploading files.')
+    parser.add_argument('--no-checksum', default=False, action='store_true', help='Do not perform checksum validation during upload.')
+    parser.add_argument('--no-compression', default=False, action='store_true', help='Do not use compression when collating files.')
     args = parser.parse_args()
     print(args)
     source_dir = args.source_path
@@ -667,8 +673,10 @@ example:
     bucket_name = args.bucket_name
     nprocs = args.nprocs # change to adjust number of CPUs (= number of concurrent connections)
     global_collate = not args.no_collate # internally, flag turns *on* collate, but for user no-collate turns it off - makes flag more intuitive
-    print(global_collate)
-    print(nprocs)
+    perform_checksum = not args.no_checksum
+    dryrun = args.dryrun
+    use_compression = not args.no_compression
+
     exclude = []
     if args.exclude:
         if '*' not in ''.join(args.exclude):
@@ -696,9 +704,6 @@ example:
     destination_dir = f"{prefix}/{sub_dirs}" 
     # folders = []
     # folder_files = []
-    
-    perform_checksum = True
-    dryrun = False
     
     # Add titles to log file
     if not os.path.exists(log):
@@ -759,7 +764,7 @@ example:
     print(f'Using {nprocs} processes.')
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore')
-        process_files(s3_host,access_key, secret_key, bucket_name, current_objects, exclude, source_dir, destination_dir, nprocs, perform_checksum, dryrun, log, global_collate)
+        process_files(s3_host,access_key, secret_key, bucket_name, current_objects, exclude, source_dir, destination_dir, nprocs, perform_checksum, dryrun, log, global_collate, use_compression)
     
     # Complete
     final_time = datetime.now() - start
