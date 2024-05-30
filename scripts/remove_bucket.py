@@ -8,6 +8,7 @@ This script allows you to delete a bucket in an S3-compatible storage service.
 
 import sys
 import warnings
+import argparse
 # from tqdm import tqdm
 import bucket_manager.bucket_manager as bm
 
@@ -29,7 +30,14 @@ bucket_name = sys.argv[1]
 if not bucket_name in bm.bucket_list(s3):
     sys.exit('Bucket does not exist.')
 
-sure = input("Are you sure? [y/n]\n").lower()
+parser = argparse.ArgumentParser()
+parser.add_argument('-y', action='store_true', help='Skip confirmation prompt')
+args = parser.parse_args()
+
+if args.y:
+    sure = 'y'
+else:
+    sure = input("Are you sure? [y/n]\n").lower()
 
 if sure == 'n':
     sys.exit('Aborted.')
