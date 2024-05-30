@@ -25,14 +25,15 @@ warnings.filterwarnings('ignore')
 
 s3 = bm.get_resource(access_key, secret_key, s3_host)
 
-bucket_name = sys.argv[1]
-
-if not bucket_name in bm.bucket_list(s3):
-    sys.exit('Bucket does not exist.')
-
 parser = argparse.ArgumentParser()
 parser.add_argument('-y', action='store_true', help='Skip confirmation prompt')
+parser.add_argument('bucket_name', type=str, help='Name of the bucket to delete')
 args = parser.parse_args()
+
+bucket_name = args.bucket_name
+
+if not bucket_name in bm.bucket_list(s3):
+    sys.exit(f'Bucket "{bucket_name}" does not exist.')
 
 if args.y:
     sure = 'y'
