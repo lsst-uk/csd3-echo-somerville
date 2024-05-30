@@ -76,6 +76,8 @@ def zip_folders(parent_folder,subfolders_to_collate,folders_files,use_compressio
     import io
     import zipfile
 
+    # TODO: Implement multiple zips based on nprocs
+
     # print(f'subfolders_to_collate: {subfolders_to_collate}')
     # print(f'folders_files: {folders_files}')
 
