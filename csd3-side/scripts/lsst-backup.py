@@ -429,7 +429,11 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     #recursive loop over local folder
     results = []
     to_collate = {} # store folders to collate
-    for folder, _, files in os.walk(source_dir):
+    for folder, sub_folders, files in os.walk(source_dir, topdown=True):
+        # print(f'Processing {folder}.')
+        # print(f'Files: {files}')
+        # print(f'Subfolders: {sub_folders}')
+        # continue
         # check if folder is in the exclude list
         if folder in exclude:
             print(f'Skipping subfolder {folder} - excluded.')
@@ -437,6 +441,15 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
         folder_files = [os.sep.join([folder, filename]) for filename in files]
         total_filesize = sum([os.stat(filename).st_size for filename in folder_files])
+
+        # check if any subfolders contain no subfolders and < 4 files
+        for sub_folder in sub_folders:
+            sub_folder_path = os.path.join(folder, sub_folder)
+            _, sub_sub_folders, sub_files = next(os.walk(sub_folder_path), ([], [], []))
+            if not sub_sub_folders and len(sub_files) < 4:
+                sub_folders.remove(sub_folder) # not sure what the effect of this is
+                # append to a list of folders to collate
+                # append to exclude list
 
         # check folder isn't empty
         print(f'Processing {len(files)} files (total size: {total_filesize/1024**2:.0f} MiB) in {folder}.')

@@ -1,6 +1,11 @@
 #Visual Studio Code IDE files
 .vscode/
 
+#test folders
+csd3-side/test_data/
+csd3-side/test_laptop/
+csd3-side/DTN_collate_tests/
+
 #Plots
 *.png
 
