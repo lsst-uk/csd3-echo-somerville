@@ -430,10 +430,10 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     results = []
     to_collate = {} # store folders to collate
     for folder, sub_folders, files in os.walk(source_dir, topdown=True):
-        # print(f'Processing {folder}.')
-        # print(f'Files: {files}')
-        # print(f'Subfolders: {sub_folders}')
-        # continue
+        print(f'Processing {folder}.')
+        print(f'Files: {files}')
+        print(f'Subfolders: {sub_folders}')
+        continue
         # check if folder is in the exclude list
         if folder in exclude:
             print(f'Skipping subfolder {folder} - excluded.')
