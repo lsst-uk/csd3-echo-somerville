@@ -20,7 +20,7 @@ import os
 from multiprocessing import Pool
 from itertools import repeat
 import warnings
-from datetime import datetime
+from datetime import datetime, timedelta
 from time import sleep
 import hashlib
 import base64
@@ -39,7 +39,7 @@ import hashlib
 import os
 import argparse
 
-def zip_folders(parent_folder,subfolders_to_collate,folders_files,use_compression):
+def zip_folders(parent_folder,subfolders_to_collate,folders_files,use_compression,dryrun):
     """
     Collates the specified folders into a zip file.
 
@@ -49,31 +49,34 @@ def zip_folders(parent_folder,subfolders_to_collate,folders_files,use_compressio
     Returns:
         bytes: The compressed zip file as a bytes object.
     """
-    import io
-    import zipfile
+    if not dryrun:
+        import io
+        import zipfile
 
-    # TODO: Implement multiple zips based on nprocs
+        # TODO: Implement multiple zips based on nprocs
 
-    # print(f'subfolders_to_collate: {subfolders_to_collate}')
-    # print(f'folders_files: {folders_files}')
+        # print(f'subfolders_to_collate: {subfolders_to_collate}')
+        # print(f'folders_files: {folders_files}')
 
-    zip_buffer = io.BytesIO()
-    if use_compression:
-        # zipfile.ZIP_DEFLATED = standard compression
-        compression = zipfile.ZIP_DEFLATED
+        zip_buffer = io.BytesIO()
+        if use_compression:
+            # zipfile.ZIP_DEFLATED = standard compression
+            compression = zipfile.ZIP_DEFLATED
+        else:
+            # zipfile.ZIP_STORED = no compression
+            compression = zipfile.ZIP_STORED
+        with zipfile.ZipFile(zip_buffer, "a", compression, True) as zip_file:
+            for i,folder in enumerate(subfolders_to_collate):
+                for file in folders_files[i]:
+                    file_path = os.path.join(folder, file)
+                    # print(f'Adding {file_path} to zip with archive path {os.path.relpath(file_path, parent_folder)}.')
+                    zip_file.write(file_path, os.path.relpath(file_path, parent_folder))
+                    # print('size',zip_file.__sizeof__())
+        # zip_buffer.seek(0)
+        # print('len',len(zip_buffer.getvalue()))
+        return parent_folder, zip_buffer.getvalue()
     else:
-        # zipfile.ZIP_STORED = no compression
-        compression = zipfile.ZIP_STORED
-    with zipfile.ZipFile(zip_buffer, "a", compression, True) as zip_file:
-        for i,folder in enumerate(subfolders_to_collate):
-            for file in folders_files[i]:
-                file_path = os.path.join(folder, file)
-                # print(f'Adding {file_path} to zip with archive path {os.path.relpath(file_path, parent_folder)}.')
-                zip_file.write(file_path, os.path.relpath(file_path, parent_folder))
-                print('size',zip_file.__sizeof__())
-    # zip_buffer.seek(0)
-    print('len',len(zip_buffer.getvalue()))
-    return parent_folder, zip_buffer.getvalue()
+        return parent_folder, b''
 
 def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun):
     """
@@ -188,6 +191,8 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                 except Exception as e:
                     print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
             file_data.close()
+    else:
+        checksum_string = "DRYRUN"
     """
         report actions
         CSV formatted
@@ -298,6 +303,9 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                 bucket.put_object(Body=file_data, Key=object_key)
             except Exception as e:
                 print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
+   
+    else:
+        checksum_string = "DRYRUN"
     """
         report actions
         CSV formatted
@@ -419,7 +427,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
         # check folder isn't empty
         print(f'Processing {len(files)} files (total size: {total_filesize/1024**2:.0f} MiB) in {folder}.')
-        if len(files) > 4 and total_filesize > 96*1024**2 or not global_collate:
+        if len(files) > 4 or total_filesize > 96*1024**2 or not global_collate:
             # all files within folder
             print(f'Processing {len(files)} files (total size: {total_filesize}) individually in {folder}.')
             
@@ -499,6 +507,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             # release block of files if the list for results is greater than 4 times the number of processes
 
         elif len(files) > 0 and global_collate:
+            folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
             parent_folder = os.path.abspath(os.path.join(folder, os.pardir))
             if parent_folder not in to_collate.keys():
                 to_collate[parent_folder] = {'parent_folder':parent_folder,'folders':[],'object_names':[], 'folder_files':[], 'zip_data':None, 'zip_object_name':''} # store folders to collate
@@ -568,47 +577,41 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             folders = zip_tuple[1]['folders']
             folder_files = zip_tuple[1]['folder_files']
             print(f'parent_folder before zip: {parent_folder}')
-            zip_results.append(pool.apply_async(zip_folders, args=(parent_folder,folders,folder_files,use_compression)))
-        for result in zip_results:
-            parent_folder, zip_data = result.get()
-            print(f'temp_zip_object_name: {parent_folder}/collated.zip')
-            to_collate[parent_folder]['zip_data'] = zip_data
-            #[os.sep.join([destination_dir, os.path.relpath(filename, local_dir)]) for filename in folder_files]
-            to_collate[parent_folder]['zip_object_name'] = str(os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated.zip', local_dir)]))
-            print(f"final zip_object_name: {to_collate[parent_folder]['zip_object_name']}")
-        
-        zip_files_size = np.sum(np.array([len(zip_tuple[1]['zip_data']) for zip_tuple in to_collate.items()]))
-        total_size_uploaded += zip_files_size
-        total_files_uploaded += len(to_collate)
-
-
-        print('Uploading collated folders.')
-        # print(to_collate.items())
-        for zip_tuple in to_collate.items():
-            parent_folder = zip_tuple[0]
-            zip_data = zip_tuple[1]['zip_data']
-            zip_object_name = zip_tuple[1]['zip_object_name']
-            print(zip_tuple[1]['parent_folder'])
-            print(f"parent_folder here: {parent_folder}")
-            print(len(zip_data))
-            print(f"zip object name here: {zip_object_name}")
-            results.append(pool.apply_async(upload_and_callback, args=(
-                s3_host,
-                access_key,
-                secret_key,
-                bucket_name,
-                parent_folder,
-                zip_data,
-                zip_object_name,
-                perform_checksum,
-                dryrun,
-                processing_start,
-                1,
-                len(zip_data),
-                total_size_uploaded,
-                total_files_uploaded,
-                True,
-            )))
+            zip_results.append(pool.apply_async(zip_folders, args=(parent_folder,folders,folder_files,use_compression,dryrun)))
+        zipped = 0
+        uploaded = []
+        while zipped < len(zip_results):
+            for result in zip_results:
+                if result.ready():
+                    parent_folder, zip_data = result.get()
+                    if parent_folder not in uploaded:
+                        zipped += 1
+                        uploaded.append(parent_folder)
+                        to_collate[parent_folder]['zip_data'] = zip_data
+                        #[os.sep.join([destination_dir, os.path.relpath(filename, local_dir)]) for filename in folder_files]
+                        to_collate[parent_folder]['zip_object_name'] = str(os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated.zip', local_dir)]))
+                    
+                        # upload zipped folders
+                        total_size_uploaded += len(zip_data)
+                        total_files_uploaded += 1
+                        print(f'Uploading zip file containing {len(folders)} subfolders from {parent_folder}.')
+                        results.append(pool.apply_async(upload_and_callback, args=(
+                            s3_host,
+                            access_key,
+                            secret_key,
+                            bucket_name,
+                            parent_folder,
+                            to_collate[parent_folder]['zip_data'],
+                            to_collate[parent_folder]['zip_object_name'],
+                            perform_checksum,
+                            dryrun,
+                            processing_start,
+                            1,
+                            len(zip_data),
+                            total_size_uploaded,
+                            total_files_uploaded,
+                            True,
+                        )))
             
     pool.close()
     pool.join()
