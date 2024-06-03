@@ -403,10 +403,11 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     #recursive loop over local folder
     results = []
     to_collate = {} # store folders to collate
+    
     for folder, sub_folders, files in os.walk(local_dir, topdown=True):
-        # print(f'Processing {folder}.')
-        # print(f'Files: {files}')
-        # print(f'Subfolders: {sub_folders}')
+        print(f'Processing {folder}.')
+        print(f'Files: {files}')
+        print(f'Subfolders: {sub_folders}')
         # continue
         # check if folder is in the exclude list
         if folder in exclude:
@@ -476,6 +477,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             file_count = len(object_names)
             # folder_end = datetime.now()
             folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
+            print('THIS BIT SHOULD UPLOAD a_backup!')
             total_size_uploaded += folder_files_size
             total_files_uploaded += file_count
             # print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
@@ -563,7 +565,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             to_collate[parent_folder]['object_names'].append(object_names)
             to_collate[parent_folder]['folder_files'].append(folder_files)
         else:
-            print(f'Skipping subfolder - empty.')
+            print(f'Skipping subfolder - no files.')
     
     # collate folders
     zip_results = []
