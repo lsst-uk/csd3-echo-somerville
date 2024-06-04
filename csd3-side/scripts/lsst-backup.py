@@ -405,9 +405,9 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     to_collate = {} # store folders to collate
     
     for folder, sub_folders, files in os.walk(local_dir, topdown=True):
-        print(f'Processing {folder}.')
-        print(f'Files: {files}')
-        print(f'Subfolders: {sub_folders}')
+        # print(f'Processing {folder}.')
+        # print(f'Files: {files}')
+        # print(f'Subfolders: {sub_folders}')
         # continue
         # check if folder is in the exclude list
         if folder in exclude:
@@ -421,10 +421,11 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         for sub_folder in sub_folders:
             sub_folder_path = os.path.join(folder, sub_folder)
             _, sub_sub_folders, sub_files = next(os.walk(sub_folder_path), ([], [], []))
-            if not sub_sub_folders and len(sub_files) < 4:
+            subfolder_files = [os.sep.join([sub_folder_path, filename]) for filename in sub_files]
+            total_subfilesize = sum([os.stat(filename).st_size for filename in subfolder_files])
+            if not sub_sub_folders and len(sub_files) < 4 and total_subfilesize < 96*1024**2:
                 sub_folders.remove(sub_folder) # not sure what the effect of this is
-                # append to a list of folders to collate
-                # append to exclude list
+                # upload files in subfolder "as is" i.e., no zipping
 
         # check folder isn't empty
         print(f'Processing {len(files)} files (total size: {total_filesize/1024**2:.0f} MiB) in {folder}.')
@@ -477,7 +478,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             file_count = len(object_names)
             # folder_end = datetime.now()
             folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
-            print('THIS BIT SHOULD UPLOAD a_backup!')
             total_size_uploaded += folder_files_size
             total_files_uploaded += file_count
             # print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
@@ -614,7 +614,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                             total_files_uploaded,
                             True,
                         )))
-            
+
     pool.close()
     pool.join()
 
@@ -637,7 +637,7 @@ if __name__ == '__main__':
     parser.add_argument('--S3-prefix', type=str, help='Prefix to be used in S3 object keys.')
     parser.add_argument('--S3-folder', type=str, help='Subfolder(s) at the end of the local path to be used in S3 object keys.')
     parser.add_argument('--exclude', nargs='+', help='Folders to exclude from upload as a list or wildcard.')
-    parser.add_argument('--nprocs', type=int, default=4, help='Number of CPU cores to use for parallel upload.')
+    parser.add_argument('--nprocs', type=int, help='Number of CPU cores to use for parallel upload.')
     parser.add_argument('--no-collate', default=False, action='store_true', help='Turn off collation of subfolders containing small numbers of small files into zip files.')
     parser.add_argument('--dryrun', default=False, action='store_true', help='Perform a dry run without uploading files.')
     parser.add_argument('--no-checksum', default=False, action='store_true', help='Do not perform checksum validation during upload.')
@@ -668,6 +668,8 @@ if __name__ == '__main__':
                     args.exclude = config['exclude']
                 if 'nprocs' in config.keys() and not args.nprocs:
                     args.nprocs = config['nprocs']
+                if 'nprocs' not in config.keys() and not args.nprocs: # required to allow default value of 4 as this overrides "default" in add_argument
+                    args.nprocs = 4
                 if 'no_collate' in config.keys() and not args.no_collate:
                     args.no_collate = config['no_collate']
                 if 'dryrun' in config.keys() and not args.dryrun:
@@ -720,15 +722,15 @@ if __name__ == '__main__':
     start = datetime.now()
     log_suffix = 'lsst-backup.csv' # DO NOT CHANGE
     log = f"{prefix}-{'-'.join(sub_dirs.split('/'))}-{log_suffix}"
+    # check for previous suffix (remove after testing)
+    previous_suffix = 'files.csv'
+    previous_log = f"{prefix}-{'-'.join(sub_dirs.split('/'))}-{previous_suffix}"
     destination_dir = f"{prefix}/{sub_dirs}" 
     # folders = []
     # folder_files = []
     
     # Add titles to log file
     if not os.path.exists(log):
-        # check for previous suffix (remove after testing)
-        previous_suffix = 'files.csv'
-        previous_log = f"{prefix}-{'-'.join(sub_dirs.split('/'))}-{previous_suffix}"
         if os.path.exists(previous_log):
             # rename previous log
             os.rename(previous_log, log)
@@ -774,9 +776,19 @@ if __name__ == '__main__':
     bucket = s3.Bucket(bucket_name)
     current_objects = bm.object_list(bucket)
 
+    ## check if log exists in the bucket, and download it and append top it if it does
+    # TODO: integrate this with local check for log file
+    if log in current_objects:
+        print(f'Log file {log} already exists in bucket. Downloading.')
+        bucket.download_file(log, log)
+    elif previous_log in current_objects:
+        print(f'Previous log file {previous_log} already exists in bucket. Downloading.')
+        bucket.download_file(previous_log, log)
+
     # check local_dir formatting
     while local_dir[-1] == '/':
         local_dir = local_dir[:-1]
+    
     
     # Process the files
     print(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}')
