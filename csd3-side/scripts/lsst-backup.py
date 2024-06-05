@@ -592,6 +592,18 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         to_collate[parent_folder]['zip_data'] = zip_data
                         #[os.sep.join([destination_dir, os.path.relpath(filename, local_dir)]) for filename in folder_files]
                         to_collate[parent_folder]['zip_object_name'] = str(os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated.zip', local_dir)]))
+
+                        # check if zip_object_name exists in bucket and get its checksum
+                        if to_collate[parent_folder]['zip_object_name'] in current_objects:
+                            existing_zip_checksum = bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,to_collate[parent_folder]['zip_object_name']).e_tag.strip('"')
+                            checksum_hash = hashlib.md5(to_collate[parent_folder]['zip_data'])
+                            checksum_string = checksum_hash.hexdigest()
+
+                            if checksum_string == existing_zip_checksum:
+                                print(f'Skipping zip file {to_collate[parent_folder]["zip_object_name"]} - already exists and checksums match.')
+                                continue
+
+
                     
                         # upload zipped folders
                         total_size_uploaded += len(zip_data)
