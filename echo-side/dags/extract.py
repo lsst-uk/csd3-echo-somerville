@@ -4,7 +4,7 @@ Created on 24 / 05 / 24
 @author: dmckay
 """
 ###
-# Script to monitor the LSST-IR-Fusion-Butlers S3 bucket for new ZIP files and extract them to new object keys.
+# Script to monitor the LSST-IR-FUSION-TESTCOLLATE S3 bucket for new ZIP files and extract them to new object keys.
 ###
 
 from airflow import DAG
@@ -23,7 +23,7 @@ extract_files_bools = []
 
 def run_on_new_zipfiles(**kwargs):
     s3_hook = S3Hook(aws_conn_id='EchoS3')
-    bucket_name='LSST-IR-Fusion-Butlers',
+    bucket_name='LSST-IR-FUSION-TESTCOLLATE',
     bucket_key='/',
     wildcard_match_suffix='.zip',
     all_keys = s3_hook.list_keys(bucket_name=bucket_name, prefix=bucket_key, delimiter='/', suffix=wildcard_match_suffix, apply_wildcard=True),
@@ -36,7 +36,7 @@ def run_on_new_zipfiles(**kwargs):
 
 def check_zip(index, **kwargs):
     s3_hook = S3Hook(aws_conn_id='EchoS3')
-    bucket_name='LSST-IR-Fusion-Butlers',
+    bucket_name='LSST-IR-FUSION-TESTCOLLATE',
     bucket_key='/',
     new_key = new_keys[index]
     extract_file = []
@@ -61,7 +61,7 @@ def check_zip(index, **kwargs):
 def extract_zips(index, **kwargs):
     if extract_bools[index]:
         s3_hook = S3Hook(aws_conn_id='EchoS3')
-        bucket_name='LSST-IR-Fusion-Butlers',
+        bucket_name='LSST-IR-FUSION-TESTCOLLATE',
         bucket_key='/',
         new_key = new_keys[index]
         with s3_hook.get_key(new_key) as zipfile:
@@ -79,15 +79,15 @@ default_args = {
 }
 
 dag = DAG(
-    'monitor-LSST-IR-Fusion-Butlers',
+    'monitor-LSST-IR-FUSION-TESTCOLLATE',
     default_args=default_args,
-    description='Monitor LSST-IR-Fusion-Butlers S3 bucket for new ZIP files, check if contents exists, extract and upload if not.',
+    description='Monitor LSST-IR-FUSION-TESTCOLLATE S3 bucket for new ZIP files, check if contents exists, extract and upload if not.',
     schedule=timedelta(days=1),
 )
 
 s3_sensor = S3KeySensor(
     task_id='s3_sensor',
-    bucket_name='LSST-IR-Fusion-Butlers',
+    bucket_name='LSST-IR-FUSION-TESTCOLLATE',
     bucket_key='/',
     wildcard_match=True,
     wildcard_match_suffix='.zip',
