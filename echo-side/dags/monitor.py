@@ -14,7 +14,7 @@ from datetime import timedelta
 
 new_keys = []
 connection = S3Hook(aws_conn_id='EchoS3')
-print(connection.get_credentials())
+
 def run_on_new_file(**kwargs):
     s3_hook = S3Hook(aws_conn_id='EchoS3')
     bucket_name='LSST-IR-FUSION-TESTCOLLATE',
@@ -52,7 +52,7 @@ s3_sensor = S3KeySensor(
     default_args=default_args,
 )
 
-run_on_new_file = PythonOperator(
+run_on_new_file_op = PythonOperator(
     task_id='run_on_new_file',
     python_callable=run_on_new_file,
     dag=dag,
@@ -60,16 +60,17 @@ run_on_new_file = PythonOperator(
     op_kwargs={'ds': '{{ ds }}'},
 )
 
-check_csv = KubernetesPodOperator(
-    task_id="check_key",
-    name="check-key",
-    namespace="airflow",
-    image="localhost:32000/check-csv:latest",
-    cmds=["python", "-c"],
-    arguments=[new_keys],#,connection.get_credentials()access_key,connection.secret_key],
-    get_logs=True,
-    dag=dag,
-)
+# check_csv = KubernetesPodOperator(
+#     task_id="check_key",
+#     name="check-key",
+#     namespace="airflow",
+#     image="localhost:32000/check-csv:latest",
+#     cmds=["python", "-c"],
+#     arguments=[new_keys],#,connection.get_credentials()access_key,connection.secret_key],
+#     get_logs=True,
+#     dag=dag,
+# )
 
 #graph
-s3_sensor >> run_on_new_file >> check_csv
+s3_sensor >> run_on_new_file_op
+#>> check_csv
