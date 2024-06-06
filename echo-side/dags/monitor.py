@@ -14,10 +14,10 @@ from datetime import timedelta
 
 new_keys = []
 connection = S3Hook(aws_conn_id='EchoS3')
-
+print(connection.get_credentials())
 def run_on_new_file(**kwargs):
     s3_hook = S3Hook(aws_conn_id='EchoS3')
-    bucket_name='LSST-IR-Fusion-Butlers',
+    bucket_name='LSST-IR-FUSION-TESTCOLLATE',
     bucket_key='/',
     wildcard_match_suffix='.csv',
     all_keys = s3_hook.list_keys(bucket_name=bucket_name, prefix=bucket_key, delimiter='/', suffix=wildcard_match_suffix, apply_wildcard=True),
@@ -34,15 +34,15 @@ default_args = {
 }
 
 dag = DAG(
-    'monitor-LSST-IR-Fusion-Butlers',
+    'monitor-LSST-IR-FUSION-TESTCOLLATE',
     default_args=default_args,
-    description='Monitor LSST-IR-Fusion-Butlers S3 bucket for new CSV-formatted upload log files.',
+    description='Monitor LSST-IR-FUSION-TESTCOLLATE S3 bucket for new CSV-formatted upload log files.',
     schedule=timedelta(days=1),
 )
 
 s3_sensor = S3KeySensor(
     task_id='s3_sensor',
-    bucket_name='LSST-IR-Fusion-Butlers',
+    bucket_name='LSST-IR-FUSION-TESTCOLLATE',
     bucket_key='*.csv',
     wildcard_match=True,
     aws_conn_id='EchoS3',
@@ -66,7 +66,7 @@ check_csv = KubernetesPodOperator(
     namespace="airflow",
     image="localhost:32000/check-csv:latest",
     cmds=["python", "-c"],
-    arguments=[new_keys,connection.access_key,connection.secret_key],
+    arguments=[new_keys],#,connection.get_credentials()access_key,connection.secret_key],
     get_logs=True,
     dag=dag,
 )
