@@ -19,16 +19,17 @@ def process_files(directory, nprocs):
 
     # Use a multiprocessing pool to process each chunk
     p = Pool(nprocs)
-    results = p.map(process_chunk, zip(chunks, list(range(len(chunks)))))
+    for i, chunk in enumerate(chunks):
+        results = p.apply_async(process_chunk, (chunk, i))
     p.close()
     p.join()
     return results
 
-def process_chunk(chunk):
+def process_chunk(chunk_folders, chunk_id):
     # Create a new zip file for this chunk
-    chunk_folders, chunk_id = chunk
+    # chunk_folders, chunk_id = chunk
     zipfile_name = f'zip_{chunk_id}.zip'
-    print(f'chunk {chunk}')
+    # print(f'chunk {chunk}')
     print(f'chunk_folders {chunk_folders}')
     print(f'chunk_id {chunk_id}')
     print(f'zipfile_name {zipfile_name}')
@@ -45,6 +46,6 @@ directory = sys.argv[1]
 nprocs = int(sys.argv[2])
 
 results = process_files(directory, nprocs)
-
-for result in results:
-    print(result)
+print(results.get())
+# for result in results:
+#     print(result.get())

@@ -39,41 +39,68 @@ import hashlib
 import os
 import argparse
 
-def zip_folders(parent_folder,subfolders_to_collate,folders_files,use_compression,dryrun):
+def zip_folders(parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun):
     """
     Collates the specified folders into a zip file.
 
     Args:
-        folders_to_collate (list): A list of folder paths to be included in the zip file.
+        parent_folder (str): The path of the parent folder.
+        subfolders_to_collate (list): A list of subfolder paths to be included in the zip file.
+        folders_files (list): A list of lists containing files to be included in the zip file for each subfolder.
+        use_compression (bool): Flag indicating whether to use compression for the zip file.
+        dryrun (bool): Flag indicating whether to perform a dry run without actually creating the zip file.
 
     Returns:
-        bytes: The compressed zip file as a bytes object.
+        tuple: A tuple containing the parent folder path and the compressed zip file as a bytes object.
     """
     if not dryrun:
         import io
         import zipfile
 
-        # TODO: Implement multiple zips based on nprocs
+        zip_buffer = io.BytesIO()
+        if use_compression:
+            compression = zipfile.ZIP_DEFLATED  # zipfile.ZIP_DEFLATED = standard compression
+        else:
+            compression = zipfile.ZIP_STORED  # zipfile.ZIP_STORED = no compression
+        with zipfile.ZipFile(zip_buffer, "a", compression, True) as zip_file:
+            for i, folder in enumerate(subfolders_to_collate):
+                for file in folders_files[i]:
+                    file_path = os.path.join(folder, file)
+                    zip_file.write(file_path, os.path.relpath(file_path, parent_folder))
+        return parent_folder, zip_buffer.getvalue()
+    else:
+        return parent_folder, b''
+    
+def zip_folders_chunked(chunk):
+    """
+    Collates the specified folders into a zip file.
 
-        # print(f'subfolders_to_collate: {subfolders_to_collate}')
-        # print(f'folders_files: {folders_files}')
+    Args:
+        chunk: zipped tuple containing:
+            parent_folder (str): The path of the parent folder.
+            subfolders_to_collate (list): A list of subfolder paths to be included in the zip file.
+            folders_files (list): A list of lists containing files to be included in the zip file for each subfolder.
+            use_compression (bool): Flag indicating whether to use compression for the zip file.
+            dryrun (bool): Flag indicating whether to perform a dry run without actually creating the zip file.
+
+    Returns:
+        tuple: A tuple containing the parent folder path and the compressed zip file as a bytes object.
+    """
+    parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun = chunk
+    if not dryrun:
+        import io
+        import zipfile
 
         zip_buffer = io.BytesIO()
         if use_compression:
-            # zipfile.ZIP_DEFLATED = standard compression
-            compression = zipfile.ZIP_DEFLATED
+            compression = zipfile.ZIP_DEFLATED  # zipfile.ZIP_DEFLATED = standard compression
         else:
-            # zipfile.ZIP_STORED = no compression
-            compression = zipfile.ZIP_STORED
+            compression = zipfile.ZIP_STORED  # zipfile.ZIP_STORED = no compression
         with zipfile.ZipFile(zip_buffer, "a", compression, True) as zip_file:
-            for i,folder in enumerate(subfolders_to_collate):
+            for i, folder in enumerate(subfolders_to_collate):
                 for file in folders_files[i]:
                     file_path = os.path.join(folder, file)
-                    # print(f'Adding {file_path} to zip with archive path {os.path.relpath(file_path, parent_folder)}.')
                     zip_file.write(file_path, os.path.relpath(file_path, parent_folder))
-                    # print('size',zip_file.__sizeof__())
-        # zip_buffer.seek(0)
-        # print('len',len(zip_buffer.getvalue()))
         return parent_folder, zip_buffer.getvalue()
     else:
         return parent_folder, b''
@@ -578,8 +605,14 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             parent_folder = zip_tuple[0]
             folders = zip_tuple[1]['folders']
             folder_files = zip_tuple[1]['folder_files']
-            print(f'parent_folder before zip: {parent_folder}')
-            zip_results.append(pool.apply_async(zip_folders, args=(parent_folder,folders,folder_files,use_compression,dryrun)))
+            chunks = [folders[i:i + nprocs] for i in range(0, len(folders), nprocs)]
+            chunk_files = [folder_files[i:i + nprocs] for i in range(0, len(folder_files), nprocs)]
+            if len(chunks) != len(chunk_files):
+                print('Error: chunks and chunk_files are not the same length.')
+                sys.exit(1)
+            print(f'parent_folder above zip: {parent_folder}')
+            print(f'collating into: {len(chunks)} zip files')
+            zip_results.append(pool.map(zip_folders_chunked, zip(repeat(parent_folder),chunks,chunk_files,repeat(use_compression),repeat(dryrun))))
         zipped = 0
         uploaded = []
         while zipped < len(zip_results):
