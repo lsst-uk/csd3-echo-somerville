@@ -1,4 +1,3 @@
-from itertools import repeat
 import os
 import sys
 import zipfile
