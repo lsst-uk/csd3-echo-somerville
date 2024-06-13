@@ -616,7 +616,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     # collate folders
     zip_results = []
     if len(to_collate) > 0:
-        print(f"zips: {to_collate[parent_folder]['zips']}")
+        # print(f"zips: {to_collate[parent_folder]['zips']}")
         print(f'Collating {len([to_collate[parent_folder]["folders"] for parent_folder in to_collate.keys()])} folders into zip files.') #{sum([len(x["zips"]) for x in to_collate.keys()])}
         # call zip_folder in parallel
         # print(to_collate)
@@ -811,7 +811,7 @@ if __name__ == '__main__':
             # create new log
             print(f'Created backup log file {log}')
             with open(log, 'a') as logfile: # don't open as 'w' in case this is a continuation
-                logfile.write('LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM\n')
+                logfile.write('LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS\n')
     
     # Setup bucket
     s3_host = 'echo.stfc.ac.uk'
