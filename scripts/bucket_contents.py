@@ -27,9 +27,15 @@ bucket = s3.Bucket(bucket_name)
 total_size = 0
 try:
     print('Contents of bucket: ',bucket_name)
-    print('Object, Size / MiB, LastModified')
+    print('Object, Size / MiB, LastModified, Zip Contents')
     for ob in bucket.objects.all():
-        print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}')
+        if ob.key.endswith('zip'):
+            try:
+                print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}, "{s3.ObjectSummary(bucket_name, ob.key).get()["Metadata"]["zip-contents"]}"')
+            except Exception as e:
+                print(e)
+        else:
+            print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}, n/a')
         total_size += ob.size
 except Exception as e:
     if '(NoSuchBucket)' in str(e).split():
