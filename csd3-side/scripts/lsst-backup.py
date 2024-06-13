@@ -764,6 +764,11 @@ if __name__ == '__main__':
     dryrun = args.dryrun
     use_compression = not args.no_compression # internally, flag turns *on* compression, but for user no-compression turns it off - makes flag more intuitive
 
+    if save_config:
+        with open(config_file, 'w') as f:
+            yaml.dump({'bucket_name': bucket_name, 'local_path': local_dir, 'S3_prefix': prefix, 'S3_folder': sub_dirs, 'exclude': exclude, 'nprocs': nprocs, 'no_collate': not global_collate, 'dryrun': dryrun, 'no_checksum': not perform_checksum, 'no_compression': not use_compression}, f)
+        sys.exit(0)
+
     exclude = []
     if args.exclude:
         if '*' not in ''.join(args.exclude):
@@ -780,11 +785,6 @@ if __name__ == '__main__':
         parser.print_help()
         sys.exit(1)
     
-    if save_config:
-        with open(config_file, 'w') as f:
-            yaml.dump({'bucket_name': bucket_name, 'local_path': local_dir, 'S3_prefix': prefix, 'S3_folder': sub_dirs, 'exclude': exclude, 'nprocs': nprocs, 'no_collate': not global_collate, 'dryrun': dryrun, 'no_checksum': not perform_checksum, 'no_compression': not use_compression}, f)
-        sys.exit(0)
-
     #print hostname
     uname = subprocess.run(['uname', '-n'], capture_output=True)
     print(f'Running on {uname.stdout.decode().strip()}')
