@@ -17,7 +17,7 @@ connection = S3Hook(aws_conn_id='EchoS3')
 
 def run_on_new_file(**kwargs):
     s3_hook = S3Hook(aws_conn_id='EchoS3')
-    bucket_name='LSST-IR-Fusion-Butlers',
+    bucket_name='LSST-IR-FUSION-TESTCOLLATE',
     bucket_key='/',
     wildcard_match_suffix='.csv',
     all_keys = s3_hook.list_keys(bucket_name=bucket_name, prefix=bucket_key, delimiter='/', suffix=wildcard_match_suffix, apply_wildcard=True),
@@ -34,18 +34,17 @@ default_args = {
 }
 
 dag = DAG(
-    'monitor-LSST-IR-Fusion-Butlers',
+    'monitor-LSST-IR-FUSION-TESTCOLLATE',
     default_args=default_args,
-    description='Monitor LSST-IR-Fusion-Butlers S3 bucket for new CSV-formatted upload log files.',
+    description='Monitor LSST-IR-FUSION-TESTCOLLATE S3 bucket for new CSV-formatted upload log files.',
     schedule=timedelta(days=1),
 )
 
 s3_sensor = S3KeySensor(
     task_id='s3_sensor',
-    bucket_name='LSST-IR-Fusion-Butlers',
-    bucket_key='/',
+    bucket_name='LSST-IR-FUSION-TESTCOLLATE',
+    bucket_key='*.csv',
     wildcard_match=True,
-    wildcard_match_suffix='.csv',
     aws_conn_id='EchoS3',
     timeout=1 * 60 * 60,
     poke_interval=60,
@@ -53,7 +52,7 @@ s3_sensor = S3KeySensor(
     default_args=default_args,
 )
 
-run_on_new_file = PythonOperator(
+run_on_new_file_op = PythonOperator(
     task_id='run_on_new_file',
     python_callable=run_on_new_file,
     dag=dag,
@@ -61,16 +60,17 @@ run_on_new_file = PythonOperator(
     op_kwargs={'ds': '{{ ds }}'},
 )
 
-check_csv = KubernetesPodOperator(
-    task_id="check_key",
-    name="check-key",
-    namespace="airflow",
-    image="localhost:32000/check-csv:latest",
-    cmds=["python", "-c"],
-    arguments=[new_keys,connection.access_key,connection.secret_key],
-    get_logs=True,
-    dag=dag,
-)
+# check_csv = KubernetesPodOperator(
+#     task_id="check_key",
+#     name="check-key",
+#     namespace="airflow",
+#     image="localhost:32000/check-csv:latest",
+#     cmds=["python", "-c"],
+#     arguments=[new_keys],#,connection.get_credentials()access_key,connection.secret_key],
+#     get_logs=True,
+#     dag=dag,
+# )
 
 #graph
-s3_sensor >> run_on_new_file >> check_csv
+s3_sensor >> run_on_new_file_op
+#>> check_csv

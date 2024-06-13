@@ -2,39 +2,15 @@
 # coding: utf-8
 #D.McKay Feb 2024
 
-
-
 """
 This script is used to upload files from a local directory to an S3 bucket in parallel.
 
+It it optimised for LSST Butler repositories, where the data is stored in a directory structure with a large number of small files, often with one small file per folder.
+In such cases, multiple single-small-file folders are zipped into a single zip file and uploaded to the S3 bucket.
+It is expected a secondary system adjacent to the S3 bucket will be used to unzip the files and restore the directory structure to S3.
+
 Usage:
-    python upload.py source_path prefix sub_dirs
-
-Where:
-    - "source_path" is an absolute path to a folder to be uploaded.
-    - "sub_dirs" is the section at the end of that path to be used in S3 object keys.
-    - "prefix" is the prefix to be used in S3 object keys.
-
-Example:
-    python upload.py /home/dave/work/data test /data
-    Would upload files (and non-empty subfolders) from /home/dave/work/data to test/data.
-
-The script utilizes multiprocessing to upload files in parallel. It calculates checksums for the files and can optionally upload checksum files along with the files. It also provides statistics on the upload process, including the number of files uploaded, total size, and elapsed time.
-
-The main function in this script is "process_files", which takes the following arguments:
-
-Args:
-    s3_host (str): The hostname of the S3 server.
-    access_key (str): The access key for the S3 server.
-    secret_key (str): The secret key for the S3 server.
-    bucket_name (str): The name of the S3 bucket.
-    current_objects (list): A list of object names already present in the S3 bucket.
-    source_dir (str): The local directory containing the files to upload.
-    destination_dir (str): The destination directory in the S3 bucket.
-    nprocs (int): The number of CPU cores to use for parallel processing.
-    perform_checksum (bool): Flag indicating whether to perform checksum validation during upload.
-    dryrun (bool): Flag indicating whether to perform a dry run without actually uploading the files.
-    log (str): The path to the log file.
+    For usage, see `python lsst-backup.py --help`.
 
 Returns:
     None
@@ -44,7 +20,7 @@ import os
 from multiprocessing import Pool
 from itertools import repeat
 import warnings
-from datetime import datetime
+from datetime import datetime, timedelta
 from time import sleep
 import hashlib
 import base64
@@ -63,41 +39,89 @@ import hashlib
 import os
 import argparse
 
-def zip_folders(parent_folder,subfolders_to_collate,folders_files,use_compression):
+def zip_folders(parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun, id=0):
     """
     Collates the specified folders into a zip file.
 
     Args:
-        folders_to_collate (list): A list of folder paths to be included in the zip file.
+        parent_folder (str): The path of the parent folder.
+        subfolders_to_collate (list): A list of subfolder paths to be included in the zip file.
+        folders_files (list): A list of lists containing files to be included in the zip file for each subfolder.
+        use_compression (bool): Flag indicating whether to use compression for the zip file.
+        dryrun (bool): Flag indicating whether to perform a dry run without actually creating the zip file.
+        id (int, optional): An optional identifier for the zip file. Defaults to 0.
 
     Returns:
-        bytes: The compressed zip file as a bytes object.
+        tuple: A tuple containing the parent folder path, the identifier, and the compressed zip file as a bytes object.
+
+    Raises:
+        None
+
+    Examples:
+        # Example usage
+        parent_folder = "/path/to/parent/folder"
+        subfolders_to_collate = ["/path/to/subfolder1", "/path/to/subfolder2"]
+        folders_files = [["file1.txt", "file2.txt"], ["file3.txt", "file4.txt"]]
+        use_compression = True
+        dryrun = False
+        id = 1
+
+        result = zip_folders(parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun, id)
+        print(result)
+        # Output: ("/path/to/parent/folder", 1, b'compressed_zip_file_data')
+
     """
-    import io
-    import zipfile
+    if not dryrun:
+        import io
+        import zipfile
 
-    # TODO: Implement multiple zips based on nprocs
-
-    # print(f'subfolders_to_collate: {subfolders_to_collate}')
-    # print(f'folders_files: {folders_files}')
-
-    zip_buffer = io.BytesIO()
-    if use_compression:
-        # zipfile.ZIP_DEFLATED = standard compression
-        compression = zipfile.ZIP_DEFLATED
+        zip_buffer = io.BytesIO()
+        if use_compression:
+            compression = zipfile.ZIP_DEFLATED  # zipfile.ZIP_DEFLATED = standard compression
+        else:
+            compression = zipfile.ZIP_STORED  # zipfile.ZIP_STORED = no compression
+        with zipfile.ZipFile(zip_buffer, "a", compression, True) as zip_file:
+            for i, folder in enumerate(subfolders_to_collate):
+                for file in folders_files[i]:
+                    file_path = os.path.join(folder, file)
+                    zip_file.write(file_path, os.path.relpath(file_path, parent_folder))
+        return parent_folder, id, zip_buffer.getvalue()
     else:
-        # zipfile.ZIP_STORED = no compression
-        compression = zipfile.ZIP_STORED
-    with zipfile.ZipFile(zip_buffer, "a", compression, True) as zip_file:
-        for i,folder in enumerate(subfolders_to_collate):
-            for file in folders_files[i]:
-                file_path = os.path.join(folder, file)
-                # print(f'Adding {file_path} to zip with archive path {os.path.relpath(file_path, parent_folder)}.')
-                zip_file.write(file_path, os.path.relpath(file_path, parent_folder))
-                print('size',zip_file.__sizeof__())
-    # zip_buffer.seek(0)
-    print('len',len(zip_buffer.getvalue()))
-    return parent_folder, zip_buffer.getvalue()
+        return parent_folder, id, b''
+    
+# def zip_folders_chunked(chunk):
+#     """
+#     Collates the specified folders into a zip file.
+
+#     Args:
+#         chunk: zipped tuple containing:
+#             parent_folder (str): The path of the parent folder.
+#             subfolders_to_collate (list): A list of subfolder paths to be included in the zip file.
+#             folders_files (list): A list of lists containing files to be included in the zip file for each subfolder.
+#             use_compression (bool): Flag indicating whether to use compression for the zip file.
+#             dryrun (bool): Flag indicating whether to perform a dry run without actually creating the zip file.
+
+#     Returns:
+#         tuple: A tuple containing the parent folder path and the compressed zip file as a bytes object.
+#     """
+#     parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun = chunk
+#     if not dryrun:
+#         import io
+#         import zipfile
+
+#         zip_buffer = io.BytesIO()
+#         if use_compression:
+#             compression = zipfile.ZIP_DEFLATED  # zipfile.ZIP_DEFLATED = standard compression
+#         else:
+#             compression = zipfile.ZIP_STORED  # zipfile.ZIP_STORED = no compression
+#         with zipfile.ZipFile(zip_buffer, "a", compression, True) as zip_file:
+#             for i, folder in enumerate(subfolders_to_collate):
+#                 for file in folders_files[i]:
+#                     file_path = os.path.join(folder, file)
+#                     zip_file.write(file_path, os.path.relpath(file_path, parent_folder))
+#         return parent_folder, zip_buffer.getvalue()
+#     else:
+#         return parent_folder, b''
 
 def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun):
     """
@@ -212,6 +236,8 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                 except Exception as e:
                     print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
             file_data.close()
+    else:
+        checksum_string = "DRYRUN"
     """
         report actions
         CSV formatted
@@ -252,13 +278,12 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
     s3 = bm.get_resource(access_key, secret_key, s3_host)
     s3_client = bm.get_client(access_key, secret_key, s3_host)
     bucket = s3.Bucket(bucket_name)
-    link = False
-    print(f'object_key {object_key}')
+    # print(f'object_key {object_key}')
     filename = object_key.split('/')[-1]
     file_data_size = len(file_data)
 
     # print(file_data)
-    print(type(file_data))
+    # print(type(file_data))
 
     # print('length of bytes data:', len(file_data))
     # file_data.seek(0, os.SEEK_END)
@@ -271,74 +296,68 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
     - Upload the file to the bucket
     """
     if not dryrun:
-        if link:
+        if perform_checksum:
             """
-            - Upload the link target _path_ to an object
+            - Create checksum object
             """
-            bucket.put_object(Body=file_data, Key=object_key)
-        if not link:
-            if perform_checksum:
-                """
-                - Create checksum object
-                """
-                checksum_hash = hashlib.md5(file_data)
-                checksum_string = checksum_hash.hexdigest()
-                checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
-                try:
-                    if len(file_data) > 5 * 1024 * 1024 * 1024:  # Check if file size is larger than 5GiB
-                        """
-                        - Use multipart upload for large files
-                        """
-                        print(f'Uploading "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key} in parts.')
-                        obj = bucket.Object(object_key)
-                        mp_upload = obj.initiate_multipart_upload()
-                        chunk_size = 500 * 1024 * 1024  # Set chunk size to 500 MiB
-                        chunk_count = int(np.ceil(file_data_size / chunk_size))
-                        parts = []
-                        for i in range(chunk_count):
-                            start = i * chunk_size
-                            end = min(start + chunk_size, file_data_size)
-                            part_number = i + 1
-                            with open(filename, 'rb') as f:
-                                f.seek(start)
-                                chunk_data = f.read(end - start)
-                            part = s3_client.upload_part(
-                                Body=chunk_data,
-                                Bucket=bucket_name,
-                                Key=object_key,
-                                PartNumber=part_number,
-                                UploadId=mp_upload.id
-                            )
-                            parts.append({"PartNumber": part_number, "ETag": part["ETag"]})
-                        s3_client.complete_multipart_upload(
+            checksum_hash = hashlib.md5(file_data)
+            checksum_string = checksum_hash.hexdigest()
+            checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
+            try:
+                if len(file_data) > 5 * 1024 * 1024 * 1024:  # Check if file size is larger than 5GiB
+                    """
+                    - Use multipart upload for large files
+                    """
+                    print(f'Uploading "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key} in parts.')
+                    obj = bucket.Object(object_key)
+                    mp_upload = obj.initiate_multipart_upload()
+                    chunk_size = 500 * 1024 * 1024  # Set chunk size to 500 MiB
+                    chunk_count = int(np.ceil(file_data_size / chunk_size))
+                    parts = []
+                    for i in range(chunk_count):
+                        start = i * chunk_size
+                        end = min(start + chunk_size, file_data_size)
+                        part_number = i + 1
+                        with open(filename, 'rb') as f:
+                            f.seek(start)
+                            chunk_data = f.read(end - start)
+                        part = s3_client.upload_part(
+                            Body=chunk_data,
                             Bucket=bucket_name,
                             Key=object_key,
-                            UploadId=mp_upload.id,
-                            MultipartUpload={"Parts": parts}
+                            PartNumber=part_number,
+                            UploadId=mp_upload.id
                         )
-                    else:
-                        """
-                        - Upload the file to the bucket
-                        """
-                        print(f'Uploading zip file "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key}')
-                        bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64)
-                except Exception as e:
-                    print(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
-            else:
-                try:
-                    bucket.put_object(Body=file_data, Key=object_key)
-                except Exception as e:
-                    print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
+                        parts.append({"PartNumber": part_number, "ETag": part["ETag"]})
+                    s3_client.complete_multipart_upload(
+                        Bucket=bucket_name,
+                        Key=object_key,
+                        UploadId=mp_upload.id,
+                        MultipartUpload={"Parts": parts}
+                    )
+                else:
+                    """
+                    - Upload the file to the bucket
+                    """
+                    print(f'Uploading zip file "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key}')
+                    bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64)
+            except Exception as e:
+                print(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
+        else:
+            try:
+                bucket.put_object(Body=file_data, Key=object_key)
+            except Exception as e:
+                print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
+   
+    else:
+        checksum_string = "DRYRUN"
     """
         report actions
         CSV formatted
         header: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM
     """
-    if link:
-        return_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}"'
-    else:
-        return_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}"'
-    if perform_checksum and not link:
+    return_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}"'
+    if perform_checksum:
         return_string += f',{checksum_string}'
     else:
         return_string += ',n/a'
@@ -382,7 +401,7 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, fi
     #repeat(s3_host), repeat(access_key), repeat(secret_key), repeat(bucket_name), repeat(folder), folder_files, object_names, repeat(perform_checksum), repeat(dryrun)
     # upload files in parallel and log output
     file_start = datetime.now()
-    print(collated)
+    print(f'collated = {collated}')
     if collated:
         try:
             print(f'Uploading zip containing {file_count} subfolders from {folder}.')
@@ -400,7 +419,7 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, fi
         logfile.write(f'{result}\n')
     return None
 
-def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, exclude, source_dir, destination_dir, nprocs, perform_checksum, dryrun, log, global_collate, use_compression):
+def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, nprocs, perform_checksum, dryrun, log, global_collate, use_compression):
     """
     Uploads files from a local directory to an S3 bucket in parallel.
 
@@ -410,7 +429,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         secret_key (str): The secret key for the S3 server.
         bucket_name (str): The name of the S3 bucket.
         current_objects (list): A list of object names already present in the S3 bucket.
-        source_dir (str): The local directory containing the files to upload.
+        local_dir (str): The local directory containing the files to upload.
         destination_dir (str): The destination directory in the S3 bucket.
         nprocs (int): The number of CPU cores to use for parallel processing.
         perform_checksum (bool): Flag indicating whether to perform checksum validation during upload.
@@ -429,7 +448,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     #recursive loop over local folder
     results = []
     to_collate = {} # store folders to collate
-    for folder, sub_folders, files in os.walk(source_dir, topdown=True):
+    
+    for folder, sub_folders, files in os.walk(local_dir, topdown=True):
         # print(f'Processing {folder}.')
         # print(f'Files: {files}')
         # print(f'Subfolders: {sub_folders}')
@@ -446,19 +466,20 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         for sub_folder in sub_folders:
             sub_folder_path = os.path.join(folder, sub_folder)
             _, sub_sub_folders, sub_files = next(os.walk(sub_folder_path), ([], [], []))
-            if not sub_sub_folders and len(sub_files) < 4:
+            subfolder_files = [os.sep.join([sub_folder_path, filename]) for filename in sub_files]
+            total_subfilesize = sum([os.stat(filename).st_size for filename in subfolder_files])
+            if not sub_sub_folders and len(sub_files) < 4 and total_subfilesize < 96*1024**2:
                 sub_folders.remove(sub_folder) # not sure what the effect of this is
-                # append to a list of folders to collate
-                # append to exclude list
+                # upload files in subfolder "as is" i.e., no zipping
 
         # check folder isn't empty
-        print(f'Processing {len(files)} files (total size: {total_filesize/1024**2:.0f} MiB) in {folder}.')
-        if len(files) > 4 and total_filesize > 96*1024**2 or not global_collate:
+        # print(f'Processing {len(files)} files (total size: {total_filesize/1024**2:.0f} MiB) in {folder}.')
+        if len(files) > 4 or total_filesize > 96*1024**2 or not global_collate:
             # all files within folder
-            print(f'Processing {len(files)} files (total size: {total_filesize}) individually in {folder}.')
+            # print(f'Processing {len(files)} files (total size: {total_filesize}) individually in {folder}.')
             
             # keys to files on s3
-            object_names = [os.sep.join([destination_dir, os.path.relpath(filename, source_dir)]) for filename in folder_files]
+            object_names = [os.sep.join([destination_dir, os.path.relpath(filename, local_dir)]) for filename in folder_files]
             # print(f'folder_files: {folder_files}')
             # print(f'object_names: {object_names}')
             init_len = len(object_names)
@@ -526,18 +547,20 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 )):
                 results.append(pool.apply_async(upload_and_callback, args=args))
 
-            if i % nprocs*4 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
+            if i > nprocs*4 and i % nprocs*4 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
                 for result in results:
                     result.get()  # Wait until current processes in pool are finished
             
             # release block of files if the list for results is greater than 4 times the number of processes
 
         elif len(files) > 0 and global_collate:
+            folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
             parent_folder = os.path.abspath(os.path.join(folder, os.pardir))
             if parent_folder not in to_collate.keys():
-                to_collate[parent_folder] = {'parent_folder':parent_folder,'folders':[],'object_names':[], 'folder_files':[], 'zip_data':None, 'zip_object_name':''} # store folders to collate
+                #initialise parent folder
+                to_collate[parent_folder] = {'parent_folder':parent_folder,'folders':[],'object_names':[], 'folder_files':[], 'zips':[{'zip_data':None, 'id':None, 'zip_object_name':''}]} # store folders to collate
             # keys to files on s3
-            object_names = [os.sep.join([destination_dir, os.path.relpath(filename, source_dir)]) for filename in folder_files]
+            object_names = [os.sep.join([destination_dir, os.path.relpath(filename, local_dir)]) for filename in folder_files]
             # print(f'folder_files: {folder_files}')
             # print(f'object_names: {object_names}')
             init_len = len(object_names)
@@ -588,80 +611,86 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             to_collate[parent_folder]['object_names'].append(object_names)
             to_collate[parent_folder]['folder_files'].append(folder_files)
         else:
-            print(f'Skipping subfolder - empty.')
+            print(f'Skipping subfolder - no files.')
     
     # collate folders
     zip_results = []
     if len(to_collate) > 0:
-
-        print(f'Collating {len([to_collate[parent_folder]["folders"] for parent_folder in to_collate.keys()])} folders into {len(to_collate)} zip files.')
+        print(f"zips: {to_collate[parent_folder]['zips']}")
+        print(f'Collating {len([to_collate[parent_folder]["folders"] for parent_folder in to_collate.keys()])} folders into zip files.') #{sum([len(x["zips"]) for x in to_collate.keys()])}
         # call zip_folder in parallel
         # print(to_collate)
         for zip_tuple in to_collate.items():
             parent_folder = zip_tuple[0]
             folders = zip_tuple[1]['folders']
             folder_files = zip_tuple[1]['folder_files']
-            print(f'parent_folder before zip: {parent_folder}')
-            zip_results.append(pool.apply_async(zip_folders, args=(parent_folder,folders,folder_files,use_compression)))
-        for result in zip_results:
-            parent_folder, zip_data = result.get()
-            print(f'temp_zip_object_name: {parent_folder}/collated.zip')
-            to_collate[parent_folder]['zip_data'] = zip_data
-            #[os.sep.join([destination_dir, os.path.relpath(filename, source_dir)]) for filename in folder_files]
-            to_collate[parent_folder]['zip_object_name'] = str(os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated.zip', source_dir)]))
-            print(f"final zip_object_name: {to_collate[parent_folder]['zip_object_name']}")
-        
-        zip_files_size = np.sum(np.array([len(zip_tuple[1]['zip_data']) for zip_tuple in to_collate.items()]))
-        total_size_uploaded += zip_files_size
-        total_files_uploaded += len(to_collate)
+            chunks = [folders[i:i + nprocs] for i in range(0, len(folders), nprocs)]
+            chunk_files = [folder_files[i:i + nprocs] for i in range(0, len(folder_files), nprocs)]
+            if len(chunks) != len(chunk_files):
+                print('Error: chunks and chunk_files are not the same length.')
+                sys.exit(1)
+            print(f'parent_folder above zip(s): {parent_folder}')
+            print(f'collating into: {len(chunks)} zip file(s)')
+            for id,chunk in enumerate(zip(chunks,chunk_files)):
+                # print(f'chunk {id} contains {len(chunk[0])} folders')
+                zip_results.append(pool.apply_async(zip_folders, (parent_folder,chunk[0],chunk_files[0],use_compression,dryrun,id)))
+        zipped = 0
+        uploaded = []
+        while zipped < len(zip_results):
+            for result in zip_results:
+                if result.ready():
+                    parent_folder, id, zip_data = result.get()
+                    if (parent_folder,id) in uploaded:
+                        continue
+                    else:
+                        zipped += 1
+                        uploaded.append((parent_folder,id))
+                        print(f'Zipped {zipped} of {len(zip_results)} zip files.', flush=True)
+                        # print(parent_folder, id, uploaded, flush=True)
+                        to_collate[parent_folder]['zips'].append({'zip_data':zip_data, 'id':id, 'zip_object_name':str(os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated_{id}.zip', local_dir)]))})
+                        # #[os.sep.join([destination_dir, os.path.relpath(filename, local_dir)]) for filename in folder_files]
+                        # to_collate[parent_folder][id]['zip_object_name'] = 
+
+                        # check if zip_object_name exists in bucket and get its checksum
+                        if to_collate[parent_folder]['zips'][-1]['zip_object_name'] in current_objects:
+                            existing_zip_checksum = bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,to_collate[parent_folder]['zips'][-1]['zip_object_name']).e_tag.strip('"')
+                            checksum_hash = hashlib.md5(to_collate[parent_folder]['zips'][-1]['zip_data'])
+                            checksum_string = checksum_hash.hexdigest()
+
+                            if checksum_string == existing_zip_checksum:
+                                print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and checksums match - skipping.')
+                                continue
 
 
-        print('Uploading collated folders.')
-        # print(to_collate.items())
-        for zip_tuple in to_collate.items():
-            parent_folder = zip_tuple[0]
-            zip_data = zip_tuple[1]['zip_data']
-            zip_object_name = zip_tuple[1]['zip_object_name']
-            print(zip_tuple[1]['parent_folder'])
-            print(f"parent_folder here: {parent_folder}")
-            print(len(zip_data))
-            print(f"zip object name here: {zip_object_name}")
-            results.append(pool.apply_async(upload_and_callback, args=(
-                s3_host,
-                access_key,
-                secret_key,
-                bucket_name,
-                parent_folder,
-                zip_data,
-                zip_object_name,
-                perform_checksum,
-                dryrun,
-                processing_start,
-                1,
-                len(zip_data),
-                total_size_uploaded,
-                total_files_uploaded,
-                True,
-            )))
-            
+                    
+                        # upload zipped folders
+                        total_size_uploaded += len(zip_data)
+                        total_files_uploaded += 1
+                        print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
+                        results.append(pool.apply_async(upload_and_callback, args=(
+                            s3_host,
+                            access_key,
+                            secret_key,
+                            bucket_name,
+                            parent_folder,
+                            to_collate[parent_folder]['zips'][-1]['zip_data'],
+                            to_collate[parent_folder]['zips'][-1]['zip_object_name'],
+                            perform_checksum,
+                            dryrun,
+                            processing_start,
+                            1,
+                            len(to_collate[parent_folder]['zips'][-1]['zip_data']),
+                            total_size_uploaded,
+                            total_files_uploaded,
+                            True,
+                        )))
+
     pool.close()
     pool.join()
 
 # # Go!
 if __name__ == '__main__':
-    epilog = '''
-where:
-    "bucket_name" is the name of the S3 bucket.
-    "source_path" is an absolute path to a folder to be uploaded;
-    "S3_prefix" is the prefix to be used in S3 object keys;
-    "S3_folder" is the section at the end of that path to be used in S3 object keys;
-    
-
-example:
-    python upload.py my-bucket /home/dave/work/data test data --exclude do_not_backup*
-    would upload files (and non-empty subfolders) from /home/dave/work/data to test/data in my-bucket,
-    excluding files and folders starting in /home/dave/work/data that start with "do_not_backup".
-'''
+    epilog = ''
     class MyParser(argparse.ArgumentParser):
         def error(self, message):
             sys.stderr.write(f'error: {message}\n\n')
@@ -672,43 +701,89 @@ example:
         epilog=epilog,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument('bucket_name', type=str, help='Name of the S3 bucket.')
-    parser.add_argument('source_path', type=str, help='Absolute path to the folder to be uploaded.')
-    parser.add_argument('S3_prefix', type=str, help='Prefix to be used in S3 object keys.')
-    parser.add_argument('S3_folder', type=str, help='Section at the end of the source path to be used in S3 object keys.')
-    parser.add_argument('--exclude', nargs='+', help='Folders to exclude from upload as a list or wildcard.')
-    parser.add_argument('--nprocs', type=int, default=4, help='Number of CPU cores to use for parallel upload.')
+    parser.add_argument('--config-file', type=str, help='Path to the configuration YAML file.')
+    parser.add_argument('--bucket-name', type=str, help='Name of the S3 bucket.')
+    parser.add_argument('--local-path', type=str, help='Absolute path to the folder to be uploaded.')
+    parser.add_argument('--S3-prefix', type=str, help='Prefix to be used in S3 object keys.')
+    parser.add_argument('--S3-folder', type=str, help='Subfolder(s) at the end of the local path to be used in S3 object keys.')
+    parser.add_argument('--exclude', nargs='+', help='Folders to exclude from upload as a list or wildcard. Must be relative paths from the local path.')
+    parser.add_argument('--nprocs', type=int, help='Number of CPU cores to use for parallel upload.')
     parser.add_argument('--no-collate', default=False, action='store_true', help='Turn off collation of subfolders containing small numbers of small files into zip files.')
     parser.add_argument('--dryrun', default=False, action='store_true', help='Perform a dry run without uploading files.')
     parser.add_argument('--no-checksum', default=False, action='store_true', help='Do not perform checksum validation during upload.')
     parser.add_argument('--no-compression', default=False, action='store_true', help='Do not use compression when collating files.')
+    parser.add_argument('--save-config', default=False, action='store_true', help='Save the configuration to the provided config file path and exit.')
     args = parser.parse_args()
-    print(args)
-    source_dir = args.source_path
+    print(f'Config: {args}')
+    if not args.config_file and not (args.bucket_name and args.local_path and args.S3_prefix and args.S3_folder):
+        parser.error('If a config file is not provided, the bucket name, local path, S3 prefix, and S3 folder must be provided.')
+    if args.config_file and (args.bucket_name or args.local_path or args.S3_prefix or args.S3_folder or args.exclude or args.nprocs or args.no_collate or args.dryrun or args.no_checksum or args.no_compression):
+        print(f'WARNING: Options provide on command line override options in {args.config_file}.')
+    if args.config_file:
+        config_file = args.config_file
+        if not os.path.exists(config_file) and not args.save_config:
+            sys.exit(f'Config file {config_file} does not exist.')
+        if os.path.exists(config_file):
+            with open(config_file, 'r') as f:
+                config = yaml.safe_load(f)
+                if 'bucket_name' in config.keys() and not args.bucket_name:
+                    args.bucket_name = config['bucket_name']
+                if 'local_path' in config.keys() and not args.local_path:
+                    args.local_path = config['local_path']
+                if 'S3_prefix' in config.keys() and not args.S3_prefix:
+                    args.S3_prefix = config['S3_prefix']
+                if 'S3_folder' in config.keys() and not args.S3_folder:
+                    args.S3_folder = config['S3_folder']
+                if 'exclude' in config.keys() and not args.exclude:
+                    args.exclude = config['exclude']
+                if 'nprocs' in config.keys() and not args.nprocs:
+                    args.nprocs = config['nprocs']
+                if 'nprocs' not in config.keys() and not args.nprocs: # required to allow default value of 4 as this overrides "default" in add_argument
+                    args.nprocs = 4
+                if 'no_collate' in config.keys() and not args.no_collate:
+                    args.no_collate = config['no_collate']
+                if 'dryrun' in config.keys() and not args.dryrun:
+                    args.dryrun = config['dryrun']
+                if 'no_checksum' in config.keys() and not args.no_checksum:
+                    args.no_checksum = config['no_checksum']
+                if 'no_compression' in config.keys() and not args.no_compression:
+                    args.no_compression = config['no_compression']
+    if args.save_config and not args.config_file:
+        parser.error('A config file must be provided to save the configuration.')
+
+    save_config = args.save_config
+    bucket_name = args.bucket_name
+    local_dir = args.local_path
+    if not os.path.exists(local_dir):
+        sys.exit(f'Local path {local_dir} does not exist.')
     prefix = args.S3_prefix
     sub_dirs = args.S3_folder
-    bucket_name = args.bucket_name
-    nprocs = args.nprocs # change to adjust number of CPUs (= number of concurrent connections)
+    nprocs = args.nprocs 
     global_collate = not args.no_collate # internally, flag turns *on* collate, but for user no-collate turns it off - makes flag more intuitive
-    perform_checksum = not args.no_checksum
+    perform_checksum = not args.no_checksum # internally, flag turns *on* checksumming, but for user no-checksum  turns it off - makes flag more intuitive
     dryrun = args.dryrun
-    use_compression = not args.no_compression
+    use_compression = not args.no_compression # internally, flag turns *on* compression, but for user no-compression turns it off - makes flag more intuitive
 
     exclude = []
     if args.exclude:
         if '*' not in ''.join(args.exclude):
             # treat as list
-            exclude = [f'{source_dir}/{excl}' for excl in args.exclude[0].split(',')]
+            exclude = [f'{local_dir}/{excl}' for excl in args.exclude[0].split(',')]
         else:
             # treat as wildcard string
-            exclude = [item for sublist in [glob.glob(f'{source_dir}/{excl}') for excl in args.exclude] for item in sublist]
-            # exclude = glob.glob(f'{source_dir}/{args.exclude}')
+            exclude = [item for sublist in [glob.glob(f'{local_dir}/{excl}') for excl in args.exclude] for item in sublist]
+            # exclude = glob.glob(f'{local_dir}/{args.exclude}')
     print(f'Excluding {exclude}')
-    print(f'symlinks will be replaced with the target file. A new file <simlink_file>.symlink will contain the symlink target path.')
+    print(f'Symlinks will be replaced with the target file. A new file <simlink_file>.symlink will contain the symlink target path.')
 
-    if not source_dir or not prefix or not sub_dirs or not bucket_name:
+    if not local_dir or not prefix or not sub_dirs or not bucket_name:
         parser.print_help()
         sys.exit(1)
+    
+    if save_config:
+        with open(config_file, 'w') as f:
+            yaml.dump({'bucket_name': bucket_name, 'local_path': local_dir, 'S3_prefix': prefix, 'S3_folder': sub_dirs, 'exclude': exclude, 'nprocs': nprocs, 'no_collate': not global_collate, 'dryrun': dryrun, 'no_checksum': not perform_checksum, 'no_compression': not use_compression}, f)
+        sys.exit(0)
 
     #print hostname
     uname = subprocess.run(['uname', '-n'], capture_output=True)
@@ -718,15 +793,15 @@ example:
     start = datetime.now()
     log_suffix = 'lsst-backup.csv' # DO NOT CHANGE
     log = f"{prefix}-{'-'.join(sub_dirs.split('/'))}-{log_suffix}"
+    # check for previous suffix (remove after testing)
+    previous_suffix = 'files.csv'
+    previous_log = f"{prefix}-{'-'.join(sub_dirs.split('/'))}-{previous_suffix}"
     destination_dir = f"{prefix}/{sub_dirs}" 
     # folders = []
     # folder_files = []
     
     # Add titles to log file
     if not os.path.exists(log):
-        # check for previous suffix (remove after testing)
-        previous_suffix = 'files.csv'
-        previous_log = f"{prefix}-{'-'.join(sub_dirs.split('/'))}-{previous_suffix}"
         if os.path.exists(previous_log):
             # rename previous log
             os.rename(previous_log, log)
@@ -772,16 +847,26 @@ example:
     bucket = s3.Bucket(bucket_name)
     current_objects = bm.object_list(bucket)
 
-    # check source_dir formatting
-    while source_dir[-1] == '/':
-        source_dir = source_dir[:-1]
+    ## check if log exists in the bucket, and download it and append top it if it does
+    # TODO: integrate this with local check for log file
+    if log in current_objects:
+        print(f'Log file {log} already exists in bucket. Downloading.')
+        bucket.download_file(log, log)
+    elif previous_log in current_objects:
+        print(f'Previous log file {previous_log} already exists in bucket. Downloading.')
+        bucket.download_file(previous_log, log)
+
+    # check local_dir formatting
+    while local_dir[-1] == '/':
+        local_dir = local_dir[:-1]
+    
     
     # Process the files
     print(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}')
     print(f'Using {nprocs} processes.')
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore')
-        process_files(s3_host,access_key, secret_key, bucket_name, current_objects, exclude, source_dir, destination_dir, nprocs, perform_checksum, dryrun, log, global_collate, use_compression)
+        process_files(s3_host,access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, nprocs, perform_checksum, dryrun, log, global_collate, use_compression)
     
     # Complete
     final_time = datetime.now() - start
