@@ -89,39 +89,39 @@ def zip_folders(parent_folder, subfolders_to_collate, folders_files, use_compres
     else:
         return parent_folder, id, b''
     
-def zip_folders_chunked(chunk):
-    """
-    Collates the specified folders into a zip file.
+# def zip_folders_chunked(chunk):
+#     """
+#     Collates the specified folders into a zip file.
 
-    Args:
-        chunk: zipped tuple containing:
-            parent_folder (str): The path of the parent folder.
-            subfolders_to_collate (list): A list of subfolder paths to be included in the zip file.
-            folders_files (list): A list of lists containing files to be included in the zip file for each subfolder.
-            use_compression (bool): Flag indicating whether to use compression for the zip file.
-            dryrun (bool): Flag indicating whether to perform a dry run without actually creating the zip file.
+#     Args:
+#         chunk: zipped tuple containing:
+#             parent_folder (str): The path of the parent folder.
+#             subfolders_to_collate (list): A list of subfolder paths to be included in the zip file.
+#             folders_files (list): A list of lists containing files to be included in the zip file for each subfolder.
+#             use_compression (bool): Flag indicating whether to use compression for the zip file.
+#             dryrun (bool): Flag indicating whether to perform a dry run without actually creating the zip file.
 
-    Returns:
-        tuple: A tuple containing the parent folder path and the compressed zip file as a bytes object.
-    """
-    parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun = chunk
-    if not dryrun:
-        import io
-        import zipfile
+#     Returns:
+#         tuple: A tuple containing the parent folder path and the compressed zip file as a bytes object.
+#     """
+#     parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun = chunk
+#     if not dryrun:
+#         import io
+#         import zipfile
 
-        zip_buffer = io.BytesIO()
-        if use_compression:
-            compression = zipfile.ZIP_DEFLATED  # zipfile.ZIP_DEFLATED = standard compression
-        else:
-            compression = zipfile.ZIP_STORED  # zipfile.ZIP_STORED = no compression
-        with zipfile.ZipFile(zip_buffer, "a", compression, True) as zip_file:
-            for i, folder in enumerate(subfolders_to_collate):
-                for file in folders_files[i]:
-                    file_path = os.path.join(folder, file)
-                    zip_file.write(file_path, os.path.relpath(file_path, parent_folder))
-        return parent_folder, zip_buffer.getvalue()
-    else:
-        return parent_folder, b''
+#         zip_buffer = io.BytesIO()
+#         if use_compression:
+#             compression = zipfile.ZIP_DEFLATED  # zipfile.ZIP_DEFLATED = standard compression
+#         else:
+#             compression = zipfile.ZIP_STORED  # zipfile.ZIP_STORED = no compression
+#         with zipfile.ZipFile(zip_buffer, "a", compression, True) as zip_file:
+#             for i, folder in enumerate(subfolders_to_collate):
+#                 for file in folders_files[i]:
+#                     file_path = os.path.join(folder, file)
+#                     zip_file.write(file_path, os.path.relpath(file_path, parent_folder))
+#         return parent_folder, zip_buffer.getvalue()
+#     else:
+#         return parent_folder, b''
 
 def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun):
     """
@@ -473,10 +473,10 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 # upload files in subfolder "as is" i.e., no zipping
 
         # check folder isn't empty
-        print(f'Processing {len(files)} files (total size: {total_filesize/1024**2:.0f} MiB) in {folder}.')
+        # print(f'Processing {len(files)} files (total size: {total_filesize/1024**2:.0f} MiB) in {folder}.')
         if len(files) > 4 or total_filesize > 96*1024**2 or not global_collate:
             # all files within folder
-            print(f'Processing {len(files)} files (total size: {total_filesize}) individually in {folder}.')
+            # print(f'Processing {len(files)} files (total size: {total_filesize}) individually in {folder}.')
             
             # keys to files on s3
             object_names = [os.sep.join([destination_dir, os.path.relpath(filename, local_dir)]) for filename in folder_files]
@@ -632,7 +632,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'parent_folder above zip(s): {parent_folder}')
             print(f'collating into: {len(chunks)} zip file(s)')
             for id,chunk in enumerate(zip(chunks,chunk_files)):
-                print(f'chunk {id} contains {len(chunk[0])} folders')
+                # print(f'chunk {id} contains {len(chunk[0])} folders')
                 zip_results.append(pool.apply_async(zip_folders, (parent_folder,chunk[0],chunk_files[0],use_compression,dryrun,id)))
         zipped = 0
         uploaded = []
@@ -666,7 +666,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         # upload zipped folders
                         total_size_uploaded += len(zip_data)
                         total_files_uploaded += 1
-                        print(f'Uploading zip file containing {len(folders)} subfolders from {parent_folder}.')
+                        print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
                         results.append(pool.apply_async(upload_and_callback, args=(
                             s3_host,
                             access_key,
@@ -706,7 +706,7 @@ if __name__ == '__main__':
     parser.add_argument('--local-path', type=str, help='Absolute path to the folder to be uploaded.')
     parser.add_argument('--S3-prefix', type=str, help='Prefix to be used in S3 object keys.')
     parser.add_argument('--S3-folder', type=str, help='Subfolder(s) at the end of the local path to be used in S3 object keys.')
-    parser.add_argument('--exclude', nargs='+', help='Folders to exclude from upload as a list or wildcard.')
+    parser.add_argument('--exclude', nargs='+', help='Folders to exclude from upload as a list or wildcard. Must be relative paths from the local path.')
     parser.add_argument('--nprocs', type=int, help='Number of CPU cores to use for parallel upload.')
     parser.add_argument('--no-collate', default=False, action='store_true', help='Turn off collation of subfolders containing small numbers of small files into zip files.')
     parser.add_argument('--dryrun', default=False, action='store_true', help='Perform a dry run without uploading files.')
@@ -773,7 +773,7 @@ if __name__ == '__main__':
             # treat as wildcard string
             exclude = [item for sublist in [glob.glob(f'{local_dir}/{excl}') for excl in args.exclude] for item in sublist]
             # exclude = glob.glob(f'{local_dir}/{args.exclude}')
-    # print(f'Excluding {exclude}')
+    print(f'Excluding {exclude}')
     print(f'Symlinks will be replaced with the target file. A new file <simlink_file>.symlink will contain the symlink target path.')
 
     if not local_dir or not prefix or not sub_dirs or not bucket_name:
