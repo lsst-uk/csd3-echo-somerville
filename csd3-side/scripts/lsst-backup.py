@@ -547,7 +547,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 )):
                 results.append(pool.apply_async(upload_and_callback, args=args))
 
-            if i % nprocs*4 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
+            if i > nprocs*4 and i % nprocs*4 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
                 for result in results:
                     result.get()  # Wait until current processes in pool are finished
             
@@ -646,7 +646,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         zipped += 1
                         uploaded.append((parent_folder,id))
                         print(f'Zipped {zipped} of {len(zip_results)} zip files.', flush=True)
-                        print(parent_folder, id, uploaded, flush=True)
+                        # print(parent_folder, id, uploaded, flush=True)
                         to_collate[parent_folder]['zips'].append({'zip_data':zip_data, 'id':id, 'zip_object_name':str(os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated_{id}.zip', local_dir)]))})
                         # #[os.sep.join([destination_dir, os.path.relpath(filename, local_dir)]) for filename in folder_files]
                         # to_collate[parent_folder][id]['zip_object_name'] = 
@@ -712,7 +712,7 @@ if __name__ == '__main__':
     parser.add_argument('--dryrun', default=False, action='store_true', help='Perform a dry run without uploading files.')
     parser.add_argument('--no-checksum', default=False, action='store_true', help='Do not perform checksum validation during upload.')
     parser.add_argument('--no-compression', default=False, action='store_true', help='Do not use compression when collating files.')
-    parser.add_argument('--save-config', default=False, action='store_true', help='Save the configuration to the config file.')
+    parser.add_argument('--save-config', default=False, action='store_true', help='Save the configuration to the provided config file path and exit.')
     args = parser.parse_args()
     print(f'Config: {args}')
     if not args.config_file and not (args.bucket_name and args.local_path and args.S3_prefix and args.S3_folder):
@@ -783,6 +783,7 @@ if __name__ == '__main__':
     if save_config:
         with open(config_file, 'w') as f:
             yaml.dump({'bucket_name': bucket_name, 'local_path': local_dir, 'S3_prefix': prefix, 'S3_folder': sub_dirs, 'exclude': exclude, 'nprocs': nprocs, 'no_collate': not global_collate, 'dryrun': dryrun, 'no_checksum': not perform_checksum, 'no_compression': not use_compression}, f)
+        sys.exit(0)
 
     #print hostname
     uname = subprocess.run(['uname', '-n'], capture_output=True)
