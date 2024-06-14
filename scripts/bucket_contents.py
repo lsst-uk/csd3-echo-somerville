@@ -33,7 +33,7 @@ try:
             try:
                 print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}, "{s3.ObjectSummary(bucket_name, ob.key).get()["Metadata"]["zip-contents"]}"')
             except Exception as e:
-                print(e)
+                print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}, n/a')
         else:
             print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}, n/a')
         total_size += ob.size
