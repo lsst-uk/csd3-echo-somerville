@@ -648,54 +648,55 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         total_zips = len(zip_results)
         while zipped < total_zips:
             for i, result in enumerate(zip_results):
-                if result.ready():
-                    parent_folder, id, zip_data = result.get()
-                    zip_results[i] = None # remove from list to free memory
-                    if (parent_folder,id) in uploaded:
-                        continue
-                    else:
-                        zipped += 1
-                        uploaded.append((parent_folder,id))
-                        print(f'Zipped {zipped} of {len(zip_results)} zip files.', flush=True)
-                        # print(parent_folder, id, uploaded, flush=True)
-                        with zipfile.ZipFile(io.BytesIO(zip_data), 'r') as z:
-                            zip_contents = z.namelist()
-                        to_collate[parent_folder]['zips'].append({'zip_contents':zip_contents, 'id':id, 'zip_object_name':str(os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated_{id}.zip', local_dir)]))})
-                        # #[os.sep.join([destination_dir, os.path.relpath(filename, local_dir)]) for filename in folder_files]
-                        # to_collate[parent_folder][id]['zip_object_name'] = 
+                if result is not None:
+                    if result.ready():
+                        parent_folder, id, zip_data = result.get()
+                        zip_results[i] = None # remove from list to free memory
+                        if (parent_folder,id) in uploaded:
+                            continue
+                        else:
+                            zipped += 1
+                            uploaded.append((parent_folder,id))
+                            print(f'Zipped {zipped} of {len(zip_results)} zip files.', flush=True)
+                            # print(parent_folder, id, uploaded, flush=True)
+                            with zipfile.ZipFile(io.BytesIO(zip_data), 'r') as z:
+                                zip_contents = z.namelist()
+                            to_collate[parent_folder]['zips'].append({'zip_contents':zip_contents, 'id':id, 'zip_object_name':str(os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated_{id}.zip', local_dir)]))})
+                            # #[os.sep.join([destination_dir, os.path.relpath(filename, local_dir)]) for filename in folder_files]
+                            # to_collate[parent_folder][id]['zip_object_name'] = 
 
-                        # check if zip_object_name exists in bucket and get its checksum
-                        if to_collate[parent_folder]['zips'][-1]['zip_object_name'] in current_objects:
-                            existing_zip_checksum = bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,to_collate[parent_folder]['zips'][-1]['zip_object_name']).e_tag.strip('"')
-                            checksum_hash = hashlib.md5(zip_data)
-                            checksum_string = checksum_hash.hexdigest()
+                            # check if zip_object_name exists in bucket and get its checksum
+                            if to_collate[parent_folder]['zips'][-1]['zip_object_name'] in current_objects:
+                                existing_zip_checksum = bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,to_collate[parent_folder]['zips'][-1]['zip_object_name']).e_tag.strip('"')
+                                checksum_hash = hashlib.md5(zip_data)
+                                checksum_string = checksum_hash.hexdigest()
 
-                            if checksum_string == existing_zip_checksum:
-                                print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and checksums match - skipping.')
-                                continue
-                            
-                        # upload zipped folders
-                        total_size_uploaded += len(zip_data)
-                        total_files_uploaded += 1
-                        print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
-                        results.append(pool.apply_async(upload_and_callback, args=(
-                            s3_host,
-                            access_key,
-                            secret_key,
-                            bucket_name,
-                            parent_folder,
-                            zip_data,
-                            to_collate[parent_folder]['zips'][-1]['zip_contents'],
-                            to_collate[parent_folder]['zips'][-1]['zip_object_name'],
-                            perform_checksum,
-                            dryrun,
-                            processing_start,
-                            1,
-                            len(zip_data),
-                            total_size_uploaded,
-                            total_files_uploaded,
-                            True,
-                        )))
+                                if checksum_string == existing_zip_checksum:
+                                    print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and checksums match - skipping.')
+                                    continue
+                                
+                            # upload zipped folders
+                            total_size_uploaded += len(zip_data)
+                            total_files_uploaded += 1
+                            print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
+                            results.append(pool.apply_async(upload_and_callback, args=(
+                                s3_host,
+                                access_key,
+                                secret_key,
+                                bucket_name,
+                                parent_folder,
+                                zip_data,
+                                to_collate[parent_folder]['zips'][-1]['zip_contents'],
+                                to_collate[parent_folder]['zips'][-1]['zip_object_name'],
+                                perform_checksum,
+                                dryrun,
+                                processing_start,
+                                1,
+                                len(zip_data),
+                                total_size_uploaded,
+                                total_files_uploaded,
+                                True,
+                            )))
 
     pool.close()
     pool.join()
