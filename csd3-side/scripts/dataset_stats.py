@@ -44,7 +44,7 @@ def gather_stats(root):
     if folder_count > 0:
         perc_small_files = folders_with_mean_filesize_lt_64mb/folder_count*100
         perc_low_file_count = folders_with_lt_2_files/folder_count*100
-    else
+    else:
         perc_small_files = 0
         perc_low_file_count = 0
 
@@ -57,8 +57,8 @@ def gather_stats(root):
     print(f"Average number of files per folder: {average_files_per_folder:.2f}")
     print(f"Number of folders with mean file size < 64 MiB: {folders_with_mean_filesize_lt_64mb}")
     print(f"Number of folders with < 2 files: {folders_with_lt_2_files}")
-    print(f"Percentage of folders with mean file size < 64 MiB: {folders_with_mean_filesize_lt_64mb/folder_count*100:.2f if folder_count > 0 else 'n/a'}%")
-    print(f"Percentage of folders with < 2 files: {folders_with_lt_2_files/folder_count*100:.2f}%")
+    print(f"Percentage of folders with mean file size < 64 MiB: {perc_small_files} %")
+    print(f"Percentage of folders with < 2 files: {perc_low_file_count} %")
     print(f"Collation of files during backup is advised if both percentages are high.\n\u2794  Here: {suggestion}")
 
 print(f"Gathering stats for folder: {sys.argv[1]}...")
