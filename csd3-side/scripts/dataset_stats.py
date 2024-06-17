@@ -5,6 +5,7 @@ def gather_stats(root):
     file_count = 0
     total_file_size = 0
     folders_with_mean_filesize_lt_64mb = 0
+    folders_with_lt_2_files = 0
 
     for dirname, dirs, files in os.walk(root):
         folder_count += 1
@@ -19,6 +20,8 @@ def gather_stats(root):
         if local_file_count > 0:
             if total_file_size / 1024**2 / local_file_count < 64:
                 folders_with_mean_filesize_lt_64mb += 1
+        if local_file_count < 2:
+            folders_with_lt_2_files += 1
     print()
     average_file_size = total_file_size / file_count if file_count > 0 else 0
     average_files_per_folder = file_count / folder_count if folder_count > 0 else 0
@@ -31,8 +34,10 @@ def gather_stats(root):
     print(f"Average file size: {average_file_size/1024**2:.3f} MiB")
     print(f"Average number of files per folder: {average_files_per_folder:.2f}")
     print(f"Number of folders with mean file size < 64 MiB: {folders_with_mean_filesize_lt_64mb}")
+    print(f"Number of folders with < 2 files: {folders_with_lt_2_files}")
     print(f"Percentage of folders with mean file size < 64 MiB: {folders_with_mean_filesize_lt_64mb/folder_count*100:.2f}%")
-    print(f"Collation of files during backup is advised if the percentage is high (> 10%). Here: {'collate' if folders_with_mean_filesize_lt_64mb/folder_count*100 > 10 else 'do not collate.'}")
+    print(f"Percentage of folders with < 2 files: {folders_with_lt_2_files/folder_count*100:.2f}%")
+    print(f"Collation of files during backup is advised if both percentages are high. Here: {'collate' if folders_with_mean_filesize_lt_64mb/folder_count*100 > 10 and folders_with_lt_2_files/folder_count*100 > 10 else 'do not collate.'}")
 
 print(f"Gathering stats for folder: {sys.argv[1]}...")
 gather_stats(sys.argv[1])
