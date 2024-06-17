@@ -26,6 +26,14 @@ def gather_stats(root):
     average_file_size = total_file_size / file_count if file_count > 0 else 0
     average_files_per_folder = file_count / folder_count if folder_count > 0 else 0
 
+    suggestion = "collation not advised."
+    if folders_with_mean_filesize_lt_64mb/folder_count*100 > 10 and folders_with_lt_2_files/folder_count*100 > 10:
+        suggestion = "collation advised - high proportion of small files and small per-folder file counts."
+    elif folders_with_mean_filesize_lt_64mb/folder_count*100 > 15:
+        suggestion = "collation advised - high proportion of small files, although proportion of small per-folder file counts low."
+    elif folders_with_lt_2_files/folder_count*100 > 15:
+        suggestion = "collation advised - high proportion of small per-folder file counts, although proportion of small files low."
+
     print("Overall folder structure:")
     print(f"Root folder: {root}")
     print(f"Total number of folders: {folder_count}")
@@ -37,7 +45,7 @@ def gather_stats(root):
     print(f"Number of folders with < 2 files: {folders_with_lt_2_files}")
     print(f"Percentage of folders with mean file size < 64 MiB: {folders_with_mean_filesize_lt_64mb/folder_count*100:.2f}%")
     print(f"Percentage of folders with < 2 files: {folders_with_lt_2_files/folder_count*100:.2f}%")
-    print(f"Collation of files during backup is advised if both percentages are high. Here: {'collate' if folders_with_mean_filesize_lt_64mb/folder_count*100 > 10 and folders_with_lt_2_files/folder_count*100 > 10 else 'do not collate.'}")
+    print(f"Collation of files during backup is advised if both percentages are high.\n\u2794  Here: {suggestion}")
 
 print(f"Gathering stats for folder: {sys.argv[1]}...")
 gather_stats(sys.argv[1])
