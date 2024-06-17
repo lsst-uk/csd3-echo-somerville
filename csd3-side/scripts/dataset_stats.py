@@ -23,8 +23,14 @@ def gather_stats(root):
         if local_file_count < 2:
             folders_with_lt_2_files += 1
     print()
-    average_file_size = total_file_size / file_count if file_count > 0 else 0
-    average_files_per_folder = file_count / folder_count if folder_count > 0 else 0
+    if file_count > 0:
+        average_file_size = total_file_size / file_count
+    else:
+        average_file_size = 0
+    if folder_count > 0:
+        average_files_per_folder = file_count / folder_count
+    else:
+        average_files_per_folder = 0
 
     suggestion = "collation not advised."
     if folder_count > 0:
@@ -34,6 +40,13 @@ def gather_stats(root):
             suggestion = "collation advised - high proportion of small files, although proportion of small per-folder file counts low."
         elif folders_with_lt_2_files/folder_count*100 > 15:
             suggestion = "collation advised - high proportion of small per-folder file counts, although proportion of small files low."
+
+    if folder_count > 0:
+        perc_small_files = folders_with_mean_filesize_lt_64mb/folder_count*100
+        perc_low_file_count = folders_with_lt_2_files/folder_count*100
+    else
+        perc_small_files = 0
+        perc_low_file_count = 0
 
     print("Overall folder structure:")
     print(f"Root folder: {root}")
