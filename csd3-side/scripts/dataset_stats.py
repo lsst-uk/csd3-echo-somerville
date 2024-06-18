@@ -13,7 +13,7 @@ def gather_stats(root):
         local_file_size = 0
         # print(dirname)
         # print(files)
-        # print(f"Processed {folder_count} folders.", end="\r", flush=True)
+        print(f"Processed {folder_count} folders.", end="\r", flush=True)
         for name in files:
             file_path = os.path.join(dirname, name)
             if os.path.isfile(file_path):
@@ -21,10 +21,10 @@ def gather_stats(root):
                 local_file_count += 1
                 total_file_size += os.path.getsize(file_path)
                 local_file_size += os.path.getsize(file_path)
-        print(local_file_size)
-        print(total_file_size)
+        # print(local_file_size)
+        # print(total_file_size)
         if local_file_count > 0:
-            print(local_file_size / 1024**2 / local_file_count)
+            # print(local_file_size / 1024**2 / local_file_count)
             if local_file_size / 1024**2 / local_file_count <= 64:
                 folders_with_mean_filesize_lt_64mb += 1
         if local_file_count <= 2:
