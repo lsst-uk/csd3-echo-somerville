@@ -23,7 +23,8 @@ def gather_stats(root):
                 local_file_count += 1
                 total_file_size += os.path.getsize(file_path)
                 local_file_size += os.path.getsize(file_path)
-            if local_file_count <= 2 and local_file_size / 1024**2 <= 64:# and os.path.abspath(os.path.join(dirname,os.path.pardir)) == os.path.abspath(root):
+        if local_file_count > 0:
+            if local_file_count <= 2 and local_file_size / 1024**2 / local_file_count <= 64:# and os.path.abspath(os.path.join(dirname,os.path.pardir)) == os.path.abspath(root):
                 potential_zip_content += 1
         # print(local_file_size)
         # print(total_file_size)
