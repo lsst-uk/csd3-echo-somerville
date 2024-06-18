@@ -48,7 +48,7 @@ def gather_stats(root):
         if folders_with_mean_filesize_lt_64mb/folder_count*100 > 10 and potential_zip_count/folder_count*100 > 10:
             suggestion = "collation advised - high proportion of small files and collatable folders."
         elif folders_with_mean_filesize_lt_64mb/folder_count*100 > 5:
-            suggestion = "collation advised - high proportion of small files, although proportion of small per-folder file counts low."
+            suggestion = "collation advised - high proportion of small files, although potentially low number of collatable folders."
         elif potential_zip_count/folder_count*100 > 5:
             suggestion = "collation advised - high proportion of folders can be collated."
 
