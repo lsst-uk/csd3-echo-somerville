@@ -8,7 +8,7 @@ usage() {
         echo "Usage: $0 [-n <nprocs>] [-d <ds>]..."
         echo "Options:"
         echo "  -n, --nprocs <nprocs>   Number of processes to use (default: 4)"
-        echo "  -d, --ds <ds>           Datasets to process (list of directories)"
+        echo "  -d, --datasets <ds>           Datasets to process (list of directories)"
         echo "  -h, --help              Display this help message and exit"
         exit 1
 }
@@ -28,7 +28,7 @@ while [[ $# -gt 0 ]]; do
                         nprocs="$2"
                         shift 2
                         ;;
-                -d|--ds)
+                -d|--datasets)
                         ds_list+=("$2")
                         shift 2
                         ;;
