@@ -5,11 +5,11 @@ bucket_name=LSST-IR-FUSION-TESTSTRATEGY
 
 # Function to display usage information
 usage() {
-        echo "Usage: $0 [-n <nprocs>] [-d <ds>]..."
+        echo "Usage: $0 [-n <nprocs>] [-d <datasets>]..."
         echo "Options:"
-        echo "  -n, --nprocs <nprocs>   Number of processes to use (default: 4)"
-        echo "  -d, --datasets <ds>           Datasets to process (list of directories)"
-        echo "  -h, --help              Display this help message and exit"
+        echo "  -n, --nprocs <nprocs>           Number of processes to use (default: 4)"
+        echo "  -d, --datasets <datasets>       Space-separeated list of datasets (directories) to process"
+        echo "  -h, --help                      Display this help message and exit"
         exit 1
 }
 
