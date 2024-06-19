@@ -46,29 +46,28 @@ done
 
 # Process each dataset
 for ds in "${ds_list[@]}"; do
-        local_path=$ds
-        S3_folder=$ds
+        local_path=$PWD/$ds
         
         # Backup without collation
         S3_prefix=strategy-test_dummy-data_no-collation
         python $HOME/csd3-echo-somerville/csd3-side/scripts/lsst-backup.py \
         --bucket-name $bucket_name --local-path $local_path --S3-prefix $S3_prefix \
-        --S3-folder $S3_folder --nprocs $nprocs --no-collate > no-collate_${S3_prefix}_${S3_folder}_${nprocs}.log 2>&1
-        rm ${S3_prefix}-${S3_folder}-lsst-backup.csv
+        --S3-folder $ds --nprocs $nprocs --no-collate > no-collate_${S3_prefix}_${ds}_${nprocs}.log 2>&1
+        rm ${S3_prefix}-${ds}-lsst-backup.csv
 
         # Backup without compression
         S3_prefix=strategy-test_dummy-data_no-compression
         python $HOME/csd3-echo-somerville/csd3-side/scripts/lsst-backup.py \
         --bucket-name $bucket_name --local-path $local_path --S3-prefix $S3_prefix \
-        --S3-folder $S3_folder --nprocs $nprocs --no-compression > no-compression_${S3_prefix}_${S3_folder}_${nprocs}.log 2>&1
-        rm ${S3_prefix}-${S3_folder}-lsst-backup.csv
+        --S3-folder $ds --nprocs $nprocs --no-compression > no-compression_${S3_prefix}_${ds}_${nprocs}.log 2>&1
+        rm ${S3_prefix}-${ds}-lsst-backup.csv
 
         # Backup with collation
         S3_prefix=strategy-test_dummy-data_collation
         python $HOME/csd3-echo-somerville/csd3-side/scripts/lsst-backup.py \
         --bucket-name $bucket_name --local-path $local_path --S3-prefix $S3_prefix \
-        --S3-folder $S3_folder --nprocs $nprocs > collate_${S3_prefix}_${S3_folder}_${nprocs}.log 2>&1
-        rm ${S3_prefix}-${S3_folder}-lsst-backup.csv
+        --S3-folder $ds --nprocs $nprocs > collate_${S3_prefix}_${ds}_${nprocs}.log 2>&1
+        rm ${S3_prefix}-${ds}-lsst-backup.csv
 done
 
 # Remove the bucket
