@@ -17,6 +17,10 @@ usage() {
 nprocs=4
 ds_list=()
 
+if [[ $# -eq 0 ]]; then
+        usage
+fi
+
 # Parse command line argumentss
 while [[ $# -gt 0 ]]; do
         case "$1" in
