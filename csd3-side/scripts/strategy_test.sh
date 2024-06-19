@@ -29,8 +29,11 @@ while [[ $# -gt 0 ]]; do
                         shift 2
                         ;;
                 -d|--datasets)
-                        ds_list+=("$2")
-                        shift 2
+                        shift
+                        while [[ $# -gt 0 && ! $1 == -* ]]; do
+                            ds_list+=("$1")
+                            shift
+                        done
                         ;;
                 -h|--help)
                         usage
