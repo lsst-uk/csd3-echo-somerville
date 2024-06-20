@@ -728,8 +728,8 @@ if __name__ == '__main__':
     parser.add_argument('--save-config', default=False, action='store_true', help='Save the configuration to the provided config file path and exit.')
     args = parser.parse_args()
     print(f'Config: {args}')
-    if not args.config_file and not (args.bucket_name and args.local_path and args.S3_prefix and args.S3_folder):
-        parser.error('If a config file is not provided, the bucket name, local path, S3 prefix, and S3 folder must be provided.')
+    if not args.config_file and not (args.bucket_name and args.local_path and args.S3_prefix):
+        parser.error('If a config file is not provided, the bucket name, local path, and S3 prefix must be provided.')
     if args.config_file and (args.bucket_name or args.local_path or args.S3_prefix or args.S3_folder or args.exclude or args.nprocs or args.no_collate or args.dryrun or args.no_checksum or args.no_compression):
         print(f'WARNING: Options provide on command line override options in {args.config_file}.')
     if args.config_file:
