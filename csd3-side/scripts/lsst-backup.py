@@ -796,7 +796,7 @@ if __name__ == '__main__':
 
     print(f'Symlinks will be replaced with the target file. A new file <simlink_file>.symlink will contain the symlink target path.')
 
-    if not local_dir or not prefix or not sub_dirs or not bucket_name:
+    if not local_dir or not prefix or not bucket_name:
         parser.print_help()
         sys.exit(1)
     
@@ -806,12 +806,23 @@ if __name__ == '__main__':
 
     # Initiate timing
     start = datetime.now()
-    log_suffix = 'lsst-backup.csv' # DO NOT CHANGE
-    log = f"{prefix}-{'-'.join(sub_dirs.split('/'))}-{log_suffix}"
-    # check for previous suffix (remove after testing)
-    previous_suffix = 'files.csv'
-    previous_log = f"{prefix}-{'-'.join(sub_dirs.split('/'))}-{previous_suffix}"
-    destination_dir = f"{prefix}/{sub_dirs}" 
+    
+    ##allow top-level folder to be provided with S3-folder == ''
+    if sub_dirs == '':
+        log_suffix = 'lsst-backup.csv' # DO NOT CHANGE
+        log = f"{prefix}-{log_suffix}"
+        # check for previous suffix (remove after testing)
+        previous_suffix = 'files.csv'
+        previous_log = f"{prefix}-{previous_suffix}"
+        destination_dir = f"{prefix}"
+    else:
+        log_suffix = 'lsst-backup.csv' # DO NOT CHANGE
+        log = f"{prefix}-{'-'.join(sub_dirs.split('/'))}-{log_suffix}"
+        # check for previous suffix (remove after testing)
+        previous_suffix = 'files.csv'
+        previous_log = f"{prefix}-{'-'.join(sub_dirs.split('/'))}-{previous_suffix}"
+        destination_dir = f"{prefix}/{sub_dirs}" 
+
     # folders = []
     # folder_files = []
     
