@@ -718,7 +718,7 @@ if __name__ == '__main__':
     parser.add_argument('--bucket-name', type=str, help='Name of the S3 bucket.')
     parser.add_argument('--local-path', type=str, help='Absolute path to the folder to be uploaded.')
     parser.add_argument('--S3-prefix', type=str, help='Prefix to be used in S3 object keys.')
-    parser.add_argument('--S3-folder', type=str, help='Subfolder(s) at the end of the local path to be used in S3 object keys.')
+    parser.add_argument('--S3-folder', type=str, help='Subfolder(s) at the end of the local path to be used in S3 object keys.', nargs='?', const='', default='')
     parser.add_argument('--exclude', nargs='+', help='Folders to exclude from upload as a list or wildcard. Must be relative paths from the local path.')
     parser.add_argument('--nprocs', type=int, help='Number of CPU cores to use for parallel upload.')
     parser.add_argument('--no-collate', default=False, action='store_true', help='Turn off collation of subfolders containing small numbers of small files into zip files.')
