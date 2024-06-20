@@ -771,7 +771,7 @@ if __name__ == '__main__':
         sys.exit(f'Local path {local_dir} does not exist.')
     prefix = args.S3_prefix
     sub_dirs = args.S3_folder
-    print(sub_dirs)
+    print(f'sub_dirs {sub_dirs}')
     nprocs = args.nprocs 
     global_collate = not args.no_collate # internally, flag turns *on* collate, but for user no-collate turns it off - makes flag more intuitive
     perform_checksum = not args.no_checksum # internally, flag turns *on* checksumming, but for user no-checksum  turns it off - makes flag more intuitive
