@@ -15,4 +15,4 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag my-image-name:$(date +%s)
+      run: docker build . --file echo-side/containers/basic_env/Dockerfile --tag csd3-echo-somerville:$(date +%s) --tag csd3-echo-somerville:latest
