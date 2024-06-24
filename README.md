@@ -26,3 +26,14 @@ e.g., from root folder:
 ```shell
 docker build -t ghcr.io/lsst-uk/csd3-somerville-echo-basic:v0.1.0 -f echo-side/containers/basic_env/Dockerfile .
 ```
+
+## Running containers
+
+e.g., to list current bucket, with environemnt variables for S3 access set on the host:
+
+```shell
+docker run \
+-e ECHO_S3_ACCESS_KEY=$ECHO_S3_ACCESS_KEY \
+-e ECHO_S3_SECRET_KEY=$ECHO_S3_SECRET_KEY \
+ghcr.io/lsst-uk/csd3-echo-somerville:v0.0.1 python csd3-echo-somerville/scripts/list_buckets.py
+```
