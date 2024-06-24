@@ -17,4 +17,4 @@ jobs:
     - name: Build the Docker image
       run: docker build . --file echo-side/containers/basic_env/Dockerfile --tag ghcr.io/lsst-uk/csd3-echo-somerville:$(git rev-parse --short HEAD) --tag ghcr.io/lsst-uk/csd3-echo-somerville:latest
     - name: Push the Docker image
-      run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u lsst-uk --password-stdin && docker push ghcr.io/lsst-uk/csd3-echo-somerville:$(git rev-parse --short HEAD) && docker push ghcr.io/lsst-uk/csd3-echo-somerville:latest
+      run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u lsst-uk --password-stdin && docker push --all-tags ghcr.io/lsst-uk/csd3-echo-somerville
