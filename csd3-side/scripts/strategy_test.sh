@@ -5,23 +5,25 @@ bucket_name=LSST-IR-FUSION-TESTSTRATEGY
 
 # Function to display usage information
 usage() {
-        echo "Usage: $0 [-n <nprocs>] [-d <datasets>]..."
+        echo "Usage: $0 [-n <nprocs>] [-d <datasets>] [--retain-bucket]..."
         echo "Options:"
         echo "  -n, --nprocs <nprocs>           Number of processes to use (default: 4)"
         echo "  -d, --datasets <datasets>       Space-separeated list of datasets (directories) to process"
+        echo "  --retain-bucket                 Retain the bucket at the end (default: false)"
         echo "  -h, --help                      Display this help message and exit"
         exit 1
 }
 
-# Set the default number of processes and an empty list for datasets
+# Set the default number of processes, an empty list for datasets, and retain_bucket flag to false
 nprocs=4
 ds_list=()
+retain_bucket=false
 
 if [[ $# -eq 0 ]]; then
         usage
 fi
 
-# Parse command line argumentss
+# Parse command line arguments
 while [[ $# -gt 0 ]]; do
         case "$1" in
                 -n|--nprocs)
@@ -34,6 +36,10 @@ while [[ $# -gt 0 ]]; do
                             ds_list+=("$1")
                             shift
                         done
+                        ;;
+                --retain-bucket)
+                        retain_bucket=true
+                        shift
                         ;;
                 -h|--help)
                         usage
@@ -73,5 +79,7 @@ for ds in "${ds_list[@]}"; do
         rm ${S3_prefix}-${ds}-lsst-backup.csv
 done
 
-# Remove the bucket
-python $HOME/csd3-echo-somerville/scripts/remove_bucket.py -y $bucket_name
+# Remove the bucket if retain_bucket flag is false
+if [[ $retain_bucket == false ]]; then
+    python $HOME/csd3-echo-somerville/scripts/remove_bucket.py -y $bucket_name
+fi
