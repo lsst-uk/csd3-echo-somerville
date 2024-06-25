@@ -12,6 +12,8 @@ RUN cat /environment.yaml
 
 RUN mamba env create --name lsst-uk --file=/environment.yaml
 
+SHELL ["conda", "run", "-n", "lsst-uk", "/bin/bash", "-c"]
+
 RUN git clone https://github.com/lsst-uk/csd3-echo-somerville.git
 
 RUN cd csd3-echo-somerville && python -m pip install .
