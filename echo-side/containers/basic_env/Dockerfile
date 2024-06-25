@@ -8,8 +8,12 @@ RUN conda install -y -c conda-forge mamba && mamba init
 
 COPY environment.yaml /environment.yaml
 
-RUN mamba env update --file /environment.yaml
+RUN mamba env create --name lsst-uk --file=/environment.yaml
 
 RUN git clone https://github.com/lsst-uk/csd3-echo-somerville.git
 
 RUN cd csd3-echo-somerville && python -m pip install .
+
+COPY entrypoint.sh /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
