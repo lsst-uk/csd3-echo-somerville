@@ -14,10 +14,11 @@ from datetime import timedelta
 
 new_keys = []
 connection = S3Hook(aws_conn_id='EchoS3')
+bucket_name = 'LSST-IR-FUSION-TESTSTRATEGY'
 
 def run_on_new_file(**kwargs):
     s3_hook = S3Hook(aws_conn_id='EchoS3')
-    bucket_name='LSST-IR-FUSION-TESTSTRATEGY',
+    bucket_name=bucket_name,
     bucket_key='/',
     wildcard_match_suffix='.csv',
     all_keys = s3_hook.list_keys(bucket_name=bucket_name, prefix=bucket_key, delimiter='/', suffix=wildcard_match_suffix, apply_wildcard=True),
@@ -34,15 +35,15 @@ default_args = {
 }
 
 dag = DAG(
-    'monitor-LSST-IR-FUSION-TESTSTRATEGY',
+    f'monitor-{bucket_name}',
     default_args=default_args,
-    description='Monitor LSST-IR-FUSION-TESTSTRATEGY S3 bucket for new CSV-formatted upload log files.',
+    description=f'Monitor {bucket_name} S3 bucket for new CSV-formatted upload log files.',
     schedule=timedelta(days=1),
 )
 
 s3_sensor = S3KeySensor(
     task_id='s3_sensor',
-    bucket_name='LSST-IR-FUSION-TESTSTRATEGY',
+    bucket_name=bucket_name,
     bucket_key='*.csv',
     wildcard_match=True,
     aws_conn_id='EchoS3',
@@ -60,17 +61,20 @@ run_on_new_file_op = PythonOperator(
     op_kwargs={'ds': '{{ ds }}'},
 )
 
-check_csv = KubernetesPodOperator(
-    task_id="check_key",
-    name="check-key",
-    namespace="airflow",
-    image="ghcr.io/lsst-uk/csd3-echo-somerville:latest",
-    cmds=["python", "-c"],
-    arguments=[new_keys],#,connection.get_credentials()access_key,connection.secret_key],
-    get_logs=True,
-    dag=dag,
-)
+check_csv_ops = []
+for key in new_keys:
+    check_csv_op = KubernetesPodOperator(
+        task_id=f"check_key_{key}",
+        name=f"check-key-{key}",
+        namespace="airflow",
+        image="ghcr.io/lsst-uk/csd3-echo-somerville:latest",
+        cmds=["python", "scripts/check_upload.py"],
+        env_vars={'ECHO_S3_ACCESS_KEY': connection.access_key, 'ECHO_S3_SECRET_KEY': connection.secret_key},
+        arguments=[bucket_name, key],
+        get_logs=True,
+        dag=dag,
+    )
+    check_csv_ops.append(check_csv_op)
 
 #graph
-s3_sensor >> run_on_new_file_op
-#>> check_csv
+s3_sensor >> run_on_new_file_op >> check_csv_ops
