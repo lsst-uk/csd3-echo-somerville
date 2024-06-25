@@ -37,5 +37,5 @@ e.g., to list current bucket, with environemnt variables for S3 access set on th
 docker run \
 -e ECHO_S3_ACCESS_KEY=$ECHO_S3_ACCESS_KEY \
 -e ECHO_S3_SECRET_KEY=$ECHO_S3_SECRET_KEY \
-ghcr.io/lsst-uk/csd3-echo-somerville:v0.0.1 python csd3-echo-somerville/scripts/list_buckets.py
+ghcr.io/lsst-uk/csd3-echo-somerville:latest python csd3-echo-somerville/scripts/list_buckets.py
 ```
