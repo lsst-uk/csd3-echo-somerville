@@ -59,12 +59,15 @@ def upload_verification_file(bucket_name, verification_path, verification_URI, a
 
 if __name__ == '__main__':
 
+    n_workers = cpu_count() - 2
+    n_threads = 1
+
     start = datetime.now()
 
     print(f'Upload verification started at {start} || Elapsed time: 0:00:00.000000')
 
-    client = Client(n_workers=cpu_count()-2,threads_per_worker=1,memory_limit="2Gi")
-    print('Dask client started.')
+    client = Client(n_workers=n_workers,threads_per_worker=n_threads,memory_limit="2Gi")
+    print(f'Dask client started with {n_workers} workers ({n_threads*n_workers} threads).')
     try:
         keys = bm.get_keys('S3')
     except KeyError as e:
