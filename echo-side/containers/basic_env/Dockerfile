@@ -8,6 +8,8 @@ RUN conda install -y -c conda-forge mamba && mamba init
 
 COPY environment.yaml /environment.yaml
 
+RUN cat /environment.yaml
+
 RUN mamba env create --name lsst-uk --file=/environment.yaml
 
 RUN git clone https://github.com/lsst-uk/csd3-echo-somerville.git
