@@ -14,6 +14,6 @@ RUN git clone https://github.com/lsst-uk/csd3-echo-somerville.git
 
 RUN cd csd3-echo-somerville && python -m pip install .
 
-COPY entrypoint.sh /entrypoint.sh
+COPY echo-side/containers/basic_env/entrypoint.sh /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
