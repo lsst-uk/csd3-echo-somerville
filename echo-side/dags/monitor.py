@@ -8,7 +8,7 @@ from datetime import timedelta
 # Define default arguments for the DAG
 default_args = {
     'owner': 'airflow',
-    'retries': 1,
+    'retries': 0,
     'retry_delay': timedelta(minutes=5),
 }
 
