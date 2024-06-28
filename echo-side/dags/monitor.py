@@ -1,6 +1,6 @@
 from airflow import DAG
 # from airflow.operators.docker_operator import DockerOperator
-from airflow.operators.bash_operator import BashOperator
+from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
 from airflow.utils.dates import days_ago
 from airflow.models import Variable
 from datetime import timedelta
@@ -22,11 +22,12 @@ dag = DAG(
     catchup=False,
 )
 
-# BashOperator to run the script
-list_csv_files = BashOperator(
+# KubernetesPodOperator to run the script
+list_csv_files = KubernetesPodOperator(
     task_id='list_csv_files',
-    bash_command='python csd3-echo-somerville/scripts/list_backup_csvs.py --bucket_name LSST-IR-FUSION-Butlers',
-    env={
+    image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
+    cmds=['python', 'csd3-echo-somerville/scripts/list_backup_csvs.py', '--bucket_name', 'LSST-IR-FUSION-Butlers'],
+    env_vars={
         'ECHO_S3_ACCESS_KEY': Variable.get("ECHO_S3_ACCESS_KEY"),
         'ECHO_S3_SECRET_KEY': Variable.get("ECHO_S3_SECRET_KEY"),
     },
