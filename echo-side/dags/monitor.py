@@ -17,7 +17,7 @@ dag = DAG(
     'list_backup_csvs',
     default_args=default_args,
     description='List backup CSV files from S3 bucket',
-    schedule_interval=timedelta(days=1),
+    schedule_interval=timedelta(minutes=1),
     start_date=days_ago(1),
     catchup=False,
 )
