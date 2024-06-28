@@ -26,7 +26,7 @@ dag = DAG(
 list_csv_files = KubernetesPodOperator(
     task_id='list_csv_files',
     image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
-    cmds=['/endpoint.sh'],
+    cmds=['./endpoint.sh'],
     arguments=['python', 'csd3-echo-somerville/scripts/list_backup_csvs.py', '--bucket_name', 'LSST-IR-FUSION-Butlers'],
     env_vars={
         'ECHO_S3_ACCESS_KEY': Variable.get("ECHO_S3_ACCESS_KEY"),
