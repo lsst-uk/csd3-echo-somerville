@@ -33,6 +33,7 @@ list_csv_files = KubernetesPodOperator(
         'ECHO_S3_SECRET_KEY': Variable.get("ECHO_S3_SECRET_KEY"),
     },
     dag=dag,
+    get_logs=True,
 )
 
 # Set the task sequence
