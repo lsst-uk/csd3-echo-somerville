@@ -71,4 +71,4 @@ compare_csv_file_lists = PythonOperator(
 )
 
 # Set the task sequence
-list_csv_files > compare_csv_file_lists
+list_csv_files >> compare_csv_file_lists
