@@ -24,7 +24,8 @@ def compare_csv_file_lists(log_folder):
     for csv_file in csv_files:
         csv_file.replace("lsst-backup-logs-" + '{{ ds_nodash }}', "")
         csv_file.replace(".csv", "")
-    csv_files = csv_files.sort()[-2:]
+    csv_files.sort()
+    csv_files = csv_files[-2:]
 
     print(csv_files)
 
