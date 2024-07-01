@@ -1,10 +1,9 @@
 from airflow import DAG
-# from airflow.operators.docker_operator import DockerOperator
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.utils.dates import days_ago
 from airflow.models import Variable
 from datetime import timedelta
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python import PythonOperator
 
 from kubernetes.client import models
 from datetime import datetime
@@ -68,6 +67,7 @@ compare_csv_file_lists = PythonOperator(
     task_id='compare_csv_file_lists',
     python_callable=compare_csv_file_lists,
     dag=dag,
+    op_args=['/lsst-backup-logs'],
 )
 
 # Set the task sequence
