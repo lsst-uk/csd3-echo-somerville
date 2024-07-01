@@ -14,10 +14,21 @@ import bucket_manager.bucket_manager as bm
 parser = argparse.ArgumentParser()
 parser.add_argument('--bucket_name', '-b', type=str, help='The name of the S3 bucket.')
 parser.add_argument('--download', action='store_true', default=False, help='Download the backup log.')
+parser.add_argument('--save-list', type=str, help='Write the list to file given absolute path.')
 args = parser.parse_args()
 
 bucket_name = args.bucket_name
 download = args.download
+
+if args.save_list:
+    save_list = args.save_list
+    if os.path.exists(save_list):
+        print(f'{save_list} already exists. Exiting.')
+        sys.exit()
+    save_folder = os.path.dirname(save_list)
+    if not os.path.exists(save_folder):
+        print(f'{save_folder} does not exist. Exiting.')
+        sys.exit()
 
 try:
     keys = bm.get_keys('S3')
@@ -44,7 +55,11 @@ for ob in bucket.objects.filter(Prefix='butler').limit(1000):
     if ob.key.count('/') > 0:
         continue
     if log_suffix in ob.key or previous_log_suffix in ob.key:
-        print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}')
+        if save_list:
+            with open(save_list,'a') as f:
+                f.write(f'{ob.key},{ob.size/1024**2:.2f},{ob.last_modified}\n')
+        else:
+            print(f'{ob.key},{ob.size/1024**2:.2f},{ob.last_modified}')
         if download:
             with tqdm(total=ob.size/1024**2, unit='MiB', unit_scale=True, unit_divisor=1024) as pbar:
                 bucket.download_file(ob.key,ob.key,Callback=pbar.update)
