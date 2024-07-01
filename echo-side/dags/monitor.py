@@ -5,12 +5,12 @@ from airflow.utils.dates import days_ago
 from airflow.models import Variable
 from datetime import timedelta
 
-from kubernetes.client import models
-from datetime import datetime
+# from kubernetes.client import models
+# from datetime import datetime
 
-# Create k8s storage mount for large, persistent NFS disk space
+# # Create k8s storage mount for large, persistent NFS disk space
 
-volume_dss_mount = models.V1VolumeMount(name="logs-volume", mount_path="/lsst-backup-logs", sub_path=None, read_only=False,)
+# volume_dss_mount = models.V1VolumeMount(name="logs-volume", mount_path="/lsst-backup-logs", sub_path=None, read_only=False,)
 
 # Define default arguments for the DAG
 default_args = {
@@ -40,7 +40,7 @@ list_csv_files = KubernetesPodOperator(
         'ECHO_S3_SECRET_KEY': Variable.get("ECHO_S3_SECRET_KEY"),
     },
     dag=dag,
-    volume_mounts=[volume_dss_mount],
+    mounts=["/lsst-backup-logs:/lsst-backup-logs"],
     get_logs=True,
 )
 
