@@ -3,7 +3,7 @@ import argparse
 
 parser = argparse.ArgumentParser(description="Compare CSV file lists in a log folder.")
 parser.add_argument("--path", '-p', help="Path to the log folder", required=True)
-parser.add_argument("--datestamp", '-d', help="Datestamp", required=True, help="Datestamp in the form YYYYMMDD")
+parser.add_argument("--datestamp", '-d', help="Datestamp in the form YYYYMMDD", required=True)
 args = parser.parse_args()
 
 log_folder = args.path
