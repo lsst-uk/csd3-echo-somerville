@@ -3,11 +3,13 @@ import argparse
 
 parser = argparse.ArgumentParser(description="Compare CSV file lists in a log folder.")
 parser.add_argument("--path", '-p', help="Path to the log folder", required=True)
+parser.add_argument("--datestamp", '-d', help="Datestamp", required=True, help="Datestamp in the form YYYYMMDD")
 args = parser.parse_args()
 
 log_folder = args.path
+datestamp = args.datestamp  
 
-def compare_csv_file_lists(log_folder):
+def compare_csv_file_lists(log_folder, ds):
     """
     Compare the CSV file lists in the specified log folder.
 
@@ -19,7 +21,6 @@ def compare_csv_file_lists(log_folder):
     """
     csv_files = []
     for filename in os.listdir(log_folder):
-        ds = '{{ ds_nodash }}'
         print(filename,ds)
         if filename.startswith("lsst-backup-logs-"):
             if filename.endswith(".csv"):
@@ -31,4 +32,4 @@ def compare_csv_file_lists(log_folder):
     print(csv_files)
 
 if __name__ == "__main__":
-    compare_csv_file_lists(log_folder)
+    compare_csv_file_lists(log_folder, datestamp)
