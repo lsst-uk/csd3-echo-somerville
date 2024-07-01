@@ -8,9 +8,13 @@ from datetime import timedelta
 from kubernetes.client import models
 from datetime import datetime
 
-# Create k8s storage mount for large, persistent NFS disk space
+# Create k8s storage mount 
 
 logs_volume_mount = models.V1VolumeMount(name="logs-volume", mount_path="/lsst-backup-logs", sub_path=None, read_only=False,)
+logs_volume = models.V1Volume(
+    name="logs-volume",
+    host_path=models.V1HostPathVolumeSource(path='/lsst-backup-logs', type="DirectoryOrCreate"),
+)
 
 # Define default arguments for the DAG
 default_args = {
@@ -40,6 +44,7 @@ list_csv_files = KubernetesPodOperator(
         'ECHO_S3_SECRET_KEY': Variable.get("ECHO_S3_SECRET_KEY"),
     },
     dag=dag,
+    volumes=[logs_volume],
     volume_mounts=[logs_volume_mount],
     get_logs=True,
 )
