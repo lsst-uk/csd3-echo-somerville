@@ -19,10 +19,12 @@ def compare_csv_file_lists(log_folder):
     """
     csv_files = []
     for filename in os.listdir(log_folder):
-        print(filename)
         ds = '{{ ds_nodash }}'
-        if filename.startswith("lsst-backup-logs-") and filename.endswith(".csv") and filename.__contains__(ds):
-            csv_files.append(filename.replace("lsst-backup-logs-" + ds + "T", "").replace(".csv", ""))
+        print(filename,ds)
+        if filename.startswith("lsst-backup-logs-"):
+            if filename.endswith(".csv"):
+                if filename.__contains__(ds):
+                    csv_files.append(filename)
     csv_files.sort()
     csv_files = csv_files[-2:]
 
