@@ -17,19 +17,6 @@ logs_volume = models.V1Volume(
     host_path=models.V1HostPathVolumeSource(path='/lsst-backup-logs', type="DirectoryOrCreate"),
 )
 
-# Define the function to compare the CSV file lists
-def compare_csv_file_lists(log_folder):
-    csv_files = []
-    for file in os.listdir(log_folder):
-        if file.startswith("lsst-backup-logs-") and file.endswith(".csv") and file.__contains__('{{ ds_nodash }}'):
-            csv_files.append(file)
-    for csv_file in csv_files:
-        csv_file.replace("lsst-backup-logs-" + '{{ ds_nodash }}', "")
-        csv_file.replace(".csv", "")
-    csv_files = csv_files.sort()[-2:]
-
-    print(csv_files)
-
 # Define default arguments for the DAG
 default_args = {
     'owner': 'airflow',
@@ -47,7 +34,6 @@ dag = DAG(
     catchup=False,
 )
 
-# KubernetesPodOperator to run the script
 list_csv_files = KubernetesPodOperator(
     task_id='list_csv_files',
     image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
@@ -63,11 +49,15 @@ list_csv_files = KubernetesPodOperator(
     get_logs=True,
 )
 
-compare_csv_file_lists = PythonOperator(
+compare_csv_file_lists = KubernetesPodOperator(
     task_id='compare_csv_file_lists',
-    python_callable=compare_csv_file_lists,
+    image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
+    cmds=['./entrypoint.sh'],
+    arguments=['python', 'csd3-echo-somerville/scripts/compare_csv_file_lists.py', '--path', '/lsst-backup-logs'],
     dag=dag,
-    op_args=['/lsst-backup-logs'],
+    volumes=[logs_volume],
+    volume_mounts=[logs_volume_mount],
+    get_logs=True,
 )
 
 # Set the task sequence
