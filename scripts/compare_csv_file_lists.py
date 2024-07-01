@@ -19,6 +19,7 @@ def compare_csv_file_lists(log_folder):
     """
     csv_files = []
     for file in os.listdir(log_folder):
+        print(file)
         if file.startswith("lsst-backup-logs-") and file.endswith(".csv") and file.__contains__('{{ ds_nodash }}'):
             csv_files.append(file)
     for csv_file in csv_files:
