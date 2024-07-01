@@ -4,9 +4,11 @@ from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperato
 from airflow.utils.dates import days_ago
 from airflow.models import Variable
 from datetime import timedelta
+from airflow.operators.python_operator import PythonOperator
 
 from kubernetes.client import models
 from datetime import datetime
+import os
 
 # Create k8s storage mount 
 
@@ -15,6 +17,19 @@ logs_volume = models.V1Volume(
     name="logs-volume",
     host_path=models.V1HostPathVolumeSource(path='/lsst-backup-logs', type="DirectoryOrCreate"),
 )
+
+# Define the function to compare the CSV file lists
+def compare_csv_file_lists(log_folder):
+    csv_files = []
+    for file in os.listdir(log_folder):
+        if file.startswith("lsst-backup-logs-") and file.endswith(".csv") and file.__contains__('{{ ds_nodash }}'):
+            csv_files.append(file)
+    for csv_file in csv_files:
+        csv_file.replace("lsst-backup-logs-" + '{{ ds_nodash }}', "")
+        csv_file.replace(".csv", "")
+    csv_files = csv_files.sort()[-2:]
+
+    print(csv_files)
 
 # Define default arguments for the DAG
 default_args = {
@@ -49,5 +64,11 @@ list_csv_files = KubernetesPodOperator(
     get_logs=True,
 )
 
+compare_csv_file_lists = PythonOperator(
+    task_id='compare_csv_file_lists',
+    python_callable=compare_csv_file_lists,
+    dag=dag,
+)
+
 # Set the task sequence
-list_csv_files
+list_csv_files > compare_csv_file_lists
