@@ -16,7 +16,7 @@ RUN git clone https://github.com/lsst-uk/csd3-echo-somerville.git
 
 RUN cd csd3-echo-somerville && python -m pip install .
 
-COPY echo-side/containers/basic_env/entrypoint.sh /entrypoint.sh
+COPY echo-side/containers/mamba_env/entrypoint.sh /entrypoint.sh
 
 RUN mamba env export
 
