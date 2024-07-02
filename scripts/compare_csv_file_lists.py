@@ -48,7 +48,7 @@ def compare_csv_file_lists(log_folder, ds):
 
     print(csv_files)
 
-    cmp_out = subprocess.run([f'cmp {log_folder}/{csv_files[0]} {log_folder}/{csv_files[1]}'].split(), capture_output=True, text=True)
+    cmp_out = subprocess.run(f'cmp {log_folder}/{csv_files[0]} {log_folder}/{csv_files[1]}'.split(), capture_output=True, text=True)
 
     if cmp_out.stdout != "":
         print("CSV files have changed!")
