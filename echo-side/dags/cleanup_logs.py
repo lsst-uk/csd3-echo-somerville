@@ -20,9 +20,9 @@ default_args = {
 
 # Instantiate the DAG
 dag = DAG(
-    'list_backup_csvs',
+    'clean_up_logs',
     default_args=default_args,
-    description='List backup CSV files from S3 bucket',
+    description='Removes logs more than 2 days old if that would leave at least two logs.',
     schedule_interval=timedelta(days=2),
     start_date=datetime(2024, 1, 1),
     catchup=False,
