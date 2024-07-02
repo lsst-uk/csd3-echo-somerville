@@ -18,12 +18,17 @@ else
         num_old=`find $log_folder -name "lsst-backup-logs-*.csv" -type f -mtime +1 | wc -l`
         find $log_folder -name "lsst-backup-logs-*.csv" -type f -mtime +1
         num_left=`expr $num_files - $num_old`
-        if [[ $num_left -gt 2 ]];
+        if [[ $num_old -gt 0 ]];
         then
-            echo "Cleaning up $num_files log files..."
-            find $log_folder -name "lsst-backup-logs-*.csv" -type f -mtime +1 -exec rm -v {} \;
-        fi
+            if [[ $num_left -gt 2 ]];
+            then
+                echo "Cleaning up $num_files log files..."
+                find $log_folder -name "lsst-backup-logs-*.csv" -type f -mtime +1 -exec rm -v {} \;
+            fi
         echo "Log files cleaned up."
+        else
+            echo "No log files older than 1 day."
+        fi
     else
         echo "No log files to clean up."
     fi
