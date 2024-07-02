@@ -1,13 +1,8 @@
 from airflow import DAG
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
-from airflow.utils.dates import days_ago
 from airflow.models import Variable
 from datetime import timedelta
-from airflow.operators.python import PythonOperator
-
 from kubernetes.client import models
-from datetime import datetime
-import os
 
 # Create k8s storage mount 
 
@@ -30,7 +25,6 @@ dag = DAG(
     default_args=default_args,
     description='List backup CSV files from S3 bucket',
     schedule_interval=timedelta(hours=1),
-    start_date=days_ago(1),
     catchup=False,
 )
 

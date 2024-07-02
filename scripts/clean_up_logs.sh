@@ -16,6 +16,7 @@ else
     num_files=$(ls -1 $log_folder/lsst-backup-logs-*.csv 2>/dev/null | wc -l)
     if [ $num_files -gt 2 ]; then
         num_old=`find $log_folder -name "lsst-backup-logs-*.csv" -type f -mtime +1 | wc -l`
+        find $log_folder -name "lsst-backup-logs-*.csv" -type f -mtime +1
         num_left=`expr $num_files - $num_old`
         if [[ $num_left -gt 2 ]];
         then
