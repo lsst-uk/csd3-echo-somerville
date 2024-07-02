@@ -1,5 +1,6 @@
 import os
 import argparse
+import subprocess
 
 parser = argparse.ArgumentParser(description="Compare CSV file lists in a log folder.")
 parser.add_argument("--path", '-p', help="Path to the log folder", required=True)
@@ -30,6 +31,13 @@ def compare_csv_file_lists(log_folder, ds):
     csv_files = csv_files[-2:]
 
     print(csv_files)
+
+    cmp_out = subprocess.run([f'cmp {log_folder}/{csv_files[0]} {log_folder}/{csv_files[1]}'].split(), capture_output=True, text=True)
+
+    if cmp_out.stdout != "":
+        print("CSV files have changed!")
+    else:
+        print("CSV files are the same.")
 
 if __name__ == "__main__":
     compare_csv_file_lists(log_folder, datestamp)
