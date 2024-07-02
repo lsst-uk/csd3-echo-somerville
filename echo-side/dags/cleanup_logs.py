@@ -30,7 +30,7 @@ dag = DAG(
 
 clean_up_logs = KubernetesPodOperator(
     task_id='clean_up_logs',
-    image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
+    image='ghcr.io/lsst-uk/csd3-echo-somerville:ubuntu-latest',
     arguments=['csd3-echo-somerville/scripts/clean_up_logs.sh', '/lsst-backup-logs'],
     dag=dag,
     volumes=[logs_volume],
