@@ -1,0 +1,20 @@
+name: mamba env CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build the Docker image
+      run: docker build . --file echo-side/containers/basic_linux/Dockerfile --tag ghcr.io/lsst-uk/csd3-echo-somerville:ubuntu-$(git rev-parse --short HEAD) --tag ghcr.io/lsst-uk/csd3-echo-somerville:ubuntu-latest
+    - name: Push the Docker image
+      run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u lsst-uk --password-stdin && docker push --all-tags ghcr.io/lsst-uk/csd3-echo-somerville
