@@ -1,4 +1,4 @@
-name: mamba env CI
+name: ubuntu only CI
 
 on:
   push:
