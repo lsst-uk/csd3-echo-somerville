@@ -54,6 +54,9 @@ def compare_csv_file_lists(log_folder, ds):
         print("CSV files have changed!")
         new_csv_paths = get_new_csv(log_folder, csv_files)
         print(f"New CSV files: {new_csv_paths}")
+        with open(f"{log_folder}/new_csv_files.txt", "w") as f:
+            for csv in new_csv_paths:
+                f.write(f"{csv}\n")
     else:
         print("CSV files are the same.")
 
