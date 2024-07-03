@@ -97,6 +97,7 @@ def check_new_csvs(csv):
         volume_mounts=[logs_volume_mount],
         get_logs=True,
     )
+    check_new_csvs_op
 
 # Set the task sequence
 list_csv_files >> compare_csv_file_lists >> list_new_csvs
