@@ -1,6 +1,6 @@
 from airflow import DAG
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
-from airflow.operators.python import PythonOperator
+from airflow.operators.python import PythonOperator, BranchPythonOperator
 from airflow.models import Variable
 from datetime import timedelta, datetime
 from kubernetes.client import models as k8s
@@ -22,6 +22,7 @@ default_args = {
 }
 
 new_csvs = []
+check_csvs = []
 
 def list_new_csvs(file_path):
     if os.exists(file_path):    
@@ -68,8 +69,8 @@ compare_csv_file_lists = KubernetesPodOperator(
     get_logs=True,
 )
 
-list_new_csvs = PythonOperator(
-    task_id='list_new_csvs',
+list_new_csvs_op = PythonOperator(
+    task_id='list_new_csvs_op',
     python_callable=list_new_csvs,
     executor_config={
         "pod_override": k8s.V1Pod(
@@ -89,19 +90,41 @@ list_new_csvs = PythonOperator(
     dag=dag,
 )
 
-def check_new_csvs(csv):
-    check_new_csvs_op = KubernetesPodOperator(
-        task_id='check_new_csvs',
-        image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
-        cmds=['./entrypoint.sh'],
-        arguments=['python', 'csd3-echo-somerville/scripts/check_upload.py', 'LSST-IR-FUSION-Butlers', csv],
-        dag=dag,
-        volumes=[logs_volume],
-        volume_mounts=[logs_volume_mount],
-        get_logs=True,
-    )
-    check_new_csvs_op.set_upstream(list_new_csvs)
+conditional_op = BranchPythonOperator(
+    task_id='conditional_op',
+    python_callable=lambda: 'check_new_csvs_op' if len(new_csvs) > 0 else 'end',
+    dag=dag,
+)
+
+def check_new_csvs(new_csvs):
+    for csv in new_csvs:
+        check_csv = KubernetesPodOperator(
+            task_id=f'check_{csv}',
+            image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
+            cmds=['./entrypoint.sh'],
+            arguments=['python', 'csd3-echo-somerville/scripts/check_upload.py', 'LSST-IR-FUSION-Butlers', csv],
+            dag=dag,
+            volumes=[logs_volume],
+            volume_mounts=[logs_volume_mount],
+            get_logs=True,
+        )
+        check_csvs.append(check_csv)
+    # check_csvs
+
+check_new_csvs_op = PythonOperator(
+    task_id='check_new_csvs_op',
+    python_callable=check_new_csvs,
+    op_args=new_csvs,
+    dag=dag,
+)
+
+end = PythonOperator(
+    task_id='end',
+    dag=dag,
+    python_callable=lambda: print("No new CSV files to check."),
+)
+
 
 # Set the task sequence
-list_csv_files >> compare_csv_file_lists >> list_new_csvs
+list_csv_files >> compare_csv_file_lists >> list_new_csvs_op >> conditional_op >> [check_new_csvs_op >> check_csvs, end]
         
