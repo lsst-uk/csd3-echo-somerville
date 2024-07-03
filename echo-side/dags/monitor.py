@@ -28,6 +28,7 @@ new_csvs = []
 
 
 def list_new_csvs(file_path):
+    print(f"File path: {file_path}")
     if os.path.exists(file_path):    
         with open(file_path, "r") as f:
             for line in f:
