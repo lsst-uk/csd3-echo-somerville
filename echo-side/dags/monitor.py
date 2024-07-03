@@ -2,6 +2,7 @@ from airflow import DAG
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.operators.python import PythonOperator, BranchPythonOperator
 from airflow.operators.dummy import DummyOperator
+from airflow.operators.subdag import SubDagOperator
 from airflow.models import Variable
 from datetime import timedelta, datetime
 from kubernetes.client import models as k8s
@@ -20,6 +21,7 @@ default_args = {
     'owner': 'airflow',
     'retries': 0,
     'retry_delay': timedelta(minutes=5),
+    'max_active_runs': 2,
 }
 
 new_csvs = []
@@ -97,24 +99,28 @@ conditional_op = BranchPythonOperator(
     dag=dag,
 )
 
-def check_new_csvs(new_csvs):
+def check_new_csvs(parent_dag_name, child_dag_name, args, new_csvs):
+    dag_subdag = DAG(
+        dag_id=f'{parent_dag_name}.{child_dag_name}',
+        default_args=args,
+    )
     for csv in new_csvs:
-        check_csv = KubernetesPodOperator(
+        KubernetesPodOperator(
             task_id=f'check_{csv}',
             image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
             cmds=['./entrypoint.sh'],
             arguments=['python', 'csd3-echo-somerville/scripts/check_upload.py', 'LSST-IR-FUSION-Butlers', csv],
-            dag=dag,
+            dag=dag_subdag,
             volumes=[logs_volume],
             volume_mounts=[logs_volume_mount],
             get_logs=True,
         )
-        check_csvs.append(check_csv)
-    # check_csvs
+    return dag_subdag
 
-check_new_csvs_op = PythonOperator(
-    task_id='check_new_csvs_op',
-    python_callable=check_new_csvs,
+
+check_new_csvs_subdag = SubDagOperator(
+    task_id='check_new_csvs_subdag',
+    subdag=check_new_csvs(dag.dag_id, 'check_new_csvs_subdag', default_args, new_csvs),
     op_args=new_csvs,
     dag=dag,
 )
@@ -125,12 +131,6 @@ end = PythonOperator(
     python_callable=lambda: print("No new CSV files to check."),
 )
 
-check_csvs = [DummyOperator(
-    task_id='placeholder_for_csv_check',
-    dag=dag,
-)]
-
 # Set the task sequence
-list_csv_files >> compare_csv_file_lists >> list_new_csvs_op >> conditional_op >> [check_new_csvs_op,end]
-check_new_csvs_op >> check_csvs
+list_csv_files >> compare_csv_file_lists >> list_new_csvs_op >> conditional_op >> [check_new_csvs_subdag,end]
         
