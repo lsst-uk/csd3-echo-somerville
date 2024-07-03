@@ -131,5 +131,6 @@ check_csvs = [DummyOperator(
 )]
 
 # Set the task sequence
-list_csv_files >> compare_csv_file_lists >> list_new_csvs_op >> conditional_op >> [check_new_csvs_op,end] >> check_csvs
+list_csv_files >> compare_csv_file_lists >> list_new_csvs_op >> conditional_op >> [check_new_csvs_op,end]
+check_new_csvs_op >> check_csvs
         
