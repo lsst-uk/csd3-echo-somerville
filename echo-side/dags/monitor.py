@@ -103,8 +103,8 @@ def subdag(parent_dag_name, child_dag_name, args, new_csvs):
     dag_subdag = DAG(
         dag_id=f'{parent_dag_name}.{child_dag_name}',
         default_args=args,
-        schedule_interval="@daily",
-        start_date=datetime(2024, 1, 1),
+        # schedule_interval="@daily",
+        # start_date=datetime(2024, 1, 1),
     )
     for csv in new_csvs:
         KubernetesPodOperator(
@@ -123,7 +123,7 @@ def subdag(parent_dag_name, child_dag_name, args, new_csvs):
 check_new_csvs_subdag = SubDagOperator(
     task_id='check_new_csvs_subdag',
     subdag=subdag(dag.dag_id, 'check_new_csvs_subdag', default_args, new_csvs),
-    op_args=new_csvs,
+    # op_args=new_csvs,
     dag=dag,
 )
 
