@@ -58,7 +58,7 @@ def compare_csv_file_lists(log_folder, ds):
             for csv in new_csv_paths:
                 f.write(f"{csv}\n")
     else:
-        print("CSV files are the same.")
+        print("CSV files are the same - nothing to do.")
 
 if __name__ == "__main__":
     compare_csv_file_lists(log_folder, datestamp)
