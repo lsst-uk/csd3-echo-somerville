@@ -29,6 +29,8 @@ if args.save_list:
     if not os.path.exists(save_folder):
         print(f'{save_folder} does not exist. Exiting.')
         sys.exit()
+else:
+    save_list = None
 
 try:
     keys = bm.get_keys('S3')

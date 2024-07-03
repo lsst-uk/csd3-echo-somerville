@@ -3,7 +3,7 @@
 # D. McKay Feb 2024
 
 """
-This script allows you to delete a single file given its bucket name and URI.
+This script allows you to download a single file to the local directory given its bucket name and URI.
 """
 
 import sys
@@ -35,20 +35,5 @@ bucket = s3.Bucket(bucket_name)
 # if not URI in bm.object_list(bucket):
 #     sys.exit('Object does not exist.')
 
-sure = input("Are you sure? [y/n]\n").lower()
 
-if sure == 'n':
-    sys.exit('Aborted.')
-elif sure == 'y':
-    pass
-else:
-    sys.exit('Aborted.')
-try:
-    response = s3.Object(bucket_name, URI).delete()
-except Exception as e:
-    print(e)
-
-
-# Confirm
-if response['ResponseMetadata']['HTTPStatusCode'] == 204:# and not URI in bm.object_list(bucket):
-    print(f'Object {URI} deleted.')
+bucket.download_file(URI, URI.split('/')[-1]) 
