@@ -35,6 +35,8 @@ def list_new_csvs(file_path):
                 new_csvs.append(line.strip())
         print(f"New CSV files: {new_csvs}")
         os.remove(file_path)
+    else:
+        print(f"{file_path} does not exist.")
 
 # Instantiate the DAG
 dag = DAG(
