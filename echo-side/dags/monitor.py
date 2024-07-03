@@ -95,7 +95,7 @@ list_new_csvs_op = PythonOperator(
 
 conditional_op = BranchPythonOperator(
     task_id='conditional_op',
-    python_callable=lambda: 'check_new_csvs_op' if len(new_csvs) > 0 else 'end',
+    python_callable=lambda: 'check_new_csvs_subdag' if len(new_csvs) > 0 else 'end',
     dag=dag,
 )
 
