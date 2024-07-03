@@ -28,6 +28,9 @@ def list_new_csvs(file_path):
         with open(file_path, "r") as f:
             for line in f:
                 new_csvs.append(line.strip())
+    if len(new_csvs) > 0:
+        for csv in new_csvs:
+            check_new_csvs(csv)
 
 # Instantiate the DAG
 dag = DAG(
@@ -97,9 +100,8 @@ def check_new_csvs(csv):
         volume_mounts=[logs_volume_mount],
         get_logs=True,
     )
-    check_new_csvs_op
+    check_new_csvs_op.set_upstream(list_new_csvs)
 
 # Set the task sequence
 list_csv_files >> compare_csv_file_lists >> list_new_csvs
-if len(new_csvs) > 0:
-    [check_new_csvs(csv) for csv in new_csvs]
+        
