@@ -103,6 +103,7 @@ def subdag(parent_dag_name, child_dag_name, args, new_csvs):
     dag_subdag = DAG(
         dag_id=f'{parent_dag_name}.{child_dag_name}',
         default_args=args,
+        schedule_interval="@once",
     )
     for csv in new_csvs:
         KubernetesPodOperator(
