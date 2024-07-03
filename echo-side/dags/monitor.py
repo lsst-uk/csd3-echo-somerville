@@ -1,6 +1,7 @@
 from airflow import DAG
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.operators.python import PythonOperator, BranchPythonOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.models import Variable
 from datetime import timedelta, datetime
 from kubernetes.client import models as k8s
@@ -22,7 +23,7 @@ default_args = {
 }
 
 new_csvs = []
-check_csvs = []
+
 
 def list_new_csvs(file_path):
     if os.exists(file_path):    
@@ -124,6 +125,10 @@ end = PythonOperator(
     python_callable=lambda: print("No new CSV files to check."),
 )
 
+check_csvs = [DummyOperator(
+    task_id='placeholder',
+    dag=dag,
+)]
 
 # Set the task sequence
 list_csv_files >> compare_csv_file_lists >> list_new_csvs_op >> conditional_op >> [check_new_csvs_op,end] >> check_csvs
