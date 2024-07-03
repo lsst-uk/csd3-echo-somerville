@@ -99,7 +99,7 @@ conditional_op = BranchPythonOperator(
     dag=dag,
 )
 
-def check_new_csvs(parent_dag_name, child_dag_name, args, new_csvs):
+def subdag(parent_dag_name, child_dag_name, args, new_csvs):
     dag_subdag = DAG(
         dag_id=f'{parent_dag_name}.{child_dag_name}',
         default_args=args,
@@ -120,7 +120,7 @@ def check_new_csvs(parent_dag_name, child_dag_name, args, new_csvs):
 
 check_new_csvs_subdag = SubDagOperator(
     task_id='check_new_csvs_subdag',
-    subdag=check_new_csvs(dag.dag_id, 'check_new_csvs_subdag', default_args, new_csvs),
+    subdag=subdag(dag.dag_id, 'check_new_csvs_subdag', default_args, new_csvs),
     op_args=new_csvs,
     dag=dag,
 )
