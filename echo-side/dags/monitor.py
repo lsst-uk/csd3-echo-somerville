@@ -32,6 +32,7 @@ def list_new_csvs(file_path):
         with open(file_path, "r") as f:
             for line in f:
                 new_csvs.append(line.strip())
+        print(f"New CSV files: {new_csvs}")
         os.remove(file_path)
 
 # Instantiate the DAG
