@@ -871,7 +871,9 @@ if __name__ == '__main__':
             print('dryrun == True, so continuing.')
     
     bucket = s3.Bucket(bucket_name)
+    print(f'Getting current object list for {bucket_name}. This may take some time.\nStarting at {datetime.now()}, elapsed time = {datetime.now() - start}')
     current_objects = bm.object_list(bucket)
+    print(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}')
 
     ## check if log exists in the bucket, and download it and append top it if it does
     # TODO: integrate this with local check for log file
