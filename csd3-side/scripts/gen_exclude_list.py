@@ -72,7 +72,7 @@ df[df['ZIP_CONTENTS'].isna()] = ''
 
 print(df.head())
 print(df.tail())
-df = df.groupby('LOCAL_FOLDER').agg(','.join).reset_index()
+df = df.groupby('LOCAL_FOLDER').agg(','.join).reset_index().dropna()
 print(df.head())
 df.to_csv('test.csv', index=False)
 exit()
