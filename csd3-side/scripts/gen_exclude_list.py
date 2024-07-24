@@ -19,6 +19,7 @@ def list_all_uploaded_leaf_dirs(df,local_folder):
         print(uploaded)
         if all(uploaded):
             all_uploaded_dirs.append(root)
+        print(f'Current exclude list: {all_uploaded_dirs}')
         print(len(all_uploaded_dirs))
     return all_uploaded_dirs
 
