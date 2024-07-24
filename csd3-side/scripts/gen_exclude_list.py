@@ -38,7 +38,7 @@ df = df.drop(['LOCAL_FOLDER'], axis=1).compute()
 print(df.head())
 print(len(df))
 
-print(df.loc[df['LOCAL_PATH'].str.endswith('.zip')])
+print(sum(df.loc[df['LOCAL_PATH'].str.endswith('.zip')]))
 
 uploaded_dirs = list_all_uploaded_leaf_dirs(df,local_folder)
 
