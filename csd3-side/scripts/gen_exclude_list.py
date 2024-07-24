@@ -45,7 +45,7 @@ uploaded_dirs = list_all_uploaded_leaf_dirs(df,local_folder)
 print(len(uploaded_dirs))
 
 with open('exclude_list.txt', 'w') as excl_f:
-    excl_f.write(uploaded_dirs)
+    excl_f.write(str(uploaded_dirs))
     excl_f.write('\n')
 
 # print('Local folder:', local_folder)
