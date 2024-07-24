@@ -74,6 +74,8 @@ print(df.tail())
 exit()
 # print(len(df))
 
+### USE LOCAL_FILENAME NOT LOCAL_PATH
+
 print(sum(df['LOCAL_PATH'].str.endswith('.zip')))
 
 uploaded_dirs = list_all_uploaded_leaf_dirs(df,local_folder)
