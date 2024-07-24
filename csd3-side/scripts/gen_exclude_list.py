@@ -62,23 +62,23 @@ fnames = []
 for row in df.iterrows():
     basepaths.append('/'.join(row[1]['LOCAL_PATH'].split('/')[:-1]))
     fnames.append(row[1]['LOCAL_PATH'].split('/')[-1])
-    print(type(row[1]['ZIP_CONTENTS']) == str)
+    # print(type(row[1]['ZIP_CONTENTS']) == str)
 df['BASE_PATH'] = basepaths
 df['FNAME'] = fnames
 
 
 
 print(df.head())
-print(len(df))
+# print(len(df))
 
 print(sum(df['LOCAL_PATH'].str.endswith('.zip')))
 
 uploaded_dirs = list_all_uploaded_leaf_dirs(df,local_folder)
-zipped_dirs_df = df[df['LOCAL_PATH'].str.endswith('.zip')]
-
 
 print(len(uploaded_dirs))
 
+zipped_dirs_df = df[df['LOCAL_PATH'].str.endswith('.zip')]
+print(len(zipped_dirs_df))
 verify_zipped = verify_zipped_dirs(zipped_dirs_df)
 uploaded_dirs.extend(verify_zipped)
 
