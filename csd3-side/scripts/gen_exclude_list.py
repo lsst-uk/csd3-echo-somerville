@@ -16,6 +16,7 @@ def list_all_uploaded_leaf_dirs(df,local_folder):
                 uploaded.append(True)
             else:
                 uploaded.append(False)
+        print(uploaded)
         if all(uploaded):
             all_uploaded_dirs.append(root)
         print(len(all_uploaded_dirs))
