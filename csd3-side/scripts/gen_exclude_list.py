@@ -56,6 +56,8 @@ dtypes = {'LOCAL_FOLDER': 'str', 'LOCAL_PATH': 'str', 'FILE_SIZE': 'float', 'BUC
 df = dd.read_csv(csv_file, dtype=dtypes).drop(['FILE_SIZE','BUCKET_NAME','DESTINATION_KEY','CHECKSUM'], axis=1)
 local_folder_series = df['LOCAL_FOLDER'].compute()
 print(local_folder_series)
+for i in local_folder_series:
+    print(i)
 exit()
 local_folder = local_folder_series.iloc[0]
 print(local_folder)
