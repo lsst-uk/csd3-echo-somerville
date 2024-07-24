@@ -57,7 +57,7 @@ df = dd.read_csv(csv_file, dtype=dtypes).drop(['FILE_SIZE','BUCKET_NAME','DESTIN
 
 for row in df.iterrows():
     if row['LOCAL_PATH'].startswith(row['LOCAL_FOLDER']):
-        df.loc[row[0],'LOCAL_PATH'] = row['LOCAL_PATH'][len(row['LOCAL_FOLDER']):]
+        df.loc[row[1],'LOCAL_PATH'] = row[1]['LOCAL_PATH'][len(row[1]['LOCAL_FOLDER']):]
 
 
 
