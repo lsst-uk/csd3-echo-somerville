@@ -11,8 +11,8 @@ def list_all_uploaded_leaf_dirs(df,local_folder):
             continue
         uploaded = []
         for filename in files:
-            if filename.endswith('.zip'):
-                continue
+            # if filename.endswith('.zip'): - zip files here are irrelevent. Zip files in the csv matter.
+            #     continue
             if os.path.join(root,filename) in df['LOCAL_PATH'].values:
                 uploaded.append(True)
             else:
@@ -36,6 +36,8 @@ df = df.drop(['LOCAL_FOLDER'], axis=1).compute()
 
 print(df.head())
 print(len(df))
+
+print(df[df.where(df['LOCAL_PATH'].str.endswith('.zip'))])
 
 uploaded_dirs = list_all_uploaded_leaf_dirs(df,local_folder)
 
