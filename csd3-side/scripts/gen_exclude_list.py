@@ -72,7 +72,7 @@ df = df.drop(['LOCAL_PATH'], axis=1)
 
 print(df.head())
 print(df.tail())
-print(df.groupby('LOCAL_FOLDER').transform(lambda x: ','.join(x)).drop_duplicates())
+print(df.groupby('LOCAL_FOLDER').transform(lambda x: ','.join(str(x))).drop_duplicates())
 exit()
 # print(len(df))
 
