@@ -25,6 +25,15 @@ def list_all_uploaded_leaf_dirs(df,local_folder):
             print(f'Current exclude list length: {len(all_uploaded_dirs)}')
     return all_uploaded_dirs
 
+def verify_zipped_dirs(zipped_dirs_df):
+    unique_zipped_dirs = zipped_dirs_df['BASE_PATH'].unique()
+    for u_z_d in unique_zipped_dirs:
+        these_zipped_dirs = zipped_dirs_df.loc[zipped_dirs_df['BASE_PATH'] == u_z_d]
+        verified_zipped = []
+        verified_zipped.extend(these_zipped_dirs['ZIP_CONTENTS'].values.split(','))
+    print(verified_zipped)
+    # return verified_zipped
+
 csv_file = sys.argv[1]
 #LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS
 dtypes = {'LOCAL_FOLDER': 'str', 'LOCAL_PATH': 'str', 'FILE_SIZE': 'float', 'BUCKET_NAME': 'str', 'DESTINATION_KEY': 'str', 'CHECKSUM': 'str', 'ZIP_CONTENTS': 'str'}
@@ -51,6 +60,8 @@ print(len(df))
 print(sum(df['LOCAL_PATH'].str.endswith('.zip')))
 
 uploaded_dirs = list_all_uploaded_leaf_dirs(df,local_folder)
+zipped_dirs_df = df[df['LOCAL_PATH'].str.endswith('.zip')]
+verify_zipped = verify_zipped_dirs(zipped_dirs_df)
 
 print(len(uploaded_dirs))
 
