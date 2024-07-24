@@ -3,39 +3,24 @@ import os
 import sys
 import dask.dataframe as dd
 
-def remove_local_files(df,local_folder):
+def list_all_uploaded_leaf_dirs(df,local_folder):
     for root, dirs, files in os.walk(local_folder):
-        print(len(df))
-        these_local_files = []
+        if len(dirs) > 0:
+            continue
+        all_uploaded_dirs = []
+        uploaded = []
         for f in files:
-            these_local_files.append(os.path.join(root, f))
-        
-        print('these_local_files:', these_local_files)
-        print(len(df['LOCAL_PATH'].isin(these_local_files) == True))
-        df = df[~df['LOCAL_PATH'].isin(these_local_files)]
+            if f.endswith('.zip'):
+                continue
+            if f in df['LOCAL_PATH'].values:
+                uploaded.append(True)
+            else:
+                uploaded.append(False)
+        if all(uploaded):
+            all_uploaded_dirs.append(root)
+        print(len(all_uploaded_dirs))
+    return all_uploaded_dirs
 
-def generate_exclude_list(df, local_folder):
-    exclude_list = []
-    folder_files = {}
-
-    # Read the CSV file using dask
-    for _, row in df.iterrows():
-        file_name = os.path.basename(local_folder)
-
-        # Add the file to the folder_files dictionary
-        if local_folder not in folder_files:
-            folder_files[local_folder] = set()
-        folder_files[local_folder].add(file_name)
-
-    # Check if all files in each folder are in the CSV file
-    for folder, files in folder_files.items():
-        all_files_in_csv = all(file in df.columns for file in files)
-        if all_files_in_csv:
-            exclude_list.append(folder)
-
-    return exclude_list
-
-# Usage example
 csv_file = sys.argv[1]
 #LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS
 df = dd.read_csv(csv_file).drop(['FILE_SIZE','BUCKET_NAME','DESTINATION_KEY','CHECKSUM'], axis=1)
@@ -48,9 +33,9 @@ df = df.drop(['LOCAL_FOLDER'], axis=1).compute()
 print(df.head())
 print(len(df))
 
-remove_local_files(df,local_folder)
+uploaded_dirs = list_all_uploaded_leaf_dirs(df,local_folder)
 
-print(len(df))
+print(len(uploaded_dirs))
 
 # print('Local folder:', local_folder)
 # print('Local files:', local_files)
