@@ -59,7 +59,7 @@ for row in df.iterrows():
     print(row[1]['LOCAL_PATH'])
     print(row[1]['LOCAL_FOLDER'])
     if row[1]['LOCAL_PATH'].startswith(row[1]['LOCAL_FOLDER']):
-        df.loc[row[1],'LOCAL_PATH'] = row[1]['LOCAL_PATH'][len(row[1]['LOCAL_FOLDER']):]
+        df.loc[row[1],'LOCAL_PATH'] = row[1]['LOCAL_PATH'].split('/')[-1]
 
 
 
