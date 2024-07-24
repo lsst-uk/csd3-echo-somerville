@@ -70,6 +70,7 @@ df = df.drop(['LOCAL_PATH'], axis=1)
 
 
 print(df.head())
+print(df.tail())
 exit()
 # print(len(df))
 
