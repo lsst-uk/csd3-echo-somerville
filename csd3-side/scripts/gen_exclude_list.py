@@ -3,8 +3,9 @@ import os
 import sys
 import dask.dataframe as dd
 
-def list_all_uploaded_leaf_dirs(df,local_folder):
+def list_all_uploaded_leaf_dirs(df):
     all_uploaded_dirs = []
+    df.groupby('LOCAL_FOLDER').count()
     for root, dirs, files in os.walk(local_folder):
         print('.', end='', flush=True)
         if len(dirs) > 0:
@@ -13,7 +14,7 @@ def list_all_uploaded_leaf_dirs(df,local_folder):
         for filename in files:
             # if filename.endswith('.zip'): - zip files here are irrelevent. Zip files in the csv matter.
             #     continue
-            if os.path.join(root,filename) in df['LOCAL_PATH'].values:
+            if os.path.join(root,filename) in df['LOCAL_FILENAME'].values:
                 uploaded.append(True)
             else:
                 uploaded.append(False)
@@ -71,14 +72,15 @@ df = df.drop(['LOCAL_PATH'], axis=1)
 
 print(df.head())
 print(df.tail())
+print(df.groupby('LOCAL_FOLDER'))
 exit()
 # print(len(df))
 
 ### USE LOCAL_FILENAME NOT LOCAL_PATH
 
-print(sum(df['LOCAL_PATH'].str.endswith('.zip')))
+print(sum(df['LOCAL_FILENAME'].str.endswith('.zip')))
 
-uploaded_dirs = list_all_uploaded_leaf_dirs(df,local_folder)
+uploaded_dirs = list_all_uploaded_leaf_dirs(df)
 
 print(len(uploaded_dirs))
 
