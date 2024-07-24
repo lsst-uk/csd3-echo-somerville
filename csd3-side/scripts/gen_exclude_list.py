@@ -16,11 +16,11 @@ def list_all_uploaded_leaf_dirs(df,local_folder):
                 uploaded.append(True)
             else:
                 uploaded.append(False)
-        print(uploaded)
         if all(uploaded):
             all_uploaded_dirs.append(root)
-        print(f'Current exclude list: {all_uploaded_dirs}')
-        print(len(all_uploaded_dirs))
+            print(f'All files in {root} have been uploaded.')
+            print(f'Current exclude list: {all_uploaded_dirs}')
+            print(len(all_uploaded_dirs))
     return all_uploaded_dirs
 
 csv_file = sys.argv[1]
