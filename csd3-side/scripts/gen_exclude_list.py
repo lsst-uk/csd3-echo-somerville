@@ -6,6 +6,7 @@ import dask.dataframe as dd
 def list_all_uploaded_leaf_dirs(df,local_folder):
     all_uploaded_dirs = []
     for root, dirs, files in os.walk(local_folder):
+        print('.', end='')
         if len(dirs) > 0:
             continue
         uploaded = []
@@ -17,6 +18,7 @@ def list_all_uploaded_leaf_dirs(df,local_folder):
             else:
                 uploaded.append(False)
         if all(uploaded):
+            print()
             all_uploaded_dirs.append(root)
             print(f'All files in {root} have been uploaded.')
             print(f'Current exclude list: {all_uploaded_dirs}')
