@@ -27,7 +27,8 @@ def list_all_uploaded_leaf_dirs(df,local_folder):
 
 csv_file = sys.argv[1]
 #LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS
-df = dd.read_csv(csv_file).drop(['FILE_SIZE','BUCKET_NAME','DESTINATION_KEY','CHECKSUM'], axis=1)
+dtypes = {'LOCAL_FOLDER': 'str', 'LOCAL_PATH': 'str', 'FILE_SIZE': 'float', 'BUCKET_NAME': 'str', 'DESTINATION_KEY': 'str', 'CHECKSUM': 'str', 'ZIP_CONTENTS': 'str'}
+df = dd.read_csv(csv_file, dtypes=dtypes).drop(['FILE_SIZE','BUCKET_NAME','DESTINATION_KEY','CHECKSUM'], axis=1)
 local_folder_series = df['LOCAL_FOLDER'].compute()
 local_folder = local_folder_series.iloc[0]
 print(local_folder)
