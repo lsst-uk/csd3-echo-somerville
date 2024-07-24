@@ -72,7 +72,7 @@ df = df.drop(['LOCAL_PATH'], axis=1)
 
 print(df.head())
 print(df.tail())
-print(df.groupby('LOCAL_FOLDER'))
+print(df.groupby('LOCAL_FOLDER')).sum()
 exit()
 # print(len(df))
 
