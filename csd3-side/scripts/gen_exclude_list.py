@@ -9,7 +9,8 @@ def remove_local_files(df,local_folder):
         these_local_files = []
         for f in files:
             these_local_files.append(os.path.join(root, f))
-        # print('these_local_files:', these_local_files)
+        
+        print('these_local_files:', these_local_files)
         print(len(df['LOCAL_PATH'].isin(these_local_files) == True))
         df = df[~df['LOCAL_PATH'].isin(these_local_files)]
 
