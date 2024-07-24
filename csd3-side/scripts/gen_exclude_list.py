@@ -30,7 +30,9 @@ def verify_zipped_dirs(zipped_dirs_df):
     for u_z_d in unique_zipped_dirs:
         these_zipped_dirs = zipped_dirs_df.loc[zipped_dirs_df['BASE_PATH'] == u_z_d]
         verified_zipped = []
-        verified_zipped.extend(these_zipped_dirs['ZIP_CONTENTS'].values[0].split(','))
+        for t_z_d in these_zipped_dirs.iterrows():
+            verified_zipped.extend(t_z_d[1]['ZIP_CONTENTS'].split(','))
+        print(verified_zipped)
     print(verified_zipped)
     # return verified_zipped
 
