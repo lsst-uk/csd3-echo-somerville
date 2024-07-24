@@ -33,7 +33,7 @@ def verify_zipped_dirs(zipped_dirs_df):
         for t_z_d in these_zipped_dirs.iterrows():
             verified_zipped.extend(t_z_d[1]['ZIP_CONTENTS'].split(','))
         print(verified_zipped)
-    print(verified_zipped)
+
     # return verified_zipped
 
 csv_file = sys.argv[1]
