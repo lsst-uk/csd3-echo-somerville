@@ -54,12 +54,18 @@ csv_file = sys.argv[1]
 #LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS
 dtypes = {'LOCAL_FOLDER': 'str', 'LOCAL_PATH': 'str', 'FILE_SIZE': 'float', 'BUCKET_NAME': 'str', 'DESTINATION_KEY': 'str', 'CHECKSUM': 'str', 'ZIP_CONTENTS': 'str'}
 df = dd.read_csv(csv_file, dtype=dtypes).drop(['FILE_SIZE','BUCKET_NAME','DESTINATION_KEY','CHECKSUM'], axis=1).compute()
-
+local_fns = []
 for row in df.iterrows():
     print(row[1]['LOCAL_PATH'])
     print(row[1]['LOCAL_FOLDER'])
+    
     if row[1]['LOCAL_PATH'].startswith(row[1]['LOCAL_FOLDER']):
-        df.loc[row[1]['LOCAL_PATH']] = row[1]['LOCAL_PATH'][len(row[1]['LOCAL_FOLDER'])+1:]
+        local_fns.append(row[1]['LOCAL_PATH'][len(row[1]['LOCAL_FOLDER'])+1:])
+    else:
+        local_fns.append(row[1]['LOCAL_PATH'])
+df['LOCAL_FNS'] = local_fns
+df = df.drop(['LOCAL_PATH'], axis=1)
+
 
 
 
