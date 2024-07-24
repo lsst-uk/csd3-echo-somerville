@@ -63,7 +63,7 @@ for row in df.iterrows():
         local_fns.append(row[1]['LOCAL_PATH'][len(row[1]['LOCAL_FOLDER'])+1:])
     else:
         local_fns.append(row[1]['LOCAL_PATH'])
-df['LOCAL_FNS'] = local_fns
+df['LOCAL_FILENAME'] = local_fns
 df = df.drop(['LOCAL_PATH'], axis=1)
 
 
