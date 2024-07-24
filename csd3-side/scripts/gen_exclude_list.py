@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 import sys
+import dask.dataframe as dd
 
 def get_local_file_list(local_folder):
     local_files = []
@@ -17,16 +18,13 @@ def get_local_file_list(local_folder):
         local_folders.extend(these_local_folders)
     return local_files, local_folders
 
-def generate_exclude_list(csv_file):
+def generate_exclude_list(df, local_folder):
     exclude_list = []
     folder_files = {}
 
-    # Read the CSV file using pandas
-    df = pd.read_csv(csv_file)
+    # Read the CSV file using dask
     for _, row in df.iterrows():
-        local_folder = row['LOCAL_FOLDER']
-        local_path = row['LOCAL_PATH']
-        file_name = os.path.basename(local_path)
+        file_name = os.path.basename(local_folder)
 
         # Add the file to the folder_files dictionary
         if local_folder not in folder_files:
@@ -44,7 +42,7 @@ def generate_exclude_list(csv_file):
 # Usage example
 csv_file = sys.argv[1]
 #LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS
-df = pd.read_csv(csv_file)
+df = dd.read_csv(csv_file)
 local_folder = df['LOCAL_FOLDER'].iloc[0]
 df = df.drop(['LOCAL_FOLDER','FILE_SIZE','BUCKET_NAME','DESTINATION_KEY','CHECKSUM'], axis=1)
 
