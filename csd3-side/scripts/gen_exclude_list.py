@@ -34,6 +34,13 @@ local_folder = local_folder_series.iloc[0]
 print(local_folder)
 del local_folder_series
 df = df.drop(['LOCAL_FOLDER'], axis=1).compute()
+basepaths = []
+fnames = []
+for row in df.iterrows():
+    basepaths.append('/'.join(row[1]['LOCAL_PATH'].split('/')[:-1]))
+    fnames.append(row[1]['LOCAL_PATH'].split('/')[-1])
+df['BASE_PATH'] = basepaths
+df['FNAME'] = fnames
 
 print(df.head())
 print(len(df))
