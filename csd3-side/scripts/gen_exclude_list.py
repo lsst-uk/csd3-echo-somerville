@@ -42,9 +42,12 @@ def generate_exclude_list(df, local_folder):
 # Usage example
 csv_file = sys.argv[1]
 #LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS
-df = dd.read_csv(csv_file)
-local_folder = df.loc['LOCAL_FOLDER', 0]
-df = df.drop(['LOCAL_FOLDER','FILE_SIZE','BUCKET_NAME','DESTINATION_KEY','CHECKSUM'], axis=1)
+df = dd.read_csv(csv_file).drop(['FILE_SIZE','BUCKET_NAME','DESTINATION_KEY','CHECKSUM'], axis=1)
+local_folder_series = df['LOCAL_FOLDER'].compute()
+local_folder = local_folder_series.iloc[0]
+print(local_folder)
+del local_folder_series
+df = df.drop(['LOCAL_FOLDER'], axis=1).compute()
 
 local_files, local_folders = get_local_file_list(local_folder)
 
