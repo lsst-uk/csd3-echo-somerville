@@ -53,28 +53,16 @@ def verify_zipped_dirs(zipped_dirs_df):
 csv_file = sys.argv[1]
 #LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS
 dtypes = {'LOCAL_FOLDER': 'str', 'LOCAL_PATH': 'str', 'FILE_SIZE': 'float', 'BUCKET_NAME': 'str', 'DESTINATION_KEY': 'str', 'CHECKSUM': 'str', 'ZIP_CONTENTS': 'str'}
-df = dd.read_csv(csv_file, dtype=dtypes).drop(['FILE_SIZE','BUCKET_NAME','DESTINATION_KEY','CHECKSUM'], axis=1)
-local_folder_series = df['LOCAL_FOLDER'].compute()
-print(local_folder_series)
-for i in local_folder_series:
-    print(i)
-exit()
-local_folder = local_folder_series.iloc[0]
-print(local_folder)
-del local_folder_series
-df = df.drop(['LOCAL_FOLDER'], axis=1).compute()
-basepaths = []
-fnames = []
+df = dd.read_csv(csv_file, dtype=dtypes).drop(['FILE_SIZE','BUCKET_NAME','DESTINATION_KEY','CHECKSUM'], axis=1).compute()
+
 for row in df.iterrows():
-    basepaths.append('/'.join(row[1]['LOCAL_PATH'].split('/')[:-1]))
-    fnames.append(row[1]['LOCAL_PATH'].split('/')[-1])
-    # print(type(row[1]['ZIP_CONTENTS']) == str)
-df['BASE_PATH'] = basepaths
-df['FNAME'] = fnames
+    if row['LOCAL_PATH'].startswith(row['LOCAL_FOLDER']):
+        df.loc[row[0],'LOCAL_PATH'] = row['LOCAL_PATH'][len(row['LOCAL_FOLDER']):]
 
 
 
 print(df.head())
+exit()
 # print(len(df))
 
 print(sum(df['LOCAL_PATH'].str.endswith('.zip')))
