@@ -27,12 +27,24 @@ def list_all_uploaded_leaf_dirs(df,local_folder):
 
 def verify_zipped_dirs(zipped_dirs_df):
     unique_zipped_dirs = zipped_dirs_df['BASE_PATH'].unique()
+    verified_zipped = []
     for u_z_d in unique_zipped_dirs:
         these_zipped_dirs = zipped_dirs_df.loc[zipped_dirs_df['BASE_PATH'] == u_z_d]
-        verified_zipped = []
+        these_verified_zipped = []
         for t_z_d in these_zipped_dirs.iterrows():
-            verified_zipped.extend(t_z_d[1]['ZIP_CONTENTS'].split(','))
-        print(len(verified_zipped))
+            these_verified_zipped.extend(t_z_d[1]['ZIP_CONTENTS'].split(','))
+        files_in_basepath = [ f for _, _, files in os.walk(u_z_d) for f in files ]
+        verified = []
+        for f_in_b in files_in_basepath:
+            if f_in_b in these_verified_zipped:
+                verified.append(True)
+            else:
+                verified.append(False)
+        if all(verified):
+            print(f'All files in {u_z_d} have been uploaded - adding to exclude list.')
+            verified_zipped.append(u_z_d)
+            print(f'Current exclude list length: {len(verified_zipped)}')
+    print(len(verified_zipped))
 
     # return verified_zipped
 
@@ -63,7 +75,12 @@ print(sum(df['LOCAL_PATH'].str.endswith('.zip')))
 
 uploaded_dirs = list_all_uploaded_leaf_dirs(df,local_folder)
 zipped_dirs_df = df[df['LOCAL_PATH'].str.endswith('.zip')]
+
+
+print(len(uploaded_dirs))
+
 verify_zipped = verify_zipped_dirs(zipped_dirs_df)
+uploaded_dirs.extend(verify_zipped)
 
 print(len(uploaded_dirs))
 
