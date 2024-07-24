@@ -39,7 +39,7 @@ fnames = []
 for row in df.iterrows():
     basepaths.append('/'.join(row[1]['LOCAL_PATH'].split('/')[:-1]))
     fnames.append(row[1]['LOCAL_PATH'].split('/')[-1])
-    print(row[1]['ZIP_CONTENTS'], type(row[1]['ZIP_CONTENTS']))
+    print(type(row[1]['ZIP_CONTENTS']) == str)
 df['BASE_PATH'] = basepaths
 df['FNAME'] = fnames
 
