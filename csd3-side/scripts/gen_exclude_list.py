@@ -8,6 +8,9 @@ def get_local_file_list(local_folder):
     local_folders = []
     
     for root, dirs, files in os.walk(local_folder):
+        print('root:', root)
+        print('dirs:', dirs)
+        print('files:', files)
         these_local_files = []
         these_local_folders = []
         for file in files:
