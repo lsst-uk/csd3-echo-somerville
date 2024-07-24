@@ -4,10 +4,10 @@ import sys
 import dask.dataframe as dd
 
 def list_all_uploaded_leaf_dirs(df,local_folder):
+    all_uploaded_dirs = []
     for root, dirs, files in os.walk(local_folder):
         if len(dirs) > 0:
             continue
-        all_uploaded_dirs = []
         uploaded = []
         for filename in files:
             if filename.endswith('.zip'):
