@@ -12,7 +12,6 @@ def list_all_uploaded_leaf_dirs(df,local_folder):
         for filename in files:
             if filename.endswith('.zip'):
                 continue
-            print(os.path.join(root,filename))
             if os.path.join(root,filename) in df['LOCAL_PATH'].values:
                 uploaded.append(True)
             else:
