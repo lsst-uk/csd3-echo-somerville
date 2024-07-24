@@ -26,7 +26,7 @@ def list_all_uploaded_leaf_dirs(df,local_folder):
     return all_uploaded_dirs
 
 def verify_zipped_dirs(zipped_dirs_df):
-    unique_zipped_dirs = zipped_dirs_df['BASE_PATH']#.unique()
+    unique_zipped_dirs = zipped_dirs_df['BASE_PATH'].unique()
     print(unique_zipped_dirs)
     verified_zipped = []
     for u_z_d in unique_zipped_dirs:
@@ -55,6 +55,8 @@ csv_file = sys.argv[1]
 dtypes = {'LOCAL_FOLDER': 'str', 'LOCAL_PATH': 'str', 'FILE_SIZE': 'float', 'BUCKET_NAME': 'str', 'DESTINATION_KEY': 'str', 'CHECKSUM': 'str', 'ZIP_CONTENTS': 'str'}
 df = dd.read_csv(csv_file, dtype=dtypes).drop(['FILE_SIZE','BUCKET_NAME','DESTINATION_KEY','CHECKSUM'], axis=1)
 local_folder_series = df['LOCAL_FOLDER'].compute()
+print(local_folder_series)
+exit()
 local_folder = local_folder_series.iloc[0]
 print(local_folder)
 del local_folder_series
