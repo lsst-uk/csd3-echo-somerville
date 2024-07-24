@@ -52,6 +52,8 @@ print(local_folder)
 del local_folder_series
 df = df.drop(['LOCAL_FOLDER'], axis=1).compute()
 
+print(df.head())
+
 local_files, local_folders = get_local_file_list(local_folder)
 
 print('Local folder:', local_folder)
