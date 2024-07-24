@@ -27,7 +27,7 @@ def list_all_uploaded_leaf_dirs(df,local_folder):
 
 def verify_zipped_dirs(zipped_dirs_df):
     unique_zipped_dirs = zipped_dirs_df['BASE_PATH'].unique()
-    print(len(unique_zipped_dirs))
+    print(unique_zipped_dirs)
     verified_zipped = []
     for u_z_d in unique_zipped_dirs:
         these_zipped_dirs = zipped_dirs_df.loc[zipped_dirs_df['BASE_PATH'] == u_z_d]
