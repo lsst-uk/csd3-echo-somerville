@@ -66,13 +66,13 @@ for row in df.iterrows():
         local_fns.append(row[1]['LOCAL_PATH'])
 df['LOCAL_FILENAME'] = local_fns
 df = df.drop(['LOCAL_PATH'], axis=1)
-
+df[df['ZIP_CONTENTS'].isna()] = ''
 
 
 
 print(df.head())
 print(df.tail())
-print(df.groupby('LOCAL_FOLDER')['ZIP_CONTENTS','LOCAL_FILENAME'].agg(','.join))
+print(df.groupby('LOCAL_FOLDER').agg(','.join))
 exit()
 # print(len(df))
 
