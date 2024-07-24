@@ -3,23 +3,14 @@ import os
 import sys
 import dask.dataframe as dd
 
-def get_local_file_list(local_folder):
-    local_files = []
-    local_folders = []
-    
+def remove_local_files(df,local_folder):
     for root, dirs, files in os.walk(local_folder):
-        print('root:', root)
-        print('dirs:', dirs)
-        print('files:', files)
+        print(len(df))
         these_local_files = []
-        these_local_folders = []
-        for file in files:
-            these_local_files.append(os.path.join(root, file))
-        for folder in dirs:
-            these_local_folders.append(os.path.join(root, folder))
-        local_files.extend(these_local_files)
-        local_folders.extend(these_local_folders)
-    return local_files, local_folders
+        print('files:', files)
+        for f in files:
+            these_local_files.append(os.path.join(root, f))
+        df = df[~df['LOCAL_PATH'].isin(these_local_files)]
 
 def generate_exclude_list(df, local_folder):
     exclude_list = []
@@ -53,11 +44,14 @@ del local_folder_series
 df = df.drop(['LOCAL_FOLDER'], axis=1).compute()
 
 print(df.head())
+print(len(df))
 
-local_files, local_folders = get_local_file_list(local_folder)
+remove_local_files(df,local_folder)
 
-print('Local folder:', local_folder)
-print('Local files:', local_files)
-print('Local folders:', local_folders)
+print(len(df))
+
+# print('Local folder:', local_folder)
+# print('Local files:', local_files)
+# print('Local folders:', local_folders)
 # exclude_list = generate_exclude_list(csv_file)
 # print(exclude_list)
