@@ -71,7 +71,7 @@ for folder_row in df.iterrows():
                 # make a set from the first element of the split list and check length
                     # if length is 1, then extend_path = '/' + lzf_list[0]
                     # if length is > 1, then change local_folder to list of local_folders
-        if local_folders is []:
+        if local_folders == []:
             print(f'Local Folder: {local_folder}')
         else:
             print(f'Local Folders: {local_folders}')
@@ -81,7 +81,7 @@ for folder_row in df.iterrows():
             print(root)
             print(dirs)
             print(files)
-        if local_folders is []:
+        if local_folders == []:
             files = [f for _,_,files in os.walk(local_folder) for f in files]
             print(files)
             print(logged_zipped_files)
