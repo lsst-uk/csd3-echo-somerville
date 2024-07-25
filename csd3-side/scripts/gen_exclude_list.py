@@ -52,11 +52,18 @@ for folder_row in df.iterrows():
     
     if collated:
         # extend_path = ''
+        subfolders = []
         for i, lzf in enumerate(logged_zipped_files):
             if '/' in lzf:
                 lzf_list = lzf.split('/')
                 logged_zipped_files[i] = lzf_list[-1]
+                subfolders.extend(lzf_list[:-1])
+        print(f"subfolders: {subfolders}")
+        print(f"number of unique subfolders: {len(set(subfolders))}")
                 # need different subfolder extensions and to veirfy at subfolder level
+                # make a set from the first element of the split list and check length
+                    # if length is 1, then extend_path = '/' + lzf_list[0]
+                    # if length is > 1, then change local_folder to list of local_folders
         #         extend_path = '/' + '/'.join(lzf_list[:-1])
         # local_folder += extend_path
         print(f'Folder: {local_folder}')
@@ -77,7 +84,7 @@ for folder_row in df.iterrows():
         
     else:
         print(f'Folder: {local_folder}')
-        print('Not collated')
+        print('Uncollated')
         print('Verifying files...')
         files = [f for _,_,files in os.walk(local_folder) for f in files]
         print(files)
