@@ -115,7 +115,7 @@ for folder_row in df.iterrows():
         print(f'Folder: {local_folder}')
         print('Collated')
         print('Verifying files...')
-        files = [os.path.join(local_folder, f) for _,_,files in os.path.walk(local_folder) for f in files]
+        files = [os.path.join(local_folder, f) for _,_,files in os.walk(local_folder) for f in files]
         print(files)
         print(logged_zipped_files)
         
