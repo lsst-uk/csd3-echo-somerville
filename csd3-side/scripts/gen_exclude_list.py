@@ -99,7 +99,7 @@ for folder_row in df.iterrows():
                 print('files',files)
                 print('logged_zipped_files',logged_zipped_files)
                 total_files_len += len(files)
-                if all([f in files for f in logged_zipped_files]):
+                if all([f in logged_zipped_files for f in files]): # order important here as not expecting identical lists, just logged_zipped_files should contain all elements of files
                     verified_content += 1
             print(f'verified_content: {verified_content}')
             print(f'total_files_len: {total_files_len}')
