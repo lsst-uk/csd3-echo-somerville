@@ -97,6 +97,37 @@ for folder_row in df.iterrows():
     print(f"local_folder: {folder_row[1]['LOCAL_FOLDER']}")
     print(f"local_filename: {folder_row[1]['LOCAL_FILENAME']}")
     print(f"zip_contents: {folder_row[1]['ZIP_CONTENTS']}")
+
+    logged_files = folder_row[1]['LOCAL_FILENAME'].split(',')
+    logged_zipped_files = folder_row[1]['ZIP_CONTENTS'].split(',')
+    local_folder = folder_row[1]['LOCAL_FOLDER']
+    collated = False
+    if files[0].endswith('.zip') and zip_files[0] != '':
+        collated = True
+    elif files[0].endswith('.zip') and zip_files[0] == '':
+        raise ValueError('Zip file with no contents')
+    elif files[0].endswith('.zip') == False and zip_files[0] != '':
+        raise ValueError('Non-zip file with zip contents')
+    elif files[0].endswith('.zip') == False and zip_files[0] == '':
+        collated = False
+    
+    if collated:
+        print(f'Folder: {local_folder}')
+        print('Collated')
+        print('Verifying files...')
+        files = [os.path.join(local_folder, f) for _,_,files in os.path.walk(local_folder) for f in files]
+        print(files)
+        print(logged_zipped_files)
+        
+    else:
+        print(f'Folder: {local_folder}')
+        print('Not collated')
+        print('Verifying files...')
+        files = [os.path.join(local_folder, f) for _,_,files in os.path.walk(local_folder) for f in files]
+        print(files)
+        print(logged_files)
+
+
     j+=1
     if j>5:
         break
