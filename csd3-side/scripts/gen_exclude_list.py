@@ -102,13 +102,13 @@ for folder_row in df.iterrows():
     logged_zipped_files = folder_row[1]['ZIP_CONTENTS'].split(',')
     local_folder = folder_row[1]['LOCAL_FOLDER']
     collated = False
-    if files[0].endswith('.zip') and zip_files[0] != '':
+    if logged_files[0].endswith('.zip') and logged_zipped_files[0] != '':
         collated = True
-    elif files[0].endswith('.zip') and zip_files[0] == '':
+    elif logged_files[0].endswith('.zip') and logged_zipped_files[0] == '':
         raise ValueError('Zip file with no contents')
-    elif files[0].endswith('.zip') == False and zip_files[0] != '':
+    elif logged_files[0].endswith('.zip') == False and logged_zipped_files[0] != '':
         raise ValueError('Non-zip file with zip contents')
-    elif files[0].endswith('.zip') == False and zip_files[0] == '':
+    elif logged_files[0].endswith('.zip') == False and logged_zipped_files[0] == '':
         collated = False
     
     if collated:
