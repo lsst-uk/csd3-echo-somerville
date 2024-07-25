@@ -23,9 +23,13 @@ df['LOCAL_FILENAME'] = local_fns
 df = df.drop(['LOCAL_PATH'], axis=1)
 # change float NaN to empty string
 df.loc[df['ZIP_CONTENTS'].isna(), 'ZIP_CONTENTS'] = ''
-# remove entries with the shortest LOCAL_FOLDER as these will be root level and cause slow os.walk
-s_lens = df['LOCAL_FOLDER'].str.len()
-mask = s_lens == s_lens.min()
+# remove entries with LOCAL_FOLDER paths with the fewest and second fewest levels ('/' characters) as these will be root and next-to-root level (e.g., butler and butler/data) and cause slow os.walk
+# could be extended to include more levels if necessary
+df_split = df['LOCAL_FOLDER'].str.split('/')
+df['PATH_LEVELS'] = df_split.str.len()
+mask_first = df['PATH_LEVELS'] == df['PATH_LEVELS'].min()
+mask_second = df['PATH_LEVELS'] == df['PATH_LEVELS'].min() + 1
+mask = mask_first + mask_second
 df = df[~mask]
 
 
