@@ -115,8 +115,9 @@ for folder_row in df.iterrows():
     if collated:
         for i, lzf in enumerate(logged_zipped_files):
             if '/' in lzf:
-                logged_zipped_files[i] = lzf.split('/')[-1]
-                local_folder += '/'.join(lzf.split('/')[:-1])
+                lzf_list = lzf.split('/')
+                logged_zipped_files[i] = lzf_list[-1]
+                local_folder += '/'.join(lzf_list[:-1])
         print(f'Folder: {local_folder}')
         print('Collated')
         print('Verifying files...')
