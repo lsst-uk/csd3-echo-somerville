@@ -780,13 +780,14 @@ if __name__ == '__main__':
 
     exclude = []
     if args.exclude:
-        if '*' not in ''.join(args.exclude):
-            # treat as list
-            exclude = [f'{local_dir}/{excl}' for excl in args.exclude[0].split(',')]
-        else:
-            # treat as wildcard string
-            exclude = [item for sublist in [glob.glob(f'{local_dir}/{excl}') for excl in args.exclude] for item in sublist]
-            # exclude = glob.glob(f'{local_dir}/{args.exclude}')
+        # if '*' not in ''.join(args.exclude):
+        #     # treat as list
+        #     exclude = [f'{local_dir}/{excl}' for excl in args.exclude[0].split(',')]
+        # else:
+        #     # treat as wildcard string
+        #     exclude = [item for sublist in [glob.glob(f'{local_dir}/{excl}') for excl in args.exclude] for item in sublist]
+        #     # exclude = glob.glob(f'{local_dir}/{args.exclude}')
+        exclude = args.exclude
     print(f'Excluding {exclude}')
 
     if save_config:
