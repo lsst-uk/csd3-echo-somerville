@@ -74,28 +74,33 @@ print(df.head())
 print(df.tail())
 df = df.groupby('LOCAL_FOLDER').agg(','.join).reset_index().dropna()
 print(df['LOCAL_FOLDER'].head())
-df.to_csv('test.csv')
-exit()
+df.to_csv('test.csv', index=False)
+
 # print(len(df))
 
 ### USE LOCAL_FILENAME NOT LOCAL_PATH
 
-print(sum(df['LOCAL_FILENAME'].str.endswith('.zip')))
+# print(sum(df['LOCAL_FILENAME'].str.endswith('.zip')))
 
-uploaded_dirs = list_all_uploaded_leaf_dirs(df)
+# uploaded_dirs = list_all_uploaded_leaf_dirs(df)
 
-print(len(uploaded_dirs))
+# print(len(uploaded_dirs))
 
-zipped_dirs_df = df[df['LOCAL_PATH'].str.endswith('.zip')]
-print(len(zipped_dirs_df))
-verify_zipped = verify_zipped_dirs(zipped_dirs_df)
-uploaded_dirs.extend(verify_zipped)
+# zipped_dirs_df = df[df['LOCAL_PATH'].str.endswith('.zip')]
+# print(len(zipped_dirs_df))
+# verify_zipped = verify_zipped_dirs(zipped_dirs_df)
+# uploaded_dirs.extend(verify_zipped)
 
-print(len(uploaded_dirs))
+# print(len(uploaded_dirs))
 
-with open('exclude_list.txt', 'w') as excl_f:
-    excl_f.write(str(uploaded_dirs))
-    excl_f.write('\n')
+for folder_row in df.iterrows():
+    print(folder_row[1]['LOCAL_FOLDER'])
+    print(folder_row[1]['LOCAL_FILENAME'])
+    print(folder_row[1]['ZIP_CONTENTS'])
+
+# with open('exclude_list.txt', 'w') as excl_f:
+#     excl_f.write(str(uploaded_dirs))
+#     excl_f.write('\n')
 
 # print('Local folder:', local_folder)
 # print('Local files:', local_files)
