@@ -51,43 +51,47 @@ for folder_row in df.iterrows():
     print(f"logged_zipped_files: {logged_zipped_files}")
     
     if collated:
-        extend_path = ''
-        for i, lzf in enumerate(logged_zipped_files):
-            if '/' in lzf:
-                lzf_list = lzf.split('/')
-                logged_zipped_files[i] = lzf_list[-1]
-                extend_path = '/' + '/'.join(lzf_list[:-1])
-        local_folder += extend_path
+        # extend_path = ''
+        # for i, lzf in enumerate(logged_zipped_files):
+        #     if '/' in lzf:
+        #         lzf_list = lzf.split('/')
+        #         logged_zipped_files[i] = lzf_list[-1]
+        #         extend_path = '/' + '/'.join(lzf_list[:-1])
+        # local_folder += extend_path
         print(f'Folder: {local_folder}')
         print('Collated')
         print('Verifying files...')
-        files = [f for _,_,files in os.walk(local_folder) for f in files]
-        print(files)
-        print(logged_zipped_files)
-        if all([f in files for f in logged_zipped_files]) and len(files) == len(logged_zipped_files):
-            print('Verified')
-            exclude_list.append(local_folder)
-        else:
-            print('Unverified')
+        for root, dirs, files in os.walk(local_folder):
+            print(root)
+            print(dirs)
+            print(files)
+#         files = [f for _,_,files in os.walk(local_folder) for f in files]
+#         print(files)
+#         print(logged_zipped_files)
+#         if all([f in files for f in logged_zipped_files]) and len(files) == len(logged_zipped_files):
+#             print('Verified')
+#             exclude_list.append(local_folder)
+#         else:
+#             print('Unverified')
         
-    else:
-        print(f'Folder: {local_folder}')
-        print('Not collated')
-        print('Verifying files...')
-        files = [f for _,_,files in os.walk(local_folder) for f in files]
-        print(files)
-        print(logged_files)
-        if all([f in files for f in logged_files]) and len(files) == len(logged_files):
-            print('Verified')
-            exclude_list.append(local_folder)
-        else:
-            print('Unverified')
+#     else:
+#         print(f'Folder: {local_folder}')
+#         print('Not collated')
+#         print('Verifying files...')
+#         files = [f for _,_,files in os.walk(local_folder) for f in files]
+#         print(files)
+#         print(logged_files)
+#         if all([f in files for f in logged_files]) and len(files) == len(logged_files):
+#             print('Verified')
+#             exclude_list.append(local_folder)
+#         else:
+#             print('Unverified')
 
 
-    j+=1
-    if j>5:
-        break
-print(exclude_list)
-with open('exclude_list.txt', 'w') as excl_f:
-    excl_f.write(str(exclude_list))
-    excl_f.write('\n')
+#     j+=1
+#     if j>5:
+#         break
+# print(exclude_list)
+# with open('exclude_list.txt', 'w') as excl_f:
+#     excl_f.write(str(exclude_list))
+#     excl_f.write('\n')
