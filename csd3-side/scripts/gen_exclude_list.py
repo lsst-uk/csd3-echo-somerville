@@ -37,6 +37,11 @@ if(len(df) == 0):
 
 print(df.head())
 print(df.tail())
+for row in df['LOCAL_FOLDER'].iterrows():
+    if type(row[1]) != str:
+        print(row[1])
+        print(type(row[1]))
+        raise ValueError('Non-string LOCAL_FOLDER')
 df = df.groupby('LOCAL_FOLDER').agg(','.join).reset_index().dropna()
 print(df['LOCAL_FOLDER'].head())
 # df.to_csv('test.csv', index=False)
