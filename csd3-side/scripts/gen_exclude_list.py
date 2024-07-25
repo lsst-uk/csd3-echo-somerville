@@ -94,9 +94,9 @@ df.to_csv('test.csv', index=False)
 # print(len(uploaded_dirs))
 j=0
 for folder_row in df.iterrows():
-    print(folder_row[1]['LOCAL_FOLDER'])
-    print(folder_row[1]['LOCAL_FILENAME'])
-    print(folder_row[1]['ZIP_CONTENTS'])
+    print(f"local_folder: {folder_row[1]['LOCAL_FOLDER']}")
+    print(f"local_filename: {folder_row[1]['LOCAL_FILENAME']}")
+    print(f"zip_contents: {folder_row[1]['ZIP_CONTENTS']}")
     j+=1
     if j>5:
         break
