@@ -124,7 +124,9 @@ for folder_row in df.iterrows():
         print(files)
         print(logged_zipped_files)
         if all([f in files for f in logged_zipped_files]) and len(files) == len(logged_zipped_files):
-            print('All files uploaded')
+            print('Verified')
+        else:
+            print('Unverified')
         
     else:
         print(f'Folder: {local_folder}')
@@ -134,7 +136,9 @@ for folder_row in df.iterrows():
         print(files)
         print(logged_files)
         if all([f in files for f in logged_files]) and len(files) == len(logged_files):
-            print('All files uploaded')
+            print('Verified')
+        else:
+            print('Unverified')
 
 
     j+=1
