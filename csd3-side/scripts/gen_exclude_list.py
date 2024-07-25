@@ -105,6 +105,10 @@ for folder_row in df.iterrows():
     collated = False
     if logged_files[0].endswith('.zip') and logged_zipped_files[0] != '':
         collated = True
+        for i, lzf in enumerate(logged_zipped_files):
+            if '/' in lzf:
+                logged_zipped_files[i] = lzf.split('/')[-1]
+                local_folder += '/'.join(lzf.split('/')[:-1])
     elif logged_files[0].endswith('.zip') and logged_zipped_files[0] == '':
         raise ValueError('Zip file with no contents')
     elif logged_files[0].endswith('.zip') == False and logged_zipped_files[0] != '':
