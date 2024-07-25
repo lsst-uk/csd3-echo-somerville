@@ -49,7 +49,7 @@ for folder_row in df.iterrows():
     print(f"local_folder: {local_folder}")
     print(f"logged_files: {logged_files}")
     print(f"logged_zipped_files: {logged_zipped_files}")
-    
+    local_folders = []
     if collated:
         # extend_path = ''
         subfolders = []
@@ -60,27 +60,48 @@ for folder_row in df.iterrows():
                 subfolders.extend(lzf_list[:-1])
         print(f"subfolders: {subfolders}")
         print(f"number of unique subfolders: {len(set(subfolders))}")
-                # need different subfolder extensions and to veirfy at subfolder level
+        unique_subfolders = set(subfolders)
+        if len(unique_subfolders) == 1:
+            extend_path = '/' + subfolders[0]
+            local_folder += extend_path
+        elif len(unique_subfolders) > 1:
+            local_folders = [local_folder + '/' + subfolder for subfolder in unique_subfolders]
+
+          
                 # make a set from the first element of the split list and check length
                     # if length is 1, then extend_path = '/' + lzf_list[0]
                     # if length is > 1, then change local_folder to list of local_folders
-        #         extend_path = '/' + '/'.join(lzf_list[:-1])
-        # local_folder += extend_path
-        print(f'Folder: {local_folder}')
+        if local_folders is []:
+            print(f'Local Folder: {local_folder}')
+        else:
+            print(f'Local Folders: {local_folders}')
         print('Collated')
         print('Verifying files...')
         for root, dirs, files in os.walk(local_folder):
             print(root)
             print(dirs)
             print(files)
-        files = [f for _,_,files in os.walk(local_folder) for f in files]
-        print(files)
-        print(logged_zipped_files)
-        if all([f in files for f in logged_zipped_files]) and len(files) == len(logged_zipped_files):
-            print('Verified')
-            exclude_list.append(local_folder)
+        if local_folders is []:
+            files = [f for _,_,files in os.walk(local_folder) for f in files]
+            print(files)
+            print(logged_zipped_files)
+            if all([f in files for f in logged_zipped_files]) and len(files) == len(logged_zipped_files):
+                print('Verified')
+                exclude_list.append(local_folder)
+            else:
+                print('Unverified')
         else:
-            print('Unverified')
+            for lf in local_folders:
+                print(f'Verifying {lf}')
+                files = [f for _,_,files in os.walk(lf) for f in files]
+                print(files)
+                print(logged_zipped_files)
+                if all([f in files for f in logged_zipped_files]) and len(files) == len(logged_zipped_files):
+                    print('Verified')
+                    exclude_list.append(lf)
+                else:
+                    print('Unverified')
+        
         
     else:
         print(f'Folder: {local_folder}')
