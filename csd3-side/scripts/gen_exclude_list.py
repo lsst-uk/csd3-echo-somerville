@@ -94,10 +94,6 @@ df.to_csv('test.csv', index=False)
 # print(len(uploaded_dirs))
 j=0
 for folder_row in df.iterrows():
-    print(f"local_folder: {folder_row[1]['LOCAL_FOLDER']}")
-    print(f"local_filename: {folder_row[1]['LOCAL_FILENAME']}")
-    print(f"zip_contents: {folder_row[1]['ZIP_CONTENTS']}")
-
     logged_files = folder_row[1]['LOCAL_FILENAME'].split(',')
     logged_zipped_files = folder_row[1]['ZIP_CONTENTS'].split(',')
     logged_zipped_files = [szf.split('/')[-1] for szf in logged_zipped_files]
@@ -115,6 +111,10 @@ for folder_row in df.iterrows():
         raise ValueError('Non-zip file with zip contents')
     elif logged_files[0].endswith('.zip') == False and logged_zipped_files[0] == '':
         collated = False
+
+    print(f"local_folder: {local_folder}")
+    print(f"logged_files: {logged_files}")
+    print(f"logged_zipped_files: {logged_zipped_files}")
     
     if collated:
         print(f'Folder: {local_folder}')
