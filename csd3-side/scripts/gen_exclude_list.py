@@ -101,10 +101,6 @@ for folder_row in df.iterrows():
     collated = False
     if logged_files[0].endswith('.zip') and logged_zipped_files[0] != '':
         collated = True
-        for i, lzf in enumerate(logged_zipped_files):
-            if '/' in lzf:
-                logged_zipped_files[i] = lzf.split('/')[-1]
-                local_folder += '/'.join(lzf.split('/')[:-1])
     elif logged_files[0].endswith('.zip') and logged_zipped_files[0] == '':
         raise ValueError('Zip file with no contents')
     elif logged_files[0].endswith('.zip') == False and logged_zipped_files[0] != '':
@@ -117,13 +113,17 @@ for folder_row in df.iterrows():
     print(f"logged_zipped_files: {logged_zipped_files}")
     
     if collated:
+        for i, lzf in enumerate(logged_zipped_files):
+            if '/' in lzf:
+                logged_zipped_files[i] = lzf.split('/')[-1]
+                local_folder += '/'.join(lzf.split('/')[:-1])
         print(f'Folder: {local_folder}')
         print('Collated')
         print('Verifying files...')
         files = [f for _,_,files in os.walk(local_folder) for f in files]
         print(files)
         print(logged_zipped_files)
-        if all([f in files for f in logged_zipped_files]):
+        if all([f in files for f in logged_zipped_files]) and len(files) == len(logged_zipped_files):
             print('All files uploaded')
         
     else:
@@ -133,7 +133,7 @@ for folder_row in df.iterrows():
         files = [f for _,_,files in os.walk(local_folder) for f in files]
         print(files)
         print(logged_files)
-        if all([f in files for f in logged_files]):
+        if all([f in files for f in logged_files]) and len(files) == len(logged_files):
             print('All files uploaded')
 
 
