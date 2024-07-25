@@ -91,16 +91,20 @@ for folder_row in df.iterrows():
             else:
                 print('Unverified')
         else:
+            total_files_len = 0
+            verified_content = 0
             for lf in local_folders:
                 print(f'Verifying {lf}')
                 files = [f for _,_,files in os.walk(lf) for f in files]
                 print('files',files)
                 print('logged_zipped_files',logged_zipped_files)
-                if all([f in files for f in logged_zipped_files]) and len(files) == len(logged_zipped_files):
-                    print('Verified')
-                    exclude_list.append(lf)
-                else:
-                    print('Unverified')
+                total_files_len += len(files)
+                if all([f in files for f in logged_zipped_files]):
+                    verified_content += 1
+            if verified_content == len(local_folders) and total_files_len == len(logged_zipped_files):
+                print('Verified')
+                exclude_list.append(lf)
+               
         
         
     else:
