@@ -92,11 +92,14 @@ df.to_csv('test.csv', index=False)
 # uploaded_dirs.extend(verify_zipped)
 
 # print(len(uploaded_dirs))
-
+j=0
 for folder_row in df.iterrows():
     print(folder_row[1]['LOCAL_FOLDER'])
     print(folder_row[1]['LOCAL_FILENAME'])
     print(folder_row[1]['ZIP_CONTENTS'])
+    j+=1
+    if j>5:
+        break
 
 # with open('exclude_list.txt', 'w') as excl_f:
 #     excl_f.write(str(uploaded_dirs))
