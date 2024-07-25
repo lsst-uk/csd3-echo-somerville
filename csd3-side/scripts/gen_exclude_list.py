@@ -21,7 +21,13 @@ for row in df.iterrows():
         local_fns.append(row[1]['LOCAL_PATH'])
 df['LOCAL_FILENAME'] = local_fns
 df = df.drop(['LOCAL_PATH'], axis=1)
+# change float NaN to empty string
 df.loc[df['ZIP_CONTENTS'].isna(), 'ZIP_CONTENTS'] = ''
+# remove entries with the shortest LOCAL_FOLDER as these will be root level and cause slow os.walk
+s_lens = df['LOCAL_FOLDER'].str.len()
+mask = s_lens == s_lens.min()
+df = df[~mask]
+
 
 
 
