@@ -96,7 +96,7 @@ j=0
 for folder_row in df.iterrows():
     logged_files = folder_row[1]['LOCAL_FILENAME'].split(',')
     logged_zipped_files = folder_row[1]['ZIP_CONTENTS'].split(',')
-    logged_zipped_files = [szf.split('/')[-1] for szf in logged_zipped_files]
+    # logged_zipped_files = [szf.split('/')[-1] for szf in logged_zipped_files]
     local_folder = folder_row[1]['LOCAL_FOLDER']
     collated = False
     if logged_files[0].endswith('.zip') and logged_zipped_files[0] != '':
