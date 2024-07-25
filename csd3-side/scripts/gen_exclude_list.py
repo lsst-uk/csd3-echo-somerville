@@ -56,6 +56,7 @@ for folder_row in df.iterrows():
             if '/' in lzf:
                 lzf_list = lzf.split('/')
                 logged_zipped_files[i] = lzf_list[-1]
+                # need different subfolder extensions and to veirfy at subfolder level
         #         extend_path = '/' + '/'.join(lzf_list[:-1])
         # local_folder += extend_path
         print(f'Folder: {local_folder}')
