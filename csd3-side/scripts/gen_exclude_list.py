@@ -101,6 +101,10 @@ for folder_row in df.iterrows():
                 total_files_len += len(files)
                 if all([f in files for f in logged_zipped_files]):
                     verified_content += 1
+            print(f'verified_content: {verified_content}')
+            print(f'total_files_len: {total_files_len}')
+            print(f'len(logged_zipped_files): {len(logged_zipped_files)}')
+            print(f'len(local_folders): {len(local_folders)}')
             if verified_content == len(local_folders) and total_files_len == len(logged_zipped_files):
                 print('Verified')
                 exclude_list.append(lf)
