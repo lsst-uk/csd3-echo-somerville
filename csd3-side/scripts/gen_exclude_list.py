@@ -30,18 +30,13 @@ df['PATH_LEVELS'] = df_split.str.len()
 mask_first = df['PATH_LEVELS'] == df['PATH_LEVELS'].min()
 mask_second = df['PATH_LEVELS'] == df['PATH_LEVELS'].min() + 1
 mask = mask_first + mask_second
-df = df[~mask]
+df = df[~mask].drop(['PATH_LEVELS'], axis=1)
 
 if(len(df) == 0):
     exit('All paths are highest or second highest level, exiting.')
 
 print(df.head())
 print(df.tail())
-for row in df.iterrows():
-    if type(row[1]['LOCAL_FOLDER']) != str:
-        print(row[1]['LOCAL_FOLDER'])
-        print(type(row[1]['LOCAL_FOLDER']))
-        raise ValueError('Non-string LOCAL_FOLDER')
 df = df.groupby('LOCAL_FOLDER').agg(','.join).reset_index().dropna()
 print(df['LOCAL_FOLDER'].head())
 # df.to_csv('test.csv', index=False)
