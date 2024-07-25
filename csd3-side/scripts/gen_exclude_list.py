@@ -32,8 +32,8 @@ mask_second = df['PATH_LEVELS'] == df['PATH_LEVELS'].min() + 1
 mask = mask_first + mask_second
 df = df[~mask]
 
-
-
+if(len(df) == 0):
+    exit('All paths are highest or second highest level, exiting.')
 
 print(df.head())
 print(df.tail())
