@@ -100,6 +100,7 @@ for folder_row in df.iterrows():
 
     logged_files = folder_row[1]['LOCAL_FILENAME'].split(',')
     logged_zipped_files = folder_row[1]['ZIP_CONTENTS'].split(',')
+    logged_zipped_files = [szf.split('/')[-1] for szf in logged_zipped_files]
     local_folder = folder_row[1]['LOCAL_FOLDER']
     collated = False
     if logged_files[0].endswith('.zip') and logged_zipped_files[0] != '':
@@ -115,17 +116,21 @@ for folder_row in df.iterrows():
         print(f'Folder: {local_folder}')
         print('Collated')
         print('Verifying files...')
-        files = [os.path.join(local_folder, f) for _,_,files in os.walk(local_folder) for f in files]
+        files = [f for _,_,files in os.walk(local_folder) for f in files]
         print(files)
         print(logged_zipped_files)
+        if all([f in files for f in logged_zipped_files]):
+            print('All files uploaded')
         
     else:
         print(f'Folder: {local_folder}')
         print('Not collated')
         print('Verifying files...')
-        files = [os.path.join(local_folder, f) for _,_,files in os.walk(local_folder) for f in files]
+        files = [f for _,_,files in os.walk(local_folder) for f in files]
         print(files)
         print(logged_files)
+        if all([f in files for f in logged_files]):
+            print('All files uploaded')
 
 
     j+=1
