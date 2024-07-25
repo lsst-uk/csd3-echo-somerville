@@ -12,8 +12,8 @@ dtypes = {'LOCAL_FOLDER': 'str', 'LOCAL_PATH': 'str', 'FILE_SIZE': 'float', 'BUC
 df = dd.read_csv(csv_file, dtype=dtypes).drop(['FILE_SIZE','BUCKET_NAME','DESTINATION_KEY','CHECKSUM'], axis=1).compute()
 local_fns = []
 for row in df.iterrows():
-    print(row[1]['LOCAL_PATH'])
-    print(row[1]['LOCAL_FOLDER'])
+    # print(row[1]['LOCAL_PATH'])
+    # print(row[1]['LOCAL_FOLDER'])
     
     if row[1]['LOCAL_PATH'].startswith(row[1]['LOCAL_FOLDER']):
         local_fns.append(row[1]['LOCAL_PATH'][len(row[1]['LOCAL_FOLDER'])+1:])
