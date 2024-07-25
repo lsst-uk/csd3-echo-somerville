@@ -1,3 +1,6 @@
+# Script to generate an exclude list for use with lsst-backup.py
+# Use with caution, this script verifies the existence of files reported in an upload in the local filesystem - it does not verify their existence on the remote server.
+
 import pandas as pd
 import os
 import sys
