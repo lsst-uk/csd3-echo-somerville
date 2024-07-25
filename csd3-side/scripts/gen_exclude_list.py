@@ -66,7 +66,7 @@ for row in df.iterrows():
         local_fns.append(row[1]['LOCAL_PATH'])
 df['LOCAL_FILENAME'] = local_fns
 df = df.drop(['LOCAL_PATH'], axis=1)
-df[df['ZIP_CONTENTS'].isna()] = ''
+df.loc[df['ZIP_CONTENTS'].isna(), 'ZIP_CONTENTS'] = ''
 
 
 
