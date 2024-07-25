@@ -78,13 +78,13 @@ for folder_row in df.iterrows():
         print('Collated')
         print('Verifying files...')
         for root, dirs, files in os.walk(local_folder):
-            print(root)
-            print(dirs)
-            print(files)
+            print('root',root)
+            print('dirs',dirs)
+            print('files',files)
         if local_folders == []:
             files = [f for _,_,files in os.walk(local_folder) for f in files]
-            print(files)
-            print(logged_zipped_files)
+            print('files',files)
+            print('logged_zipped_files',logged_zipped_files)
             if all([f in files for f in logged_zipped_files]) and len(files) == len(logged_zipped_files):
                 print('Verified')
                 exclude_list.append(local_folder)
@@ -94,8 +94,8 @@ for folder_row in df.iterrows():
             for lf in local_folders:
                 print(f'Verifying {lf}')
                 files = [f for _,_,files in os.walk(lf) for f in files]
-                print(files)
-                print(logged_zipped_files)
+                print('files',files)
+                print('logged_zipped_files',logged_zipped_files)
                 if all([f in files for f in logged_zipped_files]) and len(files) == len(logged_zipped_files):
                     print('Verified')
                     exclude_list.append(lf)
