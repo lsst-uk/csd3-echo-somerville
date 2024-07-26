@@ -444,6 +444,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         None
     """
     processing_start = datetime.now()
+    print(f'Processing started at {processing_start}.')
     total_size_uploaded = 0
     total_files_uploaded = 0
     i = 0
@@ -463,7 +464,9 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'Skipping subfolder {folder} - excluded.')
             continue
         # remove subfolders in exclude list
+        len_pre_exclude = len(sub_folders)
         sub_folders[:] = [sub_folder for sub_folder in sub_folders if sub_folder not in exclude]
+        print(f'Skipping {len_pre_exclude - len(sub_folders)} subfolders in {folder} - excluded. {len(sub_folders)} subfolders remaining.')
 
         folder_files = [os.sep.join([folder, filename]) for filename in files]
         total_filesize = sum([os.stat(filename).st_size for filename in folder_files])
