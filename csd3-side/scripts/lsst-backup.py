@@ -739,7 +739,7 @@ if __name__ == '__main__':
     parser.add_argument('--no-compression', default=False, action='store_true', help='Do not use compression when collating files.')
     parser.add_argument('--save-config', default=False, action='store_true', help='Save the configuration to the provided config file path and exit.')
     args = parser.parse_args()
-    print(f'Config: {args}')
+
     if not args.config_file and not (args.bucket_name and args.local_path and args.S3_prefix):
         parser.error('If a config file is not provided, the bucket name, local path, and S3 prefix must be provided.')
     if args.config_file and (args.bucket_name or args.local_path or args.S3_prefix or args.S3_folder or args.exclude or args.nprocs or args.no_collate or args.dryrun or args.no_checksum or args.no_compression):
@@ -793,7 +793,8 @@ if __name__ == '__main__':
     exclude = []
     if args.exclude:
         exclude = args.exclude
-    print(f'Excluding {exclude}')
+    
+    print(f'Config: {args}')
 
     if save_config:
         with open(config_file, 'w') as f:
