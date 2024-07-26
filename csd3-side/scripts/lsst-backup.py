@@ -460,13 +460,20 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         # print(f'Subfolders: {sub_folders}')
         # continue
         # check if folder is in the exclude list
+        if len(files) == 0 and len(sub_folders) == 0:
+            print(f'Skipping subfolder - no files or subfolders.')
+            continue
+        elif len(files) == 0:
+            print(f'Skipping subfolder - no files.')
+            continue
         if folder in exclude:
             print(f'Skipping subfolder {folder} - excluded.')
             continue
         # remove subfolders in exclude list
-        len_pre_exclude = len(sub_folders)
-        sub_folders[:] = [sub_folder for sub_folder in sub_folders if sub_folder not in exclude]
-        print(f'Skipping {len_pre_exclude - len(sub_folders)} subfolders in {folder} - excluded. {len(sub_folders)} subfolders remaining.')
+        if len(sub_folders) > 0:
+            len_pre_exclude = len(sub_folders)
+            sub_folders[:] = [sub_folder for sub_folder in sub_folders if sub_folder not in exclude]
+            print(f'Skipping {len_pre_exclude - len(sub_folders)} subfolders in {folder} - excluded. {len(sub_folders)} subfolders remaining.')
 
         folder_files = [os.sep.join([folder, filename]) for filename in files]
         total_filesize = sum([os.stat(filename).st_size for filename in folder_files])
@@ -624,8 +631,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             to_collate[parent_folder]['folders'].append(folder)
             to_collate[parent_folder]['object_names'].append(object_names)
             to_collate[parent_folder]['folder_files'].append(folder_files)
-        else:
-            print(f'Skipping subfolder - no files.')
     
     # collate folders
     zip_results = []
