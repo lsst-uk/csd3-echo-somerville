@@ -483,14 +483,15 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             mean_filesize = 0
 
         # check if any subfolders contain no subfolders and < 4 files
-        for sub_folder in sub_folders:
-            sub_folder_path = os.path.join(folder, sub_folder)
-            _, sub_sub_folders, sub_files = next(os.walk(sub_folder_path), ([], [], []))
-            subfolder_files = [os.sep.join([sub_folder_path, filename]) for filename in sub_files]
-            total_subfilesize = sum([os.stat(filename).st_size for filename in subfolder_files])
-            if not sub_sub_folders and len(sub_files) < 4 and total_subfilesize < 96*1024**2:
-                sub_folders.remove(sub_folder) # not sure what the effect of this is
-                # upload files in subfolder "as is" i.e., no zipping
+        if len(sub_folders) > 0:
+            for sub_folder in sub_folders:
+                sub_folder_path = os.path.join(folder, sub_folder)
+                _, sub_sub_folders, sub_files = next(os.walk(sub_folder_path), ([], [], []))
+                subfolder_files = [os.sep.join([sub_folder_path, filename]) for filename in sub_files]
+                total_subfilesize = sum([os.stat(filename).st_size for filename in subfolder_files])
+                if not sub_sub_folders and len(sub_files) < 4 and total_subfilesize < 96*1024**2:
+                    sub_folders.remove(sub_folder) # not sure what the effect of this is
+                    # upload files in subfolder "as is" i.e., no zipping
 
         # check folder isn't empty
         # print(f'Processing {len(files)} files (total size: {total_filesize/1024**2:.0f} MiB) in {folder}.')
