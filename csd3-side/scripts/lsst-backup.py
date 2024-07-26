@@ -462,6 +462,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         if folder in exclude:
             print(f'Skipping subfolder {folder} - excluded.')
             continue
+        # remove subfolders in exclude list
+        sub_folders = [sub_folder for sub_folder in sub_folders if sub_folder not in exclude]
 
         folder_files = [os.sep.join([folder, filename]) for filename in files]
         total_filesize = sum([os.stat(filename).st_size for filename in folder_files])
@@ -853,13 +855,6 @@ if __name__ == '__main__':
         if not dryrun:
             print(f'Bucket exists: {bucket_name}')
             print('Existing files will be skipped.')
-            # continue_ = input("Continue? [y/n]\n").lower()
-            # if continue_ == 'n':
-            #     sys.exit('Bucket exists.')
-            # elif continue_ == 'y':
-            #     print('Continuing')
-            # else:
-            #     sys.exit('Invalid input.')
         else:
             print(f'Bucket exists: {bucket_name}')
             print('dryrun == True, so continuing.')
