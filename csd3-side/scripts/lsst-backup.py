@@ -545,7 +545,9 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
             total_size_uploaded += folder_files_size
             total_files_uploaded += file_count
-            # print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
+            print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
+
+            print(f'Sending {file_count} files (total size: {folder_files_size/1024**2:.0f} MiB) in {folder} to S3 bucket {bucket_name}.')
 
             for i,args in enumerate(
                 zip(
