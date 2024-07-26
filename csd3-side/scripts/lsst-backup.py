@@ -444,7 +444,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         None
     """
     processing_start = datetime.now()
-    print(f'Processing started at {processing_start}.')
     total_size_uploaded = 0
     total_files_uploaded = 0
     i = 0
@@ -494,7 +493,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     # upload files in subfolder "as is" i.e., no zipping
 
         # check folder isn't empty
-        # print(f'Processing {len(files)} files (total size: {total_filesize/1024**2:.0f} MiB) in {folder}.')
+        print(f'Processing {len(files)} files (total size: {total_filesize/1024**2:.0f} MiB) in {folder} with {len(sub_folders)} subfolders.')
         if len(files) > 2 or mean_filesize > 128*1024**2 or not global_collate:
             # all files within folder
             # print(f'Processing {len(files)} files (total size: {total_filesize}) individually in {folder}.')
