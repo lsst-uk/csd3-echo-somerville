@@ -15,10 +15,12 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--bucket_name', '-b', type=str, help='The name of the S3 bucket.')
 parser.add_argument('--download', action='store_true', default=False, help='Download the backup log.')
 parser.add_argument('--save-list', type=str, help='Write the list to file given absolute path.')
+parser.add_argument('--limit', type=int, help='Limit the number of objects to list.', default=1000)
 args = parser.parse_args()
 
 bucket_name = args.bucket_name
 download = args.download
+limit = args.limit
 
 if args.save_list:
     save_list = args.save_list
@@ -52,8 +54,8 @@ previous_log_suffix = 'files.csv'
 total_size = 0
 
 # Download the backup log
-# Limited to 1000 objects - this is to prevent this script from hanging if there are a large number of objects in the bucket
-for ob in bucket.objects.filter(Prefix='butler').limit(1000):
+# Limited to 1000 objects by default - this is to prevent this script from hanging if there are a large number of objects in the bucket
+for ob in bucket.objects.filter(Prefix='butler').limit(limit):
     if ob.key.count('/') > 0:
         continue
     if log_suffix in ob.key or previous_log_suffix in ob.key:
