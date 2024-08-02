@@ -505,12 +505,12 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             # remove current objects - avoids reuploading
             # could provide overwrite flag if this is desirable
             # print(f'current_objects: {current_objects}')
-            if all([obj in current_objects for obj in object_names]):
+            if current_objects.isin(object_names).all():
                 #all files in this subfolder already in bucket
                 print(f'Skipping subfolder - all files exist.')
                 continue
             for oni, on in enumerate(object_names):
-                if on in current_objects:
+                if current_objects.isin([on]).any():
                     object_names.remove(on)
                     del folder_files[oni]
             pre_linkcheck_file_count = len(object_names)
@@ -589,12 +589,12 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             # remove current objects - avoids reuploading
             # could provide overwrite flag if this is desirable
             # print(f'current_objects: {current_objects}')
-            if all([obj in current_objects for obj in object_names]):
+            if current_objects.isin(object_names).all():
                 #all files in this subfolder already in bucket
                 print(f'Skipping subfolder - all files exist.')
                 continue
             for oni, on in enumerate(object_names):
-                if on in current_objects:
+                if current_objects.isin([on]).any():
                     object_names.remove(on)
                     del folder_files[oni]
             pre_linkcheck_file_count = len(object_names)
@@ -677,7 +677,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                             # to_collate[parent_folder][id]['zip_object_name'] = 
 
                             # check if zip_object_name exists in bucket and get its checksum
-                            if to_collate[parent_folder]['zips'][-1]['zip_object_name'] in current_objects:
+                            if current_objects.isin([to_collate[parent_folder]['zips'][-1]['zip_object_name']]).any():
                                 existing_zip_checksum = bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,to_collate[parent_folder]['zips'][-1]['zip_object_name']).e_tag.strip('"')
                                 checksum_hash = hashlib.md5(zip_data)
                                 checksum_string = checksum_hash.hexdigest()
@@ -874,12 +874,13 @@ if __name__ == '__main__':
     current_objects = bm.object_list(bucket)
     print(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}')
 
+    current_objects = pd.Series(current_objects)
     ## check if log exists in the bucket, and download it and append top it if it does
     # TODO: integrate this with local check for log file
-    if log in current_objects:
+    if current_objects.isin([log]).any():
         print(f'Log file {log} already exists in bucket. Downloading.')
         bucket.download_file(log, log)
-    elif previous_log in current_objects:
+    elif current_objects.isin([previous_log]).any():
         print(f'Previous log file {previous_log} already exists in bucket. Downloading.')
         bucket.download_file(previous_log, log)
 
