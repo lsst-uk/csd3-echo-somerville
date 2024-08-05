@@ -451,6 +451,11 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     total_files_uploaded = 0
     i = 0
     #processed_files = []
+    if global_collate:
+        half_cores = nprocs // 2
+        zip_pool = Pool(processes=half_cores)
+        collate_ul_pool = Pool(processes=nprocs - half_cores)
+    
     pool = Pool(nprocs) # use 4 CPUs by default - very little speed-up, might drop multiprocessing and parallelise at shell level
     #recursive loop over local folder
     results = []
@@ -658,7 +663,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'collating into: {len(chunks)} zip file(s)')
             for id,chunk in enumerate(zip(chunks,chunk_files)):
                 # print(f'chunk {id} contains {len(chunk[0])} folders')
-                zip_results.append(pool.apply_async(zip_folders, (parent_folder,chunk[0],chunk_files[0],use_compression,dryrun,id)))
+                zip_results.append(zip_pool.apply_async(zip_folders, (parent_folder,chunk[0],chunk_files[0],use_compression,dryrun,id)))
         zipped = 0
         uploaded = []
         total_zips = len(zip_results)
@@ -697,7 +702,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                             total_size_uploaded += len(zip_data)
                             total_files_uploaded += 1
                             print(f"Uploading {to_collate[parent_folder]['zips'][tc_index]['zip_object_name']}.")
-                            results.append(pool.apply_async(upload_and_callback, args=(
+                            results.append(collate_ul_pool.apply_async(upload_and_callback, args=(
                                 s3_host,
                                 access_key,
                                 secret_key,
@@ -719,6 +724,11 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
     pool.close()
     pool.join()
+    if global_collate:
+        zip_pool.close()
+        zip_pool.join()
+        collate_ul_pool.close()
+        collate_ul_pool.join()
 
 # # Go!
 if __name__ == '__main__':
