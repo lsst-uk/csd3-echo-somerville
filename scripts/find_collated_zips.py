@@ -30,8 +30,9 @@ import argparse
 
 import re
 
-def get_zipfile_list(bucket_name, access_key, secret_key, s3_host):
+def get_zipfile_list(bucket_name, access_key, secret_key, s3_host, get_contents_metadata):
     zipfile_list = []
+    contents_list = []
     s3 = bm.get_resource(access_key, secret_key, s3_host)
     s3_client = bm.get_client(access_key, secret_key, s3_host)
     bucket = s3.Bucket(bucket_name)
@@ -47,8 +48,14 @@ def get_zipfile_list(bucket_name, access_key, secret_key, s3_host):
                 key = obj['Key']
                 if pattern.match(key):
                     zipfile_list.append(key)
+                    if get_contents_metadata:
+                        contents = bucket.Object(key).get()['Metadata']['zip-contents'].split(',')
+                        print(f'{key}: {contents}')
+                    else:
+                        print(f'{key}')
+                        
     
-    return zipfile_list
+    return zipfile_list, contents
 
 def main():
     epilog = ''
@@ -63,9 +70,14 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument('--bucket-name','-b', type=str, help='Name of the S3 bucket.', required=True)
+    parser.add_argument('--check-contents','-c', action='store_true', help='Check the contents of the zip files from metadata exist in the bucket.')
 
     args = parser.parse_args()
     bucket_name = args.bucket_name
+    if args.check_contents:
+        check_contents = True
+    else:
+        check_contents = False
 
     # Setup bucket object
     s3_host = 'echo.stfc.ac.uk'
@@ -84,9 +96,14 @@ def main():
         print(f'Bucket {bucket_name} not found in {s3_host}.')
         sys.exit()
 
-    zipfile_list = get_zipfile_list(bucket_name, access_key, secret_key, s3_host)
+    zipfile_list, zipfile_contents = get_zipfile_list(bucket_name, access_key, secret_key, s3_host, check_contents)
 
-    print(zipfile_list)
+    if check_contents:
+        for i, contents in enumerate(zipfile_contents):
+            print(f'Zip file: {zipfile_list[i]}, {contents}')
+    else:
+        for zipfile in zipfile_list:
+            print(zipfile)
 
 if __name__ == '__main__':
     main()
