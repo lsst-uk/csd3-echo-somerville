@@ -789,9 +789,11 @@ if __name__ == '__main__':
     dryrun = args.dryrun
     use_compression = not args.no_compression # internally, flag turns *on* compression, but for user no-compression turns it off - makes flag more intuitive
 
-    exclude = []
+    
     if args.exclude:
-        exclude = args.exclude
+        exclude = pd.Series(args.exclude)
+    else:
+        exclude = pd.Series.empty()
     
     print(f'Config: {args}')
 
