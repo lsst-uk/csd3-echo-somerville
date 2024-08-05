@@ -70,14 +70,14 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument('--bucket-name','-b', type=str, help='Name of the S3 bucket.', required=True)
-    parser.add_argument('--check-contents','-c', action='store_true', help='Check the contents of the zip files from metadata exist in the bucket.')
+    parser.add_argument('--list-contents','-l', action='store_true', help='List the contents of the zip files from metadata exist in the bucket.')
 
     args = parser.parse_args()
     bucket_name = args.bucket_name
-    if args.check_contents:
-        check_contents = True
+    if args.list_contents:
+        list_contents = True
     else:
-        check_contents = False
+        list_contents = False
 
     # Setup bucket object
     s3_host = 'echo.stfc.ac.uk'
@@ -96,9 +96,9 @@ def main():
         print(f'Bucket {bucket_name} not found in {s3_host}.')
         sys.exit()
 
-    zipfile_list, zipfile_contents = get_zipfile_list(bucket_name, access_key, secret_key, s3_host, check_contents)
+    zipfile_list, zipfile_contents = get_zipfile_list(bucket_name, access_key, secret_key, s3_host, list_contents)
 
-    if check_contents:
+    if list_contents:
         for i, contents in enumerate(zipfile_contents):
             print(f'Zip file: {zipfile_list[i]}, {contents}')
     else:
