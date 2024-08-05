@@ -422,6 +422,10 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, fi
         logfile.write(f'{result}\n')
     return None
 
+# def free_up_zip_memory(to_collate, parent_folder, index):
+#     del to_collate[parent_folder]['zips'][index]['zip_contents']
+#     print(f'Deleted zip contents object for {parent_folder}, zip index {index}, to free memory.')
+
 def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, nprocs, perform_checksum, dryrun, log, global_collate, use_compression):
     """
     Uploads files from a local directory to an S3 bucket in parallel.
@@ -447,6 +451,11 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     total_files_uploaded = 0
     i = 0
     #processed_files = []
+    if global_collate:
+        half_cores = nprocs // 2
+        zip_pool = Pool(processes=half_cores)
+        collate_ul_pool = Pool(processes=nprocs - half_cores)
+    
     pool = Pool(nprocs) # use 4 CPUs by default - very little speed-up, might drop multiprocessing and parallelise at shell level
     #recursive loop over local folder
     results = []
@@ -464,13 +473,14 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         elif len(files) == 0:
             print(f'Skipping subfolder - no files.')
             continue
-        if folder in exclude:
+        if exclude.isin([folder]).any():
             print(f'Skipping subfolder {folder} - excluded.')
             continue
         # remove subfolders in exclude list
         if len(sub_folders) > 0:
             len_pre_exclude = len(sub_folders)
-            sub_folders[:] = [sub_folder for sub_folder in sub_folders if sub_folder not in exclude]
+            sub_folders[:] = [sub_folder for sub_folder in sub_folders if not exclude.isin([sub_folder]).any()]
+            # sub_folders[:] = [sub_folder for sub_folder in sub_folders if sub_folder not in exclude]
             print(f'Skipping {len_pre_exclude - len(sub_folders)} subfolders in {folder} - excluded. {len(sub_folders)} subfolders remaining.')
 
         folder_files = [os.sep.join([folder, filename]) for filename in files]
@@ -653,7 +663,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'collating into: {len(chunks)} zip file(s)')
             for id,chunk in enumerate(zip(chunks,chunk_files)):
                 # print(f'chunk {id} contains {len(chunk[0])} folders')
-                zip_results.append(pool.apply_async(zip_folders, (parent_folder,chunk[0],chunk_files[0],use_compression,dryrun,id)))
+                zip_results.append(zip_pool.apply_async(zip_folders, (parent_folder,chunk[0],chunk_files[0],use_compression,dryrun,id)))
         zipped = 0
         uploaded = []
         total_zips = len(zip_results)
@@ -676,6 +686,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                             # #[os.sep.join([destination_dir, os.path.relpath(filename, local_dir)]) for filename in folder_files]
                             # to_collate[parent_folder][id]['zip_object_name'] = 
 
+                            # tc_index = len(to_collate[parent_folder]['zips']) - 1
+
                             # check if zip_object_name exists in bucket and get its checksum
                             if current_objects.isin([to_collate[parent_folder]['zips'][-1]['zip_object_name']]).any():
                                 existing_zip_checksum = bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,to_collate[parent_folder]['zips'][-1]['zip_object_name']).e_tag.strip('"')
@@ -690,7 +702,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                             total_size_uploaded += len(zip_data)
                             total_files_uploaded += 1
                             print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
-                            results.append(pool.apply_async(upload_and_callback, args=(
+                            results.append(collate_ul_pool.apply_async(upload_and_callback, args=(
                                 s3_host,
                                 access_key,
                                 secret_key,
@@ -706,11 +718,17 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                                 len(zip_data),
                                 total_size_uploaded,
                                 total_files_uploaded,
-                                True,
-                            )))
+                                True),
+                                # callback=lambda _: free_up_zip_memory(to_collate, parent_folder, tc_index),
+                            ))
 
     pool.close()
     pool.join()
+    if global_collate:
+        zip_pool.close()
+        zip_pool.join()
+        collate_ul_pool.close()
+        collate_ul_pool.join()
 
 # # Go!
 if __name__ == '__main__':
@@ -789,15 +807,17 @@ if __name__ == '__main__':
     dryrun = args.dryrun
     use_compression = not args.no_compression # internally, flag turns *on* compression, but for user no-compression turns it off - makes flag more intuitive
 
-    exclude = []
+    
     if args.exclude:
-        exclude = args.exclude
+        exclude = pd.Series(args.exclude)
+    else:
+        exclude = pd.Series.empty()
     
     print(f'Config: {args}')
 
     if save_config:
         with open(config_file, 'w') as f:
-            yaml.dump({'bucket_name': bucket_name, 'local_path': local_dir, 'S3_prefix': prefix, 'S3_folder': sub_dirs, 'exclude': exclude, 'nprocs': nprocs, 'no_collate': not global_collate, 'dryrun': dryrun, 'no_checksum': not perform_checksum, 'no_compression': not use_compression}, f)
+            yaml.dump({'bucket_name': bucket_name, 'local_path': local_dir, 'S3_prefix': prefix, 'S3_folder': sub_dirs, 'exclude': exclude.to_list(), 'nprocs': nprocs, 'no_collate': not global_collate, 'dryrun': dryrun, 'no_checksum': not perform_checksum, 'no_compression': not use_compression}, f)
         sys.exit(0)
 
     print(f'Symlinks will be replaced with the target file. A new file <simlink_file>.symlink will contain the symlink target path.')
