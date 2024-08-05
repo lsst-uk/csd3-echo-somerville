@@ -422,6 +422,10 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, fi
         logfile.write(f'{result}\n')
     return None
 
+def free_up_zip_memory(to_collate, parent_folder, index):
+    del to_collate[parent_folder]['zips'][index]['zip_contents']
+    print(f'Deleted zip contents object for {parent_folder}, zip index {index}, to free memory.')
+
 def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, nprocs, perform_checksum, dryrun, log, global_collate, use_compression):
     """
     Uploads files from a local directory to an S3 bucket in parallel.
@@ -677,20 +681,22 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                             # #[os.sep.join([destination_dir, os.path.relpath(filename, local_dir)]) for filename in folder_files]
                             # to_collate[parent_folder][id]['zip_object_name'] = 
 
+                            tc_index = len(to_collate[parent_folder]['zips']) - 1
+
                             # check if zip_object_name exists in bucket and get its checksum
-                            if current_objects.isin([to_collate[parent_folder]['zips'][-1]['zip_object_name']]).any():
-                                existing_zip_checksum = bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,to_collate[parent_folder]['zips'][-1]['zip_object_name']).e_tag.strip('"')
+                            if current_objects.isin([to_collate[parent_folder]['zips'][tc_index]['zip_object_name']]).any():
+                                existing_zip_checksum = bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,to_collate[parent_folder]['zips'][tc_index]['zip_object_name']).e_tag.strip('"')
                                 checksum_hash = hashlib.md5(zip_data)
                                 checksum_string = checksum_hash.hexdigest()
 
                                 if checksum_string == existing_zip_checksum:
-                                    print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and checksums match - skipping.')
+                                    print(f'Zip file {to_collate[parent_folder]["zips"][tc_index]["zip_object_name"]} already exists and checksums match - skipping.')
                                     continue
                                 
                             # upload zipped folders
                             total_size_uploaded += len(zip_data)
                             total_files_uploaded += 1
-                            print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
+                            print(f"Uploading {to_collate[parent_folder]['zips'][tc_index]['zip_object_name']}.")
                             results.append(pool.apply_async(upload_and_callback, args=(
                                 s3_host,
                                 access_key,
@@ -698,8 +704,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                                 bucket_name,
                                 parent_folder,
                                 zip_data,
-                                to_collate[parent_folder]['zips'][-1]['zip_contents'],
-                                to_collate[parent_folder]['zips'][-1]['zip_object_name'],
+                                to_collate[parent_folder]['zips'][tc_index]['zip_contents'],
+                                to_collate[parent_folder]['zips'][tc_index]['zip_object_name'],
                                 perform_checksum,
                                 dryrun,
                                 processing_start,
@@ -707,8 +713,9 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                                 len(zip_data),
                                 total_size_uploaded,
                                 total_files_uploaded,
-                                True,
-                            )))
+                                True),
+                                callback=lambda _: free_up_zip_memory(to_collate, parent_folder, tc_index),
+                            ))
 
     pool.close()
     pool.join()
