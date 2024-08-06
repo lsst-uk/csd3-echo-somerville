@@ -30,9 +30,10 @@ import argparse
 
 import re
 
-def get_zipfile_list(bucket_name, access_key, secret_key, s3_host, get_contents_metadata):
+def get_key_lists(bucket_name, access_key, secret_key, s3_host, get_contents_metadata):
     zipfile_list = []
     contents_list = []
+    all_keys_list = []
     s3 = bm.get_resource(access_key, secret_key, s3_host)
     s3_client = bm.get_client(access_key, secret_key, s3_host)
     bucket = s3.Bucket(bucket_name)
@@ -41,21 +42,31 @@ def get_zipfile_list(bucket_name, access_key, secret_key, s3_host, get_contents_
 
     paginator = s3_client.get_paginator('list_objects_v2')
     page_iterator = paginator.paginate(Bucket=bucket_name)
-
+    key_count = 0
+    zipfile_count = 0
     for page in page_iterator:
         if 'Contents' in page:
             for obj in page['Contents']:
+                key_count += 1
                 key = obj['Key']
                 if pattern.match(key):
+                    zipfile_count += 1
                     zipfile_list.append(key)
                     if get_contents_metadata:
                         contents = bucket.Object(key).get()['Metadata']['zip-contents'].split(',')
-                        print(f'{key}: {contents}')
-                    else:
-                        print(f'{key}')
-                        
-    
-    return zipfile_list, contents
+                        contents_list.append(np.array(contents))
+                    #     print(f'{key}: {contents}')
+                    # else:
+                else:
+                    all_keys_list.append(key)
+            print(f'Keys found: {key_count}, Zip files found: {zipfile_count}', end='\r')
+            if key_count >= 10000:
+                break
+    return np.array(zipfile_list), np.array(contents_list, dtype=object), np.array(all_keys_list)
+
+def verify_zip_contents(bucket_name, access_key, secret_key, s3_host, zipfile_df, all_keys_df):
+    print(zipfile_df)
+
 
 def main():
     epilog = ''
@@ -70,7 +81,8 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument('--bucket-name','-b', type=str, help='Name of the S3 bucket.', required=True)
-    parser.add_argument('--list-contents','-l', action='store_true', help='List the contents of the zip files from metadata exist in the bucket.')
+    parser.add_argument('--list-contents','-l', action='store_true', help='List the contents of the zip files.')
+    parser.add_argument('--verify-contents','-v', action='store_true', help='Verify the contents of the zip files from metadata exist in the bucket.')
 
     args = parser.parse_args()
     bucket_name = args.bucket_name
@@ -78,6 +90,10 @@ def main():
         list_contents = True
     else:
         list_contents = False
+    if args.verify_contents:
+        verify_contents = True
+    else:
+        verify_contents = False
 
     # Setup bucket object
     s3_host = 'echo.stfc.ac.uk'
@@ -96,14 +112,25 @@ def main():
         print(f'Bucket {bucket_name} not found in {s3_host}.')
         sys.exit()
 
-    zipfile_list, zipfile_contents = get_zipfile_list(bucket_name, access_key, secret_key, s3_host, list_contents)
+    zipfiles, zipfile_contents, all_keys = get_key_lists(bucket_name, access_key, secret_key, s3_host, list_contents)
 
     if list_contents:
         for i, contents in enumerate(zipfile_contents):
-            print(f'Zip file: {zipfile_list[i]}, {contents}')
-    else:
-        for zipfile in zipfile_list:
-            print(zipfile)
+            print(f'Zip file: {zipfiles[i]}, {contents}')
+    # else:
+    #     for zipfile in zipfiles:
+    #         print(zipfile)
+    
+    if verify_contents:
+        print('Verifying zip file contents...')
+        zipfiles = np.array(zipfiles)
+        zipfile_contents = np.array(zipfile_contents, dtype=object)
+        print(zipfiles.shape, zipfile_contents.shape)
+        zipfile_df = pd.DataFrame(np.array([zipfiles, zipfile_contents], dtype=object).reshape(2,len(zipfiles)).T, columns=['zipfile','contents'])
+        del zipfiles, zipfile_contents
+        all_keys_df = pd.DataFrame(all_keys, columns=['key'])
+        del all_keys
+        verify_zip_contents(bucket_name, access_key, secret_key, s3_host, zipfile_df, all_keys_df)
 
 if __name__ == '__main__':
     main()
