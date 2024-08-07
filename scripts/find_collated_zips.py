@@ -141,7 +141,7 @@ def main():
         print(zipfiles.shape, zipfile_contents.shape)
         zipfile_df = pd.DataFrame(np.array([zipfiles, zipfile_contents], dtype=object).reshape(2,len(zipfiles)).T, columns=['zipfile','contents'])
         del zipfiles, zipfile_contents
-        all_keys_s = pd.Series(all_keys, name=['key'])
+        all_keys_s = pd.Series(all_keys, name='key')
         del all_keys
         verify_zip_contents(zipfile_df, all_keys_s, debug)
 
