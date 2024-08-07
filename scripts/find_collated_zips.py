@@ -76,7 +76,8 @@ def verify_zip_contents(zipfile_df, all_keys_s, debug):
     print((datetime.now()-start).microseconds, 'microseconds')
 
 def append_contents_to_zipfile_path(zipfile_df):
-    print(zipfile_df.iloc[0])
+    print(zipfile_df.iloc[0]['zipfile'])
+    print(zipfile_df.iloc[0]['contents'])
     # zipfile_df['zipfile'] = zipfile_df['zipfile'].apply(lambda x: f'/mnt/data/{x}')
     # return zipfile_df
 
