@@ -54,7 +54,7 @@ def get_key_lists(bucket_name, access_key, secret_key, s3_host, get_contents_met
                     zipfile_list.append(key)
                     if get_contents_metadata:
                         contents = bucket.Object(key).get()['Metadata']['zip-contents'].split(',')
-                        contents_list.append(np.array(contents))
+                        contents_list.append(pd.Series(contents))
                         # print(f'{key}: {contents}')
                     # else:
                 else:
@@ -64,8 +64,8 @@ def get_key_lists(bucket_name, access_key, secret_key, s3_host, get_contents_met
             if debug:
                 if key_count >= 1000:
                     break
-    print()
-    return np.array(zipfile_list), np.array(contents_list, dtype=object), np.array(all_keys_list)
+    zipfile_df = pd.DataFrame([pd.Series(zipfile_list, name='zipfiles'),pd.series(contents_list, name='contents')], columns=['zipfile','contents'])
+    return zipfile_df, pd.Series(all_keys_list, name='all_keys')
 
 def verify_zip_contents(zipfile_df, all_keys_s, debug):
     print(zipfile_df)
