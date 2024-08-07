@@ -73,7 +73,7 @@ def verify_zip_contents(zipfile_df, all_keys_s, debug):
     print('Checking for zipfile contents in all_keys list...')
     start = datetime.now()
     print(all_keys_s.isin(zipfile_df['contents'].iloc[0]).all())
-    print((datetime.now()-start).seconds)
+    print((datetime.now()-start).microseconds, 'microseconds')
 
 
 def main():
