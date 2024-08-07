@@ -151,6 +151,7 @@ def main():
         del zipfiles, zipfile_contents
         all_keys_s = pd.Series(all_keys, name='key')
         del all_keys
+        append_contents_to_zipfile_path(zipfile_df)
         verify_zip_contents(zipfile_df, all_keys_s, debug)
 
 if __name__ == '__main__':
