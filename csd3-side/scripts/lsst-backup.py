@@ -503,7 +503,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
         # check folder isn't empty
         print(f'Processing {len(files)} files (total size: {total_filesize/1024**2:.0f} MiB) in {folder} with {len(sub_folders)} subfolders.')
-        if len(files) > 2 or mean_filesize > 128*1024**2 or not global_collate:
+        # len(files) > 2 taken out to give increased number of zip files
+        if mean_filesize > 128*1024**2 or not global_collate:
             # all files within folder
             # print(f'Processing {len(files)} files (total size: {total_filesize}) individually in {folder}.')
             
@@ -585,7 +586,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             
             # release block of files if the list for results is greater than 4 times the number of processes
 
-        elif len(files) > 0 and global_collate: # up to 2 small files in each of n folders
+        elif len(files) > 0 and global_collate: # small files in folder
             folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
             parent_folder = os.path.abspath(os.path.join(folder, os.pardir))
             if parent_folder not in to_collate.keys():
