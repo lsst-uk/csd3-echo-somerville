@@ -62,7 +62,7 @@ def get_key_lists(bucket_name, access_key, secret_key, s3_host, get_contents_met
             print(f'Keys found: {key_count}, Zip files found: {zipfile_count}', end='\r')
             # for debugging
             if debug:
-                if key_count >= 10000:
+                if key_count >= 1000:
                     break
     print()
     return np.array(zipfile_list), np.array(contents_list, dtype=object), np.array(all_keys_list)
