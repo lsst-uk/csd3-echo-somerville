@@ -142,7 +142,7 @@ def main():
         del zipfiles, zipfile_contents
         all_keys_df = pd.DataFrame(all_keys, columns=['key'])
         del all_keys
-        verify_zip_contents(bucket_name, access_key, secret_key, s3_host, zipfile_df, all_keys_df, debug)
+        verify_zip_contents(zipfile_df, all_keys_df, debug)
 
 if __name__ == '__main__':
     main()
