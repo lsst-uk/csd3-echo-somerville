@@ -104,6 +104,9 @@ def main():
     else:
         debug = False
 
+    if list_contents or verify_contents:
+        get_contents_metadata = True
+
     # Setup bucket object
     s3_host = 'echo.stfc.ac.uk'
     try:
@@ -121,7 +124,7 @@ def main():
         print(f'Bucket {bucket_name} not found in {s3_host}.')
         sys.exit()
 
-    zipfiles, zipfile_contents, all_keys = get_key_lists(bucket_name, access_key, secret_key, s3_host, list_contents, debug)
+    zipfiles, zipfile_contents, all_keys = get_key_lists(bucket_name, access_key, secret_key, s3_host, get_contents_metadata, debug)
 
     if list_contents:
         for i, contents in enumerate(zipfile_contents):
