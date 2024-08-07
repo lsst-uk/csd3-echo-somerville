@@ -811,7 +811,7 @@ if __name__ == '__main__':
     if args.exclude:
         exclude = pd.Series(args.exclude)
     else:
-        exclude = pd.Series.empty()
+        exclude = pd.Series([])
     
     print(f'Config: {args}')
 
