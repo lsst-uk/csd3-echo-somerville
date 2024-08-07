@@ -64,6 +64,7 @@ def get_key_lists(bucket_name, access_key, secret_key, s3_host, get_contents_met
             if debug:
                 if key_count >= 10000:
                     break
+    print()
     return np.array(zipfile_list), np.array(contents_list, dtype=object), np.array(all_keys_list)
 
 def verify_zip_contents(bucket_name, access_key, secret_key, s3_host, zipfile_df, all_keys_df, debug):
