@@ -55,7 +55,7 @@ def get_key_lists(bucket_name, access_key, secret_key, s3_host, get_contents_met
                     if get_contents_metadata:
                         contents = bucket.Object(key).get()['Metadata']['zip-contents'].split(',')
                         contents_list.append(np.array(contents))
-                    #     print(f'{key}: {contents}')
+                        print(f'{key}: {contents}')
                     # else:
                 else:
                     all_keys_list.append(key)
@@ -64,7 +64,8 @@ def get_key_lists(bucket_name, access_key, secret_key, s3_host, get_contents_met
             if debug:
                 if key_count >= 10000:
                     break
-    print(np.array(zipfile_list), np.array(contents_list, dtype=object), np.array(all_keys_list))
+    print(np.array(contents_list, dtype=object))
+    exit()
     return np.array(zipfile_list), np.array(contents_list, dtype=object), np.array(all_keys_list)
 
 def verify_zip_contents(bucket_name, access_key, secret_key, s3_host, zipfile_df, all_keys_df, debug):
