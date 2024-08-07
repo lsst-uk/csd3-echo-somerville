@@ -80,7 +80,7 @@ def append_contents_to_zipfile_path(zipfile_df):
     print(zipfile_df.iloc[0]['contents'])
     path_stub = '/'.join(zipfile_df.iloc[0]['zipfile'].split('/')[:-1])
     print(path_stub)
-    zipfile_df['contents'] = pd.Series(zipfile_df['contents'])
+    zipfile_df.iloc[0]['contents'] = pd.Series(zipfile_df.iloc[0]['contents'])
     print(zipfile_df.iloc[0]['contents'])
     # zipfile_df['zipfile'] = zipfile_df['zipfile'].apply(lambda x: f'/mnt/data/{x}')
     # return zipfile_df
