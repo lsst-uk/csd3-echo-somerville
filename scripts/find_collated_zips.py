@@ -67,9 +67,10 @@ def get_key_lists(bucket_name, access_key, secret_key, s3_host, get_contents_met
     print()
     return np.array(zipfile_list), np.array(contents_list, dtype=object), np.array(all_keys_list)
 
-def verify_zip_contents(zipfile_df, all_keys_df, debug):
+def verify_zip_contents(zipfile_df, all_keys_s, debug):
     print(zipfile_df)
-    print(all_keys_df)
+    print(all_keys_s)
+    print(all_keys_s.isin(zipfile_df['contents'].iloc[0]).all())
 
 
 def main():
@@ -140,9 +141,9 @@ def main():
         print(zipfiles.shape, zipfile_contents.shape)
         zipfile_df = pd.DataFrame(np.array([zipfiles, zipfile_contents], dtype=object).reshape(2,len(zipfiles)).T, columns=['zipfile','contents'])
         del zipfiles, zipfile_contents
-        all_keys_df = pd.DataFrame(all_keys, columns=['key'])
+        all_keys_s = pd.Series(all_keys, columns=['key'])
         del all_keys
-        verify_zip_contents(zipfile_df, all_keys_df, debug)
+        verify_zip_contents(zipfile_df, all_keys_s, debug)
 
 if __name__ == '__main__':
     main()
