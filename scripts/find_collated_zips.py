@@ -78,6 +78,8 @@ def verify_zip_contents(zipfile_df, all_keys_s, debug):
 def append_contents_to_zipfile_path(zipfile_df):
     print(zipfile_df.iloc[0]['zipfile'])
     print(zipfile_df.iloc[0]['contents'])
+    path_stub = '/'.join(zipfile_df.iloc[0]['zipfile'].split('/')[-1])
+    print(path_stub)
     # zipfile_df['zipfile'] = zipfile_df['zipfile'].apply(lambda x: f'/mnt/data/{x}')
     # return zipfile_df
 
@@ -153,7 +155,7 @@ def main():
         all_keys_s = pd.Series(all_keys, name='key')
         del all_keys
         append_contents_to_zipfile_path(zipfile_df)
-        verify_zip_contents(zipfile_df, all_keys_s, debug)
+        # verify_zip_contents(zipfile_df, all_keys_s, debug)
 
 if __name__ == '__main__':
     main()
