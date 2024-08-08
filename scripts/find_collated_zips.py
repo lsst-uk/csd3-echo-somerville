@@ -70,7 +70,7 @@ def get_key_lists(bucket_name, access_key, secret_key, s3_host, get_contents_met
         print(zipfile_df)
     return zipfile_df, pd.Series(all_keys_list, name='all_keys')
 
-def verify_zip_contents(zipfile_df, all_keys_s, debug):
+def verify_zip_contents(zipfiles_df, all_keys, debug):
     """
     Verify the contents of a zipfile against a list of keys.
 
@@ -82,11 +82,11 @@ def verify_zip_contents(zipfile_df, all_keys_s, debug):
     Returns:
     None
     """
-    print(zipfile_df)
-    print(all_keys_s)
+    print(zipfiles_df)
+    print(all_keys)
     print('Checking for zipfile contents in all_keys list...')
     start = datetime.now()
-    print(all_keys_s.isin(zipfile_df['contents'].iloc[0]).all())
+    print(all_keys.isin(zipfiles_df['contents'].iloc[0]).all())
     print((datetime.now()-start).microseconds, 'microseconds')
 
 def prepend_zipfile_path_to_contents(zipfile_df, debug):
@@ -101,18 +101,7 @@ def prepend_zipfile_path_to_contents(zipfile_df, debug):
     """
     zipfile_df['path_stubs'] = ['/'.join(x.split('/')[:-1]) for x in zipfile_df['zipfile']]
     zipfile_df['contents'] = [[f'{zipfile_df.iloc[i]["path_stubs"]}/{x}' for x in zipfile_df.iloc[i]['contents']] for i in range(len(zipfile_df))]
-    print(zipfile_df)
-    # for row in zipfile_df:
-    #     print(row)
-    #     print(row['zipfile'])
-    #     print(row['zipfile'].values[0])
-    #     path_stub = '/'.join(row['zipfile'].values[0].split('/')[:-1])
-    #     row['contents'] = [f'{path_stub}/{x}' for x in row['contents']]
-    # print(zipfile_df.iloc[0]['zipfile'])
-    # print(zipfile_df.iloc[0]['contents'])
-    
-    
-
+    return zipfile_df.drop(columns='path_stubs')
 
 def main():
     """
@@ -184,8 +173,8 @@ def main():
     
     if verify_contents:
         print('Verifying zip file contents...')
-        prepend_zipfile_path_to_contents(zipfiles_df, debug)
-        # verify_zip_contents(zipfile_df, all_keys_s, debug)
+        zipfiles_df = prepend_zipfile_path_to_contents(zipfiles_df, debug)
+        verify_zip_contents(zipfiles_df, all_keys, debug)
 
 if __name__ == '__main__':
     main()
