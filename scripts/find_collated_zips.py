@@ -54,7 +54,7 @@ def get_key_lists(bucket_name, access_key, secret_key, s3_host, get_contents_met
                     zipfile_list.append(key)
                     if get_contents_metadata:
                         contents = bucket.Object(key).get()['Metadata']['zip-contents'].split(',')
-                        contents_list.append(pd.Series(contents))
+                        contents_list.append(contents)
                         # print(f'{key}: {contents}')
                     # else:
                 else:
