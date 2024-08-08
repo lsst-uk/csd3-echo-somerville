@@ -107,6 +107,22 @@ def prepend_zipfile_path_to_contents(zipfile_df, debug):
     zipfile_df['contents'] = [[f'{zipfile_df.iloc[i]["path_stubs"]}/{x}' for x in zipfile_df.iloc[i]['contents']] for i in range(len(zipfile_df))]
     return zipfile_df.drop(columns='path_stubs')
 
+def extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_key, s3_host, debug):
+    s3 = bm.get_resource(access_key, secret_key, s3_host)
+    s3_client = bm.get_client(access_key, secret_key, s3_host)
+    bucket = s3.Bucket(bucket_name)
+    
+    for zipfile_key in extract_list:
+        path_stub = '/'.join(zipfile_key.split('/')[:-1])
+        with open(io.BytesIO(bucket.Object(zipfile_key).get()['Body'].read()), 'rb') as zfbio:
+            with zipfile.ZipFile(zfbio) as zf:
+                for content_file in zf.namelist():
+                    zipped_file_data = io.BytesIO(zf.open(content_file))
+                    key = path_stub + '/' + content_file
+                    bucket.upload_fileobj(zipped_file_data, f'{key}')
+                    print(f'Uploaded {content_file} to {key}')
+                    exit()
+
 def main():
     """
     Search for zip files created by lsst-backup.py in a given S3 bucket on echo.stfc.ac.uk.
@@ -133,6 +149,7 @@ def main():
     parser.add_argument('--list-contents','-l', action='store_true', help='List the contents of the zip files.')
     parser.add_argument('--verify-contents','-v', action='store_true', help='Verify the contents of the zip files from metadata.')
     parser.add_argument('--debug','-d', action='store_true', help='Print debug messages and shorten search.')
+    parser.add_argument('--extract','-e', action='store_true', help='Extract and upload zip files for which the contents are not found in the bucket.')
 
     args = parser.parse_args()
     bucket_name = args.bucket_name
@@ -148,8 +165,13 @@ def main():
         debug = True
     else:
         debug = False
+    
+    if args.extract:
+        extract = True
+    else:
+        extract = False
 
-    if list_contents or verify_contents:
+    if list_contents or verify_contents or extract:
         get_contents_metadata = True
 
     # Setup bucket object
@@ -179,7 +201,15 @@ def main():
         print('Verifying zip file contents...')
         zipfiles_df = prepend_zipfile_path_to_contents(zipfiles_df, debug)
         extract_list = verify_zip_contents(zipfiles_df, all_keys, debug)
-        print(extract_list)
+        for zipfile in extract_list:
+            print(zipfile)
+    
+    if extract:
+        print('Extracting zip files...')
+        zipfiles_df = prepend_zipfile_path_to_contents(zipfiles_df, debug)
+        extract_list = verify_zip_contents(zipfiles_df, all_keys, debug)
+        extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_key, s3_host, debug)
+        
 
 if __name__ == '__main__':
     main()
