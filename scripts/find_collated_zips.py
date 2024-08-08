@@ -180,7 +180,7 @@ def main():
     
     if verify_contents:
         print('Verifying zip file contents...')
-        append_contents_to_zipfile_path(zipfiles_df, debug)
+        prepend_zipfile_path_to_contents(zipfiles_df, debug)
         # verify_zip_contents(zipfile_df, all_keys_s, debug)
 
 if __name__ == '__main__':
