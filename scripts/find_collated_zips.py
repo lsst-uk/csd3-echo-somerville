@@ -114,17 +114,17 @@ def extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_ke
     
     for zipfile_key in extract_list:
         path_stub = '/'.join(zipfile_key.split('/')[:-1])
-        print(bucket.Object(zipfile_key).get()['Body'].read())
-        with open(bucket.Object(zipfile_key).get()['Body'].read(), 'r') as testfile:
-            print(testfile)
-        with open(bucket.Object(zipfile_key).get()['Body'].read(), 'rb') as zfbio:
-            with zipfile.ZipFile(zfbio) as zf:
-                for content_file in zf.namelist():
-                    zipped_file_data = io.BytesIO(zf.open(content_file))
-                    key = path_stub + '/' + content_file
-                    bucket.upload_fileobj(zipped_file_data, f'{key}')
-                    print(f'Uploaded {content_file} to {key}')
-                    exit()
+        zipfile_data = io.BytesIO(bucket.Object(zipfile_key).get()['Body'].read())
+        with zipfile.ZipFile(zipfile_data) as zf:
+            for content_file in zf.namelist():
+                print(content_file)
+                # zipped_file_data = io.BytesIO(zf.open(content_file))
+                # key = path_stub + '/' + content_file
+                # bucket.upload_fileobj(zipped_file_data, f'{key}')
+                # print(f'Uploaded {content_file} to {key}')
+                # exit()
+        exit()
+
 
 def main():
     """
