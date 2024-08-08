@@ -100,7 +100,7 @@ def prepend_zipfile_path_to_contents(zipfile_df, debug):
     - None
     """
     
-    for row in zipfile_df.iterrows():
+    for row in zipfile_df:
         print(row)
         print(row['zipfile'])
         print(row['zipfile'].values[0])
