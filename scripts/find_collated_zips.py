@@ -59,7 +59,7 @@ def get_key_lists(bucket_name, access_key, secret_key, s3_host, get_contents_met
                     # else:
                 else:
                     all_keys_list.append(key)
-            # print(f'Keys found: {key_count}, Zip files found: {zipfile_count}', end='\r')
+            print(f'Keys found: {key_count}, Zip files found: {zipfile_count}', end='\r')
             # for debugging
             if debug:
                 if key_count >= 1000:
