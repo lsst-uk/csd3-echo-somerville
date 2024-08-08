@@ -71,6 +71,17 @@ def get_key_lists(bucket_name, access_key, secret_key, s3_host, get_contents_met
     return zipfile_df, pd.Series(all_keys_list, name='all_keys')
 
 def verify_zip_contents(zipfile_df, all_keys_s, debug):
+    """
+    Verify the contents of a zipfile against a list of keys.
+
+    Parameters:
+    - zipfile_df (pandas.DataFrame): The dataframe containing the zipfile information.
+    - all_keys_s (pandas.Series): The series containing all the keys to check against.
+    - debug (bool): Flag indicating whether to print debug information.
+
+    Returns:
+    None
+    """
     print(zipfile_df)
     print(all_keys_s)
     print('Checking for zipfile contents in all_keys list...')
@@ -78,18 +89,38 @@ def verify_zip_contents(zipfile_df, all_keys_s, debug):
     print(all_keys_s.isin(zipfile_df['contents'].iloc[0]).all())
     print((datetime.now()-start).microseconds, 'microseconds')
 
-def append_contents_to_zipfile_path(zipfile_df, debug):
+def prepend_zipfile_path_to_contents(zipfile_df, debug):
+    """
+    Prepend the path to the zipfile to the contents column in the given DataFrame.
+    Contents by default are relative to the zipfile location.
+    Parameters:
+    - zipfile_df (DataFrame): The DataFrame containing the zipfile information.
+    - debug (bool): A flag indicating whether to print debug information.
+    Returns:
+    - None
+    """
+    
     print(zipfile_df.iloc[0]['zipfile'])
     print(zipfile_df.iloc[0]['contents'])
     path_stub = '/'.join(zipfile_df.iloc[0]['zipfile'].split('/')[:-1])
     print(path_stub)
-    zipfile_df.iloc[0]['contents'] = pd.Series(zipfile_df.iloc[0]['contents'])
+    zipfile_df.iloc[0]['contents'] = [f'{path_stub}/{x}' for x in zipfile_df.iloc[0]['contents']]
     print(zipfile_df.iloc[0]['contents'])
     # zipfile_df['zipfile'] = zipfile_df['zipfile'].apply(lambda x: f'/mnt/data/{x}')
     # return zipfile_df
 
 
 def main():
+    """
+    Search for zip files created by lsst-backup.py in a given S3 bucket on echo.stfc.ac.uk.
+    Args:
+        --bucket-name, -b (str): Name of the S3 bucket. (required)
+        --list-contents, -l (bool): List the contents of the zip files.
+        --verify-contents, -v (bool): Verify the contents of the zip files from metadata.
+        --debug, -d (bool): Print debug messages and shorten search.
+    Returns:
+        None
+    """
     epilog = ''
     class MyParser(argparse.ArgumentParser):
         def error(self, message):
@@ -103,7 +134,7 @@ def main():
     )
     parser.add_argument('--bucket-name','-b', type=str, help='Name of the S3 bucket.', required=True)
     parser.add_argument('--list-contents','-l', action='store_true', help='List the contents of the zip files.')
-    parser.add_argument('--verify-contents','-v', action='store_true', help='Verify the contents of the zip files from metadata exist in the bucket.')
+    parser.add_argument('--verify-contents','-v', action='store_true', help='Verify the contents of the zip files from metadata.')
     parser.add_argument('--debug','-d', action='store_true', help='Print debug messages and shorten search.')
 
     args = parser.parse_args()
@@ -149,14 +180,7 @@ def main():
     
     if verify_contents:
         print('Verifying zip file contents...')
-        zipfiles = np.array(zipfiles)
-        zipfile_contents = np.array(zipfile_contents, dtype=object)
-        print(zipfiles.shape, zipfile_contents.shape)
-        zipfile_df = pd.DataFrame(np.array([zipfiles, zipfile_contents], dtype=object).reshape(2,len(zipfiles)).T, columns=['zipfile','contents'])
-        del zipfiles, zipfile_contents
-        all_keys_s = pd.Series(all_keys, name='key')
-        del all_keys
-        append_contents_to_zipfile_path(zipfile_df)
+        append_contents_to_zipfile_path(zipfiles_df, debug)
         # verify_zip_contents(zipfile_df, all_keys_s, debug)
 
 if __name__ == '__main__':
