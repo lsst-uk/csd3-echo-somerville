@@ -88,7 +88,7 @@ def verify_zip_contents(zipfiles_df, all_keys, debug):
     print('Checking for zipfile contents in all_keys list...')
     start = datetime.now()
     for i in range(len(zipfiles_df)):
-        if not all_keys.isin(zipfiles_df['contents'].iloc[i]).all():
+        if not all_keys.isin(zipfiles_df['contents'].iloc[i].values).all():
             extract_list.append(zipfiles_df.iloc[i]["zipfile"])
     print((datetime.now()-start).microseconds, 'microseconds')
     return extract_list
@@ -123,8 +123,8 @@ def extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_ke
                 key = path_stub + '/' + content_file
                 bucket.upload_fileobj(content_file_data, f'{key}')
                 print(f'Uploaded {content_file} to {key}')
-                # exit()
-        exit()
+        if debug: # stop after frist zipfile
+            exit()
 
 
 def main():
