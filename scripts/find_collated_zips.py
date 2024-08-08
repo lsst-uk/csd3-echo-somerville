@@ -88,7 +88,11 @@ def verify_zip_contents(zipfiles_df, all_keys, debug):
     print('Checking for zipfile contents in all_keys list...')
     start = datetime.now()
     for i in range(len(zipfiles_df)):
-        if not all_keys.isin(zipfiles_df['contents'].iloc[i].values).all():
+        print(zipfiles_df['zipfile'].iloc[i])
+        print(zipfiles_df['contents'].iloc[i])
+        print(all_keys.isin(zipfiles_df['contents'].iloc[i]).all())
+        print(all_keys.isin(zipfiles_df['contents'].iloc[i]).any())
+        if not all_keys.isin(zipfiles_df['contents'].iloc[i]).all():
             extract_list.append(zipfiles_df.iloc[i]["zipfile"])
     print((datetime.now()-start).microseconds, 'microseconds')
     return extract_list
