@@ -101,7 +101,10 @@ def prepend_zipfile_path_to_contents(zipfile_df, debug):
     """
     
     for row in zipfile_df.iterrows():
-        path_stub = '/'.join(row['zipfile'].split('/')[:-1])
+        print(row)
+        print(row['zipfile'])
+        print(row['zipfile'].values[0])
+        path_stub = '/'.join(row['zipfile'].values[0].split('/')[:-1])
         row['contents'] = [f'{path_stub}/{x}' for x in row['contents']]
     print(zipfile_df.iloc[0]['zipfile'])
     print(zipfile_df.iloc[0]['contents'])
