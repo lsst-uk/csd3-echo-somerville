@@ -113,15 +113,16 @@ def extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_ke
     bucket = s3.Bucket(bucket_name)
     
     for zipfile_key in extract_list:
+        print(f'Extracting {zipfile_key}...')
         path_stub = '/'.join(zipfile_key.split('/')[:-1])
         zipfile_data = io.BytesIO(bucket.Object(zipfile_key).get()['Body'].read())
         with zipfile.ZipFile(zipfile_data) as zf:
             for content_file in zf.namelist():
                 print(content_file)
-                # zipped_file_data = io.BytesIO(zf.open(content_file))
-                # key = path_stub + '/' + content_file
-                # bucket.upload_fileobj(zipped_file_data, f'{key}')
-                # print(f'Uploaded {content_file} to {key}')
+                content_file_data = zf.open(content_file)
+                key = path_stub + '/' + content_file
+                bucket.upload_fileobj(content_file_data, f'{key}')
+                print(f'Uploaded {content_file} to {key}')
                 # exit()
         exit()
 
@@ -211,6 +212,7 @@ def main():
         print('Extracting zip files...')
         zipfiles_df = prepend_zipfile_path_to_contents(zipfiles_df, debug)
         extract_list = verify_zip_contents(zipfiles_df, all_keys, debug)
+        print(extract_list)
         extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_key, s3_host, debug)
         
 
