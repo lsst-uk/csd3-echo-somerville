@@ -99,15 +99,16 @@ def prepend_zipfile_path_to_contents(zipfile_df, debug):
     Returns:
     - None
     """
-    
-    for row in zipfile_df:
-        print(row)
-        print(row['zipfile'])
-        print(row['zipfile'].values[0])
-        path_stub = '/'.join(row['zipfile'].values[0].split('/')[:-1])
-        row['contents'] = [f'{path_stub}/{x}' for x in row['contents']]
-    print(zipfile_df.iloc[0]['zipfile'])
-    print(zipfile_df.iloc[0]['contents'])
+    zipfile_df['path_stubs'] = '/'.join(zipfile_df['zipfile'].astype(str).split('/')[:-1])
+    print(zipfile_df['path_stubs'])
+    # for row in zipfile_df:
+    #     print(row)
+    #     print(row['zipfile'])
+    #     print(row['zipfile'].values[0])
+    #     path_stub = '/'.join(row['zipfile'].values[0].split('/')[:-1])
+    #     row['contents'] = [f'{path_stub}/{x}' for x in row['contents']]
+    # print(zipfile_df.iloc[0]['zipfile'])
+    # print(zipfile_df.iloc[0]['contents'])
     
     
 
