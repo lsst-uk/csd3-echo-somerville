@@ -66,7 +66,6 @@ def get_key_lists(bucket_name, access_key, secret_key, s3_host, get_contents_met
                     break
     print()
     zipfile_df = pd.DataFrame(np.array([zipfile_list,contents_list], dtype=object).T, columns=['zipfile','contents'])
-    zipfile_df['contents'] = zipfile_df['contents'].apply(lambda x: pd.Series(x))
     print(zipfile_df)
     return zipfile_df, pd.Series(all_keys_list, name='all_keys')
 
