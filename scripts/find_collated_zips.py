@@ -82,11 +82,13 @@ def verify_zip_contents(zipfiles_df, all_keys, debug):
     Returns:
     None
     """
-    print(zipfiles_df)
-    print(all_keys)
+    extract_list = []
+    # print(zipfiles_df)
+    # print(all_keys)
     print('Checking for zipfile contents in all_keys list...')
     start = datetime.now()
-    print(all_keys.isin(zipfiles_df['contents'].iloc[0]).all())
+    for i in range(len(zipfiles_df)):
+        print(all_keys.isin(zipfiles_df['contents'].iloc[i]).all())
     print((datetime.now()-start).microseconds, 'microseconds')
 
 def prepend_zipfile_path_to_contents(zipfile_df, debug):
