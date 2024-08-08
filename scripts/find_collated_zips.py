@@ -65,7 +65,7 @@ def get_key_lists(bucket_name, access_key, secret_key, s3_host, get_contents_met
                 if key_count >= 1000:
                     break
     print()
-    zipfile_df = pd.DataFrame([pd.Series(zipfile_list, name='zipfiles'),pd.Series(contents_list, name='contents')], columns=['zipfile','contents'])
+    zipfile_df = pd.DataFrame(np.array([zipfile_list,contents_list]).T, columns=['zipfile','contents'])
     print(zipfile_df)
     return zipfile_df, pd.Series(all_keys_list, name='all_keys')
 
