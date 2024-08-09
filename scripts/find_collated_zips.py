@@ -96,6 +96,8 @@ def verify_zip_contents(zipfiles_df, all_keys, debug):
         print(all_keys.isin(zipfiles_df['contents'].iloc[i]))
         if not all_keys.isin(zipfiles_df['contents'].iloc[i]).all():
             extract_list.append(zipfiles_df.iloc[i]["zipfile"])
+        if i > 0 and debug:
+            break
     print((datetime.now()-start).microseconds, 'microseconds')
     return extract_list
 
