@@ -91,14 +91,10 @@ def verify_zip_contents(zipfiles_df, all_keys, debug):
         # for key in zipfiles_df['contents'].iloc[i]:
         #     print(key)
         #     print(all_keys.isin([key]).any())
-        print(zipfiles_df['contents'].iloc[i])
-        print(all_keys.isin(zipfiles_df['contents'].iloc[i]).all())
-        print(all_keys.isin(zipfiles_df['contents'].iloc[i]).any())
-        print(all_keys.isin(zipfiles_df['contents'].iloc[i]))
-        print(sum(all_keys.isin(zipfiles_df['contents'].iloc[i])))
-        print(len(zipfiles_df['contents'].iloc[i]))
         if sum(all_keys.isin(zipfiles_df['contents'].iloc[i])) != len(zipfiles_df['contents'].iloc[i]):
             extract_list.append(zipfiles_df.iloc[i]["zipfile"])
+        else:
+            print(f'{zipfiles_df.iloc[i]["zipfile"]} contents previously extracted.')
     print((datetime.now()-start).microseconds, 'microseconds')
     return extract_list
 
@@ -215,6 +211,7 @@ def main():
         zipfiles_df = prepend_zipfile_path_to_contents(zipfiles_df, debug)
         extract_list = verify_zip_contents(zipfiles_df, all_keys, debug)
         print('Extract List')
+        print(extract_list)
         for zipfile in extract_list:
             print(zipfile)
     
@@ -223,7 +220,8 @@ def main():
         zipfiles_df = prepend_zipfile_path_to_contents(zipfiles_df, debug)
         extract_list = verify_zip_contents(zipfiles_df, all_keys, debug)
         print(extract_list)
-        extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_key, s3_host, debug)
+        if len(extract_list) > 0:
+            extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_key, s3_host, debug)
         
 
 if __name__ == '__main__':
