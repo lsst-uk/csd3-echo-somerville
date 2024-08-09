@@ -95,6 +95,7 @@ def verify_zip_contents(zipfiles_df, all_keys, debug):
         print(all_keys.isin(zipfiles_df['contents'].iloc[i]).all())
         print(all_keys.isin(zipfiles_df['contents'].iloc[i]).any())
         print(all_keys.isin(zipfiles_df['contents'].iloc[i]))
+        print(sum(all_keys.isin(zipfiles_df['contents'].iloc[i])))
         if not all_keys.isin(zipfiles_df['contents'].iloc[i]).all():
             extract_list.append(zipfiles_df.iloc[i]["zipfile"])
         if i > 0 and debug:
