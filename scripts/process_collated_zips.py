@@ -133,10 +133,10 @@ def extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_ke
     print('Extracting and uploading zip files...')
     if not debug:
         with Pool(nprocs) as p:
-            p.starmap(extract_and_upload_mp, extract_list, repeat(bucket_name), repeat(access_key), repeat(secret_key), repeat(s3_host), repeat(debug))
+            p.starmap(extract_and_upload_mp, [extract_list, repeat(bucket_name), repeat(access_key), repeat(secret_key), repeat(s3_host), repeat(debug)])
     else:
         with Pool(nprocs) as p:
-            p.starmap(extract_and_upload_mp, extract_list[0], repeat(bucket_name), repeat(access_key), repeat(secret_key), repeat(s3_host), repeat(debug))
+            p.starmap(extract_and_upload_mp, [[extract_list[0]], repeat(bucket_name), repeat(access_key), repeat(secret_key), repeat(s3_host), repeat(debug)])
 
 
 def main():
