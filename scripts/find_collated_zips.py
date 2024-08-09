@@ -64,7 +64,7 @@ def get_key_lists(bucket_name, access_key, secret_key, s3_host, get_contents_met
             print(f'Keys found: {key_count}, Zip files found: {zipfile_count}', end='\r')
             # for debugging
             if debug:
-                if key_count >= 10000:
+                if key_count >= 50000:
                     break
     print()
     zipfile_df = pd.DataFrame(np.array([zipfile_list,contents_list], dtype=object).T, columns=['zipfile','contents'])
