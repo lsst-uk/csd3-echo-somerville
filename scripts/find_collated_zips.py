@@ -6,6 +6,7 @@
 import sys
 import os
 from multiprocessing import Pool
+from multiprocessing import cpu_count
 from itertools import repeat
 import warnings
 from datetime import datetime, timedelta
@@ -21,6 +22,7 @@ import io
 import zipfile
 import warnings
 warnings.filterwarnings('ignore')
+import tqdm
 
 import bucket_manager.bucket_manager as bm
 
@@ -93,6 +95,7 @@ def verify_zip_contents(zipfiles_df, all_keys, debug):
         #     print(all_keys.isin([key]).any())
         if sum(all_keys.isin(zipfiles_df['contents'].iloc[i])) != len(zipfiles_df['contents'].iloc[i]):
             extract_list.append(zipfiles_df.iloc[i]["zipfile"])
+            print(f'{zipfiles_df.iloc[i]["zipfile"]} to be extracted.')
         else:
             print(f'{zipfiles_df.iloc[i]["zipfile"]} contents previously extracted.')
     print((datetime.now()-start).microseconds, 'microseconds')
@@ -112,24 +115,28 @@ def prepend_zipfile_path_to_contents(zipfile_df, debug):
     zipfile_df['contents'] = [[f'{zipfile_df.iloc[i]["path_stubs"]}/{x}' for x in zipfile_df.iloc[i]['contents']] for i in range(len(zipfile_df))]
     return zipfile_df.drop(columns='path_stubs')
 
-def extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_key, s3_host, debug):
+def extract_and_upload_mp(zipfile_key, bucket_name, access_key, secret_key, s3_host, debug):
     s3 = bm.get_resource(access_key, secret_key, s3_host)
-    s3_client = bm.get_client(access_key, secret_key, s3_host)
     bucket = s3.Bucket(bucket_name)
-    
-    for zipfile_key in extract_list:
-        print(f'Extracting {zipfile_key}...')
-        path_stub = '/'.join(zipfile_key.split('/')[:-1])
-        zipfile_data = io.BytesIO(bucket.Object(zipfile_key).get()['Body'].read())
-        with zipfile.ZipFile(zipfile_data) as zf:
-            for content_file in zf.namelist():
-                print(content_file)
-                content_file_data = zf.open(content_file)
-                key = path_stub + '/' + content_file
-                bucket.upload_fileobj(content_file_data, f'{key}')
-                print(f'Uploaded {content_file} to {key}')
-        if debug: # stop after frist zipfile
-            exit()
+    print(f'Extracting {zipfile_key}...')
+    path_stub = '/'.join(zipfile_key.split('/')[:-1])
+    zipfile_data = io.BytesIO(bucket.Object(zipfile_key).get()['Body'].read())
+    with zipfile.ZipFile(zipfile_data) as zf:
+        for content_file in tqdm(zf.namelist()):
+            print(content_file)
+            content_file_data = zf.open(content_file)
+            key = path_stub + '/' + content_file
+            bucket.upload_fileobj(content_file_data, f'{key}')
+            print(f'Uploaded {content_file} to {key}')
+
+def extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_key, s3_host, nprocs, debug):
+    print('Extracting and uploading zip files...')
+    if not debug:
+        with Pool(nprocs) as p:
+            p.starmap(extract_and_upload_mp, extract_list, repeat(bucket_name), repeat(access_key), repeat(secret_key), repeat(s3_host), repeat(debug))
+    else:
+        with Pool(nprocs) as p:
+            p.starmap(extract_and_upload_mp, extract_list[0], repeat(bucket_name), repeat(access_key), repeat(secret_key), repeat(s3_host), repeat(debug))
 
 
 def main():
@@ -159,6 +166,7 @@ def main():
     parser.add_argument('--verify-contents','-v', action='store_true', help='Verify the contents of the zip files from metadata.')
     parser.add_argument('--debug','-d', action='store_true', help='Print debug messages and shorten search.')
     parser.add_argument('--extract','-e', action='store_true', help='Extract and upload zip files for which the contents are not found in the bucket.')
+    parser.add_argument('--nprocs','-n', type=int, help='Number of processes to use for extraction and upload.', default=6)
 
     args = parser.parse_args()
     bucket_name = args.bucket_name
@@ -179,6 +187,16 @@ def main():
         extract = True
     else:
         extract = False
+    
+    if args.nprocs:
+        nprocs = args.nprocs
+        if nprocs < 1:
+            nprocs = 1
+        elif nprocs > (cpu_count() - 4):
+            print(f'Number of processes set to {nprocs} but only {cpu_count() - 4} available. Setting to {cpu_count() - 4}.')
+            nprocs = cpu_count() - 4
+    else:
+        nprocs = 6
 
     if list_contents or verify_contents or extract:
         get_contents_metadata = True
@@ -210,10 +228,10 @@ def main():
         print('Verifying zip file contents...')
         zipfiles_df = prepend_zipfile_path_to_contents(zipfiles_df, debug)
         extract_list = verify_zip_contents(zipfiles_df, all_keys, debug)
-        print('Extract List')
+        print('Extract List:')
         print(extract_list)
-        for zipfile in extract_list:
-            print(zipfile)
+        # for zipfile in extract_list:
+        #     print(zipfile)
     
     if extract:
         print('Extracting zip files...')
@@ -221,7 +239,7 @@ def main():
         extract_list = verify_zip_contents(zipfiles_df, all_keys, debug)
         print(extract_list)
         if len(extract_list) > 0:
-            extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_key, s3_host, debug)
+            extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_key, s3_host, nprocs, debug)
         
 
 if __name__ == '__main__':
