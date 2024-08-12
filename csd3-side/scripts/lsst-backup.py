@@ -83,45 +83,13 @@ def zip_folders(parent_folder, subfolders_to_collate, folders_files, use_compres
             for i, folder in enumerate(subfolders_to_collate):
                 for file in folders_files[i]:
                     file_path = os.path.join(folder, file)
-                    zip_file.write(file_path, os.path.relpath(file_path, parent_folder))
+                    arc_name = os.path.relpath(file_path, parent_folder)
+                    with open(file_path, 'rb') as src_file:
+                        zip_file.writestr(arc_name, src_file.read())
         return parent_folder, id, zip_buffer.getvalue()
     else:
         return parent_folder, id, b''
     
-# def zip_folders_chunked(chunk):
-#     """
-#     Collates the specified folders into a zip file.
-
-#     Args:
-#         chunk: zipped tuple containing:
-#             parent_folder (str): The path of the parent folder.
-#             subfolders_to_collate (list): A list of subfolder paths to be included in the zip file.
-#             folders_files (list): A list of lists containing files to be included in the zip file for each subfolder.
-#             use_compression (bool): Flag indicating whether to use compression for the zip file.
-#             dryrun (bool): Flag indicating whether to perform a dry run without actually creating the zip file.
-
-#     Returns:
-#         tuple: A tuple containing the parent folder path and the compressed zip file as a bytes object.
-#     """
-#     parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun = chunk
-#     if not dryrun:
-#         import io
-#         import zipfile
-
-#         zip_buffer = io.BytesIO()
-#         if use_compression:
-#             compression = zipfile.ZIP_DEFLATED  # zipfile.ZIP_DEFLATED = standard compression
-#         else:
-#             compression = zipfile.ZIP_STORED  # zipfile.ZIP_STORED = no compression
-#         with zipfile.ZipFile(zip_buffer, "a", compression, True) as zip_file:
-#             for i, folder in enumerate(subfolders_to_collate):
-#                 for file in folders_files[i]:
-#                     file_path = os.path.join(folder, file)
-#                     zip_file.write(file_path, os.path.relpath(file_path, parent_folder))
-#         return parent_folder, zip_buffer.getvalue()
-#     else:
-#         return parent_folder, b''
-
 def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun):
     """
     Uploads a file to an S3 bucket.
