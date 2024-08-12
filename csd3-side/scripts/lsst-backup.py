@@ -320,9 +320,7 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                         start = i * chunk_size
                         end = min(start + chunk_size, file_data_size)
                         part_number = i + 1
-                        with open(filename, 'rb') as f:
-                            f.seek(start)
-                            chunk_data = f.read(end - start)
+                        chunk_data = file_data[start:end]
                         part = s3_client.upload_part(
                             Body=chunk_data,
                             Bucket=bucket_name,
