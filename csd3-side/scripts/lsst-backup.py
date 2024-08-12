@@ -194,11 +194,12 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                         """
                         - Use multipart upload for large files
                         """
-                        print(f'Uploading {filename} to {bucket_name}/{object_key} in parts.')
+                        
                         obj = bucket.Object(object_key)
                         mp_upload = obj.initiate_multipart_upload()
                         chunk_size = 500 * 1024 * 1024  # Set chunk size to 500 MiB
                         chunk_count = int(np.ceil(file_size / chunk_size))
+                        print(f'Uploading {filename} to {bucket_name}/{object_key} in {chunk_count} parts.')
                         parts = []
                         for i in range(chunk_count):
                             start = i * chunk_size
@@ -310,11 +311,12 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                     """
                     - Use multipart upload for large files
                     """
-                    print(f'Uploading "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key} in parts.')
+                    
                     obj = bucket.Object(object_key)
                     mp_upload = obj.initiate_multipart_upload()
                     chunk_size = 500 * 1024 * 1024  # Set chunk size to 500 MiB
                     chunk_count = int(np.ceil(file_data_size / chunk_size))
+                    print(f'Uploading "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key} in {chunk_count} parts.')
                     parts = []
                     for i in range(chunk_count):
                         start = i * chunk_size
