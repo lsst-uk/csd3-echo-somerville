@@ -31,6 +31,7 @@ import yaml
 import io
 import zipfile
 import warnings
+from psutil import virtual_memory
 warnings.filterwarnings('ignore')
 
 import bucket_manager.bucket_manager as bm
@@ -634,8 +635,15 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             parent_folder = zip_tuple[0]
             folders = zip_tuple[1]['folders']
             folder_files = zip_tuple[1]['folder_files']
-            chunks = [folders[i:i + nprocs] for i in range(0, len(folders), nprocs)]
-            chunk_files = [folder_files[i:i + nprocs] for i in range(0, len(folder_files), nprocs)]
+            num_files = sum([len(ff) for ff in folder_files])
+            max_filesize = max_filesize = max([max([os.lstat(filename).st_size for filename in ff]) for ff in folder_files])
+            total_memory = virtual_memory().total * 0.75
+            max_zipsize = total_memory / zip_pool._processes
+            max_files_per_zip = int(np.ceil(max_zipsize / max_filesize))
+            num_zips = int(np.ceil(num_files / max_files_per_zip))
+
+            chunks = [folders[i:i + num_zips] for i in range(0, len(folders), num_zips)]
+            chunk_files = [folder_files[i:i + num_zips] for i in range(0, len(folder_files), num_zips)]
             if len(chunks) != len(chunk_files):
                 print('Error: chunks and chunk_files are not the same length.')
                 sys.exit(1)
