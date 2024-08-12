@@ -695,6 +695,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
                                 if checksum_string == existing_zip_checksum:
                                     print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and checksums match - skipping.')
+                                    zip_results[i] = None
                                     continue
                                 
                             # upload zipped folders
