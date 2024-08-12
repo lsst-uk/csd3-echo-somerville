@@ -39,6 +39,8 @@ import hashlib
 import os
 import argparse
 
+import gc
+
 def zip_folders(parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun, id=0):
     """
     Collates the specified folders into a zip file.
@@ -321,6 +323,12 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
    
     else:
         checksum_string = "DRYRUN"
+
+    # free up memory
+    del file_data
+    gc.collect()
+
+
     """
         report actions
         CSV formatted
@@ -332,6 +340,9 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
     else:
         return_string += ',n/a'
     return_string += f',"{",".join(zip_contents)}"'
+
+
+
     return return_string
 
 
