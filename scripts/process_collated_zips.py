@@ -22,7 +22,7 @@ import io
 import zipfile
 import warnings
 warnings.filterwarnings('ignore')
-import tqdm
+from tqdm import tqdm
 
 import bucket_manager.bucket_manager as bm
 
