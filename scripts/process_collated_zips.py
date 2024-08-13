@@ -118,16 +118,16 @@ def prepend_zipfile_path_to_contents(zipfile_df, debug):
 def extract_and_upload_mp(zipfile_key, bucket_name, access_key, secret_key, s3_host, debug):
     s3 = bm.get_resource(access_key, secret_key, s3_host)
     bucket = s3.Bucket(bucket_name)
-    print(f'Extracting {zipfile_key}...')
+    print(f'Extracting {zipfile_key}...', flush=True)
     path_stub = '/'.join(zipfile_key.split('/')[:-1])
     zipfile_data = io.BytesIO(bucket.Object(zipfile_key).get()['Body'].read())
     with zipfile.ZipFile(zipfile_data) as zf:
         for content_file in tqdm(zf.namelist()):
-            print(content_file)
+            print(content_file, flush=True)
             content_file_data = zf.open(content_file)
             key = path_stub + '/' + content_file
             bucket.upload_fileobj(content_file_data, f'{key}')
-            print(f'Uploaded {content_file} to {key}')
+            print(f'Uploaded {content_file} to {key}', flush=True)
 
 def extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_key, s3_host, nprocs, debug):
     print('Extracting and uploading zip files...')
@@ -239,7 +239,11 @@ def main():
         extract_list = verify_zip_contents(zipfiles_df, all_keys, debug)
         print(extract_list)
         if len(extract_list) > 0:
-            extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_key, s3_host, nprocs, debug)
+            if debug:
+                for zipfile in extract_list:
+                    extract_and_upload_mp(zipfile, bucket_name, access_key, secret_key, s3_host, debug)
+            else:
+                extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_key, s3_host, nprocs, debug)
         
 
 if __name__ == '__main__':
