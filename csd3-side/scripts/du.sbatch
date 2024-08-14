@@ -9,7 +9,7 @@
 #SBATCH --mem=3420mb
 
 # Change to job working directory
-top_path=/rds/project/rds-lT5YGmtKack/ras81/butler_full_20221201/data/hscImports/pdr3_wide_full/deepCoadd
+top_path=/rds/project/rds-lT5YGmtKack/ras81/butler_full_20221201/data
 paths=( $(find $top_path -maxdepth 1 -type d) )
 
 for path in "${paths[@]:1}" # ignore index zero as it will be '.'
