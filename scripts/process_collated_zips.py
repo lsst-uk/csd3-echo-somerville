@@ -118,14 +118,7 @@ def prepend_zipfile_path_to_contents(zipfile_df, debug):
     zipfile_df['contents'] = [[f'{zipfile_df.iloc[i]["path_stubs"]}/{x}' for x in zipfile_df.iloc[i]['contents']] for i in range(len(zipfile_df))]
     return zipfile_df.drop(columns='path_stubs')
 
-def extract_and_upload_mp(zipfile_key, bucket_name, access_key, secret_key, s3_host, debug):
-    print(zipfile_key, flush=True)
-    print(bucket_name, flush=True)
-    print(access_key, flush=True)
-    print(secret_key, flush=True)
-    print(s3_host, flush=True)
-    print(debug, flush=True)
-
+def extract_and_upload_mp(bucket_name, access_key, secret_key, s3_host, debug, zipfile_key):
     s3 = bm.get_resource(access_key, secret_key, s3_host)
     bucket = s3.Bucket(bucket_name)
     print(f'Extracting {zipfile_key}...', flush=True)
