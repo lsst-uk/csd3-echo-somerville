@@ -133,7 +133,7 @@ def extract_and_upload_mp(bucket_name, access_key, secret_key, s3_host, debug, z
                 key = path_stub + '/' + content_file
                 bucket.upload_fileobj(content_file_data, f'{key}')
                 print(f'Uploaded {content_file} to {key}', flush=True)
-                pbar.update(len(content_file_data))
+                pbar.update(zf.getinfo(content_file).file_size)
 
 def extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_key, s3_host, pool_size, debug):
     print(f'Extracting zip files and uploading contents using {pool_size} processes...') 
