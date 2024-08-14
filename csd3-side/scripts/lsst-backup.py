@@ -31,6 +31,7 @@ import yaml
 import io
 import zipfile
 import warnings
+from psutil import virtual_memory
 warnings.filterwarnings('ignore')
 
 import bucket_manager.bucket_manager as bm
@@ -38,6 +39,8 @@ import bucket_manager.bucket_manager as bm
 import hashlib
 import os
 import argparse
+
+import gc
 
 def zip_folders(parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun, id=0):
     """
@@ -83,45 +86,13 @@ def zip_folders(parent_folder, subfolders_to_collate, folders_files, use_compres
             for i, folder in enumerate(subfolders_to_collate):
                 for file in folders_files[i]:
                     file_path = os.path.join(folder, file)
-                    zip_file.write(file_path, os.path.relpath(file_path, parent_folder))
+                    arc_name = os.path.relpath(file_path, parent_folder)
+                    with open(file_path, 'rb') as src_file:
+                        zip_file.writestr(arc_name, src_file.read())
         return parent_folder, id, zip_buffer.getvalue()
     else:
         return parent_folder, id, b''
     
-# def zip_folders_chunked(chunk):
-#     """
-#     Collates the specified folders into a zip file.
-
-#     Args:
-#         chunk: zipped tuple containing:
-#             parent_folder (str): The path of the parent folder.
-#             subfolders_to_collate (list): A list of subfolder paths to be included in the zip file.
-#             folders_files (list): A list of lists containing files to be included in the zip file for each subfolder.
-#             use_compression (bool): Flag indicating whether to use compression for the zip file.
-#             dryrun (bool): Flag indicating whether to perform a dry run without actually creating the zip file.
-
-#     Returns:
-#         tuple: A tuple containing the parent folder path and the compressed zip file as a bytes object.
-#     """
-#     parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun = chunk
-#     if not dryrun:
-#         import io
-#         import zipfile
-
-#         zip_buffer = io.BytesIO()
-#         if use_compression:
-#             compression = zipfile.ZIP_DEFLATED  # zipfile.ZIP_DEFLATED = standard compression
-#         else:
-#             compression = zipfile.ZIP_STORED  # zipfile.ZIP_STORED = no compression
-#         with zipfile.ZipFile(zip_buffer, "a", compression, True) as zip_file:
-#             for i, folder in enumerate(subfolders_to_collate):
-#                 for file in folders_files[i]:
-#                     file_path = os.path.join(folder, file)
-#                     zip_file.write(file_path, os.path.relpath(file_path, parent_folder))
-#         return parent_folder, zip_buffer.getvalue()
-#     else:
-#         return parent_folder, b''
-
 def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun):
     """
     Uploads a file to an S3 bucket.
@@ -194,11 +165,12 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                         """
                         - Use multipart upload for large files
                         """
-                        print(f'Uploading {filename} to {bucket_name}/{object_key} in parts.')
+                        
                         obj = bucket.Object(object_key)
                         mp_upload = obj.initiate_multipart_upload()
                         chunk_size = 500 * 1024 * 1024  # Set chunk size to 500 MiB
                         chunk_count = int(np.ceil(file_size / chunk_size))
+                        print(f'Uploading {filename} to {bucket_name}/{object_key} in {chunk_count} parts.')
                         parts = []
                         for i in range(chunk_count):
                             start = i * chunk_size
@@ -310,19 +282,18 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                     """
                     - Use multipart upload for large files
                     """
-                    print(f'Uploading "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key} in parts.')
+                    
                     obj = bucket.Object(object_key)
                     mp_upload = obj.initiate_multipart_upload()
                     chunk_size = 500 * 1024 * 1024  # Set chunk size to 500 MiB
                     chunk_count = int(np.ceil(file_data_size / chunk_size))
+                    print(f'Uploading "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key} in {chunk_count} parts.')
                     parts = []
                     for i in range(chunk_count):
                         start = i * chunk_size
                         end = min(start + chunk_size, file_data_size)
                         part_number = i + 1
-                        with open(filename, 'rb') as f:
-                            f.seek(start)
-                            chunk_data = f.read(end - start)
+                        chunk_data = file_data[start:end]
                         part = s3_client.upload_part(
                             Body=chunk_data,
                             Bucket=bucket_name,
@@ -353,6 +324,12 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
    
     else:
         checksum_string = "DRYRUN"
+
+    # free up memory
+    del file_data
+    gc.collect()
+
+
     """
         report actions
         CSV formatted
@@ -364,6 +341,9 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
     else:
         return_string += ',n/a'
     return_string += f',"{",".join(zip_contents)}"'
+
+
+
     return return_string
 
 
@@ -655,8 +635,15 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             parent_folder = zip_tuple[0]
             folders = zip_tuple[1]['folders']
             folder_files = zip_tuple[1]['folder_files']
-            chunks = [folders[i:i + nprocs] for i in range(0, len(folders), nprocs)]
-            chunk_files = [folder_files[i:i + nprocs] for i in range(0, len(folder_files), nprocs)]
+            num_files = sum([len(ff) for ff in folder_files])
+            max_filesize = max_filesize = max([max([os.lstat(filename).st_size for filename in ff]) for ff in folder_files])
+            total_memory = virtual_memory().total * 0.75
+            max_zipsize = total_memory / zip_pool._processes
+            max_files_per_zip = int(np.ceil(max_zipsize / max_filesize))
+            num_zips = int(np.ceil(num_files / max_files_per_zip))
+
+            chunks = [folders[i:i + num_zips] for i in range(0, len(folders), num_zips)]
+            chunk_files = [folder_files[i:i + num_zips] for i in range(0, len(folder_files), num_zips)]
             if len(chunks) != len(chunk_files):
                 print('Error: chunks and chunk_files are not the same length.')
                 sys.exit(1)
@@ -697,6 +684,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
                                 if checksum_string == existing_zip_checksum:
                                     print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and checksums match - skipping.')
+                                    zip_results[i] = None
                                     continue
                                 
                             # upload zipped folders
