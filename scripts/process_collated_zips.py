@@ -140,7 +140,7 @@ def extract_and_upload_mp(zipfile_key, bucket_name, access_key, secret_key, s3_h
             print(f'Uploaded {content_file} to {key}', flush=True)
 
 def extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_key, s3_host, pool_size, debug):
-    print('Extracting and uploading zip files using {pool_size} processes...') 
+    print(f'Extracting and uploading zip files using {pool_size} processes...') 
     with Pool(pool_size) as p:
         p.map(partial(extract_and_upload_mp, bucket_name, access_key, secret_key, s3_host, debug), extract_list, chunksize=len(extract_list)//pool_size)
 
