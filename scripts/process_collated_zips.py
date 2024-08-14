@@ -119,6 +119,7 @@ def prepend_zipfile_path_to_contents(zipfile_df, debug):
     return zipfile_df.drop(columns='path_stubs')
 
 def extract_and_upload_mp(zipfile_key, bucket_name, access_key, secret_key, s3_host, debug):
+    print(s3_host)
     s3 = bm.get_resource(access_key, secret_key, s3_host)
     bucket = s3.Bucket(bucket_name)
     print(f'Extracting {zipfile_key}...', flush=True)
@@ -133,7 +134,7 @@ def extract_and_upload_mp(zipfile_key, bucket_name, access_key, secret_key, s3_h
             print(f'Uploaded {content_file} to {key}', flush=True)
 
 def extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_key, s3_host, pool_size, debug):
-    print('Extracting and uploading zip files...')
+    print('Extracting and uploading zip files using {pool_size} processes...') 
     with Pool(pool_size) as p:
         p.map(partial(extract_and_upload_mp, bucket_name, access_key, secret_key, s3_host, debug), extract_list, chunksize=len(extract_list)//pool_size)
 
@@ -141,6 +142,7 @@ def calc_pool_size(zipfiles_df, extract_list, nprocs):
     """
     Calculate the number of processes to use for extraction and upload.
     Ensures number of processors is maximised while not exceeding available memory.
+    Lower of nprocs and calculated max procs is returned.
 
     Parameters:
     - zipfiles_df (pandas.DataFrame): The DataFrame containing the zipfile information.
@@ -159,7 +161,7 @@ def calc_pool_size(zipfiles_df, extract_list, nprocs):
     else:
         memory_ratio = int(available_memory / largest_zipfile)
         print(f'Largest zipfile ({largest_zipfile}) fits in available memory ({available_memory}) {memory_ratio} times.')
-        return nprocs * memory_ratio
+        return min([nprocs * memory_ratio, nprocs])
 
 
 def main():
@@ -189,7 +191,7 @@ def main():
     parser.add_argument('--verify-contents','-v', action='store_true', help='Verify the contents of the zip files from metadata.')
     parser.add_argument('--debug','-d', action='store_true', help='Print debug messages and shorten search.')
     parser.add_argument('--extract','-e', action='store_true', help='Extract and upload zip files for which the contents are not found in the bucket.')
-    parser.add_argument('--nprocs','-n', type=int, help='Number of processes to use for extraction and upload.', default=6)
+    parser.add_argument('--nprocs','-n', type=int, help='Maximum number of processes to use for extraction and upload.', default=6)
 
     args = parser.parse_args()
     bucket_name = args.bucket_name
@@ -216,7 +218,7 @@ def main():
         if nprocs < 1:
             nprocs = 1
         elif nprocs > (cpu_count() - 1): # allow one core for __main__ and system processes
-            print(f'Number of processes set to {nprocs} but only {cpu_count() - 1} available. Setting to {cpu_count() - 1}.')
+            print(f'Maximum number of processes set to {nprocs} but only {cpu_count() - 1} available. Setting to {cpu_count() - 1}.')
             nprocs = cpu_count() - 1
     else:
         nprocs = 6
@@ -260,7 +262,7 @@ def main():
         print('Extracting zip files...')
         zipfiles_df = prepend_zipfile_path_to_contents(zipfiles_df, debug)
         extract_list = verify_zip_contents(zipfiles_df, all_keys, debug)
-
+        print(zipfiles_df)
         pool_size = calc_pool_size(zipfiles_df, extract_list, nprocs)
 
         print(extract_list)
