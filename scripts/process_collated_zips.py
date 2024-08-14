@@ -270,6 +270,9 @@ def main():
         print(extract_list)
         if len(extract_list) > 0:
             extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_key, s3_host, pool_size, debug)
+
+    
+    print('Done.')
         
 
 if __name__ == '__main__':
