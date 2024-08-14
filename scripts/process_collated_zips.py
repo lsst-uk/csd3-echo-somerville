@@ -8,6 +8,7 @@ import os
 from multiprocessing import Pool
 from multiprocessing import cpu_count
 from itertools import repeat
+from functools import partial
 import warnings
 from datetime import datetime, timedelta
 from time import sleep
@@ -131,12 +132,8 @@ def extract_and_upload_mp(zipfile_key, bucket_name, access_key, secret_key, s3_h
 
 def extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_key, s3_host, nprocs, debug):
     print('Extracting and uploading zip files...')
-    if not debug:
-        with Pool(nprocs) as p:
-            p.starmap(extract_and_upload_mp, [extract_list, repeat(bucket_name), repeat(access_key), repeat(secret_key), repeat(s3_host), repeat(debug)])
-    else:
-        with Pool(nprocs) as p:
-            p.starmap(extract_and_upload_mp, [[extract_list[0]], repeat(bucket_name), repeat(access_key), repeat(secret_key), repeat(s3_host), repeat(debug)])
+    with Pool(nprocs) as p:
+        p.map(partial(extract_and_upload_mp, bucket_name, access_key, secret_key, s3_host, debug), extract_list, chunksize=len(extract_list)//nprocs)
 
 
 def main():
