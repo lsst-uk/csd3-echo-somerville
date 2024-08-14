@@ -24,6 +24,7 @@ import zipfile
 import warnings
 warnings.filterwarnings('ignore')
 from tqdm import tqdm
+from psutil import virtual_memory
 
 import bucket_manager.bucket_manager as bm
 
@@ -36,6 +37,7 @@ import re
 def get_key_lists(bucket_name, access_key, secret_key, s3_host, get_contents_metadata, debug):
     zipfile_list = []
     contents_list = []
+    zipfile_sizes = []
     all_keys_list = []
     s3 = bm.get_resource(access_key, secret_key, s3_host)
     s3_client = bm.get_client(access_key, secret_key, s3_host)
@@ -58,17 +60,18 @@ def get_key_lists(bucket_name, access_key, secret_key, s3_host, get_contents_met
                     if get_contents_metadata:
                         contents = bucket.Object(key).get()['Metadata']['zip-contents'].split(',')
                         contents_list.append(contents)
+                        zipfile_sizes.append(obj['Size'])
                         # print(f'{key}: {contents}')
                     # else:
                 else:
                     all_keys_list.append(key)
             print(f'Keys found: {key_count}, Zip files found: {zipfile_count}', end='\r')
             # for debugging
-            # if debug:
-            #     if key_count >= 2000000:
-            #         break
+            if debug:
+                if key_count >= 20000:
+                    break
     print()
-    zipfile_df = pd.DataFrame(np.array([zipfile_list,contents_list], dtype=object).T, columns=['zipfile','contents'])
+    zipfile_df = pd.DataFrame(np.array([zipfile_list,zipfile_sizes,contents_list], dtype=object).T, columns=['zipfile','size','contents'])
     if debug:
         print(zipfile_df)
     return zipfile_df, pd.Series(all_keys_list, name='all_keys')
@@ -189,9 +192,9 @@ def main():
         nprocs = args.nprocs
         if nprocs < 1:
             nprocs = 1
-        elif nprocs > (cpu_count() - 4):
-            print(f'Number of processes set to {nprocs} but only {cpu_count() - 4} available. Setting to {cpu_count() - 4}.')
-            nprocs = cpu_count() - 4
+        elif nprocs > (cpu_count() - 1): # allow one core for __main__ and system processes
+            print(f'Number of processes set to {nprocs} but only {cpu_count() - 1} available. Setting to {cpu_count() - 1}.')
+            nprocs = cpu_count() - 1
     else:
         nprocs = 6
 
