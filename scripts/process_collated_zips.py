@@ -124,7 +124,7 @@ def extract_and_upload_mp(bucket_name, access_key, secret_key, s3_host, debug, z
     print(f'Extracting {zipfile_key}...', flush=True)
     path_stub = '/'.join(zipfile_key.split('/')[:-1])
     zipfile_data = io.BytesIO(bucket.Object(zipfile_key).get()['Body'].read())
-    total_size = zipfile_data.getbuffer().nbytes
+    total_size = len(zipfile_data)
     with zipfile.ZipFile(zipfile_data) as zf:
         with tqdm(total=total_size, desc='Uploading', unit='B', unit_scale=True) as pbar:
             for content_file in zf.namelist():
@@ -133,7 +133,7 @@ def extract_and_upload_mp(bucket_name, access_key, secret_key, s3_host, debug, z
                 key = path_stub + '/' + content_file
                 bucket.upload_fileobj(content_file_data, f'{key}')
                 print(f'Uploaded {content_file} to {key}', flush=True)
-                pbar.update(content_file_data.getbuffer().nbytes)
+                pbar.update(len(content_file_data))
 
 def extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_key, s3_host, pool_size, debug):
     print(f'Extracting zip files and uploading contents using {pool_size} processes...') 
