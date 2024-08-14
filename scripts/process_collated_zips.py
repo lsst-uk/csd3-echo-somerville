@@ -119,12 +119,12 @@ def prepend_zipfile_path_to_contents(zipfile_df, debug):
     return zipfile_df.drop(columns='path_stubs')
 
 def extract_and_upload_mp(zipfile_key, bucket_name, access_key, secret_key, s3_host, debug):
-    print(zipfile_key)
-    print(bucket_name)
-    print(access_key)
-    print(secret_key)
-    print(s3_host)
-    print(debug)    
+    print(zipfile_key, flush=True)
+    print(bucket_name, flush=True)
+    print(access_key, flush=True)
+    print(secret_key, flush=True)
+    print(s3_host, flush=True)
+    print(debug, flush=True)
 
     s3 = bm.get_resource(access_key, secret_key, s3_host)
     bucket = s3.Bucket(bucket_name)
@@ -140,9 +140,9 @@ def extract_and_upload_mp(zipfile_key, bucket_name, access_key, secret_key, s3_h
             print(f'Uploaded {content_file} to {key}', flush=True)
 
 def extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_key, s3_host, pool_size, debug):
-    print(f'Extracting and uploading zip files using {pool_size} processes...') 
+    print(f'Extracting zip files and uploading contents using {pool_size} processes...') 
     with Pool(pool_size) as p:
-        p.map(partial(extract_and_upload_mp, bucket_name, access_key, secret_key, s3_host, debug), extract_list, chunksize=len(extract_list)//pool_size)
+        p.map(partial(extract_and_upload_mp, bucket_name, access_key, secret_key, s3_host, debug), extract_list)#, chunksize=len(extract_list)//pool_size)
 
 def calc_pool_size(zipfiles_df, extract_list, nprocs):
     """
