@@ -24,7 +24,6 @@ import zipfile
 import warnings
 warnings.filterwarnings('ignore')
 from tqdm import tqdm
-from psutil import virtual_memory
 
 import bucket_manager.bucket_manager as bm
 
@@ -133,10 +132,34 @@ def extract_and_upload_mp(zipfile_key, bucket_name, access_key, secret_key, s3_h
             bucket.upload_fileobj(content_file_data, f'{key}')
             print(f'Uploaded {content_file} to {key}', flush=True)
 
-def extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_key, s3_host, nprocs, debug):
+def extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_key, s3_host, pool_size, debug):
     print('Extracting and uploading zip files...')
-    with Pool(nprocs) as p:
-        p.map(partial(extract_and_upload_mp, bucket_name, access_key, secret_key, s3_host, debug), extract_list, chunksize=len(extract_list)//nprocs)
+    with Pool(pool_size) as p:
+        p.map(partial(extract_and_upload_mp, bucket_name, access_key, secret_key, s3_host, debug), extract_list, chunksize=len(extract_list)//pool_size)
+
+def calc_pool_size(zipfiles_df, extract_list, nprocs):
+    """
+    Calculate the number of processes to use for extraction and upload.
+    Ensures number of processors is maximised while not exceeding available memory.
+
+    Parameters:
+    - zipfiles_df (pandas.DataFrame): The DataFrame containing the zipfile information.
+    - extract_list (list): The list of zipfiles to extract.
+    - nprocs (int): The number of processes to use.
+
+    Returns:
+    - int: The number of processes to use.
+    """
+    from psutil import virtual_memory
+    largest_zipfile = zipfiles_df[zipfiles_df['zipfile'].isin(extract_list)]['size'].max()
+    available_memory = virtual_memory().available
+    if largest_zipfile > available_memory:
+        print('Largest zipfile exceeds available memory. Reducing number of processes.')
+        return 1
+    else:
+        memory_ratio = int(available_memory / largest_zipfile)
+        print(f'Largest zipfile ({largest_zipfile}) fits in available memory ({available_memory}) {memory_ratio} times.')
+        return nprocs * memory_ratio
 
 
 def main():
@@ -237,13 +260,15 @@ def main():
         print('Extracting zip files...')
         zipfiles_df = prepend_zipfile_path_to_contents(zipfiles_df, debug)
         extract_list = verify_zip_contents(zipfiles_df, all_keys, debug)
+
+        pool_size = calc_pool_size(zipfiles_df, extract_list, nprocs)
+
         print(extract_list)
         if len(extract_list) > 0:
             if debug:
-                for zipfile in extract_list:
-                    extract_and_upload_mp(zipfile, bucket_name, access_key, secret_key, s3_host, debug)
+                extract_and_upload_mp(extract_list[0], bucket_name, access_key, secret_key, s3_host, 1, debug)
             else:
-                extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_key, s3_host, nprocs, debug)
+                extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_key, s3_host, pool_size, debug)
         
 
 if __name__ == '__main__':
