@@ -273,10 +273,10 @@ def main():
 
         print(extract_list)
         if len(extract_list) > 0:
-            if debug:
-                extract_and_upload_mp(extract_list[0], bucket_name, access_key, secret_key, s3_host, 1, debug)
-            else:
-                extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_key, s3_host, pool_size, debug)
+            # if debug:
+            #     extract_and_upload_mp(extract_list[0], bucket_name, access_key, secret_key, s3_host, 1, debug)
+            # else:
+            extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_key, s3_host, pool_size, debug)
         
 
 if __name__ == '__main__':
