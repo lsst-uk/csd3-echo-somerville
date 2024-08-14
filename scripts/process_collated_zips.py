@@ -67,7 +67,7 @@ def get_key_lists(bucket_name, access_key, secret_key, s3_host, get_contents_met
             print(f'Keys found: {key_count}, Zip files found: {zipfile_count}', end='\r')
             # for debugging
             if debug:
-                if key_count >= 20000:
+                if key_count >= 200:
                     break
     print()
     zipfile_df = pd.DataFrame(np.array([zipfile_list,zipfile_sizes,contents_list], dtype=object).T, columns=['zipfile','size','contents'])
@@ -119,7 +119,13 @@ def prepend_zipfile_path_to_contents(zipfile_df, debug):
     return zipfile_df.drop(columns='path_stubs')
 
 def extract_and_upload_mp(zipfile_key, bucket_name, access_key, secret_key, s3_host, debug):
+    print(zipfile_key)
+    print(bucket_name)
+    print(access_key)
+    print(secret_key)
     print(s3_host)
+    print(debug)    
+
     s3 = bm.get_resource(access_key, secret_key, s3_host)
     bucket = s3.Bucket(bucket_name)
     print(f'Extracting {zipfile_key}...', flush=True)
