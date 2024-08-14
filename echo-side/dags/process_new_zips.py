@@ -1,15 +1,25 @@
 from airflow import DAG
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
-from airflow.operators.bash import BashOperator
+from airflow.operators.python import PythonOperator
 from airflow.models import Variable
 from datetime import timedelta, datetime
 
+bucket_names = []
+
+def dl_bucket_names(url):
+    import json
+    import requests
+    r = requests.get(url)
+    buckets = json.loads(r.text)
+    for bucket in buckets:
+        bucket_names.append(bucket['name'])
+    print(bucket_names)
+    
 # Define default arguments for the DAG
 default_args = {
     'owner': 'airflow',
     'retries': 0,
-    'retry_delay': timedelta(minutes=5),
-    'max_active_runs': 2,
+    'retry_delay': timedelta(minutes=15),
 }
 
 # Instantiate the DAG
@@ -22,21 +32,27 @@ dag = DAG(
     catchup=False,
 )
 
-get_bucket_names = BashOperator()
+with dag:
 
-process_zips = KubernetesPodOperator(
-    task_id='process_zips',
-    image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
-    cmds=['./entrypoint.sh'],
-    arguments=['python', 'csd3-echo-somerville/scripts/process_collated_zips.py', '--bucket_name', '{{ bucket_name }}', '--extract', '--nprocs', '16'],
-    env_vars={
-        'ECHO_S3_ACCESS_KEY': Variable.get("ECHO_S3_ACCESS_KEY"),
-        'ECHO_S3_SECRET_KEY': Variable.get("ECHO_S3_SECRET_KEY"),
-    },
-    dag=dag,
-    get_logs=True,
-)
+    get_bucket_names = PythonOperator(
+        task_id = 'get_bucket_names',
+        python_callable = 'dl_bucket_names',
+        arguments=['https://raw.githubusercontent.com/lsst-uk/csd3-echo-somerville/main/echo-side/bucket_names/bucket_names.json'],
+    )
 
-# Set the task sequence
-get_bucket_names >> process_zips
-        
+    if len(bucket_names) > 0:
+        for i, bucket_name in enumerate(bucket_names):
+            process_zips_task = KubernetesPodOperator(
+                task_id=f'process_zips_{i}',
+                image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
+                cmds=['./entrypoint.sh'],
+                arguments=['python', 'csd3-echo-somerville/scripts/process_collated_zips.py', '--bucket_name', bucket_name, '--extract', '--nprocs', '16'],
+                env_vars={
+                    'ECHO_S3_ACCESS_KEY': Variable.get("ECHO_S3_ACCESS_KEY"),
+                    'ECHO_S3_SECRET_KEY': Variable.get("ECHO_S3_SECRET_KEY"),
+                },
+                get_logs=True,
+            )
+    else:
+        print('No bucket names found.')
+            
