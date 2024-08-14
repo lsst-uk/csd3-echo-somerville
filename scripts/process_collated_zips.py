@@ -267,11 +267,10 @@ def main():
         print('Extracting zip files...')
         zipfiles_df = prepend_zipfile_path_to_contents(zipfiles_df, debug)
         extract_list = verify_zip_contents(zipfiles_df, all_keys, debug)
-        print(zipfiles_df)
-        pool_size = calc_pool_size(zipfiles_df, extract_list, nprocs)
 
         print(extract_list)
         if len(extract_list) > 0:
+            pool_size = calc_pool_size(zipfiles_df, extract_list, nprocs)
             extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_key, s3_host, pool_size, debug)
         else:
             print('All zip files previously extracted.')
