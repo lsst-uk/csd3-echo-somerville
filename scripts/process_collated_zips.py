@@ -256,7 +256,7 @@ def main():
         zipfiles_df = prepend_zipfile_path_to_contents(zipfiles_df, debug)
         extract_list = verify_zip_contents(zipfiles_df, all_keys, debug)
         if len(extract_list) > 0:
-            print('Extract List:')
+            print('Some zip files still to extract:')
             print(extract_list)
         else:
             print('All zip files previously extracted.')
