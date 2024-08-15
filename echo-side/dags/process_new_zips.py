@@ -6,9 +6,10 @@ from datetime import timedelta, datetime
 
 bucket_names = []
 
-def dl_bucket_names(url):
+def dl_bucket_names(**kwargs):
     import json
     import requests
+    url = kwargs['url']
     r = requests.get(url)
     buckets = json.loads(r.text)
     for bucket in buckets:
@@ -37,7 +38,7 @@ with dag:
     get_bucket_names = PythonOperator(
         task_id = 'get_bucket_names',
         python_callable = 'dl_bucket_names',
-        arguments='https://raw.githubusercontent.com/lsst-uk/csd3-echo-somerville/main/echo-side/bucket_names/bucket_names.json',
+        op_kwargs={'url':'https://raw.githubusercontent.com/lsst-uk/csd3-echo-somerville/main/echo-side/bucket_names/bucket_names.json'},
     )
 
     if len(bucket_names) > 0:
