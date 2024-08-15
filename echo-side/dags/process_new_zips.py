@@ -39,7 +39,7 @@ with dag:
         task_id = 'get_bucket_names',
         python_callable = dl_bucket_names,
         op_kwargs={'url':'https://raw.githubusercontent.com/lsst-uk/csd3-echo-somerville/main/echo-side/bucket_names/bucket_names.json'},
-        xcom_push=True,
+        xcom=True,
         show_return_value_in_logs=True,
     )
 
