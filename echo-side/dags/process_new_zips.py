@@ -71,5 +71,5 @@ with DAG(
     # else:
     #     print('No bucket names found.')
 
-    get_bucket_names >> print_bucket_name_task >> process_zips_task
+    get_bucket_names >> print_bucket_name_task #>> process_zips_task
             
