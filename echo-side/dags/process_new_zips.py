@@ -8,11 +8,11 @@ from datetime import timedelta, datetime
 
 
 
-def dl_bucket_names(**kwargs):
+def dl_bucket_names(url):
     import json
     import requests
     global bucket_names
-    url = kwargs['url']
+    # url = kwargs['url']
     r = requests.get(url)
     buckets = json.loads(r.text)
     for bucket in buckets:
@@ -21,7 +21,7 @@ def dl_bucket_names(**kwargs):
     # kwargs['ti'].xcom_push(key='bucket_names', value=bucket_names)
     return bucket_names
 
-bucket_names = dl_bucket_names({'url':'https://raw.githubusercontent.com/lsst-uk/csd3-echo-somerville/main/echo-side/bucket_names/bucket_names.json'})
+bucket_names = dl_bucket_names('https://raw.githubusercontent.com/lsst-uk/csd3-echo-somerville/main/echo-side/bucket_names/bucket_names.json')
 
 def print_bucket_name(bucket_name):
     print(bucket_name)
