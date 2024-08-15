@@ -52,7 +52,7 @@ with DAG(
             task_id=f'print_bucket_name_{bucket_name}',
             python_callable=print_bucket_name,
             op_kwargs={'bucket_name': bucket_name},
-        ) for bucket_name in XComArg(get_bucket_names, key='bucket_names').iter_references()]
+        ) for bucket_name in XComArg('get_bucket_names', key='bucket_names')]
 
     # if len(bucket_names) > 0:
     #     print(f'Bucket names found: {bucket_names}')
