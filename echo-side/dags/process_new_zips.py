@@ -60,4 +60,6 @@ with DAG(
     ) for bucket_name in bucket_names]
     # else:
     #     print('No bucket names found.')
+
+    get_bucket_names >> process_zips_task
             
