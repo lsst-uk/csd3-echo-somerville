@@ -465,12 +465,12 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
         folder_files = [os.sep.join([folder, filename]) for filename in files]
         sizes = []
-        for i, filename in enumerate(folder_files):
+        for filename in folder_files:
             try:
                 sizes.append(os.stat(filename).st_size)
             except PermissionError:
                 print(f'WARNING: Permission error reading {filename}. File will not be backed up.')
-                folder_files.pop(i)
+                folder_files.remove(filename)
                 if len(folder_files) == 0:
                     print(f'Skipping subfolder - no files - see permissions warning(s).')
                     continue
@@ -487,12 +487,12 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 _, sub_sub_folders, sub_files = next(os.walk(sub_folder_path), ([], [], []))
                 subfolder_files = [os.sep.join([sub_folder_path, filename]) for filename in sub_files]
                 subfiles_sizes = []
-                for i, filename in enumerate(subfolder_files):
+                for filename in subfolder_files:
                     try:
                         subfiles_sizes.append(os.stat(filename).st_size)
                     except PermissionError:
                         print(f'WARNING: Permission error reading {filename}. File will not be backed up.')
-                        subfolder_files.pop(i)
+                        subfolder_files.remove(filename)
                         if len(subfolder_files) == 0:
                             print(f'Skipping subfolder - no files - see permissions warning(s).')
                             continue
