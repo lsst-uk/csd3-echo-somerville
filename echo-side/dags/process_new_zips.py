@@ -27,7 +27,7 @@ def print_bucket_name(bucket_name):
 default_args = {
     'owner': 'airflow',
     'retries': 0,
-    'retry_delay': timedelta(minutes=15),
+    'retry_delay': timedelta(days=1),
 }
 
 # Instantiate the DAG
