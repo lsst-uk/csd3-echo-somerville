@@ -656,7 +656,11 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             folders = zip_tuple[1]['folders']
             folder_files = zip_tuple[1]['folder_files']
             num_files = sum([len(ff) for ff in folder_files])
-            max_filesize = max_filesize = max([max([os.lstat(filename).st_size for filename in ff]) for ff in folder_files])
+            try:
+                max_filesize = max([max([os.lstat(filename).st_size for filename in ff]) for ff in folder_files])
+            except ValueError:
+                # no files in folder - likely removed from file list due to previous PermissionError - continue without message
+                continue
             total_memory = virtual_memory().total * 0.75
             max_zipsize = total_memory / zip_pool._processes
             max_files_per_zip = int(np.ceil(max_zipsize / max_filesize))
