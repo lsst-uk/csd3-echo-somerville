@@ -43,20 +43,20 @@ with DAG(
         op_kwargs={'url':'https://raw.githubusercontent.com/lsst-uk/csd3-echo-somerville/main/echo-side/bucket_names/bucket_names.json'},
     )
 
-    if len(bucket_names) > 0:
-        print(f'Bucket names found: {bucket_names}')
-        process_zips_task = [
-            KubernetesPodOperator(
-            task_id=f'process_zips_{i}',
-            image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
-            cmds=['./entrypoint.sh'],
-            arguments=['python', 'csd3-echo-somerville/scripts/process_collated_zips.py', '--bucket_name', bucket_name, '--extract', '--nprocs', '16'],
-            env_vars={
-                'ECHO_S3_ACCESS_KEY': Variable.get("ECHO_S3_ACCESS_KEY"),
-                'ECHO_S3_SECRET_KEY': Variable.get("ECHO_S3_SECRET_KEY"),
-            },
-            get_logs=True,
-        ) for bucket_name in bucket_names]
-    else:
-        print('No bucket names found.')
+    # if len(bucket_names) > 0:
+    #     print(f'Bucket names found: {bucket_names}')
+    process_zips_task = [
+        KubernetesPodOperator(
+        task_id=f'process_zips_{i}',
+        image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
+        cmds=['./entrypoint.sh'],
+        arguments=['python', 'csd3-echo-somerville/scripts/process_collated_zips.py', '--bucket_name', bucket_name, '--extract', '--nprocs', '16'],
+        env_vars={
+            'ECHO_S3_ACCESS_KEY': Variable.get("ECHO_S3_ACCESS_KEY"),
+            'ECHO_S3_SECRET_KEY': Variable.get("ECHO_S3_SECRET_KEY"),
+        },
+        get_logs=True,
+    ) for bucket_name in bucket_names]
+    # else:
+    #     print('No bucket names found.')
             
