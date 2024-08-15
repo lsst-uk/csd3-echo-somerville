@@ -103,6 +103,9 @@ def verify_zip_contents(zipfiles_df, all_keys, debug):
         if sum(all_keys.isin(zipfiles_df['contents'].iloc[i])) != len(zipfiles_df['contents'].iloc[i]):
             extract_list.append(zipfiles_df.iloc[i]["zipfile"])
             print(f'{zipfiles_df.iloc[i]["zipfile"]} to be extracted.')
+        elif len(zipfiles_df['contents'].iloc[i]) == 0:
+            extract_list.append(zipfiles_df.iloc[i]["zipfile"])
+            print(f'{zipfiles_df.iloc[i]["zipfile"]} to be extracted (contents unknown).')
         else:
             print(f'{zipfiles_df.iloc[i]["zipfile"]} contents previously extracted.')
     print((datetime.now()-start).microseconds, 'microseconds')
