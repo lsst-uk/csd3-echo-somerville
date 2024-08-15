@@ -37,7 +37,7 @@ with dag:
     get_bucket_names = PythonOperator(
         task_id = 'get_bucket_names',
         python_callable = 'dl_bucket_names',
-        arguments=['https://raw.githubusercontent.com/lsst-uk/csd3-echo-somerville/main/echo-side/bucket_names/bucket_names.json'],
+        arguments='https://raw.githubusercontent.com/lsst-uk/csd3-echo-somerville/main/echo-side/bucket_names/bucket_names.json',
     )
 
     if len(bucket_names) > 0:
