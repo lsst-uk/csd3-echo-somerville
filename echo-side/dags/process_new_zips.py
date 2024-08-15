@@ -6,18 +6,19 @@ from airflow.models.xcom_arg import XComArg
 
 from datetime import timedelta, datetime
 
+bucket_names = []
+
 def dl_bucket_names(**kwargs):
     import json
     import requests
-    bucket_names = []
+    global bucket_names
     url = kwargs['url']
     r = requests.get(url)
     buckets = json.loads(r.text)
     for bucket in buckets:
         bucket_names.append(bucket['name'])
     print(f'Bucket names found: {bucket_names}')
-    kwargs['ti'].xcom_push(key='bucket_names', value=bucket_names)
-    print(XComArg(get_bucket_names, key='bucket_names'))
+    # kwargs['ti'].xcom_push(key='bucket_names', value=bucket_names)
     # return bucket_names
 
 def print_bucket_name(bucket_name):
@@ -48,12 +49,12 @@ with DAG(
         op_kwargs={'url':'https://raw.githubusercontent.com/lsst-uk/csd3-echo-somerville/main/echo-side/bucket_names/bucket_names.json'},
     )
 
-    # print_bucket_name_task = [
-    #     PythonOperator(
-    #         task_id=f'print_bucket_name_{bucket_name}',
-    #         python_callable=print_bucket_name,
-    #         op_kwargs={'bucket_name': bucket_name},
-    #     ) for bucket_name in XComArg('get_bucket_names', key='bucket_names')]
+    print_bucket_name_task = [
+        PythonOperator(
+            task_id=f'print_bucket_name_{bucket_name}',
+            python_callable=print_bucket_name,
+            op_kwargs={'bucket_name': bucket_name},
+        ) for bucket_name in bucket_names]
 
     # if len(bucket_names) > 0:
     #     print(f'Bucket names found: {bucket_names}')
@@ -72,5 +73,5 @@ with DAG(
     # else:
     #     print('No bucket names found.')
 
-    get_bucket_names #>> print_bucket_name_task #>> process_zips_task
+    get_bucket_names >> print_bucket_name_task #>> process_zips_task
             
