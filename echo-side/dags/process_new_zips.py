@@ -17,7 +17,7 @@ def dl_bucket_names(**kwargs):
         bucket_names.append(bucket['name'])
     print(f'Bucket names found: {bucket_names}')
     kwargs['ti'].xcom_push(key='bucket_names', value=bucket_names)
-    print(XComArg('get_bucket_names', key='bucket_names'))
+    print(XComArg(get_bucket_names, key='bucket_names'))
     # return bucket_names
 
 def print_bucket_name(bucket_name):
