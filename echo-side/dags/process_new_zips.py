@@ -44,6 +44,7 @@ with dag:
     )
 
     if len(bucket_names) > 0:
+        print(f'Found {bucket_names} bucket names.')
         for i, bucket_name in enumerate(bucket_names):
             process_zips_task = KubernetesPodOperator(
                 task_id=f'process_zips_{i}',
