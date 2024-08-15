@@ -11,7 +11,7 @@ from datetime import timedelta, datetime
 def dl_bucket_names(url):
     import json
     import requests
-    global bucket_names
+    bucket_names = []
     # url = kwargs['url']
     r = requests.get(url)
     buckets = json.loads(r.text)
