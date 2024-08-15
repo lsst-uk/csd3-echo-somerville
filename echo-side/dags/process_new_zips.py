@@ -27,7 +27,7 @@ def print_bucket_name(bucket_name):
 default_args = {
     'owner': 'airflow',
     'retries': 0,
-    'retry_delay': timedelta(days=1),
+    'retry_delay': timedelta(seconds=60),
 }
 
 # Instantiate the DAG
@@ -37,7 +37,7 @@ with DAG(
         'process_zips',
         default_args=default_args,
         description='Runs process_collated_zips.py',
-        schedule_interval=timedelta(hours=1), # change to daily once in production
+        schedule_interval=timedelta(days=1),
         start_date=datetime(2024, 1, 1),
         catchup=False,
     ) as dag:
