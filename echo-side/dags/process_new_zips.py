@@ -48,7 +48,7 @@ with DAG(
     #     print(f'Bucket names found: {bucket_names}')
     process_zips_task = [
         KubernetesPodOperator(
-        task_id=f'process_zips_{i}',
+        task_id=f'process_zips_{bucket_name}',
         image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
         cmds=['./entrypoint.sh'],
         arguments=['python', 'csd3-echo-somerville/scripts/process_collated_zips.py', '--bucket_name', bucket_name, '--extract', '--nprocs', '16'],
