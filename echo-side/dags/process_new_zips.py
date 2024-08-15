@@ -15,6 +15,7 @@ def dl_bucket_names(**kwargs):
     buckets = json.loads(r.text)
     for bucket in buckets:
         bucket_names.append(bucket['name'])
+    print(f'Bucket names found: {bucket_names}')
     # kwargs['ti'].xcom_push(key='bucket_names', value=bucket_names)
     # return bucket_names
     
