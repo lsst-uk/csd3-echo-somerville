@@ -2,6 +2,7 @@ from airflow import DAG
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.operators.python import PythonOperator
 from airflow.models import Variable
+from airflow.models.xcom_arg import XComArg
 
 from datetime import timedelta, datetime
 
@@ -16,7 +17,7 @@ def dl_bucket_names(**kwargs):
         bucket_names.append(bucket['name'])
     print(f'Bucket names found: {bucket_names}')
     kwargs['ti'].xcom_push(key='bucket_names', value=bucket_names)
-    # return bucket_names
+    return bucket_names
 
 def print_bucket_name(bucket_name):
     print(bucket_name)
@@ -51,7 +52,7 @@ with DAG(
             task_id=f'print_bucket_name_{bucket_name}',
             python_callable=print_bucket_name,
             op_kwargs={'bucket_name': bucket_name},
-        ) for bucket_name in ['bucket1', 'bucket2', 'bucket3']]
+        ) for bucket_name in XComArg(task_id='get_bucket_names', key='bucket_names')]
 
     # if len(bucket_names) > 0:
     #     print(f'Bucket names found: {bucket_names}')
