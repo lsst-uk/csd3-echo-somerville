@@ -471,6 +471,9 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             except PermissionError:
                 print(f'WARNING: Permission error reading {filename}. File will not be backed up.')
                 folder_files.pop(i)
+                if len(folder_files) == 0:
+                    print(f'Skipping subfolder - no files - see permissions warning(s).')
+                    continue
         total_filesize = sum(sizes)
         if total_filesize > 0:
             mean_filesize = total_filesize / len(files)
@@ -490,6 +493,9 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     except PermissionError:
                         print(f'WARNING: Permission error reading {filename}. File will not be backed up.')
                         subfolder_files.pop(i)
+                        if len(subfolder_files) == 0:
+                            print(f'Skipping subfolder - no files - see permissions warning(s).')
+                            continue
                 total_subfilesize = sum(subfiles_sizes)
                 if not sub_sub_folders and len(sub_files) < 4 and total_subfilesize < 96*1024**2:
                     sub_folders.remove(sub_folder) # not sure what the effect of this is
