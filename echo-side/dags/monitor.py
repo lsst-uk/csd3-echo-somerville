@@ -55,7 +55,7 @@ with DAG(
         arguments=['python', 'csd3-echo-somerville/scripts/list_backup_csvs.py', 
                    '--bucket_name', bucket_name, 
                    '--all-csvs', 
-                   '--save-list', ''.join([f'/lsst-backup-logs/lsst-backup-logs-{bucket_name}','{{ ds_nodash }}','.csv']),
+                   '--save-list', ''.join([f'/lsst-backup-logs/all-backup-logs-{bucket_name}','{{ ds_nodash }}','.txt']),
                    '--limit', '100000000'], # set to 100000000 to list all objects in the bucket - if a bucket ever exceeds 100M objects, this will need to be increased
         env_vars={
             'ECHO_S3_ACCESS_KEY': Variable.get("ECHO_S3_ACCESS_KEY"),
@@ -71,7 +71,7 @@ with DAG(
         image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
         cmds=['./entrypoint.sh'],
         arguments=['python', 'csd3-echo-somerville/scripts/compare_csv_file_lists.py', 
-                   '--from-file', ''.join([f'/lsst-backup-logs/lsst-backup-logs-{bucket_name}','{{ ds_nodash }}','.csv']), 
+                   '--from-file', ''.join([f'/lsst-backup-logs/all-backup-logs-{bucket_name}','{{ ds_nodash }}','.txt']), 
                    '--to-file', ''.join([f'/lsst-backup-logs/new-csv-files-{bucket_name}','{{ ds_nodash }}','.txt'])],
         env_vars={
             'ECHO_S3_ACCESS_KEY': Variable.get("ECHO_S3_ACCESS_KEY"),
