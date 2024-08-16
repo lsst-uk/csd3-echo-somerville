@@ -90,18 +90,22 @@ with DAG(
         op_args=[bucket_name],
     ) for bucket_name in bucket_names ]
 
+    check_uploads = []
+
     for bucket_new_csvs in new_csvs.items():
         bucket_name = bucket_new_csvs[0]
         new_csvs_list = bucket_new_csvs[1]
         for csv in new_csvs_list:
-            check_uploads = KubernetesPodOperator(
-            task_id=f'check_{csv}',
-            image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
-            cmds=['./entrypoint.sh'],
-            arguments=['python', 'csd3-echo-somerville/scripts/check_upload.py', bucket_name, csv],
-            volumes=[logs_volume],
-            volume_mounts=[logs_volume_mount],
-            get_logs=True,
+            check_uploads.append(
+                KubernetesPodOperator(
+                task_id=f'check_{csv}',
+                image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
+                cmds=['./entrypoint.sh'],
+                arguments=['python', 'csd3-echo-somerville/scripts/check_upload.py', bucket_name, csv],
+                volumes=[logs_volume],
+                volume_mounts=[logs_volume_mount],
+                get_logs=True,
+                )
             )
 
     # Set the task sequence
