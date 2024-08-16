@@ -72,16 +72,22 @@ if __name__ == "__main__":
 
     outfile = args.to_file
 
+    debug = args.debug
+
+    
+
+    if debug:
+        print(f"CSV file list: {csv_file_list}")
+    
     backup_logs, verification_logs = split_csv_file_list(csv_file_list)
 
-    to_verify = compare_csv_file_lists(backup_logs, verification_logs)
-
-    if args.debug:
-        print(f"CSV file list: {csv_file_list}")
-        
+    if debug: 
         print(f"Backup logs: {backup_logs}, {len(backup_logs)}")
         print(f"Verification logs: {verification_logs}, {len(verification_logs)}")
+    
+    to_verify = compare_csv_file_lists(backup_logs, verification_logs)
         
+    if debug
         print(f"New backup logs to verify: {to_verify}, {len(to_verify)}")
 
     if outfile:
