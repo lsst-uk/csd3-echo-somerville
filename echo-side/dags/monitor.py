@@ -40,7 +40,7 @@ bucket_names = dl_bucket_names('https://raw.githubusercontent.com/lsst-uk/csd3-e
 
 def get_new_csvs(bucket_name):
     new_csvs[bucket_name] = []
-    with open(f'/lsst-backup-logs/new-csv-files-{bucket_name}{{ ds_nodash }}.txt', 'r') as f:
+    with open(''.join([f'/lsst-backup-logs/new-csv-files-{bucket_name}','{{ ds_nodash }}','.txt']), 'r') as f:
         for line in f:
             new_csvs[bucket_name].append(line.strip())
     if len(new_csvs[bucket_name]) == 0:
@@ -98,9 +98,7 @@ with DAG(
 
     check_uploads = []
 
-    for bucket_new_csvs in new_csvs.items():
-        bucket_name = bucket_new_csvs[0]
-        new_csvs_list = bucket_new_csvs[1]
+    def check_uploads(bucket_name, new_csvs_list):    
         for csv in new_csvs_list:
             check_uploads.append(
                 KubernetesPodOperator(
