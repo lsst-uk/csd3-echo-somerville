@@ -76,18 +76,35 @@ verification_suffix = 'lsst-backup-verification.csv'
 
 total_size = 0
 
+if all_csvs or log_csvs_only:
+    log_csvs = []
+if all_csvs or verification_csvs_only:
+    verification_csvs = []
+
 # Download the backup log
 # Limited to 1000 objects by default - this is to prevent this script from hanging if there are a large number of objects in the bucket
 for ob in bucket.objects.filter(Prefix='butler').limit(limit):
     if ob.key.count('/') > 0:
         continue
-    if log_suffix in ob.key or previous_log_suffix in ob.key:
-        if save_list:
-            with open(save_list,'a') as f:
-                f.write(f'{ob.key},{ob.size/1024**2:.2f},{ob.last_modified}\n')
-        else:
-            print(f'{ob.key},{ob.size/1024**2:.2f},{ob.last_modified}')
-        if download:
-            with tqdm(total=ob.size/1024**2, unit='MiB', unit_scale=True, unit_divisor=1024) as pbar:
-                bucket.download_file(ob.key,ob.key,Callback=pbar.update)
-            print('Download complete.')
+    if all_csvs or log_csvs_only:
+        if log_suffix in ob.key or previous_log_suffix in ob.key:
+            if save_list:
+                with open(save_list,'a') as f:
+                    f.write(f'{ob.key},{ob.size/1024**2:.2f},{ob.last_modified}\n')
+            else:
+                print(f'{ob.key},{ob.size/1024**2:.2f},{ob.last_modified}')
+            log_csvs.append(ob)
+    if all_csvs or verification_csvs_only:
+        if verification_suffix in ob.key:
+            if save_list:
+                with open(save_list,'a') as f:
+                    f.write(f'{ob.key},{ob.size/1024**2:.2f},{ob.last_modified}\n')
+            else:
+                print(f'{ob.key},{ob.size/1024**2:.2f},{ob.last_modified}')
+            verification_csvs.append(ob)
+
+if download:
+    for key in log_csvs + verification_csvs:
+        ob = bucket.Object(key)
+        with tqdm(total=ob.size/1024**2, unit='MiB', unit_scale=True, unit_divisor=1024) as pbar:
+            bucket.download_file(ob.key,ob.key,Callback=pbar.update)
