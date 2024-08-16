@@ -19,9 +19,9 @@ logs_volume = k8s.V1Volume(
 # Define default arguments for the DAG
 default_args = {
     'owner': 'airflow',
-    'retries': 0,
+    'retries': 1,
     'retry_delay': timedelta(minutes=5),
-    'max_active_runs': 2,
+    'max_active_runs': 1,
 }
 
 new_csvs = []
@@ -40,10 +40,10 @@ def list_new_csvs(file_path):
 
 # Instantiate the DAG
 dag = DAG(
-    'list_backup_csvs',
+    'monitor',
     default_args=default_args,
-    description='List backup CSV files from S3 bucket',
-    schedule_interval=timedelta(hours=1),
+    description='List and compare backup CSV files from S3 bucket and trigger backup verifications if required.',
+    schedule_interval=timedelta(minutes=15), # change to days=1 when in production
     start_date=datetime(2024, 1, 1),
     catchup=False,
 )
