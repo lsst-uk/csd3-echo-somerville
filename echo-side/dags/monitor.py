@@ -62,7 +62,8 @@ with DAG(
         arguments=['python', 'csd3-echo-somerville/scripts/list_backup_csvs.py', 
                    '--bucket_name', bucket_name, 
                    '--all-csvs', 
-                   '--save-list', ''.join([f'/lsst-backup-logs/lsst-backup-logs-{bucket_name}','{{ ds_nodash }}','.csv'])],
+                   '--save-list', ''.join([f'/lsst-backup-logs/lsst-backup-logs-{bucket_name}','{{ ds_nodash }}','.csv']),
+                   '--limit', '100000000'], # set to 100000000 to list all objects in the bucket - if a bucket ever exceeds 100M objects, this will need to be increased
         env_vars={
             'ECHO_S3_ACCESS_KEY': Variable.get("ECHO_S3_ACCESS_KEY"),
             'ECHO_S3_SECRET_KEY': Variable.get("ECHO_S3_SECRET_KEY"),
