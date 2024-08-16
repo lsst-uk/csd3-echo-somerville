@@ -123,6 +123,5 @@ with DAG(
         list_csv_files,
         compare_csv_file_lists,
         get_new_csvs_task,
-        check_uploads
-    )
+    ) >> check_uploads
             
