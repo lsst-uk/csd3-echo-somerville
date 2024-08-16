@@ -43,7 +43,7 @@ with DAG(
     'monitor',
     default_args=default_args,
     description='List and compare backup CSV files from S3 bucket and trigger backup verifications if required.',
-    schedule_interval=timedelta(minutes=15), # change to days=1 when in production
+    schedule_interval=timedelta(days=1), # change to days=1 when in production
     start_date=datetime(2024, 1, 1, 12, 0, 0), # set to middle of the day to avoid issues with daylight savings and/or date stamps in filenames
     catchup=False,
 ) as dag:
