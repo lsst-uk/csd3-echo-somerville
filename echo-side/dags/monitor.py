@@ -98,7 +98,9 @@ with DAG(
 
     check_uploads = []
 
-    def check_uploads(bucket_name, new_csvs_list):    
+    for bucket_new_csvs in new_csvs.items():
+        bucket_name = bucket_new_csvs[0]
+        new_csvs_list = bucket_new_csvs[1]
         for csv in new_csvs_list:
             check_uploads.append(
                 KubernetesPodOperator(
