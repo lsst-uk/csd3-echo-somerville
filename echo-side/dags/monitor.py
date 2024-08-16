@@ -105,5 +105,8 @@ with DAG(
             )
 
     # Set the task sequence
-    list_csv_files >> compare_csv_file_lists >> get_new_csvs_task >> check_uploads
+    list_csv_files
+    compare_csv_file_lists
+    get_new_csvs_task
+    check_uploads
             
