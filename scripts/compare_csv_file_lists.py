@@ -2,63 +2,97 @@ import os
 import argparse
 import subprocess
 
-parser = argparse.ArgumentParser(description="Compare CSV file lists in a log folder.")
-parser.add_argument("--path", '-p', help="Path to the log folder", required=True)
-parser.add_argument("--datestamp", '-d', help="Datestamp in the form YYYYMMDD", required=True)
-args = parser.parse_args()
-
-log_folder = args.path
-datestamp = args.datestamp
-
-def get_new_csv(log_folder, csv_files):
-    log_0_csvs = []
-    log_1_csvs = []
-    new_csv_paths = []
-    with open(f"{log_folder}/{csv_files[0]}", "r") as f:
-        for line in f:
-            log_0_csvs.append(line.split(',')[0].strip())
-    with open(f"{log_folder}/{csv_files[1]}", "r") as f:
-        for line in f:
-            log_1_csvs.append(line.split(',')[0].strip())
-    for csv in log_1_csvs:
-        if csv not in log_0_csvs:
-            new_csv_paths.append(csv)
-            print(f"New CSV file: {csv}")
-    return new_csv_paths
-
-def compare_csv_file_lists(log_folder, ds):
+def split_csv_file_list(csv_file_list):
     """
-    Compare the CSV file lists in the specified log folder.
+    Split the CSV file list into two lists; one for backup logs and one for verification logs.
 
     Args:
-        log_folder (str): The path to the log folder.
+        csv_file_list (list): A list of CSV files.
 
     Returns:
-        None
+        tuple: backup_logs, verification_logs
     """
-    csv_files = []
-    for filename in os.listdir(log_folder):
-        print(filename,ds)
-        if filename.startswith("lsst-backup-logs-"):
-            if filename.endswith(".csv"):
-                if filename.__contains__(ds):
-                    csv_files.append(filename)
-    csv_files.sort()
-    csv_files = csv_files[-2:]
+    backup_logs = []
+    verification_logs = []
+    
+    for csv_file in csv_file_list:
+        if csv_file.endswith(log_suffix) or csv_file.endswith(previous_log_suffix):
+            backup_logs.append(csv_file)
+        elif csv_file.endswith(verification_suffix):
+            verification_logs.append(csv_file)
+    return backup_logs, verification_logs
 
-    print(csv_files)
+def compare_csv_file_lists(backup_logs, verification_logs):
+    """
+    Compare lists of backup logs and verification logs to determine if any new CSV files have been uploaded.
 
-    cmp_out = subprocess.run(f'cmp {log_folder}/{csv_files[0]} {log_folder}/{csv_files[1]}'.split(), capture_output=True, text=True)
+    Args:
+        backup_logs (list): A list of backup logs.
+        verification_logs (list): A list of verification logs.
 
-    if cmp_out.stdout != "":
-        print("CSV files have changed!")
-        new_csv_paths = get_new_csv(log_folder, csv_files)
-        print(f"New CSV files: {new_csv_paths}")
-        with open(f"{log_folder}/new_csv_files.txt", "w") as f:
-            for csv in new_csv_paths:
-                f.write(f"{csv}\n")
-    else:
-        print("CSV files are the same - nothing to do.")
+    Returns:
+        List: A list of new backup log CSV files yet to be verified.
+    """
+    
+    to_verify = []
+    for backup_log in backup_logs:
+        if backup_log.endswith(previous_log_suffix):
+            verification_equiv = backup_log.replace(f'-{previous_log_suffix}',f'-{verification_suffix}')
+        else:
+            verification_equiv = backup_log.replace(f'-{log_suffix}',f'-{verification_suffix}')
+        if verification_equiv not in verification_logs:
+            to_verify.append(backup_log)
+
+    return to_verify
 
 if __name__ == "__main__":
-    compare_csv_file_lists(log_folder, datestamp)
+    parser = argparse.ArgumentParser(description="Compare CSV file lists in a log folder.")
+    parser.add_argument("--from-file", "-f", type=str, help="Absolute path to a file containing a list of CSV files, one per line.", default=None)
+    parser.add_argument("--from-arg", "-a", type=str, help="A comma-separated list of CSV files.", default=None)
+    parser.add_argument("--to-file", "-t", type=str, help="Absolute path to a file to write the list of new backup logs to verify.", default=None)
+    parser.add_argument("--debug", "-d", action="store_true", help="Print debug information.", default=False)
+
+    args = parser.parse_args()
+
+    log_suffix = 'lsst-backup.csv'
+    previous_log_suffix = 'files.csv'
+    verification_suffix = 'lsst-backup-verification.csv'
+
+    csv_file_list = []
+
+    if args.from_file:
+        with open(args.from_file, "r") as f:
+            for line in f:
+                csv_file_list.append(line.strip())
+    elif args.from_arg:
+        csv_file_list = args.from_arg.split(",")
+    else:
+        print("No CSV file list provided. Exiting.")
+        exit(1)
+
+    outfile = args.to_file
+
+    debug = args.debug
+
+    if debug:
+        print(f"CSV file list: {csv_file_list}")
+    
+    backup_logs, verification_logs = split_csv_file_list(csv_file_list)
+
+    if debug: 
+        print(f"Backup logs: {backup_logs}, {len(backup_logs)}")
+        print(f"Verification logs: {verification_logs}, {len(verification_logs)}")
+    
+    to_verify = compare_csv_file_lists(backup_logs, verification_logs)
+        
+    if debug:
+        print(f"New backup logs to verify: {to_verify}, {len(to_verify)}")
+
+    if outfile:
+        with open(outfile, "w") as f:
+            for log in to_verify:
+                f.write(f"{log}\n")
+        print(f"New backup logs to verify written to {outfile}.")
+    else:
+        for log in to_verify:
+            print(log)
