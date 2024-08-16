@@ -102,7 +102,7 @@ for ob in bucket.objects.limit(limit):
 
 if save_list:
     print(f'List saved to {save_list}.')
-    with open(save_list,'a') as f:
+    with open(save_list,'w') as f:
         for key in log_csvs_list + verification_csvs_list:
             f.write(f'{key}\n')
 
