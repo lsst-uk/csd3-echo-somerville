@@ -12,7 +12,7 @@ warnings.filterwarnings('ignore')
 import bucket_manager.bucket_manager as bm
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--bucket_name', '-b', type=str, help='The name of the S3 bucket.')
+parser.add_argument('--bucket_name', '-b', type=str, help='The name of the S3 bucket.', required=True)
 parser.add_argument('--download', action='store_true', default=False, help='Download the backup log.')
 parser.add_argument('--save-list', type=str, help='Write the list to file given absolute path.')
 parser.add_argument('--limit', type=int, help='Limit the number of objects to list.', default=1000)
