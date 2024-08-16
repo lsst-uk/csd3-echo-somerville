@@ -16,6 +16,9 @@ parser.add_argument('--bucket_name', '-b', type=str, help='The name of the S3 bu
 parser.add_argument('--download', action='store_true', default=False, help='Download the backup log.')
 parser.add_argument('--save-list', type=str, help='Write the list to file given absolute path.')
 parser.add_argument('--limit', type=int, help='Limit the number of objects to list.', default=1000)
+parser.add_argument('--log-csvs-only', action='store_true', default=True, help='List only the upload log CSV files.')
+parser.add_argument('--verification-csvs-only', action='store_true', default=False, help='List only the upload verification CSV files.')
+parser.add_argument('--all-csvs', action='store_true', default=False, help='List all backup-related CSV files. (Shortcut for --log-csvs-only --verification-csvs-only.)')
 args = parser.parse_args()
 
 bucket_name = args.bucket_name
@@ -34,6 +37,22 @@ if args.save_list:
 else:
     save_list = None
 
+if args.log_csvs_only:
+    log_csvs_only = True
+
+if args.verification_csvs_only:
+    verification_csvs_only = True
+
+if args.all_csvs:
+    all_csvs = True
+
+if not any([log_csvs_only, verification_csvs_only, all_csvs]):
+    print('No list type specified. Listing log CSV files only.')
+    log_csvs_only = True
+
+if log_csvs_only and verification_csvs_only:
+    all_csvs = True
+
 try:
     keys = bm.get_keys('S3')
 except KeyError as e:
@@ -50,6 +69,10 @@ print('Bucket found.')
 
 log_suffix = 'lsst-backup.csv'
 previous_log_suffix = 'files.csv'
+verification_suffix = 'lsst-backup-verification.csv'
+
+### When associating upload log csvs and verification csvs, use replace:
+### verification_URI = upload_log_URI.replace(f'-{previous_log_suffix}',f'-{verification_suffix}')
 
 total_size = 0
 
