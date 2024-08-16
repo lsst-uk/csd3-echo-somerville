@@ -13,7 +13,7 @@ import bucket_manager.bucket_manager as bm
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--bucket_name', '-b', type=str, help='The name of the S3 bucket.', required=True)
-parser.add_argument('--download', '-d', action='store_true', default=False, help='Download the backup log.')
+parser.add_argument('--download', '-d', type=str, default=None, help='Download the backup CSV files to given absolute path to a download directory. Must not already exist.')
 parser.add_argument('--save-list', '-s', type=str, help='Write the list to file given absolute path.')
 parser.add_argument('--limit', type=int, help='Limit the number of objects to list.', default=1000)
 parser.add_argument('--log-csvs', '-L', action='store_true', default=True, help='List only the upload log CSV files.')
@@ -22,7 +22,6 @@ parser.add_argument('--all-csvs', '-A', action='store_true', default=False, help
 args = parser.parse_args()
 
 bucket_name = args.bucket_name
-download = args.download
 limit = args.limit
 
 if args.save_list:
@@ -36,6 +35,15 @@ if args.save_list:
         sys.exit()
 else:
     save_list = None
+
+download_dir = None
+
+if args.download is not None:
+    download_dir = args.download
+    if os.path.exists(download_dir):
+        print(f'{download_dir} already exists. Exiting.')
+        sys.exit()
+    os.makedirs(download_dir)
 
 verification_csvs = False
 log_csvs = False
@@ -74,34 +82,35 @@ verification_suffix = 'lsst-backup-verification.csv'
 
 total_size = 0
 
-log_csvs = []
-verification_csvs = []
+log_csvs_list = []
+verification_csvs_list = []
 
 # Download the backup log
 # Limited to 1000 objects by default - this is to prevent this script from hanging if there are a large number of objects in the bucket
+print('Backup CSV\t\t\t\tLast Modified')
 for ob in bucket.objects.limit(limit):
     if ob.key.count('/') > 0:
         continue
-    print(ob.key)
     if log_csvs:
         if log_suffix in ob.key or previous_log_suffix in ob.key:
-            if save_list:
-                with open(save_list,'a') as f:
-                    f.write(f'{ob.key},{ob.size/1024**2:.2f},{ob.last_modified}\n')
-            else:
-                print(f'{ob.key},{ob.size/1024**2:.2f},{ob.last_modified}')
-            log_csvs.append(ob)
+            print(f'{ob.key}\t{ob.last_modified}')
+            log_csvs_list.append(ob.key)
     if verification_csvs:
         if verification_suffix in ob.key:
-            if save_list:
-                with open(save_list,'a') as f:
-                    f.write(f'{ob.key},{ob.size/1024**2:.2f},{ob.last_modified}\n')
-            else:
-                print(f'{ob.key},{ob.size/1024**2:.2f},{ob.last_modified}')
-            verification_csvs.append(ob)
+            print(f'{ob.key}\t{ob.last_modified}')
+            verification_csvs_list.append(ob.key)
 
-if download:
-    for key in log_csvs + verification_csvs:
+if save_list:
+    print(f'List saved to {save_list}.')
+    with open(save_list,'a') as f:
+        for key in log_csvs_list + verification_csvs_list:
+            f.write(f'{key}\n')
+
+if download_dir:
+    print(f'Downloading to {download_dir}...') 
+    for key in log_csvs_list + verification_csvs_list:
         ob = bucket.Object(key)
-        with tqdm(total=ob.size/1024**2, unit='MiB', unit_scale=True, unit_divisor=1024) as pbar:
-            bucket.download_file(ob.key,ob.key,Callback=pbar.update)
+        with tqdm(total=ob.content_length/1024**2, unit='MiB', unit_scale=True, unit_divisor=1024) as pbar:
+            ob.download_file('/'.join([download_dir,ob.key]),Callback=pbar.update)
+
+print('Done.')
