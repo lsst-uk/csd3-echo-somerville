@@ -85,7 +85,7 @@ verification_csvs = []
 
 # Download the backup log
 # Limited to 1000 objects by default - this is to prevent this script from hanging if there are a large number of objects in the bucket
-for ob in bucket.objects.filter(Prefix='butler').limit(limit):
+for ob in bucket.objects.limit(limit):
     if ob.key.count('/') > 0:
         continue
     print(ob.key)
