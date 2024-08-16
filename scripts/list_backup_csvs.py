@@ -54,9 +54,6 @@ if not any([log_csvs, verification_csvs]):
     print('No list type specified. Listing log CSV files only.')
     log_csvs = True
 
-if log_csvs and verification_csvs:
-    all_csvs = True
-
 try:
     keys = bm.get_keys('S3')
 except KeyError as e:
@@ -74,9 +71,6 @@ print('Bucket found.')
 log_suffix = 'lsst-backup.csv'
 previous_log_suffix = 'files.csv'
 verification_suffix = 'lsst-backup-verification.csv'
-
-### When associating upload log csvs and verification csvs, use replace:
-### verification_URI = upload_log_URI.replace(f'-{previous_log_suffix}',f'-{verification_suffix}')
 
 total_size = 0
 
