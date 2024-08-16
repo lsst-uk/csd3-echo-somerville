@@ -50,7 +50,7 @@ if args.all_csvs:
     log_csvs = True
     verification_csvs = True
 
-if not any([log_csvs, verification_csvs, all_csvs]):
+if not any([log_csvs, verification_csvs]):
     print('No list type specified. Listing log CSV files only.')
     log_csvs = True
 
@@ -88,6 +88,7 @@ verification_csvs = []
 for ob in bucket.objects.filter(Prefix='butler').limit(limit):
     if ob.key.count('/') > 0:
         continue
+    print(ob.key)
     if log_csvs:
         if log_suffix in ob.key or previous_log_suffix in ob.key:
             if save_list:
