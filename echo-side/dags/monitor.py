@@ -4,6 +4,7 @@ from airflow.operators.python import PythonOperator
 from airflow.models import Variable
 from datetime import timedelta, datetime
 from kubernetes.client import models as k8s
+from airflow.models.baseoperator import chain_linear
 
 # Create k8s storage mount 
 
@@ -118,8 +119,10 @@ with DAG(
             )
 
     # Set the task sequence
-    list_csv_files
-    compare_csv_file_lists
-    get_new_csvs_task
-    check_uploads
+    chain_linear(
+        list_csv_files,
+        compare_csv_file_lists,
+        get_new_csvs_task,
+        check_uploads
+    )
             
