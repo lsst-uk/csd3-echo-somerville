@@ -16,9 +16,9 @@ parser.add_argument('--bucket_name', '-b', type=str, help='The name of the S3 bu
 parser.add_argument('--download', '-d', type=str, default=None, help='Download the backup CSV files to given absolute path to a download directory. Must not already exist.')
 parser.add_argument('--save-list', '-s', type=str, help='Write the list to file given absolute path.')
 parser.add_argument('--limit', type=int, help='Limit the number of objects to list.', default=1000)
-parser.add_argument('--log-csvs', '-L', action='store_true', default=True, help='List only the upload log CSV files.')
+parser.add_argument('--log-csvs', '-L', action='store_true', default=False, help='List only the upload log CSV files.')
 parser.add_argument('--verification-csvs', '-V', action='store_true', default=False, help='List only the upload verification CSV files.')
-parser.add_argument('--all-csvs', '-A', action='store_true', default=False, help='List all backup-related CSV files. (Shortcut for --log-csvs --verification-csvs.)')
+parser.add_argument('--all-csvs', '-A', action='store_true', default=True, help='List all backup-related CSV files. (Shortcut for --log-csvs --verification-csvs.)')
 args = parser.parse_args()
 
 bucket_name = args.bucket_name
