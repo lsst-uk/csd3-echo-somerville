@@ -16,9 +16,9 @@ parser.add_argument('--bucket_name', '-b', type=str, help='The name of the S3 bu
 parser.add_argument('--download', action='store_true', default=False, help='Download the backup log.')
 parser.add_argument('--save-list', type=str, help='Write the list to file given absolute path.')
 parser.add_argument('--limit', type=int, help='Limit the number of objects to list.', default=1000)
-parser.add_argument('--log-csvs-only', action='store_true', default=True, help='List only the upload log CSV files.')
-parser.add_argument('--verification-csvs-only', action='store_true', default=False, help='List only the upload verification CSV files.')
-parser.add_argument('--all-csvs', action='store_true', default=False, help='List all backup-related CSV files. (Shortcut for --log-csvs-only --verification-csvs-only.)')
+parser.add_argument('--log-csvs', action='store_true', default=True, help='List only the upload log CSV files.')
+parser.add_argument('--verification-csvs', action='store_true', default=False, help='List only the upload verification CSV files.')
+parser.add_argument('--all-csvs', action='store_true', default=False, help='List all backup-related CSV files. (Shortcut for --log-csvs --verification-csvs.)')
 args = parser.parse_args()
 
 bucket_name = args.bucket_name
@@ -37,20 +37,24 @@ if args.save_list:
 else:
     save_list = None
 
-if args.log_csvs_only:
-    log_csvs_only = True
+verification_csvs = False
+log_csvs = False
 
-if args.verification_csvs_only:
-    verification_csvs_only = True
+if args.log_csvs:
+    log_csvs = True
+    
+if args.verification_csvs:
+    verification_csvs = True
 
 if args.all_csvs:
-    all_csvs = True
+    log_csvs = True
+    verification_csvs = True
 
-if not any([log_csvs_only, verification_csvs_only, all_csvs]):
+if not any([log_csvs, verification_csvs, all_csvs]):
     print('No list type specified. Listing log CSV files only.')
-    log_csvs_only = True
+    log_csvs = True
 
-if log_csvs_only and verification_csvs_only:
+if log_csvs and verification_csvs:
     all_csvs = True
 
 try:
@@ -76,17 +80,15 @@ verification_suffix = 'lsst-backup-verification.csv'
 
 total_size = 0
 
-if all_csvs or log_csvs_only:
-    log_csvs = []
-if all_csvs or verification_csvs_only:
-    verification_csvs = []
+log_csvs = []
+verification_csvs = []
 
 # Download the backup log
 # Limited to 1000 objects by default - this is to prevent this script from hanging if there are a large number of objects in the bucket
 for ob in bucket.objects.filter(Prefix='butler').limit(limit):
     if ob.key.count('/') > 0:
         continue
-    if all_csvs or log_csvs_only:
+    if log_csvs:
         if log_suffix in ob.key or previous_log_suffix in ob.key:
             if save_list:
                 with open(save_list,'a') as f:
@@ -94,7 +96,7 @@ for ob in bucket.objects.filter(Prefix='butler').limit(limit):
             else:
                 print(f'{ob.key},{ob.size/1024**2:.2f},{ob.last_modified}')
             log_csvs.append(ob)
-    if all_csvs or verification_csvs_only:
+    if verification_csvs:
         if verification_suffix in ob.key:
             if save_list:
                 with open(save_list,'a') as f:
