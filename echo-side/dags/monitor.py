@@ -1,12 +1,9 @@
 from airflow import DAG
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
-from airflow.operators.python import PythonOperator, BranchPythonOperator
-from airflow.operators.dummy import DummyOperator
-from airflow.operators.subdag import SubDagOperator
+from airflow.operators.python import PythonOperator
 from airflow.models import Variable
 from datetime import timedelta, datetime
 from kubernetes.client import models as k8s
-import os
 
 # Create k8s storage mount 
 
@@ -19,122 +16,94 @@ logs_volume = k8s.V1Volume(
 # Define default arguments for the DAG
 default_args = {
     'owner': 'airflow',
-    'retries': 0,
+    'retries': 1,
     'retry_delay': timedelta(minutes=5),
-    'max_active_runs': 2,
+    'max_active_runs': 1,
 }
 
-new_csvs = []
+# dict to hold new CSV files for multiple bucket names
+new_csvs = {}
 
+def dl_bucket_names(url):
+    import json
+    import requests
+    bucket_names = []
+    r = requests.get(url)
+    buckets = json.loads(r.text)
+    for bucket in buckets:
+        bucket_names.append(bucket['name'])
+    print(f'Bucket names found: {bucket_names}')
+    return bucket_names
 
-def list_new_csvs(file_path):
-    print(f"File path: {file_path}")
-    if os.path.exists(file_path):    
-        with open(file_path, "r") as f:
-            for line in f:
-                new_csvs.append(line.strip())
-        print(f"New CSV files: {new_csvs}")
-        os.remove(file_path)
-    else:
-        print(f"{file_path} does not exist.")
+bucket_names = dl_bucket_names('https://raw.githubusercontent.com/lsst-uk/csd3-echo-somerville/main/echo-side/bucket_names/bucket_names.json')
+
+def get_new_csvs(bucket_name):
+    new_csvs[bucket_name] = []
+    with open(f'/lsst-backup-logs/new-csv-files-{bucket_name}{{ ds_nodash }}.txt', 'r') as f:
+        for line in f:
+            new_csvs[bucket_name].append(line.strip())
+    if len(new_csvs[bucket_name]) == 0:
+        del new_csvs[bucket_name]
 
 # Instantiate the DAG
-dag = DAG(
-    'list_backup_csvs',
+with DAG(
+    'monitor',
     default_args=default_args,
-    description='List backup CSV files from S3 bucket',
-    schedule_interval=timedelta(hours=1),
-    start_date=datetime(2024, 1, 1),
+    description='List and compare backup CSV files from S3 bucket and trigger backup verifications if required.',
+    schedule_interval=timedelta(minutes=15), # change to days=1 when in production
+    start_date=datetime(2024, 1, 1, 12, 0, 0), # set to middle of the day to avoid issues with daylight savings and/or date stamps in filenames
     catchup=False,
-)
+) as dag:
 
-list_csv_files = KubernetesPodOperator(
-    task_id='list_csv_files',
-    image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
-    cmds=['./entrypoint.sh'],
-    arguments=['python', 'csd3-echo-somerville/scripts/list_backup_csvs.py', '--bucket_name', 'LSST-IR-FUSION-Butlers', '--save-list', ''.join(['/lsst-backup-logs/lsst-backup-logs-','{{ ts_nodash }}','.csv'])],
-    env_vars={
-        'ECHO_S3_ACCESS_KEY': Variable.get("ECHO_S3_ACCESS_KEY"),
-        'ECHO_S3_SECRET_KEY': Variable.get("ECHO_S3_SECRET_KEY"),
-    },
-    dag=dag,
-    volumes=[logs_volume],
-    volume_mounts=[logs_volume_mount],
-    get_logs=True,
-)
+    list_csv_files = [ KubernetesPodOperator(
+        task_id=f'list_csv_files-{bucket_name}',
+        image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
+        cmds=['./entrypoint.sh'],
+        arguments=['python', 'csd3-echo-somerville/scripts/list_backup_csvs.py', 
+                   '--bucket_name', bucket_name, 
+                   '--all-csvs', 
+                   '--save-list', ''.join([f'/lsst-backup-logs/lsst-backup-logs-{bucket_name}','{{ ds_nodash }}','.csv'])],
+        env_vars={
+            'ECHO_S3_ACCESS_KEY': Variable.get("ECHO_S3_ACCESS_KEY"),
+            'ECHO_S3_SECRET_KEY': Variable.get("ECHO_S3_SECRET_KEY"),
+        },
+        volumes=[logs_volume],
+        volume_mounts=[logs_volume_mount],
+        get_logs=True,
+    ) for bucket_name in bucket_names]
 
-compare_csv_file_lists = KubernetesPodOperator(
-    task_id='compare_csv_file_lists',
-    image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
-    cmds=['./entrypoint.sh'],
-    arguments=['python', 'csd3-echo-somerville/scripts/compare_csv_file_list.py', '--path', '/lsst-backup-logs/lsst-backup-logs-{{ ts_nodash }}', '--datestamp', '{{ ds_nodash }}'],
-    dag=dag,
-    volumes=[logs_volume],
-    volume_mounts=[logs_volume_mount],
-    get_logs=True,
-)
+    compare_csv_file_lists = [ KubernetesPodOperator(
+        task_id=f'compare_csv_file_lists-{bucket_name}',
+        image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
+        cmds=['./entrypoint.sh'],
+        arguments=['python', 'csd3-echo-somerville/scripts/compare_csv_file_list.py', 
+                   '--from-file', ''.join([f'/lsst-backup-logs/lsst-backup-logs-{bucket_name}','{{ ds_nodash }}','.csv']), 
+                   '--to-file', ''.join([f'/lsst-backup-logs/new-csv-files-{bucket_name}','{{ ds_nodash }}','.txt'])],
+        volumes=[logs_volume],
+        volume_mounts=[logs_volume_mount],
+        get_logs=True,
+    ) for bucket_name in bucket_names]
 
-list_new_csvs_op = PythonOperator(
-    task_id='list_new_csvs_op',
-    python_callable=list_new_csvs,
-    executor_config={
-        "pod_override": k8s.V1Pod(
-            spec=k8s.V1PodSpec(
-                containers=[
-                    k8s.V1Container(
-                        name="base",
-                        image="ghcr.io/lsst-uk/csd3-echo-somerville:latest",
-                        volume_mounts=[logs_volume_mount],
-                    ),
-                ],
-                volumes=[logs_volume],
-            )
-        )
-    },
-    op_args=['/lsst-backup-logs/new_csv_files.txt'],
-    dag=dag,
-)
+    get_new_csvs_task = [ PythonOperator(
+        task_id=f'get_new_csvs-{bucket_name}',
+        python_callable=get_new_csvs,
+        op_args=[bucket_name],
+    ) for bucket_name in bucket_names ]
 
-conditional_op = BranchPythonOperator(
-    task_id='conditional_op',
-    python_callable=lambda: 'check_new_csvs_subdag' if len(new_csvs) > 0 else 'end',
-    dag=dag,
-)
-
-def subdag(parent_dag_name, child_dag_name, args, new_csvs):
-    dag_subdag = DAG(
-        dag_id=f'{parent_dag_name}.{child_dag_name}',
-        default_args=args,
-        # schedule_interval="@daily",
-        # start_date=datetime(2024, 1, 1),
-    )
-    for csv in new_csvs:
-        KubernetesPodOperator(
+    for bucket_new_csvs in new_csvs.items():
+        bucket_name = bucket_new_csvs[0]
+        new_csvs_list = bucket_new_csvs[1]
+        for csv in new_csvs_list:
+            check_uploads = KubernetesPodOperator(
             task_id=f'check_{csv}',
             image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
             cmds=['./entrypoint.sh'],
-            arguments=['python', 'csd3-echo-somerville/scripts/check_upload.py', 'LSST-IR-FUSION-Butlers', csv],
-            dag=dag_subdag,
+            arguments=['python', 'csd3-echo-somerville/scripts/check_upload.py', bucket_name, csv],
             volumes=[logs_volume],
             volume_mounts=[logs_volume_mount],
             get_logs=True,
-        )
-    return dag_subdag
+            )
 
-
-check_new_csvs_subdag = SubDagOperator(
-    task_id='check_new_csvs_subdag',
-    subdag=subdag(dag.dag_id, 'check_new_csvs_subdag', default_args, new_csvs),
-    # op_args=new_csvs,
-    dag=dag,
-)
-
-end = PythonOperator(
-    task_id='end',
-    dag=dag,
-    python_callable=lambda: print("No new CSV files to check."),
-)
-
-# Set the task sequence
-list_csv_files >> compare_csv_file_lists >> list_new_csvs_op >> conditional_op >> [check_new_csvs_subdag,end]
-        
+    # Set the task sequence
+    list_csv_files >> compare_csv_file_lists >> get_new_csvs_task >> check_uploads
+            
