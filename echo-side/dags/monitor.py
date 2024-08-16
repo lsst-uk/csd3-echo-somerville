@@ -72,7 +72,7 @@ with DAG(
         cmds=['./entrypoint.sh'],
         arguments=['python', 'csd3-echo-somerville/scripts/compare_csv_file_lists.py', 
                    '--from-file', ''.join([f'/lsst-backup-logs/all-backup-logs-{bucket_name}','{{ ds_nodash }}','.txt']), 
-                   '--to-file', ''.join([f'/lsst-backup-logs/new-csv-files-{bucket_name}','{{ ds_nodash }}','.txt'])],
+                   '--to-file', ''.join([f'/lsst-backup-logs/new-backup-logs-{bucket_name}','{{ ds_nodash }}','.txt'])],
         env_vars={
             'ECHO_S3_ACCESS_KEY': Variable.get("ECHO_S3_ACCESS_KEY"),
             'ECHO_S3_SECRET_KEY': Variable.get("ECHO_S3_SECRET_KEY"),
