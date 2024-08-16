@@ -16,9 +16,9 @@ def split_csv_file_list(csv_file_list):
     verification_logs = []
     
     for csv_file in csv_file_list:
-        if csv_file.__endswith__(log_suffix) or csv_file.__endswith__(previous_log_suffix):
+        if csv_file.endswith(log_suffix) or csv_file.endswith(previous_log_suffix):
             backup_logs.append(csv_file)
-        elif csv_file.__endswith__(verification_suffix):
+        elif csv_file.endswith(verification_suffix):
             verification_logs.append(csv_file)
     return backup_logs, verification_logs
 
@@ -74,8 +74,6 @@ if __name__ == "__main__":
 
     debug = args.debug
 
-    
-
     if debug:
         print(f"CSV file list: {csv_file_list}")
     
@@ -87,7 +85,7 @@ if __name__ == "__main__":
     
     to_verify = compare_csv_file_lists(backup_logs, verification_logs)
         
-    if debug
+    if debug:
         print(f"New backup logs to verify: {to_verify}, {len(to_verify)}")
 
     if outfile:
