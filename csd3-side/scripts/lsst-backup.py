@@ -568,27 +568,32 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
             print(f'Sending {file_count} files (total size: {folder_files_size/1024**2:.0f} MiB) in {folder} to S3 bucket {bucket_name}.')
 
-            for i,args in enumerate(
-                zip(
-                    repeat(s3_host), 
-                    repeat(access_key), 
-                    repeat(secret_key), 
-                    repeat(bucket_name), 
-                    repeat(folder), 
-                    folder_files,
-                    repeat(None),
-                    object_names, 
-                    repeat(perform_checksum), 
-                    repeat(dryrun), 
-                    repeat(processing_start),
-                    repeat(file_count),
-                    repeat(folder_files_size),
-                    repeat(total_size_uploaded),
-                    repeat(total_files_uploaded),
-                    repeat(False),
-                    repeat(mem_per_core),
-                )):
-                results.append(pool.apply_async(upload_and_callback, args=args))
+            try:
+                for i,args in enumerate(
+                    zip(
+                        repeat(s3_host), 
+                        repeat(access_key), 
+                        repeat(secret_key), 
+                        repeat(bucket_name), 
+                        repeat(folder), 
+                        folder_files,
+                        repeat(None),
+                        object_names, 
+                        repeat(perform_checksum), 
+                        repeat(dryrun), 
+                        repeat(processing_start),
+                        repeat(file_count),
+                        repeat(folder_files_size),
+                        repeat(total_size_uploaded),
+                        repeat(total_files_uploaded),
+                        repeat(False),
+                        repeat(mem_per_core),
+                    )):
+                    results.append(pool.apply_async(upload_and_callback, args=args))
+            except MemoryError as e:
+                print(f'Error uploading {folder} to {bucket_name}: {e}')
+                print(f'Folder: {folder}')
+                sys.exit(1)
 
             if i > nprocs*4 and i % nprocs*4 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
                 for result in results:
@@ -727,27 +732,33 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                             total_size_uploaded += len(zip_data)
                             total_files_uploaded += 1
                             print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
-                            results.append(collate_ul_pool.apply_async(upload_and_callback, args=(
-                                s3_host,
-                                access_key,
-                                secret_key,
-                                bucket_name,
-                                parent_folder,
-                                zip_data,
-                                to_collate[parent_folder]['zips'][-1]['zip_contents'],
-                                to_collate[parent_folder]['zips'][-1]['zip_object_name'],
-                                perform_checksum,
-                                dryrun,
-                                processing_start,
-                                1,
-                                len(zip_data),
-                                total_size_uploaded,
-                                total_files_uploaded,
-                                True,
-                                mem_per_core,
-                                ),
-                                # callback=lambda _: free_up_zip_memory(to_collate, parent_folder, tc_index),
-                            ))
+                            try:
+                                results.append(collate_ul_pool.apply_async(upload_and_callback, args=(
+                                    s3_host,
+                                    access_key,
+                                    secret_key,
+                                    bucket_name,
+                                    parent_folder,
+                                    zip_data,
+                                    to_collate[parent_folder]['zips'][-1]['zip_contents'],
+                                    to_collate[parent_folder]['zips'][-1]['zip_object_name'],
+                                    perform_checksum,
+                                    dryrun,
+                                    processing_start,
+                                    1,
+                                    len(zip_data),
+                                    total_size_uploaded,
+                                    total_files_uploaded,
+                                    True,
+                                    mem_per_core,
+                                    ),
+                                    # callback=lambda _: free_up_zip_memory(to_collate, parent_folder, tc_index),
+                                ))
+                            except MemoryError as e:
+                                print(f'Memory error: {e}')
+                                print(to_collate[parent_folder]['zips'][-1]['zip_object_name'])
+                                print(f'parent_folder: {parent_folder}')
+                                sys.exit(1)
 
     pool.close()
     pool.join()
