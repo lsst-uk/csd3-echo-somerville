@@ -483,11 +483,11 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             mean_filesize = 0
         
         
-        if results is not []:
-            if virtual_memory().available * 0.5 < total_filesize or mean_filesize > mem_per_core:
-                for result in results:
-                    result.get()
-                gc.collect()
+        # if results is not []:
+        #     if virtual_memory().available * 0.5 < total_filesize or mean_filesize > mem_per_core:
+        #         for result in results:
+        #             result.get()
+        #         gc.collect()
 
         # check if any subfolders contain no subfolders and < 4 files
         if len(sub_folders) > 0:
@@ -589,15 +589,15 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         repeat(False),
                         repeat(mem_per_core),
                     )):
-                    results.append(pool.apply_async(upload_and_callback, args=args))
+                    results.append(pool.imap(upload_and_callback, args))
             except MemoryError as e:
                 print(f'Error uploading {folder} to {bucket_name}: {e}')
                 print(f'Folder: {folder}')
                 sys.exit(1)
 
-            if i > nprocs*4 and i % nprocs*4 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
-                for result in results:
-                    result.get()  # Wait until current processes in pool are finished
+            # if i > nprocs*4 and i % nprocs*4 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
+            #     for result in results:
+            #         result.get()  # Wait until current processes in pool are finished
             
             # release block of files if the list for results is greater than 4 times the number of processes
 
@@ -692,16 +692,16 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'collating into: {len(chunks)} zip file(s)')
             for id,chunk in enumerate(zip(chunks,chunk_files)):
                 # print(f'chunk {id} contains {len(chunk[0])} folders')
-                zip_results.append(zip_pool.apply_async(zip_folders, (parent_folder,chunk[0],chunk_files[0],use_compression,dryrun,id)))
+                zip_results.append(zip_pool.imap(zip_folders, (parent_folder,chunk[0],chunk_files[0],use_compression,dryrun,id)))
         zipped = 0
         uploaded = []
         total_zips = len(zip_results)
         while zipped < total_zips:
             for i, result in enumerate(zip_results):
                 if result is not None:
-                    if result.ready():
-                        parent_folder, id, zip_data = result.get()
-                        zip_results[i] = None # remove from list to free memory
+                    # if result.ready():
+                        parent_folder, id, zip_data = result #.get()
+                        # zip_results[i] = None # remove from list to free memory
                         if (parent_folder,id) in uploaded:
                             continue
                         else:
@@ -733,7 +733,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                             total_files_uploaded += 1
                             print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
                             try:
-                                results.append(collate_ul_pool.apply_async(upload_and_callback, args=(
+                                results.append(collate_ul_pool.imap(upload_and_callback, (
                                     s3_host,
                                     access_key,
                                     secret_key,
