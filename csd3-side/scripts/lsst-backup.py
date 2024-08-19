@@ -663,7 +663,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         # print(to_collate)
         for zip_tuple in to_collate.items():
             parent_folder = zip_tuple[0]
-            if parent_folder == local_dir:
+            if os.path.abspath(parent_folder) == os.path.abspath(os.sep.join([local_dir,'..'])):
                 continue
             folders = zip_tuple[1]['folders']
             folder_files = zip_tuple[1]['folder_files']
