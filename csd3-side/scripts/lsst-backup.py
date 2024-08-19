@@ -589,7 +589,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         repeat(False),
                         repeat(mem_per_core),
                     )):
-                    results.append(pool.apply_async(upload_and_callback, args=args))
+                    results.append(pool.starmap(upload_and_callback, args))
             except MemoryError as e:
                 print(f'Error uploading {folder} to {bucket_name}: {e}')
                 print(f'Folder: {folder}')
