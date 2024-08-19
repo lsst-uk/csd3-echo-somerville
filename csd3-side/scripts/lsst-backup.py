@@ -43,7 +43,7 @@ import argparse
 import gc
 
 def zip_folders_for_imap(args):
-    print(f'args: {args}', flush=True)
+    print(f'args: {args[0]}', flush=True)
     return zip_folders(*args)
 
 def zip_folders(parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun, id=0):
