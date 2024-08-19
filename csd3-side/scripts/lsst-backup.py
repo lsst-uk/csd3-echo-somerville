@@ -588,8 +588,9 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         repeat(total_files_uploaded),
                         repeat(False),
                         repeat(mem_per_core),
-                    )):
-                    results.append(pool.starmap(upload_and_callback, args))
+                        )
+                    ):
+                    results.append(pool.imap(upload_and_callback, args))
             except MemoryError as e:
                 print(f'Error uploading {folder} to {bucket_name}: {e}')
                 print(f'Folder: {folder}')
@@ -692,7 +693,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'collating into: {len(chunks)} zip file(s)')
             for id,chunk in enumerate(zip(chunks,chunk_files)):
                 # print(f'chunk {id} contains {len(chunk[0])} folders')
-                zip_results.append(zip_pool.apply_async(zip_folders, (parent_folder,chunk[0],chunk_files[0],use_compression,dryrun,id)))
+                zip_results.append(zip_pool.imap(zip_folders, (parent_folder,chunk[0],chunk_files[0],use_compression,dryrun,id)))
         zipped = 0
         uploaded = []
         total_zips = len(zip_results)
@@ -733,7 +734,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                             total_files_uploaded += 1
                             print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
                             try:
-                                results.append(collate_ul_pool.apply_async(upload_and_callback, args=(
+                                results.append(collate_ul_pool.imap(upload_and_callback, (
                                     s3_host,
                                     access_key,
                                     secret_key,
