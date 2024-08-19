@@ -408,7 +408,7 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, fi
 #     del to_collate[parent_folder]['zips'][index]['zip_contents']
 #     print(f'Deleted zip contents object for {parent_folder}, zip index {index}, to free memory.')
 
-def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, nprocs, perform_checksum, dryrun, log, global_collate, use_compression):
+def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, nprocs, perform_checksum, dryrun, log, global_collate, use_compression, mem_per_core):
     """
     Uploads files from a local directory to an S3 bucket in parallel.
 
@@ -482,11 +482,12 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         else:
             mean_filesize = 0
         
-        # check if memory is running low
-        if results is not [] and virtual_memory().available * 0.5 < total_filesize:
-            for result in results:
-                result.get()
-            gc.collect()
+        
+        if results is not []:
+            if virtual_memory().available * 0.5 < total_filesize or mean_filesize > mem_per_core:
+                for result in results:
+                    result.get()
+                gc.collect()
 
         # check if any subfolders contain no subfolders and < 4 files
         if len(sub_folders) > 0:
