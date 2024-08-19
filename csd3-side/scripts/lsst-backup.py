@@ -842,7 +842,7 @@ if __name__ == '__main__':
     else:
         mem_per_core = mem_per_core * 1024**2 # convert to bytes
     
-    print(f'max_mem_per_core: {max_mem_per_core/1024**2} MiB')
+    print(f'max_mem_per_core: {np.floor(max_mem_per_core/1024**2)} MiB')
     
     if args.exclude:
         exclude = pd.Series(args.exclude)
