@@ -586,6 +586,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     repeat(total_size_uploaded),
                     repeat(total_files_uploaded),
                     repeat(False),
+                    repeat(mem_per_core),
                 )):
                 results.append(pool.apply_async(upload_and_callback, args=args))
 
