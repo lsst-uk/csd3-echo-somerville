@@ -569,8 +569,27 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'Sending {file_count} files (total size: {folder_files_size/1024**2:.0f} MiB) in {folder} to S3 bucket {bucket_name}.')
 
             try:
-                for i,args in enumerate(
-                    zip(
+                # for i,args in enumerate(
+                #     zip(
+                #         repeat(s3_host), 
+                #         repeat(access_key), 
+                #         repeat(secret_key), 
+                #         repeat(bucket_name), 
+                #         repeat(folder), 
+                #         folder_files,
+                #         repeat(None),
+                #         object_names, 
+                #         repeat(perform_checksum), 
+                #         repeat(dryrun), 
+                #         repeat(processing_start),
+                #         repeat(file_count),
+                #         repeat(folder_files_size),
+                #         repeat(total_size_uploaded),
+                #         repeat(total_files_uploaded),
+                #         repeat(False),
+                #         repeat(mem_per_core),
+                #     )):
+                    results = pool.imap_unordered(upload_and_callback, zip(
                         repeat(s3_host), 
                         repeat(access_key), 
                         repeat(secret_key), 
@@ -588,8 +607,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         repeat(total_files_uploaded),
                         repeat(False),
                         repeat(mem_per_core),
-                    )):
-                    results.append(pool.imap(upload_and_callback, args))
+                    ))
+
             except MemoryError as e:
                 print(f'Error uploading {folder} to {bucket_name}: {e}')
                 print(f'Folder: {folder}')
@@ -690,15 +709,15 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 sys.exit(1)
             print(f'parent_folder above zip(s): {parent_folder}')
             print(f'collating into: {len(chunks)} zip file(s)')
-            for id,chunk in enumerate(zip(chunks,chunk_files)):
-                # print(f'chunk {id} contains {len(chunk[0])} folders')
-                zip_results.append(zip_pool.imap(zip_folders, [parent_folder,chunk[0],chunk_files[0],use_compression,dryrun,id]))
+            # for id,chunk in enumerate(zip(chunks,chunk_files)):
+            #     # print(f'chunk {id} contains {len(chunk[0])} folders')
+            zip_results = zip_pool.imap_unordered(zip_folders, [repeat(parent_folder),chunks,chunk_files,repeat(use_compression),repeat(dryrun),[i for i in range(len(chunks))]])
         zipped = 0
         uploaded = []
         total_zips = len(zip_results)
         while zipped < total_zips:
             for i, result in enumerate(zip_results):
-                if result is not None:
+                # if result is not None:
                     # if result.ready():
                         parent_folder, id, zip_data = result #.get()
                         # zip_results[i] = None # remove from list to free memory
@@ -733,7 +752,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                             total_files_uploaded += 1
                             print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
                             try:
-                                results.append(collate_ul_pool.imap(upload_and_callback, (
+                                results.append(collate_ul_pool.apply_async(upload_and_callback, (
                                     s3_host,
                                     access_key,
                                     secret_key,
