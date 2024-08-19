@@ -710,6 +710,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             max_files_per_zip = int(np.ceil(max_zipsize / max_filesize))
             num_zips = int(np.ceil(num_files / max_files_per_zip))
 
+            print(f'max_zipsize,max_files_per_zip,num_zips: {max_zipsize},{max_files_per_zip},{num_zips}')
+
             chunks = [folders[i:i + num_zips] for i in range(0, len(folders), num_zips)]
             chunk_files = [folder_files[i:i + num_zips] for i in range(0, len(folder_files), num_zips)]
             if len(chunks) != len(chunk_files):
