@@ -76,6 +76,8 @@ def zip_folders(args):
     """
     # unpack
     parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun, id = args
+
+    print(f'Collating {len(subfolders_to_collate)} subfolders into a zip file for {parent_folder}.', flush=True)
     
     if not dryrun:
 
@@ -391,7 +393,7 @@ def upload_and_callback(args):
     #repeat(s3_host), repeat(access_key), repeat(secret_key), repeat(bucket_name), repeat(folder), folder_files, object_names, repeat(perform_checksum), repeat(dryrun)
     # upload files in parallel and log output
     file_start = datetime.now()
-    print(f'collated = {collated}')
+    print(f'collated = {collated}', flush=True)
     if collated:
         try:
             print(f'Uploading zip containing {file_count} subfolders from {folder}.')
