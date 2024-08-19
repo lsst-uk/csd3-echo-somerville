@@ -692,7 +692,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'collating into: {len(chunks)} zip file(s)')
             for id,chunk in enumerate(zip(chunks,chunk_files)):
                 # print(f'chunk {id} contains {len(chunk[0])} folders')
-                zip_results.append(zip_pool.imap(zip_folders, parent_folder,chunk[0],chunk_files[0],use_compression,dryrun,id))
+                zip_results.append(zip_pool.imap(zip_folders, [parent_folder,chunk[0],chunk_files[0],use_compression,dryrun,id]))
         zipped = 0
         uploaded = []
         total_zips = len(zip_results)
