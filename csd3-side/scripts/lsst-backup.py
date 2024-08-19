@@ -385,7 +385,9 @@ def print_stats(file_name_or_data, file_count, total_size, file_start, file_end,
     print(f'Running average speed = {total_size_uploaded / 1024**2 / (file_end-processing_start).seconds:.2f} MiB/s', flush=True)
     print(f'Running average rate = {(file_end-processing_start).seconds / total_files_uploaded:.2f} s/file', flush=True)
 
-def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded, collated, mem_per_core):
+def upload_and_callback(args):
+    #unpack
+    s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded, collated, mem_per_core = args
     #repeat(s3_host), repeat(access_key), repeat(secret_key), repeat(bucket_name), repeat(folder), folder_files, object_names, repeat(perform_checksum), repeat(dryrun)
     # upload files in parallel and log output
     file_start = datetime.now()
@@ -592,7 +594,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 #         repeat(False),
                 #         repeat(mem_per_core),
                 #     )):
-                    results = pool.starmap_async(upload_and_callback, zip(
+                    results = pool.imap_unordered(upload_and_callback, zip(
                         repeat(s3_host), 
                         repeat(access_key), 
                         repeat(secret_key), 
@@ -719,6 +721,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             zip_results = zip_pool.imap_unordered(zip_folders, zip(repeat(parent_folder),chunks,chunk_files,repeat(use_compression),repeat(dryrun),[i for i in range(len(chunks))]))
         zipped = 0
         uploaded = []
+        zul_results = []
         # total_zips = len(zip_results)
         # while zipped < total_zips:
         for result in zip_results:
@@ -757,7 +760,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         total_files_uploaded += 1
                         print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
                         try:
-                            results.append(collate_ul_pool.apply_async(upload_and_callback, (
+                            zul_results.append(collate_ul_pool.apply_async(upload_and_callback, (
                                 s3_host,
                                 access_key,
                                 secret_key,
