@@ -718,7 +718,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         uploaded = []
         # total_zips = len(zip_results)
         # while zipped < total_zips:
-        for i, result in enumerate(zip_results):
+        for result in zip_results:
             # if result is not None:
                 # if result.ready():
                     parent_folder, id, zip_data = result #.get()
@@ -746,7 +746,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
                             if checksum_string == existing_zip_checksum:
                                 print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and checksums match - skipping.')
-                                zip_results[i] = None
+                                # zip_results[i] = None
                                 continue
                             
                         # upload zipped folders
