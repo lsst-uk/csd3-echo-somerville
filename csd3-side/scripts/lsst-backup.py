@@ -93,7 +93,7 @@ def zip_folders(parent_folder, subfolders_to_collate, folders_files, use_compres
     else:
         return parent_folder, id, b''
     
-def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun):
+def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun, mem_per_core):
     """
     Uploads a file to an S3 bucket.
     Optionally calculates a checksum for the file
@@ -109,6 +109,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
         object_key (str): The key to assign to the uploaded file in the S3 bucket.
         perform_checksum (bool): Flag indicating whether to perform a checksum on the file.
         dryrun (bool): Flag indicating whether to perform a dry run (no actual upload).
+        mem_per_core (int): The amount of memory to allocate per CPU core.
 
     Returns:
         str: A string containing information about the uploaded file in CSV format.
@@ -161,14 +162,14 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                 checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
                 file_data.seek(0)  # Reset the file pointer to the start
                 try:
-                    if file_size > 5 * 1024 * 1024 * 1024:  # Check if file size is larger than 5GiB
+                    if file_size > mem_per_core or file_size > 5 * 1024**3:  # Check if file size is larger than 5GiB
                         """
                         - Use multipart upload for large files
                         """
                         
                         obj = bucket.Object(object_key)
                         mp_upload = obj.initiate_multipart_upload()
-                        chunk_size = 500 * 1024 * 1024  # Set chunk size to 500 MiB
+                        chunk_size = mem_per_core // 8 # Set chunk size to half the mem_per_core - lowering this will increase the number of parts, in turn increasing multithreading overhead, and potentially leading to memory errors
                         chunk_count = int(np.ceil(file_size / chunk_size))
                         print(f'Uploading {filename} to {bucket_name}/{object_key} in {chunk_count} parts.')
                         parts = []
@@ -226,7 +227,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
     return_string += ',n/a'
     return return_string
 
-def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, folder, file_data, zip_contents, object_key, perform_checksum, dryrun):
+def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, folder, file_data, zip_contents, object_key, perform_checksum, dryrun, mem_per_core):
     """
     Uploads a file to an S3 bucket.
     Optionally calculates a checksum for the file
@@ -277,15 +278,16 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
             checksum_hash = hashlib.md5(file_data)
             checksum_string = checksum_hash.hexdigest()
             checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
+            file_size = len(file_data)
             try:
-                if len(file_data) > 5 * 1024 * 1024 * 1024:  # Check if file size is larger than 5GiB
+                if file_size > mem_per_core or file_size > 5 * 1024**3:  # Check if file size is larger than 5GiB
                     """
                     - Use multipart upload for large files
                     """
                     
                     obj = bucket.Object(object_key)
                     mp_upload = obj.initiate_multipart_upload()
-                    chunk_size = 500 * 1024 * 1024  # Set chunk size to 500 MiB
+                    chunk_size = mem_per_core // 8 # Set chunk size to half the mem_per_core - lowering this will increase the number of parts, in turn increasing multithreading overhead, and potentially leading to memory errors
                     chunk_count = int(np.ceil(file_data_size / chunk_size))
                     print(f'Uploading "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key} in {chunk_count} parts.')
                     parts = []
@@ -388,13 +390,13 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, fi
     if collated:
         try:
             print(f'Uploading zip containing {file_count} subfolders from {folder}.')
-            result = upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun)
+            result = upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, mem_per_core)
         except Exception as e:
             print(f'Error uploading {folder} to {bucket_name}/{object_key}: {e}')
             sys.exit(1)
     else:
         print(f'Uploading {file_count} files from {folder}.')
-        result = upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, object_key, perform_checksum, dryrun)
+        result = upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, object_key, perform_checksum, dryrun, mem_per_core)
     
     file_end = datetime.now()
     print_stats(file_name_or_data, file_count, folder_files_size, file_start, file_end, processing_start, total_size_uploaded, total_files_uploaded, collated)
@@ -479,6 +481,12 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             mean_filesize = total_filesize / len(files)
         else:
             mean_filesize = 0
+        
+        # check if memory is running low
+        if results is not [] and virtual_memory().available * 0.5 < total_filesize:
+            for result in results:
+                result.get()
+            gc.collect()
 
         # check if any subfolders contain no subfolders and < 4 files
         if len(sub_folders) > 0:
@@ -768,11 +776,12 @@ if __name__ == '__main__':
     parser.add_argument('--no-checksum', default=False, action='store_true', help='Do not perform checksum validation during upload.')
     parser.add_argument('--no-compression', default=False, action='store_true', help='Do not use compression when collating files.')
     parser.add_argument('--save-config', default=False, action='store_true', help='Save the configuration to the provided config file path and exit.')
+    parser.add_argument('--mem-per-core', type=int, help='Memory per core in MiB. (0 = no limit - max_vmem/nprocs will be used)', default=0)
     args = parser.parse_args()
 
     if not args.config_file and not (args.bucket_name and args.local_path and args.S3_prefix):
         parser.error('If a config file is not provided, the bucket name, local path, and S3 prefix must be provided.')
-    if args.config_file and (args.bucket_name or args.local_path or args.S3_prefix or args.S3_folder or args.exclude or args.nprocs or args.no_collate or args.dryrun or args.no_checksum or args.no_compression):
+    if args.config_file and (args.bucket_name or args.local_path or args.S3_prefix or args.S3_folder or args.exclude or args.nprocs or args.no_collate or args.dryrun or args.no_checksum or args.no_compression or args.mem_per_core):
         print(f'WARNING: Options provide on command line override options in {args.config_file}.')
     if args.config_file:
         config_file = args.config_file
@@ -803,6 +812,8 @@ if __name__ == '__main__':
                     args.no_checksum = config['no_checksum']
                 if 'no_compression' in config.keys() and not args.no_compression:
                     args.no_compression = config['no_compression']
+                if 'mem_per_core' in config.keys() and not args.mem_per_core:
+                    args.mem_per_core = config['mem_per_core']
     if args.save_config and not args.config_file:
         parser.error('A config file must be provided to save the configuration.')
 
@@ -819,7 +830,13 @@ if __name__ == '__main__':
     perform_checksum = not args.no_checksum # internally, flag turns *on* checksumming, but for user no-checksum  turns it off - makes flag more intuitive
     dryrun = args.dryrun
     use_compression = not args.no_compression # internally, flag turns *on* compression, but for user no-compression turns it off - makes flag more intuitive
+    mem_per_core = args.mem_per_core
 
+    max_mem_per_core = virtual_memory().total // nprocs
+    if mem_per_core == 0 or mem_per_core > max_mem_per_core:
+        mem_per_core = max_mem_per_core
+    else:
+        mem_per_core = mem_per_core * 1024**2 # convert to bytes
     
     if args.exclude:
         exclude = pd.Series(args.exclude)
@@ -830,7 +847,7 @@ if __name__ == '__main__':
 
     if save_config:
         with open(config_file, 'w') as f:
-            yaml.dump({'bucket_name': bucket_name, 'local_path': local_dir, 'S3_prefix': prefix, 'S3_folder': sub_dirs, 'exclude': exclude.to_list(), 'nprocs': nprocs, 'no_collate': not global_collate, 'dryrun': dryrun, 'no_checksum': not perform_checksum, 'no_compression': not use_compression}, f)
+            yaml.dump({'bucket_name': bucket_name, 'local_path': local_dir, 'S3_prefix': prefix, 'S3_folder': sub_dirs, 'exclude': exclude.to_list(), 'nprocs': nprocs, 'no_collate': not global_collate, 'dryrun': dryrun, 'no_checksum': not perform_checksum, 'no_compression': not use_compression, 'mem_per_core': mem_per_core / 1024**2}, f)
         sys.exit(0)
 
     print(f'Symlinks will be replaced with the target file. A new file <simlink_file>.symlink will contain the symlink target path.')
@@ -927,7 +944,7 @@ if __name__ == '__main__':
     print(f'Using {nprocs} processes.')
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore')
-        process_files(s3_host,access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, nprocs, perform_checksum, dryrun, log, global_collate, use_compression)
+        process_files(s3_host,access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, nprocs, perform_checksum, dryrun, log, global_collate, use_compression, mem_per_core)
     
     # Complete
     final_time = datetime.now() - start
