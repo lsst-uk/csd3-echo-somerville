@@ -962,14 +962,15 @@ if __name__ == '__main__':
     if not dryrun:
         print('Uploading log file.')
         upload_to_bucket(s3_host,
-                         access_key, 
-                         secret_key, 
-                         bucket_name, 
-                         '/', #path
-                         log, 
-                         os.path.basename(log), 
-                         False, # perform_checksum
-                         False, # dryrun
+                        access_key, 
+                        secret_key, 
+                        bucket_name, 
+                        '/', #path
+                        log, 
+                        os.path.basename(log), 
+                        False, # perform_checksum
+                        False, # dryrun
+                        mem_per_core,
                         )
     
     final_size = log_df["FILE_SIZE"].sum() / 1024**2
