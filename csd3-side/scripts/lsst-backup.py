@@ -42,11 +42,7 @@ import argparse
 
 import gc
 
-def zip_folders_for_imap(args):
-    print(f'args: {args[0]}', flush=True)
-    return zip_folders(*args)
-
-def zip_folders(parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun, id=0):
+def zip_folders(args):
     """
     Collates the specified folders into a zip file.
 
@@ -79,6 +75,7 @@ def zip_folders(parent_folder, subfolders_to_collate, folders_files, use_compres
 
     """
     # unpack
+    parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun, id = args
     
     if not dryrun:
 
@@ -595,7 +592,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 #         repeat(False),
                 #         repeat(mem_per_core),
                 #     )):
-                    results = pool.imap_unordered(upload_and_callback, zip(
+                    results = pool.starmap_async(upload_and_callback, zip(
                         repeat(s3_host), 
                         repeat(access_key), 
                         repeat(secret_key), 
@@ -719,7 +716,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             total_zips += len(chunks)
             # for id,chunk in enumerate(zip(chunks,chunk_files)):
             #     # print(f'chunk {id} contains {len(chunk[0])} folders')
-            zip_results = zip_pool.imap_unordered(zip_folders_for_imap, [repeat(parent_folder),chunks,chunk_files,repeat(use_compression),repeat(dryrun),[i for i in range(len(chunks))]])
+            zip_results = zip_pool.imap_unordered(zip_folders, [repeat(parent_folder),chunks,chunk_files,repeat(use_compression),repeat(dryrun),[i for i in range(len(chunks))]])
         zipped = 0
         uploaded = []
         # total_zips = len(zip_results)
