@@ -382,7 +382,7 @@ def print_stats(file_name_or_data, file_count, total_size, file_start, file_end,
     print(f'Running average speed = {total_size_uploaded / 1024**2 / (file_end-processing_start).seconds:.2f} MiB/s', flush=True)
     print(f'Running average rate = {(file_end-processing_start).seconds / total_files_uploaded:.2f} s/file', flush=True)
 
-def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded, collated):
+def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded, collated, mem_per_core):
     #repeat(s3_host), repeat(access_key), repeat(secret_key), repeat(bucket_name), repeat(folder), folder_files, object_names, repeat(perform_checksum), repeat(dryrun)
     # upload files in parallel and log output
     file_start = datetime.now()
@@ -741,7 +741,9 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                                 len(zip_data),
                                 total_size_uploaded,
                                 total_files_uploaded,
-                                True),
+                                True,
+                                mem_per_core,
+                                ),
                                 # callback=lambda _: free_up_zip_memory(to_collate, parent_folder, tc_index),
                             ))
 
