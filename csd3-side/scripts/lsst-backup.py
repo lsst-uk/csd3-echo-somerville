@@ -96,7 +96,7 @@ def zip_folders(args):
                         with open(file_path, 'rb') as src_file:
                             zip_file.writestr(arc_name, src_file.read())
             if zipped_size > mem_per_core:
-                print(f'WARNING: Zipped size of {zipped_size} bytes exceeds memory per core of {mem_per_core} bytes. Returning empty zip file.')
+                print(f'WARNING: Zipped size of {zipped_size} bytes exceeds memory per core of {mem_per_core} bytes.')
         except MemoryError as e:
             print(f'Error zipping {parent_folder}: {e}')
             print(f'Namespace: {globals()}')
@@ -717,7 +717,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             max_zipsize = total_memory / zip_pool._processes
             max_files_per_zip = int(np.ceil(max_zipsize / max_filesize))
             num_zips = int(np.ceil(num_files / max_files_per_zip))
-
+            print(f'num_zips = {num_zips}')
             print(f'max_zipsize,max_files_per_zip,num_zips: {max_zipsize},{max_files_per_zip},{num_zips}')
 
             chunks = [folders[i:i + num_zips] for i in range(0, len(folders), num_zips)]
