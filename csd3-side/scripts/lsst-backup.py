@@ -720,8 +720,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'num_zips = {num_zips}')
             print(f'max_zipsize,max_files_per_zip,num_zips: {max_zipsize},{max_files_per_zip},{num_zips}')
 
-            chunks = [folders[i:i + num_zips] for i in range(0, len(folders), num_zips)]
-            chunk_files = [folder_files[i:i + num_zips] for i in range(0, len(folder_files), num_zips)]
+            chunks = [folders[i:i + max_files_per_zip] for i in range(0, len(folders), max_files_per_zip)]
+            chunk_files = [folder_files[i:i + max_files_per_zip] for i in range(0, len(folder_files), max_files_per_zip)]
             if len(chunks) != len(chunk_files):
                 print('Error: chunks and chunk_files are not the same length.')
                 sys.exit(1)
@@ -731,6 +731,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'parent_folder: {parent_folder}')
             print(f'chunks: {chunks}')
             print(f'len(chunks): {len(chunks)}')
+            print(f'len(chunk_files): {len(chunk_files)}')
             print(f'use_compression: {use_compression}')
             print(f'dryrun: {dryrun}')
             print(f'mem_per_core: {mem_per_core}')
