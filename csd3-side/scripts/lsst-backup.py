@@ -698,6 +698,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     if len(to_collate) > 0:
         # print(f"zips: {to_collate[parent_folder]['zips']}")
         print(f'Collating {len([to_collate[parent_folder]["folders"] for parent_folder in to_collate.keys()])} folders into zip files.') #{sum([len(x["zips"]) for x in to_collate.keys()])}
+        print(f'parent_folders: {to_collate.keys()}')
         # call zip_folder in parallel
         # print(to_collate)
         for zip_tuple in to_collate.items():
