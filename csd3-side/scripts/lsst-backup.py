@@ -710,6 +710,9 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             folders = zip_tuple[1]['folders']
             folder_files = zip_tuple[1]['folder_files']
             num_files = sum([len(ff) for ff in folder_files])
+            print(f'num_files = {num_files}')
+            print(f'folders: {len(folders)}')
+            print(f'folder_files: {len(folder_files)}')
             try:
                 max_filesize = max([max([os.lstat(filename).st_size for filename in ff]) for ff in folder_files])
                 folder_size = sum([sum([os.lstat(filename).st_size for filename in ff]) for ff in folder_files])
