@@ -77,7 +77,10 @@ def zip_folders(args):
     # unpack
     parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun, id, mem_per_core = args
     zipped_size = 0
-
+    print(f'parent_folder: {parent_folder}')
+    print(f'subfolders_to_collate: {subfolders_to_collate}')
+    print(f'folders_files: {folders_files}')
+    exit()
     if not dryrun:
         try:
             zip_buffer = io.BytesIO()
