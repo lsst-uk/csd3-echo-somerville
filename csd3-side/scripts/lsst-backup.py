@@ -75,8 +75,9 @@ def zip_folders(args):
 
     """
     # unpack
-    parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun, id, mem_per_core = args
+    parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun, id, mem_per_core, chunk_subfolders = args
     zipped_size = 0
+
     if not dryrun:
         try:
             zip_buffer = io.BytesIO()
@@ -87,6 +88,8 @@ def zip_folders(args):
             with zipfile.ZipFile(zip_buffer, "a", compression, True) as zip_file:
                 for i, folder in enumerate(subfolders_to_collate):
                     for file in folders_files[i]:
+                        if chunk_subfolders:
+                            folder = '_'.join(folder.split('_')[:-1])
                         file_path = os.path.join(folder, file)
                         arc_name = os.path.relpath(file_path, parent_folder)
                         zipped_size += os.path.getsize(file_path)
@@ -733,7 +736,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     for i in range(0, len(folder_files[j]), len(folder_files[j])//num_zips):
                         print(f'folder_files[{j}][{i}]: {folder_files[j][i]}')
                         subchunks_files.append(folder_files[j][i:i+len(folder_files[j])//num_zips])
-                subchunks = [f'{folder}_{i}' for folder in folders for i in range(len(subchunks_files))]
+                subchunks = [folder for folder in folders for _ in range(len(subchunks_files))]
                 chunks = subchunks
                 chunk_files = subchunks_files
             
@@ -769,6 +772,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         repeat(dryrun),
                         [i for i in range(len(chunks))],
                         repeat(mem_per_core),
+                        repeat(chunk_subfolders)
                         )
                     )
             except MemoryError as e:
