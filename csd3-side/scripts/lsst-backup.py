@@ -75,14 +75,12 @@ def zip_folders(args):
 
     """
     # unpack
-    parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun, id = args
+    parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun, id, mem_per_core = args
 
     print(f'Collating {len(subfolders_to_collate)} subfolders into a zip file for {parent_folder}.', flush=True)
     print(f'Current namespace: {globals()}', flush=True)
-    
+    zipped_size = 0
     if not dryrun:
-
-
         zip_buffer = io.BytesIO()
         if use_compression:
             compression = zipfile.ZIP_DEFLATED  # zipfile.ZIP_DEFLATED = standard compression
@@ -93,8 +91,11 @@ def zip_folders(args):
                 for file in folders_files[i]:
                     file_path = os.path.join(folder, file)
                     arc_name = os.path.relpath(file_path, parent_folder)
+                    zipped_size += os.path.getsize(file_path)
                     with open(file_path, 'rb') as src_file:
                         zip_file.writestr(arc_name, src_file.read())
+        if zipped_size > mem_per_core:
+            print(f'WARNING: Zipped size of {zipped_size} bytes exceeds memory per core of {mem_per_core} bytes. Returning empty zip file.')
         return parent_folder, id, zip_buffer.getvalue()
     else:
         return parent_folder, id, b''
@@ -703,6 +704,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             num_files = sum([len(ff) for ff in folder_files])
             try:
                 max_filesize = max([max([os.lstat(filename).st_size for filename in ff]) for ff in folder_files])
+                folder_size = sum([sum([os.lstat(filename).st_size for filename in ff]) for ff in folder_files])
             except ValueError:
                 # no files in folder - likely removed from file list due to previous PermissionError - continue without message
                 continue
@@ -721,10 +723,29 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'parent_folder above zip(s): {parent_folder}')
             print(f'collating into: {len(chunks)} zip file(s)')
             total_zips += len(chunks)
+            print(f'parent_folder: {parent_folder}')
+            print(f'chunks: {chunks}')
+            print(f'chunk_files: {chunk_files}')
+            print(f'len(chunks): {len(chunks)}')
+            print(f'use_compression: {use_compression}')
+            print(f'dryrun: {dryrun}')
+            print(f'mem_per_core: {mem_per_core}')
+            print(f'folder_size: {folder_size}')
             # for id,chunk in enumerate(zip(chunks,chunk_files)):
             #     # print(f'chunk {id} contains {len(chunk[0])} folders')
             try:
-                zip_results = zip_pool.imap_unordered(zip_folders, zip(repeat(parent_folder),chunks,chunk_files,repeat(use_compression),repeat(dryrun),[i for i in range(len(chunks))]))
+                zip_results = zip_pool.imap_unordered(
+                    zip_folders, 
+                    zip(
+                        repeat(parent_folder),
+                        chunks,
+                        chunk_files,
+                        repeat(use_compression),
+                        repeat(dryrun),
+                        [i for i in range(len(chunks))],
+                        mem_per_core,
+                        )
+                    )
             except MemoryError as e:
                 print(f'Memory error: {e}')
                 print(f'parent_folder: {parent_folder}')
@@ -733,7 +754,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 print(f'len(chunks): {len(chunks)}')
                 print(f'use_compression: {use_compression}')
                 print(f'dryrun: {dryrun}')
-                print(f'current namespace: {globals()}')
+                print(f'mem_per_core: {mem_per_core}')
+                print(f'folder_size: {folder_size}')
                 sys.exit(1)
         zipped = 0
         uploaded = []
