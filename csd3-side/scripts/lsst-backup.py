@@ -88,6 +88,7 @@ def zip_folders(args):
             with zipfile.ZipFile(zip_buffer, "a", compression, True) as zip_file:
                 for i, folder in enumerate(subfolders_to_collate):
                     for file in folders_files[i]:
+                        print(f'folder: {folder}, file: {file}', flush=True)
                         file_path = os.path.join(folder, file)
                         arc_name = os.path.relpath(file_path, parent_folder)
                         zipped_size += os.path.getsize(file_path)
@@ -751,6 +752,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             total_zips += len(chunks)
             print(f'parent_folder: {parent_folder}')
             print(f'chunks: {chunks}')
+            print(f'chunk_files: {chunk_files}')
             print(f'len(chunks): {len(chunks)}')
             print(f'len(chunk_files): {len(chunk_files)}')
             print(f'use_compression: {use_compression}')
