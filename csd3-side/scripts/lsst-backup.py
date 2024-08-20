@@ -91,7 +91,7 @@ def zip_folders(args):
             with zipfile.ZipFile(zip_buffer, "a", compression, True) as zip_file:
                 # for i, folder in enumerate(subfolders_to_collate):
                     for file in folders_files:
-                        print(f'file: {file}', flush=True)
+                        # print(f'file: {file}', flush=True)
                         if file.startswith('/'):
                             file_path = file
                         else:
