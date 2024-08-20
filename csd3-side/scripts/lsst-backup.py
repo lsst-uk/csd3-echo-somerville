@@ -81,21 +81,26 @@ def zip_folders(args):
     print(f'Current namespace: {globals()}', flush=True)
     zipped_size = 0
     if not dryrun:
-        zip_buffer = io.BytesIO()
-        if use_compression:
-            compression = zipfile.ZIP_DEFLATED  # zipfile.ZIP_DEFLATED = standard compression
-        else:
-            compression = zipfile.ZIP_STORED  # zipfile.ZIP_STORED = no compression
-        with zipfile.ZipFile(zip_buffer, "a", compression, True) as zip_file:
-            for i, folder in enumerate(subfolders_to_collate):
-                for file in folders_files[i]:
-                    file_path = os.path.join(folder, file)
-                    arc_name = os.path.relpath(file_path, parent_folder)
-                    zipped_size += os.path.getsize(file_path)
-                    with open(file_path, 'rb') as src_file:
-                        zip_file.writestr(arc_name, src_file.read())
-        if zipped_size > mem_per_core:
-            print(f'WARNING: Zipped size of {zipped_size} bytes exceeds memory per core of {mem_per_core} bytes. Returning empty zip file.')
+        try:
+            zip_buffer = io.BytesIO()
+            if use_compression:
+                compression = zipfile.ZIP_DEFLATED  # zipfile.ZIP_DEFLATED = standard compression
+            else:
+                compression = zipfile.ZIP_STORED  # zipfile.ZIP_STORED = no compression
+            with zipfile.ZipFile(zip_buffer, "a", compression, True) as zip_file:
+                for i, folder in enumerate(subfolders_to_collate):
+                    for file in folders_files[i]:
+                        file_path = os.path.join(folder, file)
+                        arc_name = os.path.relpath(file_path, parent_folder)
+                        zipped_size += os.path.getsize(file_path)
+                        with open(file_path, 'rb') as src_file:
+                            zip_file.writestr(arc_name, src_file.read())
+            if zipped_size > mem_per_core:
+                print(f'WARNING: Zipped size of {zipped_size} bytes exceeds memory per core of {mem_per_core} bytes. Returning empty zip file.')
+        except MemoryError as e:
+            print(f'Error zipping {parent_folder}: {e}')
+            print(f'Namespace: {globals()}')
+            exit(1)
         return parent_folder, id, zip_buffer.getvalue()
     else:
         return parent_folder, id, b''
