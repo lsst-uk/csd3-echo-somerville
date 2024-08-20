@@ -77,10 +77,10 @@ def zip_folders(args):
     # unpack
     parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun, id, mem_per_core = args
     zipped_size = 0
-    print(f'parent_folder: {parent_folder}')
-    print(f'subfolders_to_collate: {subfolders_to_collate}')
-    print(f'folders_files: {folders_files}')
-    exit()
+    # print(f'parent_folder: {parent_folder}')
+    # print(f'subfolders_to_collate: {subfolders_to_collate}')
+    # print(f'folders_files: {folders_files}')
+    # exit()
     if not dryrun:
         try:
             zip_buffer = io.BytesIO()
@@ -89,10 +89,13 @@ def zip_folders(args):
             else:
                 compression = zipfile.ZIP_STORED  # zipfile.ZIP_STORED = no compression
             with zipfile.ZipFile(zip_buffer, "a", compression, True) as zip_file:
-                for i, folder in enumerate(subfolders_to_collate):
-                    for file in folders_files[i]:
-                        print(f'folder: {folder}, file: {file}', flush=True)
-                        file_path = os.path.join(folder, file)
+                # for i, folder in enumerate(subfolders_to_collate):
+                    for file in folders_files:
+                        print(f'file: {file}', flush=True)
+                        if file.startswith('/'):
+                            file_path = file
+                        else:
+                            file_path = os.path.join(subfolders_to_collate, file)
                         arc_name = os.path.relpath(file_path, parent_folder)
                         zipped_size += os.path.getsize(file_path)
                         with open(file_path, 'rb') as src_file:
