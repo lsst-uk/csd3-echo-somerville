@@ -637,6 +637,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         elif len(files) > 0 and global_collate: # small files in folder
             folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
             parent_folder = os.path.abspath(os.path.join(folder, os.pardir))
+            print(f'parent_folder: {parent_folder}')
+            # possibly pass if parent_folder == local_dir or parent_folder contains '..'
             if parent_folder not in to_collate.keys():
                 #initialise parent folder
                 to_collate[parent_folder] = {'parent_folder':parent_folder,'folders':[],'object_names':[], 'folder_files':[], 'zips':[{'zip_data':None, 'id':None, 'zip_object_name':''}]} # store folders to collate
