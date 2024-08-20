@@ -810,6 +810,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         # print(parent_folder, id, uploaded, flush=True)
                         with zipfile.ZipFile(io.BytesIO(zip_data), 'r') as z:
                             zip_contents = z.namelist()
+                        print(f'zip contents: {zip_contents}')
                         to_collate[parent_folder]['zips'].append({'zip_contents':zip_contents, 'id':id, 'zip_object_name':str(os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated_{id}.zip', local_dir)]))})
                         # #[os.sep.join([destination_dir, os.path.relpath(filename, local_dir)]) for filename in folder_files]
                         # to_collate[parent_folder][id]['zip_object_name'] = 
