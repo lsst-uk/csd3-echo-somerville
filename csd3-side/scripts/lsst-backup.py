@@ -748,7 +748,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         repeat(use_compression),
                         repeat(dryrun),
                         [i for i in range(len(chunks))],
-                        mem_per_core,
+                        repeat(mem_per_core),
                         )
                     )
             except MemoryError as e:
