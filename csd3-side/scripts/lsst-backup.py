@@ -722,7 +722,18 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             total_zips += len(chunks)
             # for id,chunk in enumerate(zip(chunks,chunk_files)):
             #     # print(f'chunk {id} contains {len(chunk[0])} folders')
-            zip_results = zip_pool.imap_unordered(zip_folders, zip(repeat(parent_folder),chunks,chunk_files,repeat(use_compression),repeat(dryrun),[i for i in range(len(chunks))]))
+            try:
+                zip_results = zip_pool.imap_unordered(zip_folders, zip(repeat(parent_folder),chunks,chunk_files,repeat(use_compression),repeat(dryrun),[i for i in range(len(chunks))]))
+            except MemoryError as e:
+                print(f'Memory error: {e}')
+                print(f'parent_folder: {parent_folder}')
+                print(f'chunks: {chunks}')
+                print(f'chunk_files: {chunk_files}')
+                print(f'len(chunks): {len(chunks)}')
+                print(f'use_compression: {use_compression}')
+                print(f'dryrun: {dryrun}')
+                print(f'current namespace: {globals()}')
+                sys.exit(1)
         zipped = 0
         uploaded = []
         zul_results = []
