@@ -78,7 +78,6 @@ def zip_folders(args):
     parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun, id, mem_per_core = args
 
     print(f'Collating {len(subfolders_to_collate)} subfolders into a zip file for {parent_folder}.', flush=True)
-    print(f'Current namespace: {globals()}', flush=True)
     zipped_size = 0
     if not dryrun:
         try:
