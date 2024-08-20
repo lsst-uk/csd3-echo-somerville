@@ -724,9 +724,25 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             num_zips = int(np.ceil(num_files / max_files_per_zip))
             print(f'num_zips = {num_zips}')
             print(f'max_zipsize,max_files_per_zip,num_zips: {max_zipsize},{max_files_per_zip},{num_zips}')
+            chunk_subfolders = False
+            if num_zips > 1:
+                chunk_subfolders = True
 
             chunks = [folders[i:i + max_files_per_zip] for i in range(0, len(folders), max_files_per_zip)]
             chunk_files = [folder_files[i:i + max_files_per_zip] for i in range(0, len(folder_files), max_files_per_zip)]
+
+
+            if chunk_subfolders:
+                subchunks_files = []
+                for j in range(len(chunks)):
+                    for i in range(0, len(chunk_files[j]), len(chunk_files[j])//num_zips):
+                        print(f'folder_files[{j}][{i}]: {chunk_files[j][i]}')
+                        subchunks_files.append(chunk_files[j][i:i+len(chunk_files[j])//num_zips])
+                subchunks = [[f'{chunk}_{i}' for chunk in chunks] for i in range(len(subchunks_files))]
+                chunks = subchunks
+                chunk_files = subchunks_files
+
+
             if len(chunks) != len(chunk_files):
                 print('Error: chunks and chunk_files are not the same length.')
                 sys.exit(1)
