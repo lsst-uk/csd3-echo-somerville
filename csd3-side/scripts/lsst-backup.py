@@ -274,7 +274,7 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
     # print(f'object_key {object_key}')
     filename = object_key.split('/')[-1]
     file_data_size = len(file_data)
-    print(s3_host, access_key[:-5], secret_key[:-5], bucket_name, folder, zip_contents, object_key, perform_checksum, dryrun, mem_per_core, flush=True)
+
     # print(file_data)
     # print(type(file_data))
 
@@ -322,7 +322,7 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                             UploadId=mp_upload.id
                         )
                         parts.append({"PartNumber": part_number, "ETag": part["ETag"]})
-                    s3_client.complete_multipart_upload(
+                    response = s3_client.complete_multipart_upload(
                         Bucket=bucket_name,
                         Key=object_key,
                         UploadId=mp_upload.id,
@@ -333,16 +333,19 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                     - Upload the file to the bucket
                     """
                     print(f'Uploading zip file "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key}')
-                    bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64, Metadata={'zip-contents': ','.join(zip_contents)})
+                    response = bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64, Metadata={'zip-contents': ','.join(zip_contents)})
             except Exception as e:
                 print(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
+                print(f'response: {response}')
                 # Retry the upload by calling the function recursively with the same arguments
                 exit(1)
         else:
             try:
-                bucket.put_object(Body=file_data, Key=object_key, Metadata={'zip_contents': ','.join(zip_contents)})
+                response = bucket.put_object(Body=file_data, Key=object_key, Metadata={'zip_contents': ','.join(zip_contents)})
             except Exception as e:
                 print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
+                print(f'response: {response}')
+                exit(2)
    
     else:
         checksum_string = "DRYRUN"
