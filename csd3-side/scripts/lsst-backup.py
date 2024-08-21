@@ -336,6 +336,8 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                     bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64, Metadata={'zip-contents': ','.join(zip_contents)})
             except Exception as e:
                 print(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
+                # Retry the upload by calling the function recursively with the same arguments
+                return upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, folder, file_data, zip_contents, object_key, perform_checksum, dryrun, mem_per_core)
         else:
             try:
                 bucket.put_object(Body=file_data, Key=object_key, Metadata={'zip_contents': ','.join(zip_contents)})

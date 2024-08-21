@@ -1,10 +1,13 @@
 from airflow import DAG
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.operators.python import PythonOperator
+from airflow.operators.bash import BashOperator
 from airflow.models import Variable
 from datetime import timedelta, datetime
 from kubernetes.client import models as k8s
 from airflow.models.baseoperator import chain
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+import os
 
 # Create k8s storage mount 
 
@@ -43,8 +46,8 @@ with DAG(
     'monitor',
     default_args=default_args,
     description='List and compare backup CSV files from S3 bucket and trigger backup verifications if required.',
-    schedule_interval=timedelta(days=1), # change to days=1 when in production
-    start_date=datetime(2024, 1, 1, 12, 0, 0), # set to middle of the day to avoid issues with daylight savings and/or date stamps in filenames
+    schedule_interval='0 12 * * *', # set to middle of the day to avoid issues with daylight savings and/or date stamps in filenames
+    start_date=datetime(2024, 1, 1),
     catchup=False,
 ) as dag:
 
@@ -83,8 +86,18 @@ with DAG(
     ) for bucket_name in bucket_names]
 
 
-    ### TODO
-    ## Add a DAG trigger to run check_uploads_dag.py
+    check_file_exists = [ PythonOperator(
+        task_id='check_files_exist',
+        python_callable=os.path.exists,
+        arguments=[''.join([f'/lsst-backup-logs/new-backup-logs-{bucket_name}','{{ ds_nodash }}','.txt'])],
+        volumes=[logs_volume],
+        volume_mounts=[logs_volume_mount],
+    ) for bucket_name in bucket_names ]
+
+    trigger_download = TriggerDagRunOperator(
+        task_id='trigger_download',
+        trigger_dag_id='check_uploads',
+    )
 
     # Set the task sequence
     chain(
