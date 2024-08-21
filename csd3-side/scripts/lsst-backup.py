@@ -770,36 +770,25 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             # print(f'folder_size: {folder_size}')
             # for id,chunk in enumerate(zip(chunks,chunk_files)):
             #     # print(f'chunk {id} contains {len(chunk[0])} folders')
-            try:
-                zip_results = zip_pool.imap_unordered(
-                    zip_folders, 
-                    zip(
-                        repeat(parent_folder),
-                        chunks,
-                        chunk_files,
-                        repeat(use_compression),
-                        repeat(dryrun),
-                        [i for i in range(len(chunks))],
-                        repeat(mem_per_core),
-                        )
+            zip_results = zip_pool.imap_unordered(
+                zip_folders, 
+                zip(
+                    repeat(parent_folder),
+                    chunks,
+                    chunk_files,
+                    repeat(use_compression),
+                    repeat(dryrun),
+                    [i for i in range(len(chunks))],
+                    repeat(mem_per_core),
                     )
-            except MemoryError as e:
-                print(f'Memory error: {e}')
-                print(f'parent_folder: {parent_folder}')
-                print(f'chunks: {chunks}')
-                print(f'len(chunks): {len(chunks)}')
-                print(f'use_compression: {use_compression}')
-                print(f'dryrun: {dryrun}')
-                print(f'mem_per_core: {mem_per_core}')
-                print(f'folder_size: {folder_size}')
-                sys.exit(1)
+                )
         zipped = 0
         uploaded = []
         zul_results = []
         # total_zips = len(zip_results)
-        # while zipped < total_zips:
-        for result in zip_results:
-            # if result is not None:
+        while zipped < total_zips:
+            for result in zip_results:
+                if result is not None:
                 # if result.ready():
                     parent_folder, id, zip_data = result #.get()
                     # zip_results[i] = None # remove from list to free memory
@@ -815,10 +804,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                             zip_contents = z.namelist()
                         # print(f'zip contents: {zip_contents}')
                         to_collate[parent_folder]['zips'].append({'zip_contents':zip_contents, 'id':id, 'zip_object_name':str(os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated_{id}.zip', local_dir)]))})
-                        # #[os.sep.join([destination_dir, os.path.relpath(filename, local_dir)]) for filename in folder_files]
-                        # to_collate[parent_folder][id]['zip_object_name'] = 
-
-                        # tc_index = len(to_collate[parent_folder]['zips']) - 1
 
                         # check if zip_object_name exists in bucket and get its checksum
                         if current_objects.isin([to_collate[parent_folder]['zips'][-1]['zip_object_name']]).any():
@@ -835,34 +820,28 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         total_size_uploaded += len(zip_data)
                         total_files_uploaded += 1
                         print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
-                        try:
-                            zul_results.append(collate_ul_pool.apply_async(
-                                upload_and_callback, (
-                                    s3_host,
-                                    access_key,
-                                    secret_key,
-                                    bucket_name,
-                                    parent_folder,
-                                    zip_data,
-                                    to_collate[parent_folder]['zips'][-1]['zip_contents'],
-                                    to_collate[parent_folder]['zips'][-1]['zip_object_name'],
-                                    perform_checksum,
-                                    dryrun,
-                                    processing_start,
-                                    1,
-                                    len(zip_data),
-                                    total_size_uploaded,
-                                    total_files_uploaded,
-                                    True,
-                                    mem_per_core,
-                                    ),
-                                # callback=lambda _: free_up_zip_memory(to_collate, parent_folder, tc_index),
-                            ))
-                        except MemoryError as e:
-                            print(f'Memory error: {e}')
-                            print(to_collate[parent_folder]['zips'][-1]['zip_object_name'])
-                            print(f'parent_folder: {parent_folder}')
-                            sys.exit(1)
+
+                        zul_results.append(collate_ul_pool.apply_async(
+                            upload_and_callback, (
+                                s3_host,
+                                access_key,
+                                secret_key,
+                                bucket_name,
+                                parent_folder,
+                                zip_data,
+                                to_collate[parent_folder]['zips'][-1]['zip_contents'],
+                                to_collate[parent_folder]['zips'][-1]['zip_object_name'],
+                                perform_checksum,
+                                dryrun,
+                                processing_start,
+                                1,
+                                len(zip_data),
+                                total_size_uploaded,
+                                total_files_uploaded,
+                                True,
+                                mem_per_core,
+                                ),
+                        ))
 
     pool.close()
     pool.join()
