@@ -401,11 +401,32 @@ def print_stats(file_name_or_data, file_count, total_size, file_start, file_end,
 
 def upload_and_callback(args):
     #unpack
-    for i, arg in enumerate(args):
-        print(f'arg {i}: {arg}', flush=True)
-    exit()
+    import random
+    import string
+    
+    # generate a random name for the temporary file
+    temp_file_name = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
+    
     s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded, collated, mem_per_core = args
-    #repeat(s3_host), repeat(access_key), repeat(secret_key), repeat(bucket_name), repeat(folder), folder_files, object_names, repeat(perform_checksum), repeat(dryrun)
+    # write args to the temporary file
+    with open(temp_file_name, 'w') as f:
+        f.write(f'{s3_host}\n')
+        f.write(f'{access_key}\n')
+        f.write(f'{secret_key}\n')
+        f.write(f'{bucket_name}\n')
+        f.write(f'{folder}\n')
+        f.write(f'{file_name_or_data}\n')
+        f.write(f'{zip_contents}\n')
+        f.write(f'{object_key}\n')
+        f.write(f'{perform_checksum}\n')
+        f.write(f'{dryrun}\n')
+        f.write(f'{processing_start}\n')
+        f.write(f'{file_count}\n')
+        f.write(f'{folder_files_size}\n')
+        f.write(f'{total_size_uploaded}\n')
+        f.write(f'{total_files_uploaded}\n')
+        f.write(f'{collated}\n')
+        f.write(f'{mem_per_core}\n')
     # upload files in parallel and log output
     file_start = datetime.now()
     print(f'collated = {collated}', flush=True)
