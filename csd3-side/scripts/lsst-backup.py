@@ -322,7 +322,7 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                             UploadId=mp_upload.id
                         )
                         parts.append({"PartNumber": part_number, "ETag": part["ETag"]})
-                    response = s3_client.complete_multipart_upload(
+                    s3_client.complete_multipart_upload(
                         Bucket=bucket_name,
                         Key=object_key,
                         UploadId=mp_upload.id,
@@ -333,19 +333,21 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                     - Upload the file to the bucket
                     """
                     print(f'Uploading zip file "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key}')
-                    response = bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64, Metadata={'zip-contents': ','.join(zip_contents)})
+                    bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64, Metadata={'zip-contents': ','.join(zip_contents)})
             except Exception as e:
                 print(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
-                print(f'response: {response}')
                 # Retry the upload by calling the function recursively with the same arguments
-                return(response)
                 # exit(1)
         else:
             try:
-                response = bucket.put_object(Body=file_data, Key=object_key, Metadata={'zip_contents': ','.join(zip_contents)})
+                bucket.put_object(Body=file_data, Key=object_key, Metadata={'zip_contents': ','.join(zip_contents)})
             except Exception as e:
                 print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
-                print(f'response: {response}')
+                if '400' in str(e) and 'Bad Request' in str(e):
+                    print('Attempting to delete object and retry.')
+                    response = s3.Object(bucket_name, object_key).delete()
+                    print(response)
+                    upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, folder, file_data, zip_contents, object_key, perform_checksum, dryrun, mem_per_core)
                 # exit(2)
    
     else:

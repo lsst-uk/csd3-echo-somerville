@@ -30,7 +30,7 @@ URI = sys.argv[2]
 if not bucket_name in bm.bucket_list(s3):
     sys.exit('Bucket does not exist.')
 
-bucket = s3.Bucket(bucket_name)
+# bucket = s3.Bucket(bucket_name)
 
 # if not URI in bm.object_list(bucket):
 #     sys.exit('Object does not exist.')
