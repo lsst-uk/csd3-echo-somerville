@@ -400,7 +400,7 @@ def print_stats(file_name_or_data, file_count, total_size, file_start, file_end,
     print(f'Running average speed = {total_size_uploaded / 1024**2 / (file_end-processing_start).seconds:.2f} MiB/s', flush=True)
     print(f'Running average rate = {(file_end-processing_start).seconds / total_files_uploaded:.2f} s/file', flush=True)
 
-def upload_and_callback(args):
+def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded, collated, mem_per_core):
     #unpack
     print('here', flush=True)
     import random
@@ -408,8 +408,6 @@ def upload_and_callback(args):
     
     # generate a random name for the temporary file
     temp_file_name = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
-    
-    s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded, collated, mem_per_core = args
     # write args to the temporary file
     with open(temp_file_name, 'w') as f:
         f.write(f'{s3_host}\n')
@@ -839,7 +837,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
 
                         zul_results.append(collate_ul_pool.apply_async(
-                            upload_and_callback, list(
+                            upload_and_callback, args=
                                 (s3_host,
                                 access_key,
                                 secret_key,
@@ -858,7 +856,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                                 True,
                                 mem_per_core,
                                 )
-                            ),
                         ))
 
     pool.close()
