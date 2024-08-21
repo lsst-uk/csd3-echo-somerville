@@ -274,7 +274,7 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
     # print(f'object_key {object_key}')
     filename = object_key.split('/')[-1]
     file_data_size = len(file_data)
-    print(s3_host, access_key[:-5], secret_key[:-5], bucket_name, folder, zip_contents, object_key, perform_checksum, dryrun, mem_per_core)
+    print(s3_host, access_key[:-5], secret_key[:-5], bucket_name, folder, zip_contents, object_key, perform_checksum, dryrun, mem_per_core, flush=True)
     # print(file_data)
     # print(type(file_data))
 
