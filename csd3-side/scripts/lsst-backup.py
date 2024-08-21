@@ -817,7 +817,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
                         zul_results.append(collate_ul_pool.apply_async(
                             upload_and_callback, list(
-                                s3_host,
+                                (s3_host,
                                 access_key,
                                 secret_key,
                                 bucket_name,
@@ -834,6 +834,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                                 total_files_uploaded,
                                 True,
                                 mem_per_core,
+                                )
                             ),
                         ))
 
