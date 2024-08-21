@@ -338,14 +338,15 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                 print(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
                 print(f'response: {response}')
                 # Retry the upload by calling the function recursively with the same arguments
-                exit(1)
+                return(response)
+                # exit(1)
         else:
             try:
                 response = bucket.put_object(Body=file_data, Key=object_key, Metadata={'zip_contents': ','.join(zip_contents)})
             except Exception as e:
                 print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
                 print(f'response: {response}')
-                exit(2)
+                # exit(2)
    
     else:
         checksum_string = "DRYRUN"
@@ -413,6 +414,7 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, fi
         try:
             print(f'Uploading zip containing {file_count} subfolders from {folder}.')
             result = upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, mem_per_core)
+            print(result)
         except Exception as e:
             print(f'Error uploading {folder} to {bucket_name}/{object_key}: {e}')
             sys.exit(1)
