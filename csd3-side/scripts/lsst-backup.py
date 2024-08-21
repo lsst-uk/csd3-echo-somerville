@@ -790,6 +790,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             for result in zip_results:
                 if result is not None:
                 # if result.ready():
+                    print(result[0], result[1])
                     parent_folder, id, zip_data = result #.get()
                     # zip_results[i] = None # remove from list to free memory
                     if (parent_folder,id) in uploaded:
