@@ -90,14 +90,29 @@ with DAG(
         task_id='check_files_exist',
         python_callable=os.path.exists,
         arguments=[''.join([f'/lsst-backup-logs/new-backup-logs-{bucket_name}','{{ ds_nodash }}','.txt'])],
-        volumes=[logs_volume],
-        volume_mounts=[logs_volume_mount],
+        executor_config={
+            "pod_override": k8s.V1Pod(
+                spec=k8s.V1PodSpec(
+                    containers=[
+                        k8s.V1Container(
+                            name="base",
+                            volume_mounts=[logs_volume_mount]
+                        )
+                    ],
+                    volumes=[logs_volume],
+                )
+            )
+        },
     ) for bucket_name in bucket_names ]
 
-    trigger_download = TriggerDagRunOperator(
-        task_id='trigger_download',
+    trigger_check_uploads = [ TriggerDagRunOperator(
+        task_id='trigger_check_uploads',
         trigger_dag_id='check_uploads',
-    )
+        conf={
+            'bucket_name': bucket_name,
+            'new_csvs_file': ''.join([f'/lsst-backup-logs/new-backup-logs-{bucket_name}','{{ ds_nodash }}','.txt']),
+        },
+    ) for bucket_name in bucket_names ]
 
     # Set the task sequence
     chain(
