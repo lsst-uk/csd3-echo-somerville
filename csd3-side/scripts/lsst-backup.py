@@ -401,6 +401,8 @@ def print_stats(file_name_or_data, file_count, total_size, file_start, file_end,
 
 def upload_and_callback(args):
     #unpack
+    for i, arg in enumerate(args):
+        print(f'arg {i}: {arg}', flush=True)
     s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded, collated, mem_per_core = args
     #repeat(s3_host), repeat(access_key), repeat(secret_key), repeat(bucket_name), repeat(folder), folder_files, object_names, repeat(perform_checksum), repeat(dryrun)
     # upload files in parallel and log output
@@ -833,25 +835,26 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         total_files_uploaded += 1
                         print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
                         try:
-                            zul_results.append(collate_ul_pool.apply_async(upload_and_callback, (
-                                s3_host,
-                                access_key,
-                                secret_key,
-                                bucket_name,
-                                parent_folder,
-                                zip_data,
-                                to_collate[parent_folder]['zips'][-1]['zip_contents'],
-                                to_collate[parent_folder]['zips'][-1]['zip_object_name'],
-                                perform_checksum,
-                                dryrun,
-                                processing_start,
-                                1,
-                                len(zip_data),
-                                total_size_uploaded,
-                                total_files_uploaded,
-                                True,
-                                mem_per_core,
-                                ),
+                            zul_results.append(collate_ul_pool.apply_async(
+                                upload_and_callback, (
+                                    s3_host,
+                                    access_key,
+                                    secret_key,
+                                    bucket_name,
+                                    parent_folder,
+                                    zip_data,
+                                    to_collate[parent_folder]['zips'][-1]['zip_contents'],
+                                    to_collate[parent_folder]['zips'][-1]['zip_object_name'],
+                                    perform_checksum,
+                                    dryrun,
+                                    processing_start,
+                                    1,
+                                    len(zip_data),
+                                    total_size_uploaded,
+                                    total_files_uploaded,
+                                    True,
+                                    mem_per_core,
+                                    ),
                                 # callback=lambda _: free_up_zip_memory(to_collate, parent_folder, tc_index),
                             ))
                         except MemoryError as e:
