@@ -403,6 +403,7 @@ def upload_and_callback(args):
     #unpack
     for i, arg in enumerate(args):
         print(f'arg {i}: {arg}', flush=True)
+    exit()
     s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded, collated, mem_per_core = args
     #repeat(s3_host), repeat(access_key), repeat(secret_key), repeat(bucket_name), repeat(folder), folder_files, object_names, repeat(perform_checksum), repeat(dryrun)
     # upload files in parallel and log output
