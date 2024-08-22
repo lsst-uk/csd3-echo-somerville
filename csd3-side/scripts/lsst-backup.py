@@ -345,9 +345,9 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                 print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
                 if '400' in str(e) and 'Bad Request' in str(e):
                     print('Attempting to delete object and retry.')
-                    s3.Object(bucket_name, object_key).delete()
-                    # print(response)
-                    upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, folder, file_data, zip_contents, object_key, perform_checksum, dryrun, mem_per_core)
+                    response = s3.Object(bucket_name, object_key).delete()
+                    print(response)
+                    # upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, folder, file_data, zip_contents, object_key, perform_checksum, dryrun, mem_per_core)
                 # exit(2)
    
     else:
