@@ -335,7 +335,7 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                     print(f'Uploading zip file "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key}')
                     bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64, Metadata={'zip-contents': ','.join(zip_contents)})
             except Exception as e:
-                print(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
+                print(f'Error uploading "{filename}" in parts ({file_data_size}) to {bucket_name}/{object_key}: {e}')
                 # Retry the upload by calling the function recursively with the same arguments
                 # exit(1)
         else:
@@ -344,7 +344,7 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
             except Exception as e:
                 print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
                 if '400' in str(e) and 'Bad Request' in str(e):
-                    print('Attempting to delete object and retry.')
+                    print('Attempting to delete object.', flush=True)
                     response = s3.Object(bucket_name, object_key).delete()
                     print(response)
                     # upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, folder, file_data, zip_contents, object_key, perform_checksum, dryrun, mem_per_core)
