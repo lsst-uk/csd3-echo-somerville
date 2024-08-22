@@ -556,7 +556,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 print(f'Skipping subfolder - all files exist.')
                 continue
             for oni, on in enumerate(object_names):
-                if current_objects.isin([on]).any():
+                if current_objects.isin([on]).any() or current_objects.isin([f'{on}.symlink']).any():
                     object_names.remove(on)
                     del folder_files[oni]
             pre_linkcheck_file_count = len(object_names)
@@ -661,7 +661,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 print(f'Skipping subfolder - all files exist.')
                 continue
             for oni, on in enumerate(object_names):
-                if current_objects.isin([on]).any():
+                if current_objects.isin([on]).any() or current_objects.isin([f'{on}.symlink']).any():
                     object_names.remove(on)
                     del folder_files[oni]
             pre_linkcheck_file_count = len(object_names)
