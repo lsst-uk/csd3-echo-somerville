@@ -340,6 +340,16 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                     """
                     print('in else',flush=True)
                     print(f'Uploading zip file "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key}')
+                    metadata_value = ','.join(zip_contents)
+                    metadata_size = len(metadata_value.encode('utf-8'))
+
+                    print(f'Metadata size: {metadata_size} bytes', flush=True)
+                    print(f'Metadata value: {metadata_value}', flush=True)
+
+                    if metadata_size > 2048:
+                        print('Metadata size exceeds the limit of 2 KB.', flush=True)
+                    else:
+                        print('Metadata size is within the limit.', flush=True)
                     bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64)#, Metadata={'zip-contents': ','.join(zip_contents)})
             except Exception as e:
                 print(f'Error uploading "{filename}" in parts ({file_data_size}) to {bucket_name}/{object_key}: {e}')
