@@ -348,8 +348,9 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
 
                     if metadata_size > 1024:
                         print('Metadata size exceeds the size limit. Writing to object.', flush=True)
-                        metadata_object_key = metadata = object_key + '.metadata'
+                        metadata_object_key = object_key + '.metadata'
                         bucket.put_object(Body=metadata_value, Key=metadata_object_key, Metadata={'corresponding-zip': object_key})
+                        metadata = {'zip-contents-object': metadata_object_key}
                     else:
                         # print('Metadata size is within the limit.', flush=True)
                         metadata = {'zip-contents': metadata_value}
