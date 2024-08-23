@@ -423,7 +423,7 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, fi
         try:
             print(f'Uploading zip containing {file_count} subfolders from {folder}.')
             result = upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, mem_per_core)
-            print(result)
+            # print(result)
         except Exception as e:
             print(f'Error uploading {folder} to {bucket_name}/{object_key}: {e}')
             sys.exit(1)
