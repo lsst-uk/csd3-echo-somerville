@@ -270,17 +270,9 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
     s3 = bm.get_resource(access_key, secret_key, s3_host)
     s3_client = bm.get_client(access_key, secret_key, s3_host)
     bucket = s3.Bucket(bucket_name)
-    # print(f'object_key {object_key}')
+
     filename = object_key.split('/')[-1]
     file_data_size = len(file_data)
-
-    # print(file_data)
-    # print(type(file_data))
-
-    # print('length of bytes data:', len(file_data))
-    # file_data.seek(0, os.SEEK_END)
-    # file_data_size = file_data.tell()
-    # file_data.seek(0)
     
     print(f'Uploading zip file "{filename}" for {folder} to {bucket_name}/{object_key}, {file_data_size} bytes, checksum = {perform_checksum}, dryrun = {dryrun}', flush=True)
     """
@@ -295,10 +287,9 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
             checksum_string = checksum_hash.hexdigest()
             checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
             file_size = len(file_data)
-            print(f'checksum_string: {checksum_string}')
+
             try:
                 if file_size > mem_per_core or file_size > 5 * 1024**3:  # Check if file size is larger than 5GiB
-                    print('in if',flush=True)
                     """
                     - Use multipart upload for large files
                     """
@@ -308,16 +299,13 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                     chunk_size = mem_per_core // 2 # Set chunk size to half the mem_per_core - lowering this will increase the number of parts, in turn increasing multithreading overhead, and potentially leading to memory errors
                     chunk_count = int(np.ceil(file_data_size / chunk_size))
                     print(f'Uploading "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key} in {chunk_count} parts.', flush=True)
-                    print(f'chunk_size: {chunk_size}')
-                    print(f'chunk_count: {chunk_count}')
+
                     print(mp_upload)
                     parts = []
                     for i in range(chunk_count):
-                        print('in for loop')
                         start = i * chunk_size
                         end = min(start + chunk_size, file_data_size)
                         part_number = i + 1
-                        print(f'part_number: {part_number}')
                         chunk_data = file_data[start:end]
                         part = s3_client.upload_part(
                             Body=chunk_data,
@@ -338,17 +326,16 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                     """
                     - Upload the file to the bucket
                     """
-                    print('in else',flush=True)
                     print(f'Uploading zip file "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key}')
                     metadata_value = ','.join(zip_contents)
                     metadata_size = len(metadata_value.encode('utf-8'))
 
-                    print(f'Metadata size: {metadata_size} bytes', flush=True)
-                    print(f'Metadata value: {metadata_value}', flush=True)
+                    # print(f'Metadata size: {metadata_size} bytes', flush=True)
+                    # print(f'Metadata value: {metadata_value}', flush=True)
 
                     if metadata_size > 1024:
-                        print('Metadata size exceeds the size limit. Writing to object.', flush=True)
                         metadata_object_key = object_key + '.metadata'
+                        print(f'Metadata size exceeds the size limit. Writing to {metadata_object_key}.', flush=True)
                         bucket.put_object(Body=metadata_value, Key=metadata_object_key, Metadata={'corresponding-zip': object_key})
                         metadata = {'zip-contents-object': metadata_object_key}
                     else:
@@ -358,27 +345,15 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                     bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64, Metadata=metadata)
             except Exception as e:
                 print(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
-                # Retry the upload by calling the function recursively with the same arguments
-                # exit(1)
+                exit(1)
         else:
             try:
                 bucket.put_object(Body=file_data, Key=object_key, Metadata={'zip-contents': ','.join(zip_contents)})
             except Exception as e:
                 print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
-                # if '400' in str(e) and 'Bad Request' in str(e):
-                #     print('Attempting to delete object.', flush=True)
-                #     response = s3.Object(bucket_name, object_key).delete()
-                #     print(response)
-                    # upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, folder, file_data, zip_contents, object_key, perform_checksum, dryrun, mem_per_core)
-                # exit(2)
-   
+                exit(1)
     else:
         checksum_string = "DRYRUN"
-
-    # free up memory
-    # del file_data
-    # gc.collect()
-
 
     """
         report actions
