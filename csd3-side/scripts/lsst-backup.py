@@ -366,9 +366,7 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
     else:
         return_string += ',n/a'
     return_string += f',"{",".join(zip_contents)}"'
-
-
-
+    
     return return_string
 
 
