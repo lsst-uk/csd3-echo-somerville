@@ -347,13 +347,11 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                     print(f'Metadata value: {metadata_value}', flush=True)
 
                     if metadata_size > 1024:
-                        print('Metadata size exceeds the limit of 2 KB. Splitting into chunks.', flush=True)
-                        # Split metadata into chunks
-                        metadata_chunk_size = 512  # Adjust chunk size to fit within the limit
-                        metadata_chunks = [metadata_value[i:i + metadata_chunk_size] for i in range(0, len(metadata_value), metadata_chunk_size)]
-                        metadata = {f'zip-contents-{i}': chunk for i, chunk in enumerate(metadata_chunks)}
+                        print('Metadata size exceeds the size limit. Writing to object.', flush=True)
+                        metadata_object_key = metadata = object_key + '.metadata'
+                        bucket.put_object(Body=metadata_value, Key=metadata_object_key, Metadata={'corresponding-zip': object_key})
                     else:
-                        print('Metadata size is within the limit.', flush=True)
+                        # print('Metadata size is within the limit.', flush=True)
                         metadata = {'zip-contents': metadata_value}
 
                     bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64, Metadata=metadata)
