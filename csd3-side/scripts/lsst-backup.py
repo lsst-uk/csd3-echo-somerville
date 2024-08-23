@@ -267,7 +267,6 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
             The format is: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY
             Where: CHECKSUM, CHECKSUM_SIZE are n/a if checksum was not performed.
     """
-    print('hello', flush=True)
     s3 = bm.get_resource(access_key, secret_key, s3_host)
     s3_client = bm.get_client(access_key, secret_key, s3_host)
     bucket = s3.Bucket(bucket_name)
@@ -283,7 +282,6 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
     # file_data_size = file_data.tell()
     # file_data.seek(0)
     
-
     print(f'Uploading zip file "{filename}" for {folder} to {bucket_name}/{object_key}, {file_data_size} bytes, checksum = {perform_checksum}, dryrun = {dryrun}', flush=True)
     """
     - Upload the file to the bucket
@@ -297,8 +295,10 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
             checksum_string = checksum_hash.hexdigest()
             checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
             file_size = len(file_data)
+            print(f'checksum_string: {checksum_string}')
             try:
                 if file_size > mem_per_core or file_size > 5 * 1024**3:  # Check if file size is larger than 5GiB
+                    print('in if',flush=True)
                     """
                     - Use multipart upload for large files
                     """
@@ -338,6 +338,7 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                     """
                     - Upload the file to the bucket
                     """
+                    print('in else',flush=True)
                     print(f'Uploading zip file "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key}')
                     bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64, Metadata={'zip-contents': ','.join(zip_contents)})
             except Exception as e:
