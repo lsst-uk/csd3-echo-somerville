@@ -346,11 +346,11 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                     print(f'Metadata size: {metadata_size} bytes', flush=True)
                     print(f'Metadata value: {metadata_value}', flush=True)
 
-                    if metadata_size > 2048:
+                    if metadata_size > 1024:
                         print('Metadata size exceeds the limit of 2 KB. Splitting into chunks.', flush=True)
                         # Split metadata into chunks
-                        chunk_size = 2048 // 2  # Adjust chunk size to fit within the limit
-                        metadata_chunks = [metadata_value[i:i + chunk_size] for i in range(0, len(metadata_value), chunk_size)]
+                        metadata_chunk_size = 512  # Adjust chunk size to fit within the limit
+                        metadata_chunks = [metadata_value[i:i + metadata_chunk_size] for i in range(0, len(metadata_value), metadata_chunk_size)]
                         metadata = {f'zip-contents-{i}': chunk for i, chunk in enumerate(metadata_chunks)}
                     else:
                         print('Metadata size is within the limit.', flush=True)
@@ -358,7 +358,7 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
 
                     bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64, Metadata=metadata)
             except Exception as e:
-                print(f'Error uploading "{filename}" in parts ({file_data_size}) to {bucket_name}/{object_key}: {e}')
+                print(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
                 # Retry the upload by calling the function recursively with the same arguments
                 # exit(1)
         else:
