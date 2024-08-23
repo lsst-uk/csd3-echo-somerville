@@ -305,14 +305,19 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                     
                     obj = bucket.Object(object_key)
                     mp_upload = obj.initiate_multipart_upload()
-                    chunk_size = mem_per_core // 8 # Set chunk size to half the mem_per_core - lowering this will increase the number of parts, in turn increasing multithreading overhead, and potentially leading to memory errors
+                    chunk_size = mem_per_core // 2 # Set chunk size to half the mem_per_core - lowering this will increase the number of parts, in turn increasing multithreading overhead, and potentially leading to memory errors
                     chunk_count = int(np.ceil(file_data_size / chunk_size))
-                    print(f'Uploading "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key} in {chunk_count} parts.')
+                    print(f'Uploading "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key} in {chunk_count} parts.', flush=True)
+                    print(f'chunk_size: {chunk_size}')
+                    print(f'chunk_count: {chunk_count}')
+                    print(mp_upload)
                     parts = []
                     for i in range(chunk_count):
+                        print('in for loop')
                         start = i * chunk_size
                         end = min(start + chunk_size, file_data_size)
                         part_number = i + 1
+                        print(f'part_number: {part_number}')
                         chunk_data = file_data[start:end]
                         part = s3_client.upload_part(
                             Body=chunk_data,
@@ -322,12 +327,13 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                             UploadId=mp_upload.id
                         )
                         parts.append({"PartNumber": part_number, "ETag": part["ETag"]})
-                    s3_client.complete_multipart_upload(
+                    response = s3_client.complete_multipart_upload(
                         Bucket=bucket_name,
                         Key=object_key,
                         UploadId=mp_upload.id,
                         MultipartUpload={"Parts": parts}
                     )
+                    print(f'multipart upload response: {response}')
                 else:
                     """
                     - Upload the file to the bucket
