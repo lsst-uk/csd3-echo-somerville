@@ -340,7 +340,7 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                     """
                     print('in else',flush=True)
                     print(f'Uploading zip file "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key}')
-                    bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64, Metadata={'zip-contents': ','.join(zip_contents)})
+                    bucket.put_object(Body=file_data, Key=object_key) # , ContentMD5=checksum_base64, Metadata={'zip-contents': ','.join(zip_contents)})
             except Exception as e:
                 print(f'Error uploading "{filename}" in parts ({file_data_size}) to {bucket_name}/{object_key}: {e}')
                 # Retry the upload by calling the function recursively with the same arguments
