@@ -347,7 +347,7 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                 # exit(1)
         else:
             try:
-                bucket.put_object(Body=file_data, Key=object_key, Metadata={'zip_contents': ','.join(zip_contents)})
+                bucket.put_object(Body=file_data, Key=object_key, Metadata={'zip-contents': ','.join(zip_contents)})
             except Exception as e:
                 print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
                 if '400' in str(e) and 'Bad Request' in str(e):
