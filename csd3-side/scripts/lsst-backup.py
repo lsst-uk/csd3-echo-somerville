@@ -461,8 +461,18 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     #recursive loop over local folder
     results = []
     to_collate = {} # store folders to collate
+    total_all_folders = 0
+    total_all_files = 0
+    folder_num = 0
+    file_num = 0
+    for folder, sub_folders, files in os.walk(local_dir, topdown=True):
+        total_all_folders += 1
+        total_all_files += len(files)
     
     for folder, sub_folders, files in os.walk(local_dir, topdown=True):
+        folder_num += 1
+        file_num += len(files)
+        print(f'Processing {folder_num}/{total_all_folders} folders; {file_num}/{total_all_files} files in {local_dir}.')
         # print(f'Processing {folder}.')
         # print(f'Files: {files}')
         # print(f'Subfolders: {sub_folders}')
@@ -532,35 +542,33 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         # check folder isn't empty
         print(f'Processing {len(files)} files (total size: {total_filesize/1024**2:.0f} MiB) in {folder} with {len(sub_folders)} subfolders.')
         # len(files) > 2 taken out to give increased number of zip files
+
+        # keys to files on s3
+        object_names = [os.sep.join([destination_dir, os.path.relpath(filename, local_dir)]) for filename in folder_files]
+        # print(f'folder_files: {folder_files}')
+        # print(f'object_names: {object_names}')
+        init_len = len(object_names)
+        # remove current objects - avoids reuploading
+        # could provide overwrite flag if this is desirable
+        # print(f'current_objects: {current_objects}')
+        if current_objects.isin(object_names).all():
+            #all files in this subfolder already in bucket
+            print(f'Skipping subfolder - all files exist.')
+            continue
+
+
         if mean_filesize > 128*1024**2 or not global_collate:
             # all files within folder
             # print(f'Processing {len(files)} files (total size: {total_filesize}) individually in {folder}.')
             
-            # keys to files on s3
-            object_names = [os.sep.join([destination_dir, os.path.relpath(filename, local_dir)]) for filename in folder_files]
-            # print(f'folder_files: {folder_files}')
-            # print(f'object_names: {object_names}')
-            init_len = len(object_names)
-            # remove current objects - avoids reuploading
-            # could provide overwrite flag if this is desirable
-            # print(f'current_objects: {current_objects}')
-            if current_objects.isin(object_names).all():
-                #all files in this subfolder already in bucket
-                print(f'Skipping subfolder - all files exist.')
-                continue
-            on_test = object_names.copy()
+            
+            # if uploading file individually, remove existing files from object_names
             for oni, on in enumerate(object_names):
                 if current_objects.isin([on]).any() or current_objects.isin([f'{on}.symlink']).any():
                     object_names.remove(on)
                     del folder_files[oni]
                 else:
                     print(f'Keeping {on} in object_names - not previously uploaded.')
-            for oni, on in enumerate(on_test):
-                if current_objects.isin([on]).any() or current_objects.isin([f'{on}.symlink']).any():
-                    if on in object_names:
-                        print(f'Error: {on} still in object_names.')
-                    else:
-                        print(f'Success: {on} removed from object_names.')
             pre_linkcheck_file_count = len(object_names)
             if init_len - pre_linkcheck_file_count > 0:
                 print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.')
@@ -632,33 +640,17 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             if parent_folder not in to_collate.keys():
                 #initialise parent folder
                 to_collate[parent_folder] = {'parent_folder':parent_folder,'folders':[],'object_names':[], 'folder_files':[], 'zips':[{'zip_data':None, 'id':None, 'zip_object_name':''}]} # store folders to collate
-            # keys to files on s3
-            object_names = [os.sep.join([destination_dir, os.path.relpath(filename, local_dir)]) for filename in folder_files]
-            # print(f'folder_files: {folder_files}')
-            # print(f'object_names: {object_names}')
-            init_len = len(object_names)
-            # remove current objects - avoids reuploading
-            # TODO: provide overwrite option
-            # print(f'current_objects: {current_objects}')
-            if current_objects.isin(object_names).all():
-                #all files in this subfolder already in bucket
-                print(f'Skipping subfolder - all files exist.')
-                continue
-            on_test = object_names.copy()
-            for oni, on in enumerate(object_names):
-                if current_objects.isin([on]).any() or current_objects.isin([f'{on}.symlink']).any():
-                    object_names.remove(on)
-                    print(f'Removing {on} from object_names - previously uploaded.')
-                    del folder_files[oni]
-                else:
-                    print(f'Keeping {on} in object_names - not previously uploaded.')
+            
 
-            for oni, on in enumerate(on_test):
-                if current_objects.isin([on]).any() or current_objects.isin([f'{on}.symlink']).any():
-                    if on in object_names:
-                        print(f'Error: {on} still in object_names.')
-                    else:
-                        print(f'Success: {on} removed from object_names.')
+            #Don't remove existing files from object_names?
+            # for oni, on in enumerate(object_names):
+            #     if current_objects.isin([on]).any() or current_objects.isin([f'{on}.symlink']).any():
+            #         object_names.remove(on)
+            #         print(f'Removing {on} from object_names - previously uploaded.')
+            #         del folder_files[oni]
+            #     else:
+            #         print(f'Keeping {on} in object_names - not previously uploaded.')
+
             pre_linkcheck_file_count = len(object_names)
             if init_len - pre_linkcheck_file_count > 0:
                 print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.')
