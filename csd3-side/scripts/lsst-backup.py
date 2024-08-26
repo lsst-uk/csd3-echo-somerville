@@ -800,9 +800,12 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                                 existing_zip_contents = []
                                 try:
                                     existing_zip_contents = str(bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,''.join([to_collate[parent_folder]['zips'][-1]['zip_object_name'],'.metadata'])).get()['Body'].read().decode('UTF-8')).split(',')
-                                except botocore.exceptions.ClientError:
+                                except botocore.errorfactory.NoSuchKey:
                                     print(f'No metadata object found for {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}. Trying object.metadata')
-                                    existing_zip_contents = bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,to_collate[parent_folder]['zips'][-1]['zip_object_name']).metadata['zip-contents'].split(',')
+                                    try:
+                                        existing_zip_contents = bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,to_collate[parent_folder]['zips'][-1]['zip_object_name']).metadata['zip-contents'].split(',')
+                                    except KeyError:
+                                        print(f'No "zip-contents" metadata found for {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}.')
                                 print(existing_zip_contents)
                                 # checksum_hash = hashlib.md5(zip_data)
                                 # checksum_string = checksum_hash.hexdigest()
@@ -811,7 +814,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
                                 print(zip_contents)
                                 
-
+                                if len(existing_zip_contents) == 0:
+                                    print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but no metadata found - reuploading.')
                                 if all([x in existing_zip_contents for x in zip_contents]):
                                     print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and file lists match - skipping.')
                                     zip_results[i] = None
