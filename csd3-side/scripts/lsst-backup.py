@@ -629,7 +629,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             # print(f'object_names: {object_names}')
             init_len = len(object_names)
             # remove current objects - avoids reuploading
-            # could provide overwrite flag if this is desirable
+            # TODO: provide overwrite option
             # print(f'current_objects: {current_objects}')
             if current_objects.isin(object_names).all():
                 #all files in this subfolder already in bucket
@@ -638,6 +638,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             for oni, on in enumerate(object_names):
                 if current_objects.isin([on]).any() or current_objects.isin([f'{on}.symlink']).any():
                     object_names.remove(on)
+                    print(f'Removing {on} from object_names - previously uploaded.')
                     del folder_files[oni]
             pre_linkcheck_file_count = len(object_names)
             if init_len - pre_linkcheck_file_count > 0:
