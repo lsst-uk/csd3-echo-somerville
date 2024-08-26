@@ -794,6 +794,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                                     print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and checksums match - skipping.')
                                     zip_results[i] = None
                                     continue
+                                else:
+                                    print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but checksums do not match - reuploading.')
                                 
                             # upload zipped folders
                             total_size_uploaded += len(zip_data)
