@@ -35,6 +35,7 @@ from psutil import virtual_memory
 warnings.filterwarnings('ignore')
 
 import bucket_manager.bucket_manager as bm
+import botocore
 
 import hashlib
 import os
@@ -796,18 +797,27 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
                             # check if zip_object_name exists in bucket and get its checksum
                             if current_objects.isin([to_collate[parent_folder]['zips'][-1]['zip_object_name']]).any():
-                                existing_zip_checksum = bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,to_collate[parent_folder]['zips'][-1]['zip_object_name']).e_tag.strip('"')
-                                checksum_hash = hashlib.md5(zip_data)
-                                checksum_string = checksum_hash.hexdigest()
-                                print(f'Checksum of zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}: {checksum_string}')
-                                print(f'Checksum of existing zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}: {existing_zip_checksum}')
+                                existing_zip_contents = []
+                                try:
+                                    existing_zip_contents = bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,''.join([to_collate[parent_folder]['zips'][-1]['zip_object_name'],'.metadata'])).load().split(',')
+                                except botocore.exceptions.ClientError:
+                                    print(f'No metadata object found for {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}. Trying object.metadata')
+                                    existing_zip_contents = bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,to_collate[parent_folder]['zips'][-1]['zip_object_name']).metadata['zip-contents'].split(',')
+                                print(existing_zip_contents)
+                                # checksum_hash = hashlib.md5(zip_data)
+                                # checksum_string = checksum_hash.hexdigest()
+                                # print(f'Checksum of zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}: {checksum_string}')
+                                # print(f'Checksum of existing zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}: {existing_zip_checksum}')
 
-                                if checksum_string == existing_zip_checksum:
-                                    print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and checksums match - skipping.')
+                                print(zip_contents)
+                                
+
+                                if all([x in existing_zip_contents for x in zip_contents]):
+                                    print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and file lists match - skipping.')
                                     zip_results[i] = None
                                     continue
                                 else:
-                                    print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but checksums do not match - reuploading.')
+                                    print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but file lists do not match - reuploading.')
                                 
                             # upload zipped folders
                             total_size_uploaded += len(zip_data)
