@@ -787,6 +787,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                                 existing_zip_checksum = bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,to_collate[parent_folder]['zips'][-1]['zip_object_name']).e_tag.strip('"')
                                 checksum_hash = hashlib.md5(zip_data)
                                 checksum_string = checksum_hash.hexdigest()
+                                print(f'Checksum of zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}: {checksum_string}')
+                                print(f'Checksum of existing zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}: {existing_zip_checksum}')
 
                                 if checksum_string == existing_zip_checksum:
                                     print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and checksums match - skipping.')
