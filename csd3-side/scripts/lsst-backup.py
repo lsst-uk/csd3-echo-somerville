@@ -42,7 +42,7 @@ import argparse
 
 import gc
 
-def zip_folders(args):
+def zip_folders(parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun, id, mem_per_core):
     """
     Collates the specified folders into a zip file.
 
@@ -74,8 +74,6 @@ def zip_folders(args):
         # Output: ("/path/to/parent/folder", 1, b'compressed_zip_file_data')
 
     """
-    # unpack
-    parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun, id, mem_per_core = args
     zipped_size = 0
     # print(f'parent_folder: {parent_folder}')
     # print(f'subfolders_to_collate: {subfolders_to_collate}')
@@ -589,45 +587,27 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
             print(f'Sending {file_count} files (total size: {folder_files_size/1024**2:.0f} MiB) in {folder} to S3 bucket {bucket_name}.')
 
-            # for i,args in enumerate(
-            #     zip(
-            #         repeat(s3_host), 
-            #         repeat(access_key), 
-            #         repeat(secret_key), 
-            #         repeat(bucket_name), 
-            #         repeat(folder), 
-            #         folder_files,
-            #         repeat(None),
-            #         object_names, 
-            #         repeat(perform_checksum), 
-            #         repeat(dryrun), 
-            #         repeat(processing_start),
-            #         repeat(file_count),
-            #         repeat(folder_files_size),
-            #         repeat(total_size_uploaded),
-            #         repeat(total_files_uploaded),
-            #         repeat(False),
-            #         repeat(mem_per_core),
-            #     )):
-            results = pool.imap_unordered(upload_and_callback, zip(
-                repeat(s3_host), 
-                repeat(access_key), 
-                repeat(secret_key), 
-                repeat(bucket_name), 
-                repeat(folder), 
-                folder_files,
-                repeat(None),
-                object_names, 
-                repeat(perform_checksum), 
-                repeat(dryrun), 
-                repeat(processing_start),
-                repeat(file_count),
-                repeat(folder_files_size),
-                repeat(total_size_uploaded),
-                repeat(total_files_uploaded),
-                repeat(False),
-                repeat(mem_per_core),
-            ))
+            for i,args in enumerate(
+                zip(
+                    repeat(s3_host), 
+                    repeat(access_key), 
+                    repeat(secret_key), 
+                    repeat(bucket_name), 
+                    repeat(folder), 
+                    folder_files,
+                    repeat(None),
+                    object_names, 
+                    repeat(perform_checksum), 
+                    repeat(dryrun), 
+                    repeat(processing_start),
+                    repeat(file_count),
+                    repeat(folder_files_size),
+                    repeat(total_size_uploaded),
+                    repeat(total_files_uploaded),
+                    repeat(False),
+                    repeat(mem_per_core),
+                )):
+                results.append(pool.apply_async(upload_and_callback, args=args))
 
             # if i > nprocs*4 and i % nprocs*4 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
             #     for result in results:
@@ -696,7 +676,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             to_collate[parent_folder]['folder_files'].append(folder_files)
     
     # collate folders
-    # zip_results = []
+    zip_results = []
     total_zips = 0
     if len(to_collate) > 0:
         # print(f"zips: {to_collate[parent_folder]['zips']}")
@@ -762,9 +742,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             # print(f'folder_size: {folder_size}')
             # for id,chunk in enumerate(zip(chunks,chunk_files)):
             #     # print(f'chunk {id} contains {len(chunk[0])} folders')
-            zip_results = zip_pool.imap_unordered(
-                zip_folders, 
-                zip(
+            for args in zip(
                     repeat(parent_folder),
                     chunks,
                     chunk_files,
@@ -772,8 +750,14 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     repeat(dryrun),
                     [i for i in range(len(chunks))],
                     repeat(mem_per_core),
+                    ):
+                zip_results.append(
+                    zip_pool.apply_async(
+                        zip_folders,
+                        args=args
                     )
                 )
+                
         zipped = 0
         uploaded = []
         zul_results = []
@@ -781,60 +765,60 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         while zipped < total_zips:
             for result in zip_results:
                 if result is not None:
-                # if result.ready():
-                    print(result[0], result[1])
-                    parent_folder, id, zip_data = result #.get()
-                    # zip_results[i] = None # remove from list to free memory
-                    if (parent_folder,id) in uploaded:
-                        continue
-                    else:
-                        zipped += 1
-                        uploaded.append((parent_folder,id))
-                        print(f'Zipped {zipped} of {total_zips} zip files.', flush=True)
-                        print(f'zip size: {len(zip_data)}')
-                        # print(parent_folder, id, uploaded, flush=True)
-                        with zipfile.ZipFile(io.BytesIO(zip_data), 'r') as z:
-                            zip_contents = z.namelist()
-                        # print(f'zip contents: {zip_contents}')
-                        to_collate[parent_folder]['zips'].append({'zip_contents':zip_contents, 'id':id, 'zip_object_name':str(os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated_{id}.zip', local_dir)]))})
+                    if result.ready():
 
-                        # check if zip_object_name exists in bucket and get its checksum
-                        if current_objects.isin([to_collate[parent_folder]['zips'][-1]['zip_object_name']]).any():
-                            existing_zip_checksum = bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,to_collate[parent_folder]['zips'][-1]['zip_object_name']).e_tag.strip('"')
-                            checksum_hash = hashlib.md5(zip_data)
-                            checksum_string = checksum_hash.hexdigest()
+                        parent_folder, id, zip_data = result.get()
+                        # zip_results[i] = None # remove from list to free memory
+                        if (parent_folder,id) in uploaded: # this seems wasteful - zipping has occurred before this point
+                            continue
+                        else:
+                            zipped += 1
+                            uploaded.append((parent_folder,id))
+                            print(f'Zipped {zipped} of {total_zips} zip files.', flush=True)
+                            print(f'zip size: {len(zip_data)}')
+                            # print(parent_folder, id, uploaded, flush=True)
+                            with zipfile.ZipFile(io.BytesIO(zip_data), 'r') as z:
+                                zip_contents = z.namelist()
+                            # print(f'zip contents: {zip_contents}')
+                            to_collate[parent_folder]['zips'].append({'zip_contents':zip_contents, 'id':id, 'zip_object_name':str(os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated_{id}.zip', local_dir)]))})
 
-                            if checksum_string == existing_zip_checksum:
-                                print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and checksums match - skipping.')
-                                # zip_results[i] = None
-                                continue
-                            
-                        # upload zipped folders
-                        total_size_uploaded += len(zip_data)
-                        total_files_uploaded += 1
-                        print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
+                            # check if zip_object_name exists in bucket and get its checksum
+                            if current_objects.isin([to_collate[parent_folder]['zips'][-1]['zip_object_name']]).any():
+                                existing_zip_checksum = bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,to_collate[parent_folder]['zips'][-1]['zip_object_name']).e_tag.strip('"')
+                                checksum_hash = hashlib.md5(zip_data)
+                                checksum_string = checksum_hash.hexdigest()
 
-                        zul_results.append(collate_ul_pool.apply_async(
-                            upload_and_callback, args=
-                                (s3_host,
-                                access_key,
-                                secret_key,
-                                bucket_name,
-                                parent_folder,
-                                zip_data,
-                                to_collate[parent_folder]['zips'][-1]['zip_contents'],
-                                to_collate[parent_folder]['zips'][-1]['zip_object_name'],
-                                perform_checksum,
-                                dryrun,
-                                processing_start,
-                                1,
-                                len(zip_data),
-                                total_size_uploaded,
-                                total_files_uploaded,
-                                True,
-                                mem_per_core,
-                                )
-                        ))
+                                if checksum_string == existing_zip_checksum:
+                                    print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and checksums match - skipping.')
+                                    zip_results[i] = None
+                                    continue
+                                
+                            # upload zipped folders
+                            total_size_uploaded += len(zip_data)
+                            total_files_uploaded += 1
+                            print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
+
+                            zul_results.append(collate_ul_pool.apply_async(
+                                upload_and_callback, args=
+                                    (s3_host,
+                                    access_key,
+                                    secret_key,
+                                    bucket_name,
+                                    parent_folder,
+                                    zip_data,
+                                    to_collate[parent_folder]['zips'][-1]['zip_contents'],
+                                    to_collate[parent_folder]['zips'][-1]['zip_object_name'],
+                                    perform_checksum,
+                                    dryrun,
+                                    processing_start,
+                                    1,
+                                    len(zip_data),
+                                    total_size_uploaded,
+                                    total_files_uploaded,
+                                    True,
+                                    mem_per_core,
+                                    )
+                            ))
 
     pool.close()
     pool.join()
