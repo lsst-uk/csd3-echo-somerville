@@ -640,6 +640,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     object_names.remove(on)
                     print(f'Removing {on} from object_names - previously uploaded.')
                     del folder_files[oni]
+                else:
+                    print(f'Keeping {on} in object_names - not previously uploaded.')
             pre_linkcheck_file_count = len(object_names)
             if init_len - pre_linkcheck_file_count > 0:
                 print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.')
