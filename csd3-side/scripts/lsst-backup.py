@@ -42,7 +42,7 @@ import argparse
 
 import gc
 
-def zip_folders(args):
+def zip_folders(parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun, id, mem_per_core):
     """
     Collates the specified folders into a zip file.
 
@@ -74,8 +74,6 @@ def zip_folders(args):
         # Output: ("/path/to/parent/folder", 1, b'compressed_zip_file_data')
 
     """
-    # unpack
-    parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun, id, mem_per_core = args
     zipped_size = 0
     # print(f'parent_folder: {parent_folder}')
     # print(f'subfolders_to_collate: {subfolders_to_collate}')
