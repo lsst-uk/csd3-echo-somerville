@@ -591,45 +591,27 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
             print(f'Sending {file_count} files (total size: {folder_files_size/1024**2:.0f} MiB) in {folder} to S3 bucket {bucket_name}.')
 
-            # for i,args in enumerate(
-            #     zip(
-            #         repeat(s3_host), 
-            #         repeat(access_key), 
-            #         repeat(secret_key), 
-            #         repeat(bucket_name), 
-            #         repeat(folder), 
-            #         folder_files,
-            #         repeat(None),
-            #         object_names, 
-            #         repeat(perform_checksum), 
-            #         repeat(dryrun), 
-            #         repeat(processing_start),
-            #         repeat(file_count),
-            #         repeat(folder_files_size),
-            #         repeat(total_size_uploaded),
-            #         repeat(total_files_uploaded),
-            #         repeat(False),
-            #         repeat(mem_per_core),
-            #     )):
-            results = pool.imap_unordered(upload_and_callback, zip(
-                repeat(s3_host), 
-                repeat(access_key), 
-                repeat(secret_key), 
-                repeat(bucket_name), 
-                repeat(folder), 
-                folder_files,
-                repeat(None),
-                object_names, 
-                repeat(perform_checksum), 
-                repeat(dryrun), 
-                repeat(processing_start),
-                repeat(file_count),
-                repeat(folder_files_size),
-                repeat(total_size_uploaded),
-                repeat(total_files_uploaded),
-                repeat(False),
-                repeat(mem_per_core),
-            ))
+            for i,args in enumerate(
+                zip(
+                    repeat(s3_host), 
+                    repeat(access_key), 
+                    repeat(secret_key), 
+                    repeat(bucket_name), 
+                    repeat(folder), 
+                    folder_files,
+                    repeat(None),
+                    object_names, 
+                    repeat(perform_checksum), 
+                    repeat(dryrun), 
+                    repeat(processing_start),
+                    repeat(file_count),
+                    repeat(folder_files_size),
+                    repeat(total_size_uploaded),
+                    repeat(total_files_uploaded),
+                    repeat(False),
+                    repeat(mem_per_core),
+                )):
+                results.append(pool.apply_async(upload_and_callback, args=args))
 
             # if i > nprocs*4 and i % nprocs*4 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
             #     for result in results:
