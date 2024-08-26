@@ -799,7 +799,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                             if current_objects.isin([to_collate[parent_folder]['zips'][-1]['zip_object_name']]).any():
                                 existing_zip_contents = []
                                 try:
-                                    existing_zip_contents = str(bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,''.join([to_collate[parent_folder]['zips'][-1]['zip_object_name'],'.metadata'])).get()['Body'].read()).split(',')
+                                    existing_zip_contents = str(bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,''.join([to_collate[parent_folder]['zips'][-1]['zip_object_name'],'.metadata'])).get()['Body'].read().decode('UTF-8')).split(',')
                                 except botocore.exceptions.ClientError:
                                     print(f'No metadata object found for {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}. Trying object.metadata')
                                     existing_zip_contents = bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,to_collate[parent_folder]['zips'][-1]['zip_object_name']).metadata['zip-contents'].split(',')
