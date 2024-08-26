@@ -746,9 +746,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             # print(f'folder_size: {folder_size}')
             # for id,chunk in enumerate(zip(chunks,chunk_files)):
             #     # print(f'chunk {id} contains {len(chunk[0])} folders')
-            zip_results = zip_pool.imap_unordered(
-                zip_folders, 
-                zip(
+            zip_results = []
+            for args in zip(
                     repeat(parent_folder),
                     chunks,
                     chunk_files,
@@ -756,8 +755,14 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     repeat(dryrun),
                     [i for i in range(len(chunks))],
                     repeat(mem_per_core),
+                    ):
+                zip_results.append(
+                    zip_pool.apply_async(
+                        zip_folders,
+                        args=args
                     )
                 )
+                
         zipped = 0
         uploaded = []
         zul_results = []
