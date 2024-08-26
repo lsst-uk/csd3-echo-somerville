@@ -184,7 +184,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                         
                         obj = bucket.Object(object_key)
                         mp_upload = obj.initiate_multipart_upload()
-                        chunk_size = mem_per_core // 8 # Set chunk size to half the mem_per_core - lowering this will increase the number of parts, in turn increasing multithreading overhead, and potentially leading to memory errors
+                        chunk_size = mem_per_core // 2 
                         chunk_count = int(np.ceil(file_size / chunk_size))
                         print(f'Uploading {filename} to {bucket_name}/{object_key} in {chunk_count} parts.')
                         parts = []
@@ -923,15 +923,15 @@ if __name__ == '__main__':
     perform_checksum = not args.no_checksum # internally, flag turns *on* checksumming, but for user no-checksum  turns it off - makes flag more intuitive
     dryrun = args.dryrun
     use_compression = not args.no_compression # internally, flag turns *on* compression, but for user no-compression turns it off - makes flag more intuitive
-    mem_per_core = args.mem_per_core
+    mem_per_core = 1024**3 # fix as 1 GiB
 
-    max_mem_per_core = virtual_memory().total // nprocs
-    if mem_per_core == 0 or mem_per_core > max_mem_per_core:
-        mem_per_core = max_mem_per_core
-    else:
-        mem_per_core = mem_per_core * 1024**2 # convert to bytes
+    # max_mem_per_core = virtual_memory().total // nprocs
+    # if mem_per_core == 0 or mem_per_core > max_mem_per_core:
+    #     mem_per_core = max_mem_per_core
+    # else:
+    #     mem_per_core = mem_per_core * 1024**2 # convert to bytes
     
-    print(f'max_mem_per_core: {np.floor(max_mem_per_core/1024**2)} MiB')
+    # print(f'max_mem_per_core: {np.floor(max_mem_per_core/1024**2)} MiB')
     
     if args.exclude:
         exclude = pd.Series(args.exclude)
