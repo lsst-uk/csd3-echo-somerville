@@ -777,6 +777,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         args=args
                     )
                 )
+                print(f'Zipping {chunk_files}')
                 
         zipped = 0
         uploaded = []
