@@ -770,15 +770,16 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         args=args
                     )
                 )
-                if i > nprocs*4/2 and i % nprocs*4/2 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
-                    for result in results:
-                        result.get()  # Wait until current processes in pool are finished
+                # if i > nprocs*4/2 and i % nprocs*4/2 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
+                #     for result in results:
+                #         result.get()  # Wait until current processes in pool are finished
                 
         zipped = 0
         uploaded = []
         zul_results = []
-        # total_zips = len(zip_results)
+        total_zips = len(zip_results)
         while zipped < total_zips:
+            print(f'Zipped {zipped} of {total_zips} zip files.', flush=True)
             for i, result in enumerate(zip_results):
                 if result is not None:
                     if result.ready():
