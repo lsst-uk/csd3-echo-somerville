@@ -821,7 +821,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                                 
                                 if len(existing_zip_contents) == 0:
                                     print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but no metadata found - reuploading.')
-                                if all([x in existing_zip_contents for x in zip_contents]):
+                                elif all([x in existing_zip_contents for x in zip_contents]):
                                     print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and file lists match - skipping.')
                                     zip_results[i] = None
                                     continue
