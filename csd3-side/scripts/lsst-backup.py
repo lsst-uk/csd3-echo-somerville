@@ -864,7 +864,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         collate_ul_pool.join()
     
     while True:
-        if global_collate
+        if global_collate:
             all_zips_uploaded = all([result.ready() for result in zul_results])
         all_files_uploaded = all([result.ready() for result in results])
         if all_files_uploaded:
