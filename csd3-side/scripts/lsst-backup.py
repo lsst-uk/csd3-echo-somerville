@@ -854,15 +854,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                                     mem_per_core,
                                     )
                             ))
-
-    pool.close()
-    pool.join()
-    if global_collate:
-        zip_pool.close()
-        zip_pool.join()
-        collate_ul_pool.close()
-        collate_ul_pool.join()
-    
     while True:
         if global_collate:
             all_zips_uploaded = all([result.ready() for result in zul_results])
@@ -879,6 +870,16 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 if not all_zips_uploaded:
                     print(f'Waiting for {len([result for result in zul_results if not result.ready()])} zip uploads to complete.', flush=True)
         time.sleep(5)
+        
+    pool.close()
+    pool.join()
+    if global_collate:
+        zip_pool.close()
+        zip_pool.join()
+        collate_ul_pool.close()
+        collate_ul_pool.join()
+    
+    
 
 # # Go!
 if __name__ == '__main__':
