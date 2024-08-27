@@ -466,6 +466,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     total_all_files = 0
     folder_num = 0
     file_num = 0
+    uploads = []
+    zip_uploads = []
     for folder, sub_folders, files in os.walk(local_dir, topdown=True):
         total_all_folders += 1
         total_all_files += len(files)
@@ -604,6 +606,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
 
             print(f'Sending {file_count} files (total size: {folder_files_size/1024**2:.0f} MiB) in {folder} to S3 bucket {bucket_name}.')
+            uploads.append({'folder':folder,'size':folder_files_size})
 
             for i,args in enumerate(
                 zip(
@@ -833,6 +836,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                             total_files_uploaded += 1
                             print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
 
+                            zip_uploads.append({'folder':parent_folder,'size':len(zip_data)})
+
                             zul_results.append(collate_ul_pool.apply_async(
                                 upload_and_callback, args=
                                     (s3_host,
@@ -866,15 +871,15 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 break
         else:
             print(f'Waiting for {len([result for result in results if not result.ready()])} individual uploads to complete.', flush=True)
-            for result in results:
+            for i, result in enumerate(results):
                 if not result.ready():
-                    print(f'{result}')
+                    print(f'{uploads[i]}')
             if global_collate:
                 if not all_zips_uploaded:
                     print(f'Waiting for {len([result for result in zul_results if not result.ready()])} zip uploads to complete.', flush=True)
                     for result in zul_results:
                         if not result.ready():
-                            print(f'{result}')
+                            print(f'{zip_uploads[i]}')
         time.sleep(5)
 
     pool.close()
