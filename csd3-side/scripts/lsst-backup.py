@@ -868,13 +868,13 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'Waiting for {len([result for result in results if not result.ready()])} individual uploads to complete.', flush=True)
             for result in results:
                 if not result.ready():
-                    print(f'{result.get()}')
+                    print(f'{result}')
             if global_collate:
                 if not all_zips_uploaded:
                     print(f'Waiting for {len([result for result in zul_results if not result.ready()])} zip uploads to complete.', flush=True)
                     for result in zul_results:
                         if not result.ready():
-                            print(f'{result.get()}')
+                            print(f'{result}')
         time.sleep(5)
 
     pool.close()
