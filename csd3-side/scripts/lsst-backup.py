@@ -627,9 +627,9 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 )):
                 results.append(pool.apply_async(upload_and_callback, args=args))
 
-            # if i > nprocs*4 and i % nprocs*4 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
-            #     for result in results:
-            #         result.get()  # Wait until current processes in pool are finished
+                if i > nprocs*4 and i % nprocs*4 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
+                    for result in results:
+                        result.get()  # Wait until current processes in pool are finished
             
             # release block of files if the list for results is greater than 4 times the number of processes
 
@@ -755,7 +755,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             # print(f'folder_size: {folder_size}')
             # for id,chunk in enumerate(zip(chunks,chunk_files)):
             #     # print(f'chunk {id} contains {len(chunk[0])} folders')
-            for args in zip(
+            for i, args in enumerate(zip(
                     repeat(parent_folder),
                     chunks,
                     chunk_files,
@@ -763,13 +763,16 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     repeat(dryrun),
                     [i for i in range(len(chunks))],
                     repeat(mem_per_core),
-                    ):
+                    )):
                 zip_results.append(
                     zip_pool.apply_async(
                         zip_folders,
                         args=args
                     )
                 )
+                if i > nprocs*4/2 and i % nprocs*4/2 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
+                    for result in results:
+                        result.get()  # Wait until current processes in pool are finished
                 
         zipped = 0
         uploaded = []
