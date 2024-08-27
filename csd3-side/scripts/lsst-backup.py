@@ -811,13 +811,13 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                                         existing_zip_contents = bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,to_collate[parent_folder]['zips'][-1]['zip_object_name']).metadata['zip-contents'].split(',')
                                     except KeyError:
                                         print(f'No "zip-contents" metadata found for {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}.')
-                                print(existing_zip_contents)
+                                # print(existing_zip_contents)
                                 # checksum_hash = hashlib.md5(zip_data)
                                 # checksum_string = checksum_hash.hexdigest()
                                 # print(f'Checksum of zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}: {checksum_string}')
                                 # print(f'Checksum of existing zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}: {existing_zip_checksum}')
 
-                                print(zip_contents)
+                                # print(zip_contents)
                                 
                                 if len(existing_zip_contents) == 0:
                                     print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but no metadata found - reuploading.')
@@ -866,11 +866,17 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 break
         else:
             print(f'Waiting for {len([result for result in results if not result.ready()])} individual uploads to complete.', flush=True)
+            for result in results:
+                if not result.ready():
+                    print(f'{result.get()}')
             if global_collate:
                 if not all_zips_uploaded:
                     print(f'Waiting for {len([result for result in zul_results if not result.ready()])} zip uploads to complete.', flush=True)
+                    for result in zul_results:
+                        if not result.ready():
+                            print(f'{result.get()}')
         time.sleep(5)
-        
+
     pool.close()
     pool.join()
     if global_collate:
