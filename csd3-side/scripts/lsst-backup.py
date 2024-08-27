@@ -40,7 +40,7 @@ import botocore
 import hashlib
 import os
 import argparse
-
+import time
 import gc
 
 def zip_folders(parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun, id, mem_per_core):
@@ -627,9 +627,9 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 )):
                 results.append(pool.apply_async(upload_and_callback, args=args))
 
-                if i > nprocs*4 and i % nprocs*4 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
-                    for result in results:
-                        result.get()  # Wait until current processes in pool are finished
+                # if i > nprocs*4 and i % nprocs*4 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
+                #     for result in results:
+                #         result.get()  # Wait until current processes in pool are finished
             
             # release block of files if the list for results is greater than 4 times the number of processes
 
@@ -862,6 +862,23 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         zip_pool.join()
         collate_ul_pool.close()
         collate_ul_pool.join()
+    
+    while True:
+        if global_collate
+            all_zips_uploaded = all([result.ready() for result in zul_results])
+        all_files_uploaded = all([result.ready() for result in results])
+        if all_files_uploaded:
+            if global_collate:
+                if all_zips_uploaded:
+                    break
+            else:
+                break
+        else:
+            print(f'Waiting for {len([result for result in results if not result.ready()])} individual uploads to complete.', flush=True)
+            if global_collate:
+                if not all_zips_uploaded:
+                    print(f'Waiting for {len([result for result in zul_results if not result.ready()])} zip uploads to complete.', flush=True)
+        time.sleep(5)
 
 # # Go!
 if __name__ == '__main__':
