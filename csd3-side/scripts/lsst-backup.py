@@ -855,7 +855,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                                     mem_per_core,
                                     )
                             ))
-                            zip_uploads.append({'folder':parent_folder,'size':len(zip_data),'zip_contents':to_collate[parent_folder]['zips'][-1]['zip_contents'],'uploaded':False})
+                            zip_uploads.append({'folder':parent_folder,'size':len(zip_data),'zip_contents':to_collate[parent_folder]['zips'][-1]['zip_contents'],'object_name':to_collate[parent_folder]['zips'][-1]['zip_object_name'],'uploaded':False})
     while True:
         if global_collate:
             all_zips_uploaded = all([result.ready() for result in zul_results])
