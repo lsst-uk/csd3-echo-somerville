@@ -629,7 +629,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     repeat(mem_per_core),
                 )):
                 results.append(pool.apply_async(upload_and_callback, args=args))
-                uploads.append({'folder':folder,'size':folder_files_size,'uploaded':False})
+                uploads.append({'folder':folder,'size':folder_files_size,'folder_files':folder_files,'uploaded':False})
 
                 # if i > nprocs*4 and i % nprocs*4 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
                 #     for result in results:
@@ -856,7 +856,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                                     mem_per_core,
                                     )
                             ))
-                            zip_uploads.append({'folder':parent_folder,'size':len(zip_data),'uploaded':False})
+                            zip_uploads.append({'folder':parent_folder,'size':len(zip_data),'zip_contents':to_collate[parent_folder]['zips'][-1]['zip_contents'],'uploaded':False})
     while True:
         if global_collate:
             all_zips_uploaded = all([result.ready() for result in zul_results])
@@ -874,6 +874,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     print(f'{uploads[i]}')
                 else:
                     uploads[i]['uploaded'] = True
+                    uploads['folder_files'] = None # free up memory
             if global_collate:
                 if not all_zips_uploaded:
                     print(f'Waiting for {len([result for result in zul_results if not result.ready()])} zip uploads to complete.', flush=True)
@@ -882,6 +883,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                             print(f'{zip_uploads[i]}')
                         else:
                             zip_uploads[i]['uploaded'] = True
+                            zip_uploads[i]['zip_contents'] = None # free up memory
         time.sleep(5)
 
     pool.close()
