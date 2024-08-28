@@ -608,8 +608,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'Sending {file_count} files (total size: {folder_files_size/1024**2:.0f} MiB) in {folder} to S3 bucket {bucket_name}.')
             
 
-            for i,args in enumerate(
-                zip(
+            for i,args in enumerate(zip(
                     repeat(s3_host), 
                     repeat(access_key), 
                     repeat(secret_key), 
@@ -629,7 +628,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     repeat(mem_per_core),
                 )):
                 results.append(pool.apply_async(upload_and_callback, args=args))
-                uploads.append({'folder':folder,'size':folder_files_size,'folder_files':folder_files,'uploaded':False})
+                uploads.append({'folder':args[4],'folder_size':args[12],'file_size':os.lstat(folder_files[i]).st_size,'file':args[5],'object':args[7],'uploaded':False})
 
                 # if i > nprocs*4 and i % nprocs*4 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
                 #     for result in results:
