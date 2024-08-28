@@ -874,7 +874,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     print(f'{uploads[i]}')
                 else:
                     uploads[i]['uploaded'] = True
-                    uploads['folder_files'] = None # free up memory
+                    uploads[i]['folder_files'] = None # free up memory
             if global_collate:
                 if not all_zips_uploaded:
                     print(f'Waiting for {len([result for result in zul_results if not result.ready()])} zip uploads to complete.', flush=True)
