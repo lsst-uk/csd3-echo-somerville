@@ -782,7 +782,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         zul_results = []
         total_zips = len(zip_results)
         while zipped < total_zips:
-            print(f'Zipped {zipped} of {total_zips} zip files.', flush=True)
+            # print(f'Zipped {zipped} of {total_zips} zip files.', flush=True)
             for i, result in enumerate(zip_results):
                 if result is not None:
                     if result.ready():
