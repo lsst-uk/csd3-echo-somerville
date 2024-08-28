@@ -498,8 +498,15 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'Skipping {len_pre_exclude - len(sub_folders)} subfolders in {folder} - excluded. {len(sub_folders)} subfolders remaining.')
 
         folder_files = [os.sep.join([folder, filename]) for filename in files]
+
         sizes = []
         for filename in folder_files:
+            if exclude.isin([filename]).any():
+                print(f'Skipping file {filename} - excluded.')
+                folder_files.remove(filename)
+                if len(folder_files) == 0:
+                    print(f'Skipping subfolder - no files - see exclusions.')
+                continue
             try:
                 sizes.append(os.stat(filename).st_size)
             except PermissionError:
@@ -543,7 +550,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     # upload files in subfolder "as is" i.e., no zipping
 
         # check folder isn't empty
-        print(f'Processing {len(files)} files (total size: {total_filesize/1024**2:.0f} MiB) in {folder} with {len(sub_folders)} subfolders.')
+        print(f'Processing {len(folder_files)} files (total size: {total_filesize/1024**2:.0f} MiB) in {folder} with {len(sub_folders)} subfolders.')
         # len(files) > 2 taken out to give increased number of zip files
 
         # keys to files on s3
@@ -636,7 +643,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             
             # release block of files if the list for results is greater than 4 times the number of processes
 
-        elif len(files) > 0 and global_collate: # small files in folder
+        elif len(folder_files) > 0 and global_collate: # small files in folder
             folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
             parent_folder = os.path.abspath(os.path.join(folder, os.pardir))
             print(f'parent_folder: {parent_folder}')
