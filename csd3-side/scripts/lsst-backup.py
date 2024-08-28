@@ -606,7 +606,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
 
             print(f'Sending {file_count} files (total size: {folder_files_size/1024**2:.0f} MiB) in {folder} to S3 bucket {bucket_name}.')
-            uploads.append({'folder':folder,'size':folder_files_size,'uploaded':False})
+            
 
             for i,args in enumerate(
                 zip(
@@ -629,6 +629,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     repeat(mem_per_core),
                 )):
                 results.append(pool.apply_async(upload_and_callback, args=args))
+                uploads.append({'folder':folder,'size':folder_files_size,'uploaded':False})
 
                 # if i > nprocs*4 and i % nprocs*4 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
                 #     for result in results:
@@ -834,8 +835,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                             total_files_uploaded += 1
                             print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
 
-                            zip_uploads.append({'folder':parent_folder,'size':len(zip_data),'uploaded':False})
-
                             zul_results.append(collate_ul_pool.apply_async(
                                 upload_and_callback, args=
                                     (s3_host,
@@ -857,6 +856,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                                     mem_per_core,
                                     )
                             ))
+                            zip_uploads.append({'folder':parent_folder,'size':len(zip_data),'uploaded':False})
     while True:
         if global_collate:
             all_zips_uploaded = all([result.ready() for result in zul_results])
