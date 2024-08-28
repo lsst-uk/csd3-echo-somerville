@@ -606,7 +606,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
 
             print(f'Sending {file_count} files (total size: {folder_files_size/1024**2:.0f} MiB) in {folder} to S3 bucket {bucket_name}.')
-            uploads.append({'folder':folder,'size':folder_files_size})
+            uploads.append({'folder':folder,'size':folder_files_size,'uploaded':False})
 
             for i,args in enumerate(
                 zip(
@@ -726,7 +726,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             if num_zips > len(folders):
                 chunk_subfolders = True
 
-
             if chunk_subfolders:
                 subchunks_files = []
                 for j in range(len(folders)):
@@ -739,7 +738,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             else:
                 chunks = folders
                 chunk_files = folder_files
-
 
             if len(chunks) != len(chunk_files):
                 print('Error: chunks and chunk_files are not the same length.')
@@ -836,7 +834,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                             total_files_uploaded += 1
                             print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
 
-                            zip_uploads.append({'folder':parent_folder,'size':len(zip_data)})
+                            zip_uploads.append({'folder':parent_folder,'size':len(zip_data),'uploaded':False})
 
                             zul_results.append(collate_ul_pool.apply_async(
                                 upload_and_callback, args=
@@ -874,12 +872,16 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             for i, result in enumerate(results):
                 if not result.ready():
                     print(f'{uploads[i]}')
+                else:
+                    uploads[i]['uploaded'] = True
             if global_collate:
                 if not all_zips_uploaded:
                     print(f'Waiting for {len([result for result in zul_results if not result.ready()])} zip uploads to complete.', flush=True)
                     for result in zul_results:
                         if not result.ready():
                             print(f'{zip_uploads[i]}')
+                        else:
+                            zip_uploads[i]['uploaded'] = True
         time.sleep(5)
 
     pool.close()
