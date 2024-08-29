@@ -909,7 +909,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     print(f'Waiting for {len([result for result in results if not result.ready()])} individual uploads to complete'+''.join(['.' for _ in range(waited_time//5)]), end='\r')
             if global_collate:
                 if not all_zips_uploaded:
-                    print(f'Waiting for {len([result for result in results if not result.ready()])} individual uploads and {len([result for result in zul_results if not result.ready()])} zip uploads to complete'+''.join(['.' for _ in range(waited_time/5)]), end='\r')
+                    print(f'Waiting for {len([result for result in results if not result.ready()])} individual uploads and {len([result for result in zul_results if not result.ready()])} zip uploads to complete'+''.join(['.' for _ in range(waited_time//5)]), end='\r')
                     for i, result in enumerate(zul_results):
                         if not result.ready():
                             # print(f'{zip_uploads[i]}')
