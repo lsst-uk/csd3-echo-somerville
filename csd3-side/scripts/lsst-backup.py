@@ -893,7 +893,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         if not result.ready():
                             print(f'{zip_uploads[i]}')
                             if waited_time > 10:
-                                result.get(timeout=0)
+                                pass
+                                # result.get(timeout=0)
                         else:
                             zip_uploads[i]['uploaded'] = True
                             zip_uploads[i]['zip_contents'] = None # free up memory
