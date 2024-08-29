@@ -902,7 +902,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     for i, result in enumerate(zul_results):
                         if not result.ready():
                             print(f'{zip_uploads[i]}')
-                            if waited_time => 600:
+                            if waited_time >= 600:
                                 failed.append(zip_uploads[i])
                         else:
                             zip_uploads[i]['uploaded'] = True
