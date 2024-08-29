@@ -43,7 +43,13 @@ import argparse
 import time
 import gc
 
-def zip_folders(parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun, id, mem_per_core):
+def remove_duplicates(l) -> list:
+    for i,d in enumerate(l):
+        if d in l[:i]:
+            l.remove(d)
+    return l
+
+def zip_folders(parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun, id, mem_per_core) -> tuple:
     """
     Collates the specified folders into a zip file.
 
@@ -109,7 +115,7 @@ def zip_folders(parent_folder, subfolders_to_collate, folders_files, use_compres
     else:
         return parent_folder, id, b''
     
-def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun, mem_per_core):
+def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun, mem_per_core) -> str:
     """
     Uploads a file to an S3 bucket.
     Optionally calculates a checksum for the file
@@ -243,7 +249,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
     return_string += ',n/a'
     return return_string
 
-def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, folder, file_data, zip_contents, object_key, perform_checksum, dryrun, mem_per_core):
+def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, folder, file_data, zip_contents, object_key, perform_checksum, dryrun, mem_per_core) -> str:
     """
     Uploads a file to an S3 bucket.
     Optionally calculates a checksum for the file
@@ -368,7 +374,7 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
     return return_string
 
 
-def print_stats(file_name_or_data, file_count, total_size, file_start, file_end, processing_start, total_size_uploaded, total_files_uploaded, collated):
+def print_stats(file_name_or_data, file_count, total_size, file_start, file_end, processing_start, total_size_uploaded, total_files_uploaded, collated) -> None:
     """
     Prints the statistics of the upload process.
 
@@ -401,7 +407,7 @@ def print_stats(file_name_or_data, file_count, total_size, file_start, file_end,
     print(f'Running average speed = {total_size_uploaded / 1024**2 / (file_end-processing_start).seconds:.2f} MiB/s', flush=True)
     print(f'Running average rate = {(file_end-processing_start).seconds / total_files_uploaded:.2f} s/file', flush=True)
 
-def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded, collated, mem_per_core):
+def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded, collated, mem_per_core) -> None:
     # upload files in parallel and log output
     file_start = datetime.now()
     print(f'collated = {collated}', flush=True)
@@ -427,7 +433,7 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, fi
 #     del to_collate[parent_folder]['zips'][index]['zip_contents']
 #     print(f'Deleted zip contents object for {parent_folder}, zip index {index}, to free memory.')
 
-def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, nprocs, perform_checksum, dryrun, log, global_collate, use_compression, mem_per_core):
+def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, nprocs, perform_checksum, dryrun, log, global_collate, use_compression, mem_per_core) -> None:
     """
     Uploads files from a local directory to an S3 bucket in parallel.
 
@@ -872,6 +878,9 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         collate_ul_pool.close()
         # collate_ul_pool.join()
 
+    ####
+    # Monitor upload tasks
+    ####
 
     waited_time = 0       
     failed = []                     
@@ -911,7 +920,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         print(waited_time)
         waited_time += 5
         if waited_time >= 650:
-            # failed = list(set(failed))
+            failed = remove_duplicates(failed)
             print(f'WARNING: Timeout reached. Exiting.')
             print(f'Failed uploads: {failed}')
             pool.terminate()
