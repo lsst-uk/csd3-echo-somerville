@@ -886,6 +886,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     waited_time = 0       
     failed = []                     
     while True:
+        print(waited_time)
         if global_collate:
             all_zips_uploaded = all([result.ready() for result in zul_results])
         all_files_uploaded = all([result.ready() for result in results])
