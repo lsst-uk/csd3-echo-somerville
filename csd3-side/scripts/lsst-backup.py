@@ -890,7 +890,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             for i, result in enumerate(results):
                 if not result.ready():
                     print(f'{uploads[i]}')
-                    if waited_time > 10: # short timeout for testing
+                    if waited_time => 600: # short timeout for testing
                         failed.append(uploads[i])
                         print(f'WARNING: Removing {uploads[i]} - problem uploading file.')
                 else:
@@ -902,14 +902,15 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     for i, result in enumerate(zul_results):
                         if not result.ready():
                             print(f'{zip_uploads[i]}')
-                            if waited_time > 10:
+                            if waited_time => 600:
                                 failed.append(zip_uploads[i])
                         else:
                             zip_uploads[i]['uploaded'] = True
                             zip_uploads[i]['zip_contents'] = None # free up memory
         time.sleep(5)
         waited_time += 5
-        if waited_time > 10:
+        if waited_time >= 610:
+            failed = list(set(failed))
             print(f'WARNING: Timeout reached. Exiting.')
             print(f'Failed uploads: {failed}')
             pool.terminate()
