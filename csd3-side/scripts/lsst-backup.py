@@ -320,7 +320,6 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                         UploadId=mp_upload.id,
                         MultipartUpload={"Parts": parts}
                     )
-                    print(f'multipart upload response: {response}')
                 else:
                     """
                     - Upload the file to the bucket
@@ -866,12 +865,12 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                             zip_uploads.append({'folder':parent_folder,'size':len(zip_data),'object_name':to_collate[parent_folder]['zips'][-1]['zip_object_name'],'uploaded':False}) # removed ,'zip_contents':to_collate[parent_folder]['zips'][-1]['zip_contents']
     
     pool.close()
-    pool.join()
+    # pool.join()
     if global_collate:
         zip_pool.close()
-        zip_pool.join()
+        # zip_pool.join()
         collate_ul_pool.close()
-        collate_ul_pool.join()
+        # collate_ul_pool.join()
 
 
     waited_time = 0       
@@ -917,6 +916,14 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             if global_collate:
                 collate_ul_pool.terminate()
             break
+    
+    # pool.close()
+    pool.join()
+    if global_collate:
+        # zip_pool.close()
+        zip_pool.join()
+        # collate_ul_pool.close()
+        collate_ul_pool.join()
 
 # # Go!
 if __name__ == '__main__':
