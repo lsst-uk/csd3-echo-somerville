@@ -895,27 +895,29 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             else:
                 break
         else:
-            print(f'Waiting for {len([result for result in results if not result.ready()])} individual uploads to complete.', flush=True)
             for i, result in enumerate(results):
                 if not result.ready():
-                    print(f'{uploads[i]}')
+                    # print(f'{uploads[i]}')
                     if waited_time >= 200: # short timeout for testing
                         failed.append(uploads[i])
-                        print(f'WARNING: Removing {uploads[i]} - problem uploading file.')
+                        # print(f'WARNING: Removing {uploads[i]} - problem uploading file.')
                 else:
                     uploads[i]['uploaded'] = True
                     uploads[i]['folder_files'] = None # free up memory
+                if not all_files_uploaded and not global_collate:
+                    print(f'Waiting for {len([result for result in results if not result.ready()])} individual uploads to complete'+''.join(['.' for _ in range(waited_time/5)]), end='\r')
             if global_collate:
                 if not all_zips_uploaded:
-                    print(f'Waiting for {len([result for result in zul_results if not result.ready()])} zip uploads to complete.', flush=True)
+                    print(f'Waiting for {len([result for result in results if not result.ready()])} individual uploads and {len([result for result in zul_results if not result.ready()])} zip uploads to complete'+''.join(['.' for _ in range(waited_time/5)]), end='\r')
                     for i, result in enumerate(zul_results):
                         if not result.ready():
-                            print(f'{zip_uploads[i]}')
+                            # print(f'{zip_uploads[i]}')
                             if waited_time >= 200:
                                 failed.append(zip_uploads[i])
                         else:
                             zip_uploads[i]['uploaded'] = True
                             zip_uploads[i]['zip_contents'] = None # free up memory
+                
         time.sleep(5)
         print(waited_time)
         waited_time += 5
