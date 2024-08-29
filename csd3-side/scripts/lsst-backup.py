@@ -880,7 +880,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             for i, result in enumerate(results):
                 if not result.ready():
                     print(f'{uploads[i]}')
-                    if waited_time > 500:
+                    if waited_time > 10: # short timeout for testing
                         result.wait(timeout=0)
                 else:
                     uploads[i]['uploaded'] = True
@@ -891,7 +891,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     for i, result in enumerate(zul_results):
                         if not result.ready():
                             print(f'{zip_uploads[i]}')
-                            if waited_time > 500:
+                            if waited_time > 10:
                                 result.wait(timeout=0)
                         else:
                             zip_uploads[i]['uploaded'] = True
