@@ -43,13 +43,13 @@ import argparse
 import time
 import gc
 
-def remove_duplicates(l) -> list:
+def remove_duplicates(l: list[dict]) -> list[dict]:
     for i,d in enumerate(l):
         if d in l[:i]:
             l.remove(d)
     return l
 
-def zip_folders(parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun, id, mem_per_core) -> tuple:
+def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_files:list[str], use_compression:bool, dryrun:bool, id:int, mem_per_core:int) -> tuple[str, int, bytes]:
     """
     Collates the specified folders into a zip file.
 
@@ -60,6 +60,7 @@ def zip_folders(parent_folder, subfolders_to_collate, folders_files, use_compres
         use_compression (bool): Flag indicating whether to use compression for the zip file.
         dryrun (bool): Flag indicating whether to perform a dry run without actually creating the zip file.
         id (int, optional): An optional identifier for the zip file. Defaults to 0.
+        mem_per_core (int): The amount of memory to allocate per CPU core.
 
     Returns:
         tuple: A tuple containing the parent folder path, the identifier, and the compressed zip file as a bytes object.
@@ -905,7 +906,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     uploads[i]['uploaded'] = True
                     uploads[i]['folder_files'] = None # free up memory
                 if not all_files_uploaded and not global_collate:
-                    print(f'Waiting for {len([result for result in results if not result.ready()])} individual uploads to complete'+''.join(['.' for _ in range(waited_time/5)]), end='\r')
+                    print(f'Waiting for {len([result for result in results if not result.ready()])} individual uploads to complete'+''.join(['.' for _ in range(waited_time//5)]), end='\r')
             if global_collate:
                 if not all_zips_uploaded:
                     print(f'Waiting for {len([result for result in results if not result.ready()])} individual uploads and {len([result for result in zul_results if not result.ready()])} zip uploads to complete'+''.join(['.' for _ in range(waited_time/5)]), end='\r')
