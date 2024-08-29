@@ -921,7 +921,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         time.sleep(5)
         print(waited_time)
         waited_time += 5
-        if waited_time >= 650:
+        if waited_time >= 250:
             failed = remove_duplicates(failed)
             print(f'WARNING: Timeout reached. Exiting.')
             print(f'Failed uploads: {failed}')
