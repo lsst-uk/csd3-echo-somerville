@@ -880,8 +880,9 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             for i, result in enumerate(results):
                 if not result.ready():
                     print(f'{uploads[i]}')
+                    print(waited_time)
                     if waited_time > 10: # short timeout for testing
-                        result.wait(timeout=0)
+                        result.wait(timeout=1)
                 else:
                     uploads[i]['uploaded'] = True
                     uploads[i]['folder_files'] = None # free up memory
