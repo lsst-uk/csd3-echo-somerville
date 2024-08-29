@@ -908,6 +908,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                             zip_uploads[i]['uploaded'] = True
                             zip_uploads[i]['zip_contents'] = None # free up memory
         time.sleep(5)
+        print(waited_time)
         waited_time += 5
         if waited_time >= 610:
             failed = list(set(failed))
