@@ -864,7 +864,18 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                                     )
                             ))
                             zip_uploads.append({'folder':parent_folder,'size':len(zip_data),'object_name':to_collate[parent_folder]['zips'][-1]['zip_object_name'],'uploaded':False}) # removed ,'zip_contents':to_collate[parent_folder]['zips'][-1]['zip_contents']
-    waited_time = 0                            
+    
+    pool.close()
+    pool.join()
+    if global_collate:
+        zip_pool.close()
+        zip_pool.join()
+        collate_ul_pool.close()
+        collate_ul_pool.join()
+
+
+    waited_time = 0       
+    failed = []                     
     while True:
         if global_collate:
             all_zips_uploaded = all([result.ready() for result in zul_results])
@@ -881,7 +892,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 if not result.ready():
                     print(f'{uploads[i]}')
                     if waited_time > 10: # short timeout for testing
-                        results.remove(result)
+                        failed.append(uploads[i])
                         print(f'WARNING: Removing {uploads[i]} - problem uploading file.')
                 else:
                     uploads[i]['uploaded'] = True
@@ -893,21 +904,19 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         if not result.ready():
                             print(f'{zip_uploads[i]}')
                             if waited_time > 10:
-                                pass
-                                # result.get(timeout=0)
+                                failed.append(zip_uploads[i])
                         else:
                             zip_uploads[i]['uploaded'] = True
                             zip_uploads[i]['zip_contents'] = None # free up memory
         time.sleep(5)
         waited_time += 5
-
-    pool.close()
-    pool.join()
-    if global_collate:
-        zip_pool.close()
-        zip_pool.join()
-        collate_ul_pool.close()
-        collate_ul_pool.join()
+        if waited_time > 10:
+            print(f'WARNING: Timeout reached. Exiting.')
+            print(f'Failed uploads: {failed}')
+            pool.terminate()
+            if global_collate:
+                collate_ul_pool.terminate()
+            break
 
 # # Go!
 if __name__ == '__main__':
