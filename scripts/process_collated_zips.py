@@ -58,8 +58,19 @@ def get_key_lists(bucket_name, access_key, secret_key, s3_host, get_contents_met
                     zipfile_list.append(key)
                     if get_contents_metadata:
                         try:
-                            contents = bucket.Object(key).get()['Metadata']['zip-contents'].split(',')
-                            contents_list.append(contents)
+                            metadata = bucket.Object(key).get()['Metadata']
+                            if 'zip-contents' in metadata:
+                                print('Using zip-contents metadata.')
+                                contents = metadata['zip-contents'].split(',')
+                                contents_list.append(contents)
+                            elif 'zip-contents-object' in metadata:
+                                print('Using zip-contents-object.')
+                                contents = metadata['zip-contents-object']
+                                contents_object = bucket.Object(contents).get()['Body'].read().decode('utf-8').split(',')
+                                contents_list.append(contents_object)
+                            else:
+                                raise KeyError(f'Key {key} has no zip-contents metadata.')
+
                         except KeyError as e:
                             print(f'Key {key} has no zip-contents metadata.')
                             contents_list.append([])
