@@ -327,7 +327,6 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                         UploadId=mp_upload.id,
                         MultipartUpload={"Parts": parts}
                     )
-
                     
                 else:
                     """
@@ -375,7 +374,6 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
     return_string += f',"{",".join(zip_contents)}"'
     
     return return_string
-
 
 def print_stats(file_name_or_data, file_count, total_size, file_start, file_end, processing_start, total_size_uploaded, total_files_uploaded, collated) -> None:
     """
@@ -432,10 +430,6 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, fi
         logfile.write(f'{result}\n')
     return None
 
-# def free_up_zip_memory(to_collate, parent_folder, index):
-#     del to_collate[parent_folder]['zips'][index]['zip_contents']
-#     print(f'Deleted zip contents object for {parent_folder}, zip index {index}, to free memory.')
-
 def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, nprocs, perform_checksum, dryrun, log, global_collate, use_compression, mem_per_core) -> None:
     """
     Uploads files from a local directory to an S3 bucket in parallel.
@@ -484,10 +478,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         folder_num += 1
         file_num += len(files)
         print(f'Processing {folder_num}/{total_all_folders} folders; {file_num}/{total_all_files} files in {local_dir}.')
-        # print(f'Processing {folder}.')
-        # print(f'Files: {files}')
-        # print(f'Subfolders: {sub_folders}')
-        # continue
+        
         # check if folder is in the exclude list
         if len(files) == 0 and len(sub_folders) == 0:
             print(f'Skipping subfolder - no files or subfolders.')
@@ -502,15 +493,14 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         if len(sub_folders) > 0:
             len_pre_exclude = len(sub_folders)
             sub_folders[:] = [sub_folder for sub_folder in sub_folders if not exclude.isin([sub_folder]).any()]
-            # sub_folders[:] = [sub_folder for sub_folder in sub_folders if sub_folder not in exclude]
             print(f'Skipping {len_pre_exclude - len(sub_folders)} subfolders in {folder} - excluded. {len(sub_folders)} subfolders remaining.')
 
         folder_files = [os.sep.join([folder, filename]) for filename in files]
 
         sizes = []
         for filename in folder_files:
-            print(filename.replace(local_dir+'/',''))
-            if exclude.isin([filename.replace(local_dir,'')]).any():
+            print(os.sep.join([destination_dir, os.path.relpath(filename, local_dir)]))
+            if exclude.isin([os.sep.join([destination_dir, os.path.relpath(filename, local_dir)])]).any():
                 print('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
                 print(f'Skipping file {filename} - excluded.')
                 folder_files.remove(filename)
