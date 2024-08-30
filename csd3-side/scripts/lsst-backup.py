@@ -1020,7 +1020,7 @@ if __name__ == '__main__':
     # print(f'max_mem_per_core: {np.floor(max_mem_per_core/1024**2)} MiB')
     
     if args.exclude:
-        exclude = pd.Series(args.exclude)
+        exclude = pd.Series([os.sep.join([prefix,sub_dirs,excl]) for excl in args.exclude])
     else:
         exclude = pd.Series([])
     
