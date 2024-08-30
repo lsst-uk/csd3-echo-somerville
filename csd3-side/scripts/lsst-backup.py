@@ -499,7 +499,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
         sizes = []
         for filename in folder_files:
-            print(os.path.relpath(filename, local_dir))
+            # print(os.path.relpath(filename, local_dir))
             if exclude.isin([os.path.relpath(filename, local_dir)]).any():
                 print(f'Skipping file {filename} - excluded.')
                 folder_files.remove(filename)
