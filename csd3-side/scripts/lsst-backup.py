@@ -499,9 +499,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
         sizes = []
         for filename in folder_files:
-            print(os.sep.join([destination_dir, os.path.relpath(filename, local_dir)]))
-            if exclude.isin([os.sep.join([destination_dir, os.path.relpath(filename, local_dir)])]).any():
-                print('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
+            print(os.path.relpath(filename, local_dir))
+            if exclude.isin([os.path.relpath(filename, local_dir)]).any():
                 print(f'Skipping file {filename} - excluded.')
                 folder_files.remove(filename)
                 if len(folder_files) == 0:
@@ -1010,17 +1009,9 @@ if __name__ == '__main__':
     dryrun = args.dryrun
     use_compression = not args.no_compression # internally, flag turns *on* compression, but for user no-compression turns it off - makes flag more intuitive
     mem_per_core = 1024**3 # fix as 1 GiB
-
-    # max_mem_per_core = virtual_memory().total // nprocs
-    # if mem_per_core == 0 or mem_per_core > max_mem_per_core:
-    #     mem_per_core = max_mem_per_core
-    # else:
-    #     mem_per_core = mem_per_core * 1024**2 # convert to bytes
-    
-    # print(f'max_mem_per_core: {np.floor(max_mem_per_core/1024**2)} MiB')
     
     if args.exclude:
-        exclude = pd.Series([os.sep.join([prefix,sub_dirs,excl]) for excl in args.exclude])
+        exclude = pd.Series(args.exclude)
     else:
         exclude = pd.Series([])
     
