@@ -8,7 +8,7 @@ import os
 from botocore.exceptions import ClientError
 import swiftclient
 
-def print_buckets(resource):
+def print_buckets(resource: boto3.resources.factory.s3.ServiceResource) -> None:
     """
     Prints the names of all buckets in the S3 endpoint.
 
@@ -21,7 +21,7 @@ def print_buckets(resource):
     for b in resource.buckets.all():
         print(b.name)
     
-def get_keys(api='S3'):
+def get_keys(api: str ='S3') -> None:
     """
     Retrieves the access key and secret key for the specified API.
 
@@ -49,7 +49,7 @@ def get_keys(api='S3'):
     else:
         raise ValueError(f'Invalid API: {api}')
 
-def get_resource(access_key, secret_key, s3_host):
+def get_resource(access_key: str, secret_key: str, s3_host: str) -> boto3.resources.factory.s3.ServiceResource:
     """
     Creates and returns an S3 resource object for the specified S3 endpoint.
 
@@ -71,7 +71,7 @@ def get_resource(access_key, secret_key, s3_host):
         verify=False  # Disable SSL verification for non-AWS S3 endpoints
     )
 
-def get_client(access_key, secret_key, s3_host):
+def get_client(access_key: str, secret_key: str, s3_host:str) -> boto3.client:
     """
     Creates and returns an S3 client object for the specified S3 endpoint.
 
@@ -93,7 +93,7 @@ def get_client(access_key, secret_key, s3_host):
         verify=False  # Disable SSL verification for non-AWS S3 endpoints
     )
 
-def bucket_list(resource):
+def bucket_list(resource: boto3.resources.factory.s3.ServiceResource) -> list[str]:
     """
     Returns a list of bucket names in the S3 endpoint.
 
@@ -105,7 +105,7 @@ def bucket_list(resource):
     """
     return [ b.name for b in resource.buckets.all() ]
 
-def create_bucket(resource, bucket_name):
+def create_bucket(resource: boto3.resources.factory.s3.ServiceResource, bucket_name: str) -> bool:
     """
     Creates a new bucket in the S3 endpoint.
 
@@ -121,7 +121,7 @@ def create_bucket(resource, bucket_name):
         print(e)
     return True
 
-def print_objects(bucket):
+def print_objects(bucket: boto3.resources.factory.s3.Bucket) -> None:
     """
     Prints the keys of all objects in the specified bucket.
 
@@ -134,7 +134,7 @@ def print_objects(bucket):
     for obj in bucket.objects.all():
         print(obj.key)
 
-def object_list(bucket):
+def object_list(bucket: boto3.resources.factory.s3.Bucket) -> list[str]:
     """
     Returns a list of keys of all objects in the specified bucket.
 
@@ -147,7 +147,7 @@ def object_list(bucket):
     return [ obj.key for obj in bucket.objects.all() ]
 
 
-def print_containers_swift(conn):
+def print_containers_swift(conn: swiftclient.Connection) -> None:
     """
     Prints the names of all containers in the Swift endpoint.
 
@@ -160,7 +160,7 @@ def print_containers_swift(conn):
     for container in conn.get_account()[1]:
         print(container['name'])
 
-def print_contents_swift(conn,container_name):
+def print_contents_swift(conn: swiftclient.Connection, container_name: str) -> None:
     """
     Prints the names, sizes, and last modified timestamps of all objects in the specified container.
 
@@ -173,7 +173,7 @@ def print_contents_swift(conn,container_name):
     for data in conn.get_container(container_name)[1]:
         print('{0}\t{1}\t{2}'.format(data['name'], data['bytes'], data['last_modified']))
 
-def get_conn_swift(user, access_key, host):
+def get_conn_swift(user: str, access_key: str, host: str) -> swiftclient.Connection:
     """
     Creates and returns a Swift connection object for the specified Swift endpoint.
 
