@@ -139,7 +139,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
     s3_client = bm.get_client(access_key, secret_key, s3_host)
     bucket = s3.Bucket(bucket_name)
     link = False
-    print(f'object_key {object_key}')
+    # print(f'object_key {object_key}')
 
     if os.path.islink(filename):
         link = True
