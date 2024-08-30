@@ -15,6 +15,7 @@ Usage:
 Returns:
     None
 """
+import gc
 import sys
 import os
 from multiprocessing import Pool
@@ -792,6 +793,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     if result.ready():
 
                         parent_folder, id, zip_data = result.get()
+                        result = None
                         # zip_results[i] = None # remove from list to free memory
                         if (parent_folder,id) in uploaded: # this seems wasteful - zipping has occurred before this point
                             continue
@@ -896,6 +898,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 else:
                     uploads[i]['uploaded'] = True
                     uploads[i]['folder_files'] = None # free up memory
+                    result = None
                 if not all_files_uploaded and not global_collate:
                     print(f'Waiting for {len([result for result in results if not result.ready()])} individual uploads to complete'+''.join(['.' for _ in range(waited_time//5)]), end='\r')
             if global_collate:
@@ -909,6 +912,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         else:
                             zip_uploads[i]['uploaded'] = True
                             zip_uploads[i]['zip_contents'] = None # free up memory
+                            result = None
+        gc.collect()
                 
         time.sleep(5)
         waited_time += 5
