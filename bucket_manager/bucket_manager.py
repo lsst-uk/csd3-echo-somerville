@@ -8,7 +8,7 @@ import os
 from botocore.exceptions import ClientError
 import swiftclient
 
-def print_buckets(resource: boto3.resources.factory.s3.ServiceResource) -> None:
+def print_buckets(resource) -> None:
     """
     Prints the names of all buckets in the S3 endpoint.
 
@@ -49,7 +49,7 @@ def get_keys(api: str ='S3') -> None:
     else:
         raise ValueError(f'Invalid API: {api}')
 
-def get_resource(access_key: str, secret_key: str, s3_host: str) -> boto3.resources.factory.s3.ServiceResource:
+def get_resource(access_key: str, secret_key: str, s3_host: str):
     """
     Creates and returns an S3 resource object for the specified S3 endpoint.
 
@@ -71,7 +71,7 @@ def get_resource(access_key: str, secret_key: str, s3_host: str) -> boto3.resour
         verify=False  # Disable SSL verification for non-AWS S3 endpoints
     )
 
-def get_client(access_key: str, secret_key: str, s3_host:str) -> boto3.client:
+def get_client(access_key: str, secret_key: str, s3_host:str):
     """
     Creates and returns an S3 client object for the specified S3 endpoint.
 
@@ -93,7 +93,7 @@ def get_client(access_key: str, secret_key: str, s3_host:str) -> boto3.client:
         verify=False  # Disable SSL verification for non-AWS S3 endpoints
     )
 
-def bucket_list(resource: boto3.resources.factory.s3.ServiceResource) -> list[str]:
+def bucket_list(resource) -> list[str]:
     """
     Returns a list of bucket names in the S3 endpoint.
 
@@ -105,7 +105,7 @@ def bucket_list(resource: boto3.resources.factory.s3.ServiceResource) -> list[st
     """
     return [ b.name for b in resource.buckets.all() ]
 
-def create_bucket(resource: boto3.resources.factory.s3.ServiceResource, bucket_name: str) -> bool:
+def create_bucket(resource, bucket_name: str) -> bool:
     """
     Creates a new bucket in the S3 endpoint.
 
@@ -121,7 +121,7 @@ def create_bucket(resource: boto3.resources.factory.s3.ServiceResource, bucket_n
         print(e)
     return True
 
-def print_objects(bucket: boto3.resources.factory.s3.Bucket) -> None:
+def print_objects(bucket) -> None:
     """
     Prints the keys of all objects in the specified bucket.
 
@@ -134,7 +134,7 @@ def print_objects(bucket: boto3.resources.factory.s3.Bucket) -> None:
     for obj in bucket.objects.all():
         print(obj.key)
 
-def object_list(bucket: boto3.resources.factory.s3.Bucket) -> list[str]:
+def object_list(bucket) -> list[str]:
     """
     Returns a list of keys of all objects in the specified bucket.
 
