@@ -43,11 +43,9 @@ import argparse
 import time
 import gc
 
+
 def remove_duplicates(l: list[dict]) -> list[dict]:
-    for i,d in enumerate(l):
-        if d in l[:i]:
-            l.remove(d)
-    return l
+    return pd.DataFrame(l).drop_duplicates().to_dict(orient='records')
 
 def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_files:list[str], use_compression:bool, dryrun:bool, id:int, mem_per_core:int) -> tuple[str, int, bytes]:
     """
