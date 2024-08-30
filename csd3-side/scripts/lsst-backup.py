@@ -35,13 +35,11 @@ from psutil import virtual_memory
 warnings.filterwarnings('ignore')
 
 import bucket_manager.bucket_manager as bm
-import botocore
 
 import hashlib
 import os
 import argparse
 import time
-import gc
 
 
 def remove_duplicates(l: list[dict]) -> list[dict]:
@@ -806,7 +804,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                             zipped += 1
                             uploaded.append((parent_folder,id))
                             print(f'Zipped {zipped} of {total_zips} zip files.', flush=True)
-                            print(f'zip size: {len(zip_data)}')
+                            # print(f'zip size: {len(zip_data)}')
                             # print(parent_folder, id, uploaded, flush=True)
                             with zipfile.ZipFile(io.BytesIO(zip_data), 'r') as z:
                                 zip_contents = z.namelist()
@@ -884,7 +882,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     waited_time = 0       
     failed = []                     
     while True:
-        print(waited_time)
         if global_collate:
             all_zips_uploaded = all([result.ready() for result in zul_results])
         all_files_uploaded = all([result.ready() for result in results])
@@ -919,7 +916,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                             zip_uploads[i]['zip_contents'] = None # free up memory
                 
         time.sleep(5)
-        print(waited_time)
         waited_time += 5
         if waited_time >= 250:
             failed = remove_duplicates(failed)
