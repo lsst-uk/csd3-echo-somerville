@@ -1050,9 +1050,6 @@ if __name__ == '__main__':
         previous_suffix = 'files.csv'
         previous_log = f"{prefix}-{'-'.join(sub_dirs.split('/'))}-{previous_suffix}"
         destination_dir = f"{prefix}/{sub_dirs}" 
-
-    # folders = []
-    # folder_files = []
     
     # Add titles to log file
     if not os.path.exists(log):
