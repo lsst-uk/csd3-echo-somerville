@@ -295,14 +295,18 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                     """
                     - Use multipart upload for large files
                     """
+                    # Do metadata first so its URI can be added to up_upload on initiation
+                    metadata_value = ','.join(zip_contents)
+                    metadata_object_key = object_key + '.metadata'
+                    bucket.put_object(Body=metadata_value, Key=metadata_object_key, Metadata={'corresponding-zip': object_key})
+                    metadata = {'zip-contents-object': metadata_object_key}
                     
                     obj = bucket.Object(object_key)
-                    mp_upload = obj.initiate_multipart_upload()
+                    mp_upload = obj.initiate_multipart_upload(metadata=metadata)
                     chunk_size = mem_per_core // 2 # Set chunk size to half the mem_per_core - lowering this will increase the number of parts, in turn increasing multithreading overhead, and potentially leading to memory errors
                     chunk_count = int(np.ceil(file_data_size / chunk_size))
                     print(f'Uploading "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key} in {chunk_count} parts.', flush=True)
 
-                    print(mp_upload)
                     parts = []
                     for i in range(chunk_count):
                         start = i * chunk_size
@@ -317,12 +321,14 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                             UploadId=mp_upload.id
                         )
                         parts.append({"PartNumber": part_number, "ETag": part["ETag"]})
-                    response = s3_client.complete_multipart_upload(
+                    s3_client.complete_multipart_upload(
                         Bucket=bucket_name,
                         Key=object_key,
                         UploadId=mp_upload.id,
                         MultipartUpload={"Parts": parts}
                     )
+
+                    
                 else:
                     """
                     - Upload the file to the bucket
