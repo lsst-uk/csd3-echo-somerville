@@ -791,7 +791,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             for i, result in enumerate(zip_results):
                 if result is not None:
                     if result.ready():
-
                         parent_folder, id, zip_data = result.get()
                         result = None
                         # zip_results[i] = None # remove from list to free memory
@@ -898,10 +897,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 else:
                     uploads[i]['uploaded'] = True
                     uploads[i]['folder_files'] = None # free up memory
-<<<<<<< HEAD
                     result = None
-=======
->>>>>>> main
                 if not all_files_uploaded and not global_collate:
                     print(f'Waiting for {len([result for result in results if not result.ready()])} individual uploads to complete'+''.join(['.' for _ in range(waited_time//5)]), end='\r')
             if global_collate:
@@ -915,11 +911,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         else:
                             zip_uploads[i]['uploaded'] = True
                             zip_uploads[i]['zip_contents'] = None # free up memory
-<<<<<<< HEAD
                             result = None
         gc.collect()
-=======
->>>>>>> main
                 
         time.sleep(5)
         waited_time += 5
