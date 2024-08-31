@@ -230,6 +230,10 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
             file_data.close()
     else:
         checksum_string = "DRYRUN"
+
+    del file_data # Delete the file data to free up memory
+    gc.collect()
+
     """
         report actions
         CSV formatted
@@ -361,6 +365,9 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                 exit(1)
     else:
         checksum_string = "DRYRUN"
+
+    del file_data # Delete the file data to free up memory
+    gc.collect()
 
     """
         report actions
