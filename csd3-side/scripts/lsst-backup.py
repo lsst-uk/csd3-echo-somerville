@@ -42,6 +42,32 @@ import os
 import argparse
 import time
 
+def find_metadata(key: str, s3=None) -> list[str]:
+    """
+    Finds the metadata for a given key in an S3 bucket.
+
+    Args:
+        key (str): The key to search for metadata.
+        s3: The S3 object.
+
+    Returns:
+        list[str]: A list of existing metadata contents if found, otherwise empty list.
+    """
+    existing_zip_contents = None
+    if key.endswith('.zip'):
+        try:
+            existing_zip_contents = str(s3.Object(bucket_name,''.join([key,'.metadata'])).get()['Body'].read().decode('UTF-8')).split(',')
+        except Exception as e:
+            # print(f'No metadata object found for {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}. Trying object.metadata')
+            try:
+                existing_zip_contents = s3.Object(bucket_name,key).metadata['zip-contents'].split(',')
+            except KeyError:
+                return []
+        if existing_zip_contents:
+            return existing_zip_contents
+    else:
+        return []
+
 
 def remove_duplicates(l: list[dict]) -> list[dict]:
     return pd.DataFrame(l).drop_duplicates().to_dict(orient='records')
@@ -720,6 +746,38 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             # print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
             # print(f'folder {folder} has {len(files)} files (total size: {folder_files_size/1024**2:.0f} MiB); will be uploaded as part of a collated upload.')
             
+            ###############################
+            # CHECK HERE FOR ZIP CONTENTS #
+            ###############################
+
+            if current_objects.isin([to_collate[parent_folder]['zips'][-1]['zip_object_name']]).any():
+                existing_zip_contents = current_objects[current_objects == to_collate[parent_folder]['zips'][-1]['zip_object_name']]['metadata']
+                # try:
+                #     existing_zip_contents = str(bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,''.join([to_collate[parent_folder]['zips'][-1]['zip_object_name'],'.metadata'])).get()['Body'].read().decode('UTF-8')).split(',')
+                # except Exception as e:
+                #     # print(f'No metadata object found for {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}. Trying object.metadata')
+                #     try:
+                #         existing_zip_contents = bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,to_collate[parent_folder]['zips'][-1]['zip_object_name']).metadata['zip-contents'].split(',')
+                #     except KeyError:
+                #         print(f'No "zip-contents" metadata found for {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}.')
+                # print(existing_zip_contents)
+                # checksum_hash = hashlib.md5(zip_data)
+                # checksum_string = checksum_hash.hexdigest()
+                # print(f'Checksum of zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}: {checksum_string}')
+                # print(f'Checksum of existing zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}: {existing_zip_checksum}')
+
+                # print(zip_contents)
+                
+                if len(existing_zip_contents) == 0:
+                    print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but no metadata found - reuploading.')
+                elif all([x in existing_zip_contents for x in zip_contents]):
+                    print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and file lists match - skipping.')
+                    zip_results[i] = None
+                    continue
+                else:
+                    print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but file lists do not match - reuploading.')
+
+
             to_collate[parent_folder]['folders'].append(folder)
             to_collate[parent_folder]['object_names'].append(object_names)
             to_collate[parent_folder]['folder_files'].append(folder_files)
@@ -834,32 +892,32 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                             to_collate[parent_folder]['zips'].append({'zip_contents':zip_contents, 'id':id, 'zip_object_name':str(os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated_{id}.zip', local_dir)]))})
 
                             # check if zip_object_name exists in bucket and get its checksum
-                            if current_objects.isin([to_collate[parent_folder]['zips'][-1]['zip_object_name']]).any():
-                                existing_zip_contents = []
-                                try:
-                                    existing_zip_contents = str(bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,''.join([to_collate[parent_folder]['zips'][-1]['zip_object_name'],'.metadata'])).get()['Body'].read().decode('UTF-8')).split(',')
-                                except Exception as e:
-                                    # print(f'No metadata object found for {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}. Trying object.metadata')
-                                    try:
-                                        existing_zip_contents = bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,to_collate[parent_folder]['zips'][-1]['zip_object_name']).metadata['zip-contents'].split(',')
-                                    except KeyError:
-                                        print(f'No "zip-contents" metadata found for {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}.')
-                                # print(existing_zip_contents)
-                                # checksum_hash = hashlib.md5(zip_data)
-                                # checksum_string = checksum_hash.hexdigest()
-                                # print(f'Checksum of zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}: {checksum_string}')
-                                # print(f'Checksum of existing zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}: {existing_zip_checksum}')
+                            # if current_objects.isin([to_collate[parent_folder]['zips'][-1]['zip_object_name']]).any():
+                            #     existing_zip_contents = []
+                            #     try:
+                            #         existing_zip_contents = str(bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,''.join([to_collate[parent_folder]['zips'][-1]['zip_object_name'],'.metadata'])).get()['Body'].read().decode('UTF-8')).split(',')
+                            #     except Exception as e:
+                            #         # print(f'No metadata object found for {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}. Trying object.metadata')
+                            #         try:
+                            #             existing_zip_contents = bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,to_collate[parent_folder]['zips'][-1]['zip_object_name']).metadata['zip-contents'].split(',')
+                            #         except KeyError:
+                            #             print(f'No "zip-contents" metadata found for {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}.')
+                            #     # print(existing_zip_contents)
+                            #     # checksum_hash = hashlib.md5(zip_data)
+                            #     # checksum_string = checksum_hash.hexdigest()
+                            #     # print(f'Checksum of zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}: {checksum_string}')
+                            #     # print(f'Checksum of existing zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}: {existing_zip_checksum}')
 
-                                # print(zip_contents)
+                            #     # print(zip_contents)
                                 
-                                if len(existing_zip_contents) == 0:
-                                    print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but no metadata found - reuploading.')
-                                elif all([x in existing_zip_contents for x in zip_contents]):
-                                    print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and file lists match - skipping.')
-                                    zip_results[i] = None
-                                    continue
-                                else:
-                                    print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but file lists do not match - reuploading.')
+                            #     if len(existing_zip_contents) == 0:
+                            #         print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but no metadata found - reuploading.')
+                            #     elif all([x in existing_zip_contents for x in zip_contents]):
+                            #         print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and file lists match - skipping.')
+                            #         zip_results[i] = None
+                            #         continue
+                            #     else:
+                            #         print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but file lists do not match - reuploading.')
                             try:
                                 # upload zipped folders
                                 total_size_uploaded += len(zip_data)
@@ -1137,7 +1195,13 @@ if __name__ == '__main__':
     current_objects = bm.object_list(bucket)
     print(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}')
 
-    current_objects = pd.Series(current_objects)
+    current_objects = pd.DataFrame(current_objects, columns=['CURRENT_OBJECTS'])
+
+    current_objects['metadata'] = current_objects['CURRENT_OBJECTS'].map(find_metadata, 'ignore', kwargs={'s3':s3})
+
+    print(current_objects)
+    exit()
+
     ## check if log exists in the bucket, and download it and append top it if it does
     # TODO: integrate this with local check for log file
     if current_objects.isin([log]).any():
