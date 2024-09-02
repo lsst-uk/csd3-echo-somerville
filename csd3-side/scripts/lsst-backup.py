@@ -1209,6 +1209,8 @@ if __name__ == '__main__':
 
     current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, s3=s3)
 
+    print(current_objects['METADATA' != 'n/a'])
+
     ## check if log exists in the bucket, and download it and append top it if it does
     # TODO: integrate this with local check for log file
     if current_objects['CURRENT_OBJECTS'].isin([log]).any():
