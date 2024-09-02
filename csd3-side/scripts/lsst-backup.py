@@ -751,6 +751,9 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             ###############################
             these_zip_contents = [os.path.relpath(parent_folder, f) for f in folder_files]
 
+            print(these_zip_contents)
+            exit()
+
             if current_objects['METADATA'].isin(these_zip_contents).all():
                 print(these_zip_contents)
                 existing_zip_contents = current_objects[current_objects['METADATA'] == these_zip_contents]['METADATA'].values[0]
