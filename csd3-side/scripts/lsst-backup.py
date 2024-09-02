@@ -58,12 +58,12 @@ def find_metadata(key: str, s3) -> list[str]:
         try:
             existing_zip_contents = str(s3.Object(bucket_name,''.join([key,'.metadata'])).get()['Body'].read().decode('UTF-8')).split(',')
         except Exception as e:
-            # print(f'No metadata object found for {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}. Trying object.metadata')
             try:
                 existing_zip_contents = s3.Object(bucket_name,key).metadata['zip-contents'].split(',')
             except KeyError:
                 return []
         if existing_zip_contents:
+            print(','.join(existing_zip_contents)) # remove after testing
             return existing_zip_contents
     else:
         return []
@@ -1197,7 +1197,7 @@ if __name__ == '__main__':
 
     current_objects = pd.DataFrame(current_objects, columns=['CURRENT_OBJECTS'])
 
-    current_objects['METADATA'] = current_objects.map(find_metadata, s3=s3)
+    current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, s3=s3)
 
     print(current_objects)
     exit()
