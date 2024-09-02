@@ -63,7 +63,6 @@ def find_metadata(key: str, s3) -> list[str]:
             except KeyError:
                 return []
         if existing_zip_contents:
-            print(','.join(existing_zip_contents)) # remove after testing
             return existing_zip_contents
     else:
         return []
@@ -1198,9 +1197,6 @@ if __name__ == '__main__':
     current_objects = pd.DataFrame(current_objects, columns=['CURRENT_OBJECTS'])
 
     current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, s3=s3)
-
-    print(current_objects)
-    exit()
 
     ## check if log exists in the bucket, and download it and append top it if it does
     # TODO: integrate this with local check for log file
