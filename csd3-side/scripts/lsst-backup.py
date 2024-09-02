@@ -749,23 +749,10 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             ###############################
             # CHECK HERE FOR ZIP CONTENTS #
             ###############################
-            print(f'Folder: {folder}')
-            print(f'Folder files: {folder_files}')
-            print(f'Object names: {object_names}')
-            print(f'Parent folder: {parent_folder}')
-            print(f'Destination dir: {destination_dir}')
-            print(f'Local dir: {local_dir}')
             these_zip_contents = [ff.replace(parent_folder+'/','') for ff in folder_files]
-            print('#################THESE ZIP CONTENTS####################')
-            print(these_zip_contents)
-            # exit()
 
             if current_objects['METADATA'].isin([these_zip_contents]).any():
-                print('in if')
-                print(these_zip_contents)
                 existing_zip_contents = current_objects[current_objects['METADATA'].isin([these_zip_contents])]['METADATA'].values[0]
-                print(existing_zip_contents)
-                # exit()
                 # try:
                 #     existing_zip_contents = str(bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,''.join([to_collate[parent_folder]['zips'][-1]['zip_object_name'],'.metadata'])).get()['Body'].read().decode('UTF-8')).split(',')
                 # except Exception as e:
