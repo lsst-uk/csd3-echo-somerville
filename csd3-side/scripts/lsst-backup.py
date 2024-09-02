@@ -125,7 +125,6 @@ def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_file
                         else:
                             file_path = os.path.join(subfolders_to_collate, file)
                         arc_name = os.path.relpath(file_path, parent_folder)
-                        print(f'arc_name: {arc_name}', flush=True)
                         zipped_size += os.path.getsize(file_path)
                         with open(file_path, 'rb') as src_file:
                             zip_file.writestr(arc_name, src_file.read())
@@ -539,7 +538,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
         sizes = []
         for filename in folder_files:
-            print(os.path.relpath(filename, local_dir))
+            # print(os.path.relpath(filename, local_dir))
             if exclude.isin([os.path.relpath(filename, local_dir)]).any():
                 print(f'Skipping file {filename} - excluded.')
                 folder_files.remove(filename)
