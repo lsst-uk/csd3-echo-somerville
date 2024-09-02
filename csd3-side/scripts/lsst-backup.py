@@ -478,7 +478,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         access_key (str): The access key for the S3 server.
         secret_key (str): The secret key for the S3 server.
         bucket_name (str): The name of the S3 bucket.
-        current_objects (list): A list of object names already present in the S3 bucket.
+        current_objects (ps.Dataframe): A list of object names already present in the S3 bucket.
         local_dir (str): The local directory containing the files to upload.
         destination_dir (str): The destination directory in the S3 bucket.
         nprocs (int): The number of CPU cores to use for parallel processing.
@@ -599,7 +599,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         # remove current objects - avoids reuploading
         # could provide overwrite flag if this is desirable
         # print(f'current_objects: {current_objects}')
-        if current_objects.isin(object_names).all():
+        if current_objects['CURRENT_OBJECTS'].isin(object_names).all():
             #all files in this subfolder already in bucket
             print(f'Skipping subfolder - all files exist.')
             continue
@@ -612,7 +612,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             
             # if uploading file individually, remove existing files from object_names
             for oni, on in enumerate(object_names):
-                if current_objects.isin([on]).any() or current_objects.isin([f'{on}.symlink']).any():
+                if current_objects['CURRENT_OBJECTS'].isin([on]).any() or current_objects['CURRENT_OBJECTS'].isin([f'{on}.symlink']).any():
                     object_names.remove(on)
                     del folder_files[oni]
                 else:
@@ -749,7 +749,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             # CHECK HERE FOR ZIP CONTENTS #
             ###############################
 
-            if current_objects.isin([to_collate[parent_folder]['zips'][-1]['zip_object_name']]).any():
+            if current_objects['CURRENT_OBJECTS'].isin([to_collate[parent_folder]['zips'][-1]['zip_object_name']]).any():
                 existing_zip_contents = current_objects[current_objects['CURRENT_OBJECTS'] == to_collate[parent_folder]['zips'][-1]['zip_object_name']]['METADATA'].values[0]
                 print(existing_zip_contents)
                 exit()
