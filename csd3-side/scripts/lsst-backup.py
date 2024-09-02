@@ -1197,7 +1197,7 @@ if __name__ == '__main__':
 
     current_objects = pd.DataFrame(current_objects, columns=['CURRENT_OBJECTS'])
 
-    current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].map(find_metadata, 'ignore', {'s3':s3})
+    current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].map(find_metadata, na_action='ignore', **{'s3':s3})
 
     print(current_objects)
     exit()
