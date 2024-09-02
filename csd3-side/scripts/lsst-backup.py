@@ -500,6 +500,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         collate_ul_pool = Pool(processes=nprocs - half_cores)
     
     pool = Pool(nprocs) # use 4 CPUs by default - very little speed-up, might drop multiprocessing and parallelise at shell level
+    
     #recursive loop over local folder
     results = []
     to_collate = {} # store folders to collate
