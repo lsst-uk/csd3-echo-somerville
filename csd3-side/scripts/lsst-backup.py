@@ -788,7 +788,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     if len(to_collate) > 0:
         # print(f"zips: {to_collate[parent_folder]['zips']}")
         print(f'Collating {len([to_collate[parent_folder]["folders"] for parent_folder in to_collate.keys()])} folders into zip files.') #{sum([len(x["zips"]) for x in to_collate.keys()])}
-        print(f'parent_folders: {to_collate.keys()}')
+        # print(f'parent_folders: {to_collate.keys()}')
         # call zip_folder in parallel
         # print(to_collate)
         for zip_tuple in to_collate.items():
@@ -798,9 +798,9 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             folders = zip_tuple[1]['folders']
             folder_files = zip_tuple[1]['folder_files']
             num_files = sum([len(ff) for ff in folder_files])
-            print(f'num_files = {num_files}')
-            print(f'folders: {len(folders)}')
-            print(f'folder_files: {len(folder_files)}')
+            # print(f'num_files = {num_files}')
+            # print(f'folders: {len(folders)}')
+            # print(f'folder_files: {len(folder_files)}')
             try:
                 max_filesize = max([max([os.lstat(filename).st_size for filename in ff]) for ff in folder_files])
                 folder_size = sum([sum([os.lstat(filename).st_size for filename in ff]) for ff in folder_files])
@@ -811,8 +811,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             max_zipsize = total_memory / zip_pool._processes
             max_files_per_zip = int(np.ceil(max_zipsize / max_filesize))
             num_zips = int(np.ceil(num_files / max_files_per_zip))
-            print(f'num_zips = {num_zips}')
-            print(f'max_zipsize,max_files_per_zip,num_zips: {max_zipsize},{max_files_per_zip},{num_zips}')
+            # print(f'num_zips = {num_zips}')
+            # print(f'max_zipsize,max_files_per_zip,num_zips: {max_zipsize},{max_files_per_zip},{num_zips}')
             chunk_subfolders = False
             if num_zips > len(folders):
                 chunk_subfolders = True
