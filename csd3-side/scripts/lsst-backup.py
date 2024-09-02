@@ -332,7 +332,7 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                     metadata = {'zip-contents-object': metadata_object_key}
                     
                     obj = bucket.Object(object_key)
-                    mp_upload = obj.initiate_multipart_upload(metadata=metadata)
+                    mp_upload = obj.initiate_multipart_upload(Metadata=metadata)
                     chunk_size = mem_per_core // 2 # Set chunk size to half the mem_per_core - lowering this will increase the number of parts, in turn increasing multithreading overhead, and potentially leading to memory errors
                     chunk_count = int(np.ceil(file_data_size / chunk_size))
                     print(f'Uploading "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key} in {chunk_count} parts.', flush=True)
