@@ -18,7 +18,7 @@ Returns:
 import gc
 import sys
 import os
-from multiprocessing import Pool
+from multiprocessing import Pool, TimeoutError
 from itertools import repeat
 import warnings
 from datetime import datetime, timedelta
@@ -621,29 +621,42 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
             print(f'Sending {file_count} files (total size: {folder_files_size/1024**2:.0f} MiB) in {folder} to S3 bucket {bucket_name}.')
             
-
-            for i,args in enumerate(zip(
-                    repeat(s3_host), 
-                    repeat(access_key), 
-                    repeat(secret_key), 
-                    repeat(bucket_name), 
-                    repeat(folder), 
-                    folder_files,
-                    repeat(None),
-                    object_names, 
-                    repeat(perform_checksum), 
-                    repeat(dryrun), 
-                    repeat(processing_start),
-                    repeat(file_count),
-                    repeat(folder_files_size),
-                    repeat(total_size_uploaded),
-                    repeat(total_files_uploaded),
-                    repeat(False),
-                    repeat(mem_per_core),
-                )):
-                results.append(pool.apply_async(upload_and_callback, args=args))
-                uploads.append({'folder':args[4],'folder_size':args[12],'file_size':os.lstat(folder_files[i]).st_size,'file':args[5],'object':args[7],'uploaded':False})
-
+            try:
+                for i,args in enumerate(zip(
+                        repeat(s3_host), 
+                        repeat(access_key), 
+                        repeat(secret_key), 
+                        repeat(bucket_name), 
+                        repeat(folder), 
+                        folder_files,
+                        repeat(None),
+                        object_names, 
+                        repeat(perform_checksum), 
+                        repeat(dryrun), 
+                        repeat(processing_start),
+                        repeat(file_count),
+                        repeat(folder_files_size),
+                        repeat(total_size_uploaded),
+                        repeat(total_files_uploaded),
+                        repeat(False),
+                        repeat(mem_per_core),
+                    )):
+                    results.append(pool.apply_async(upload_and_callback, args=args))
+                    uploads.append({'folder':args[4],'folder_size':args[12],'file_size':os.lstat(folder_files[i]).st_size,'file':args[5],'object':args[7],'uploaded':False})
+            except BrokenPipeError as e:
+                print(f'Caught BrokenPipeError: {e}')
+                # Record the failure
+                with open('error_log.err', 'a') as f:
+                    f.write(f'BrokenPipeError: {e}\n')
+                # Exit gracefully
+                sys.exit(1)
+            except Exception as e:
+                print(f'An unexpected error occurred: {e}')
+                # Record the failure
+                with open('error_log.err', 'a') as f:
+                    f.write(f'Unexpected error: {e}\n')
+                # Exit gracefully
+                sys.exit(1)    
                 # if i > nprocs*4 and i % nprocs*4 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
                 #     for result in results:
                 #         result.get()  # Wait until current processes in pool are finished
@@ -841,34 +854,48 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                                     continue
                                 else:
                                     print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but file lists do not match - reuploading.')
-                                
-                            # upload zipped folders
-                            total_size_uploaded += len(zip_data)
-                            total_files_uploaded += 1
-                            print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
+                            try:
+                                # upload zipped folders
+                                total_size_uploaded += len(zip_data)
+                                total_files_uploaded += 1
+                                print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
 
-                            zul_results.append(collate_ul_pool.apply_async(
-                                upload_and_callback, args=
-                                    (s3_host,
-                                    access_key,
-                                    secret_key,
-                                    bucket_name,
-                                    parent_folder,
-                                    zip_data,
-                                    to_collate[parent_folder]['zips'][-1]['zip_contents'],
-                                    to_collate[parent_folder]['zips'][-1]['zip_object_name'],
-                                    perform_checksum,
-                                    dryrun,
-                                    processing_start,
-                                    1,
-                                    len(zip_data),
-                                    total_size_uploaded,
-                                    total_files_uploaded,
-                                    True,
-                                    mem_per_core,
-                                    )
-                            ))
-                            zip_uploads.append({'folder':parent_folder,'size':len(zip_data),'object_name':to_collate[parent_folder]['zips'][-1]['zip_object_name'],'uploaded':False}) # removed ,'zip_contents':to_collate[parent_folder]['zips'][-1]['zip_contents']
+                                zul_results.append(collate_ul_pool.apply_async(
+                                    upload_and_callback, args=
+                                        (s3_host,
+                                        access_key,
+                                        secret_key,
+                                        bucket_name,
+                                        parent_folder,
+                                        zip_data,
+                                        to_collate[parent_folder]['zips'][-1]['zip_contents'],
+                                        to_collate[parent_folder]['zips'][-1]['zip_object_name'],
+                                        perform_checksum,
+                                        dryrun,
+                                        processing_start,
+                                        1,
+                                        len(zip_data),
+                                        total_size_uploaded,
+                                        total_files_uploaded,
+                                        True,
+                                        mem_per_core,
+                                        )
+                                ))
+                                zip_uploads.append({'folder':parent_folder,'size':len(zip_data),'object_name':to_collate[parent_folder]['zips'][-1]['zip_object_name'],'uploaded':False}) # removed ,'zip_contents':to_collate[parent_folder]['zips'][-1]['zip_contents']
+                            except BrokenPipeError as e:
+                                print(f'Caught BrokenPipeError: {e}')
+                                # Record the failure
+                                with open('error_log.err', 'a') as f:
+                                    f.write(f'BrokenPipeError: {e}\n')
+                                # Exit gracefully
+                                sys.exit(1)
+                            except Exception as e:
+                                print(f'An unexpected error occurred: {e}')
+                                # Record the failure
+                                with open('error_log.err', 'a') as f:
+                                    f.write(f'Unexpected error: {e}\n')
+                                # Exit gracefully
+                                sys.exit(1)                                
     
     pool.close()
     # pool.join()
