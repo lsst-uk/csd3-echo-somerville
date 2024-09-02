@@ -749,7 +749,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             ###############################
             # CHECK HERE FOR ZIP CONTENTS #
             ###############################
-            these_zip_contents = [os.path.relpath(os.seo.join([folder,f]), parent_folder) for f in folder_files]
+            these_zip_contents = [os.path.relpath(os.sep.join([folder,f]), parent_folder) for f in folder_files]
             print('#################THESE ZIP CONTENTS####################')
             print(these_zip_contents)
             # exit()
