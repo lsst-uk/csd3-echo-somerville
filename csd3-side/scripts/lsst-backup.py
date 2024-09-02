@@ -750,7 +750,9 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             ###############################
 
             if current_objects.isin([to_collate[parent_folder]['zips'][-1]['zip_object_name']]).any():
-                existing_zip_contents = current_objects[current_objects == to_collate[parent_folder]['zips'][-1]['zip_object_name']]['metadata']
+                existing_zip_contents = current_objects[current_objects['CURRENT_OBJECTS'] == to_collate[parent_folder]['zips'][-1]['zip_object_name']]['METADATA'].values[0]
+                print(existing_zip_contents)
+                exit()
                 # try:
                 #     existing_zip_contents = str(bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,''.join([to_collate[parent_folder]['zips'][-1]['zip_object_name'],'.metadata'])).get()['Body'].read().decode('UTF-8')).split(',')
                 # except Exception as e:
