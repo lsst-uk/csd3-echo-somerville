@@ -755,7 +755,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'Parent folder: {parent_folder}')
             print(f'Destination dir: {destination_dir}')
             print(f'Local dir: {local_dir}')
-            these_zip_contents = [os.sep.join([folder, os.path.relpath(ff, local_dir)]) for ff in folder_files]
+            these_zip_contents = [on.replace(local_dir+'/','') for on in object_names]
             print('#################THESE ZIP CONTENTS####################')
             print(these_zip_contents)
             # exit()
