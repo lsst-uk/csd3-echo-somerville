@@ -693,6 +693,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 #         result.get()  # Wait until current processes in pool are finished
             
             # release block of files if the list for results is greater than 4 times the number of processes
+            gc.collect()
 
         elif len(folder_files) > 0 and global_collate: # small files in folder
             folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
@@ -969,6 +970,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         # zip_pool.join()
         collate_ul_pool.close()
         # collate_ul_pool.join()
+    
+    gc.collect()
 
     ####
     # Monitor upload tasks
@@ -1031,6 +1034,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         zip_pool.join()
         # collate_ul_pool.close()
         collate_ul_pool.join()
+    gc.collect()
 
 # # Go!
 if __name__ == '__main__':
