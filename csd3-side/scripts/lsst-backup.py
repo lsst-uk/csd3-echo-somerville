@@ -773,9 +773,10 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 if all([x in existing_zip_contents for x in these_zip_contents]):
                     print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and file lists match - skipping.')
                     # zip_results[i] = None
+                    del to_collate[parent_folder]
                     continue
-                # else:
-                #     print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but file lists do not match - reuploading.')
+                else:
+                    print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but file lists do not match - reuploading.')
 
 
             to_collate[parent_folder]['folders'].append(folder)
