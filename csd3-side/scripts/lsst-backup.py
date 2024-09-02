@@ -61,11 +61,11 @@ def find_metadata(key: str, s3) -> list[str]:
             try:
                 existing_zip_contents = s3.Object(bucket_name,key).metadata['zip-contents'].split(',')
             except KeyError:
-                return []
+                return None
         if existing_zip_contents:
             return existing_zip_contents
     else:
-        return []
+        return None
 
 
 def remove_duplicates(l: list[dict]) -> list[dict]:
@@ -1210,7 +1210,7 @@ if __name__ == '__main__':
 
     current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, s3=s3)
 
-    print(current_objects['METADATA'])
+    print(current_objects['METADATA'].dropna())
 
     ## check if log exists in the bucket, and download it and append top it if it does
     # TODO: integrate this with local check for log file
