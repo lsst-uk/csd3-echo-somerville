@@ -560,7 +560,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         else:
             mean_filesize = 0
         
-        
         # if results is not []:
         #     if virtual_memory().available * 0.5 < total_filesize or mean_filesize > mem_per_core:
         #         for result in results:
@@ -750,8 +749,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             ###############################
             # CHECK HERE FOR ZIP CONTENTS #
             ###############################
-            these_zip_contents = [os.path.relpath(f, parent_folder) for f in folder_files]
-
+            these_zip_contents = [os.path.relpath(os.seo.join([folder,f]), parent_folder) for f in folder_files]
+            print('#################THESE ZIP CONTENTS####################')
             print(these_zip_contents)
             # exit()
 
