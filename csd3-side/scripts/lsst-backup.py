@@ -749,9 +749,11 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             ###############################
             # CHECK HERE FOR ZIP CONTENTS #
             ###############################
+            these_zip_contents = [os.path.relpath(parent_folder, f) for f in folder_files]
 
-            if current_objects['CURRENT_OBJECTS'].isin([to_collate[parent_folder]['zips'][-1]['zip_object_name']]).any():
-                existing_zip_contents = current_objects[current_objects['CURRENT_OBJECTS'] == to_collate[parent_folder]['zips'][-1]['zip_object_name']]['METADATA'].values[0]
+            if current_objects['METADATA'].isin(these_zip_contents).all():
+                print(these_zip_contents)
+                existing_zip_contents = current_objects[current_objects['METADATA'] == these_zip_contents]['METADATA'].values[0]
                 print(existing_zip_contents)
                 exit()
                 # try:
