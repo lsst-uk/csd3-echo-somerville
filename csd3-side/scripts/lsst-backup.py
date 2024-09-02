@@ -232,7 +232,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
         checksum_string = "DRYRUN"
 
     del file_data # Delete the file data to free up memory
-    # gc.collect()
+    gc.collect()
 
     """
         report actions
@@ -367,7 +367,7 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
         checksum_string = "DRYRUN"
 
     del file_data # Delete the file data to free up memory
-    # gc.collect()
+    gc.collect()
 
     """
         report actions
@@ -415,6 +415,8 @@ def print_stats(file_name_or_data, file_count, total_size, file_start, file_end,
     print(f'Total size uploaded = {total_size_uploaded / 1024**3:.2f} GiB', flush=True)
     print(f'Running average speed = {total_size_uploaded / 1024**2 / (file_end-processing_start).seconds:.2f} MiB/s', flush=True)
     print(f'Running average rate = {(file_end-processing_start).seconds / total_files_uploaded:.2f} s/file', flush=True)
+    del file_name_or_data
+    gc.collect()
 
 def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded, collated, mem_per_core) -> None:
     # upload files in parallel and log output
@@ -436,6 +438,10 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, fi
     print_stats(file_name_or_data, file_count, folder_files_size, file_start, file_end, processing_start, total_size_uploaded, total_files_uploaded, collated)
     with open(log, 'a') as logfile:
         logfile.write(f'{result}\n')
+    
+    del file_name_or_data
+    gc.collect()
+
     return None
 
 def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, nprocs, perform_checksum, dryrun, log, global_collate, use_compression, mem_per_core) -> None:
