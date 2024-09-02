@@ -1202,10 +1202,10 @@ if __name__ == '__main__':
 
     ## check if log exists in the bucket, and download it and append top it if it does
     # TODO: integrate this with local check for log file
-    if current_objects.isin([log]).any():
+    if current_objects['CURRENT_OBJECTS'].isin([log]).any():
         print(f'Log file {log} already exists in bucket. Downloading.')
         bucket.download_file(log, log)
-    elif current_objects.isin([previous_log]).any():
+    elif current_objects['CURRENT_OBJECTS'].isin([previous_log]).any():
         print(f'Previous log file {previous_log} already exists in bucket. Downloading.')
         bucket.download_file(previous_log, log)
 
