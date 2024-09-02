@@ -754,7 +754,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(these_zip_contents)
             # exit()
 
-            if current_objects['METADATA'].isin(these_zip_contents).all():
+            if current_objects['METADATA'].isin(these_zip_contents).any():
                 print(these_zip_contents)
                 existing_zip_contents = current_objects[current_objects['METADATA'] == these_zip_contents]['METADATA'].values[0]
                 print(existing_zip_contents)
@@ -828,7 +828,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 subchunks_files = []
                 for j in range(len(folders)):
                     for i in range(0, len(folder_files[j]), len(folder_files[j])//num_zips):
-                        print(f'folder_files[{j}][{i}]: {folder_files[j][i]}')
+                        # print(f'folder_files[{j}][{i}]: {folder_files[j][i]}')
                         subchunks_files.append(folder_files[j][i:i+len(folder_files[j])//num_zips])
                 subchunks = [folder for folder in folders for _ in range(len(subchunks_files))]
                 chunks = subchunks
