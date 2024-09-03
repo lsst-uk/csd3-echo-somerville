@@ -47,7 +47,7 @@ import dask.dataframe as dd
 
 from typing import List
 
-def find_metadata(key: str, s3_host, access_key, secret_key, bucket_name) -> List[str]:
+def find_metadata(key: str, bucket) -> List[str]:
     """
     Finds the metadata for a given key in an S3 bucket.
 
@@ -62,10 +62,10 @@ def find_metadata(key: str, s3_host, access_key, secret_key, bucket_name) -> Lis
         existing_zip_contents = None
         if key.endswith('.zip'):
             try:
-                existing_zip_contents = str(bm.get_resource(access_key,secret_key,s3_host).Bucket(bucket_name).Object(''.join([key,'.metadata'])).get()['Body'].read().decode('UTF-8')).split(';')
+                existing_zip_contents = str(bucket.Object(''.join([key,'.metadata'])).get()['Body'].read().decode('UTF-8')).split(';')
             except Exception as e:
                 try:
-                    existing_zip_contents = bm.get_resource(access_key,secret_key,s3_host).Bucket(bucket_name).Object(key).metadata['zip-contents'].split(';')
+                    existing_zip_contents = bucket.Object(key).metadata['zip-contents'].split(';')
                 except KeyError:
                     return None
             if existing_zip_contents:
@@ -1219,10 +1219,10 @@ if __name__ == '__main__':
 
     current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
 
-    current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, s3_host=s3_host, access_key=access_key, secret_key=secret_key, bucket_name=bucket_name)
+    current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, bucket=bucket)
 
     print(current_objects['METADATA'].dropna())
-    client.scatter(current_objects)
+    # client.scatter(current_objects)
 
     ## check if log exists in the bucket, and download it and append top it if it does
     # TODO: integrate this with local check for log file
