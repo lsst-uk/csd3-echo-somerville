@@ -45,17 +45,21 @@ from dask.distributed import Client, wait, progress
 import dask.array as da
 import dask.dataframe as dd
 
-def find_metadata(key: str, s3_host, access_key, secret_key, bucket_name) -> list[str]:
+from typing import List, Union
+
+def find_metadata(key: Union[dd.core.Scalar, str], s3_host, access_key, secret_key, bucket_name) -> List[str]:
     """
     Finds the metadata for a given key in an S3 bucket.
 
     Args:
-        key (str): The key to search for metadata.
+        key (dd.core.Scalar or str): The key to search for metadata.
         s3: The S3 object.
 
     Returns:
         list[str]: A list of existing metadata contents if found, otherwise empty list.
     """
+    if type(key) == dd.core.Scalar:
+        key = key.compute() 
     if type(key) == str:
         existing_zip_contents = None
         if key.endswith('.zip'):
