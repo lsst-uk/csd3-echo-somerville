@@ -1219,7 +1219,7 @@ if __name__ == '__main__':
     ############################
 
     client = Client(n_workers=nprocs//2,threads_per_worker=2) #,memory_limit=mem_per_core*2)
-    print(client)
+    print(f'Dask Client: {client}')
 
     current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
 
