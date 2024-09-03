@@ -512,7 +512,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     #pool = Pool(nprocs) # use 4 CPUs by default - very little speed-up, might drop multiprocessing and parallelise at shell level
 
     client.scatter([s3_host, access_key, secret_key, bucket_name, perform_checksum, dryrun, current_objects], broadcast=True)
-
+    print('scattered')
     exit()
     
     #recursive loop over local folder
@@ -1215,7 +1215,7 @@ if __name__ == '__main__':
     print(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}')
 
     ############################
-    # Dask Setup               #
+    #        Dask Setup        #
     ############################
 
     client = Client(n_workers=nprocs//2,threads_per_worker=2) #,memory_limit=mem_per_core*2)
