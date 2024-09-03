@@ -56,6 +56,7 @@ def find_metadata(key: str, s3) -> list[str]:
     Returns:
         list[str]: A list of existing metadata contents if found, otherwise empty list.
     """
+    print(key,type(key))
     existing_zip_contents = None
     if key.endswith('.zip'):
         try:
