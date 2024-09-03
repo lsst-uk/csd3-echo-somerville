@@ -18,14 +18,13 @@ Returns:
 import gc
 import sys
 import os
-from multiprocessing import Pool, TimeoutError
 from itertools import repeat
 import warnings
 from datetime import datetime, timedelta
 from time import sleep
 import hashlib
 import base64
-import pandas as pd
+# import pandas as pd
 import numpy as np
 import subprocess
 import yaml
@@ -41,6 +40,10 @@ import hashlib
 import os
 import argparse
 import time
+
+from dask.distributed import Client, wait, progress
+import dask.array as da
+import dask.dataframe as dd
 
 def find_metadata(key: str, s3) -> list[str]:
     """
@@ -469,7 +472,7 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, fi
 
     return None
 
-def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, nprocs, perform_checksum, dryrun, log, global_collate, use_compression, mem_per_core) -> None:
+def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, perform_checksum, dryrun, log, global_collate, use_compression, client) -> None:
     """
     Uploads files from a local directory to an S3 bucket in parallel.
 
@@ -481,10 +484,12 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         current_objects (ps.Dataframe): A list of object names already present in the S3 bucket.
         local_dir (str): The local directory containing the files to upload.
         destination_dir (str): The destination directory in the S3 bucket.
-        nprocs (int): The number of CPU cores to use for parallel processing.
         perform_checksum (bool): Flag indicating whether to perform checksum validation during upload.
         dryrun (bool): Flag indicating whether to perform a dry run without actually uploading the files.
         log (str): The path to the log file.
+        global_collate (bool): Flag indicating whether to collate files into zip files before uploading.
+        use_compression (bool): Flag indicating whether to use compression for the zip files.
+        client (dask.Client): The Dask client object.
 
     Returns:
         None
@@ -494,12 +499,12 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     total_files_uploaded = 0
     i = 0
     #processed_files = []
-    if global_collate:
-        half_cores = nprocs // 2
-        zip_pool = Pool(processes=half_cores)
-        collate_ul_pool = Pool(processes=nprocs - half_cores)
+    # if global_collate:
+    #     half_cores = nprocs // 2
+    #     zip_pool = Pool(processes=half_cores)
+    #     collate_ul_pool = Pool(processes=nprocs - half_cores)
     
-    pool = Pool(nprocs) # use 4 CPUs by default - very little speed-up, might drop multiprocessing and parallelise at shell level
+    #pool = Pool(nprocs) # use 4 CPUs by default - very little speed-up, might drop multiprocessing and parallelise at shell level
     
     #recursive loop over local folder
     results = []
@@ -1118,9 +1123,9 @@ if __name__ == '__main__':
     mem_per_core = 1024**3 # fix as 1 GiB
     
     if args.exclude:
-        exclude = pd.Series(args.exclude)
+        exclude = dd.Series(args.exclude)
     else:
-        exclude = pd.Series([])
+        exclude = dd.Series([])
     
     print(f'Config: {args}')
 
@@ -1200,7 +1205,7 @@ if __name__ == '__main__':
     current_objects = bm.object_list(bucket)
     print(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}')
 
-    current_objects = pd.DataFrame(current_objects, columns=['CURRENT_OBJECTS'])
+    current_objects = dd(current_objects, columns=['CURRENT_OBJECTS'])
 
     current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, s3=s3)
 
@@ -1218,22 +1223,29 @@ if __name__ == '__main__':
     # check local_dir formatting
     while local_dir[-1] == '/':
         local_dir = local_dir[:-1]
+
+    ############################
+    # Dask Setup               #
+    ############################
+
+    client = Client(n_workers=nprocs//2,threads_per_worker=2,memory_limit=mem_per_core*2)
+    print(client)
     
-    
+    exit()
     # Process the files
     print(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}')
     print(f'Using {nprocs} processes.')
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore')
-        process_files(s3_host,access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, nprocs, perform_checksum, dryrun, log, global_collate, use_compression, mem_per_core)
+        process_files(s3_host,access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, perform_checksum, dryrun, log, global_collate, use_compression, client)
     
     # Complete
     final_time = datetime.now() - start
     final_time_seconds = final_time.seconds + final_time.microseconds / 1e6
-    log_df = pd.read_csv(log)
-    log_df = log_df.drop_duplicates(subset='DESTINATION_KEY', keep='last')
-    log_df = log_df.reset_index(drop=True)
-    log_df.to_csv(log, index=False)
+    log_dd = dd.read_csv(log)
+    log_dd = log_dd.drop_duplicates(subset='DESTINATION_KEY', keep='last')
+    log_dd = log_dd.reset_index(drop=True)
+    log_dd.to_csv(log, index=False, single_file=True)
 
     # Upload log file
     if not dryrun:
@@ -1250,15 +1262,15 @@ if __name__ == '__main__':
                         mem_per_core,
                         )
     
-    final_size = log_df["FILE_SIZE"].sum() / 1024**2
+    final_size = log_dd["FILE_SIZE"].sum() / 1024**2
     try:
         final_transfer_speed = final_size / final_time_seconds
         
     except ZeroDivisionError:
         final_transfer_speed = 0
     try:
-        final_transfer_speed_sperf = final_time_seconds / len(log_df)
+        final_transfer_speed_sperf = final_time_seconds / len(log_dd)
     except ZeroDivisionError:
         final_transfer_speed_sperf = 0
     print(f'Finished at {datetime.now()}, elapsed time = {final_time}')
-    print(f'Total: {len(log_df)} files; {(final_size):.2f} MiB; {(final_transfer_speed):.2f} MiB/s including setup time; {final_transfer_speed_sperf:.2f} s/file including setup time')
+    print(f'Total: {len(log_dd)} files; {(final_size):.2f} MiB; {(final_transfer_speed):.2f} MiB/s including setup time; {final_transfer_speed_sperf:.2f} s/file including setup time')
