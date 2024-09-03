@@ -1228,7 +1228,7 @@ if __name__ == '__main__':
     # Dask Setup               #
     ############################
 
-    client = Client(n_workers=nprocs//2,threads_per_worker=2,memory_limit=mem_per_core*2)
+    client = Client(n_workers=nprocs//2,threads_per_worker=2) #,memory_limit=mem_per_core*2)
     print(client)
     
     exit()
