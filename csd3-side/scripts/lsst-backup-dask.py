@@ -62,10 +62,10 @@ def find_metadata(key: str, s3_host, access_key, secret_key, bucket_name) -> Lis
         existing_zip_contents = None
         if key.endswith('.zip'):
             try:
-                existing_zip_contents = str(bm.get_client(access_key,secret_key,s3_host).Bucket(bucket_name).Object(''.join([key,'.metadata'])).get()['Body'].read().decode('UTF-8')).split(';')
+                existing_zip_contents = str(bm.get_resource(access_key,secret_key,s3_host).Bucket(bucket_name).Object(''.join([key,'.metadata'])).get()['Body'].read().decode('UTF-8')).split(';')
             except Exception as e:
                 try:
-                    existing_zip_contents = bm.get_client(access_key,secret_key,s3_host).Bucket(bucket_name).Object(key).metadata['zip-contents'].split(';')
+                    existing_zip_contents = bm.get_resource(access_key,secret_key,s3_host).Bucket(bucket_name).Object(key).metadata['zip-contents'].split(';')
                 except KeyError:
                     return None
             if existing_zip_contents:
