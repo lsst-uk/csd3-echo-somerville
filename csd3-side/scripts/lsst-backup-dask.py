@@ -1221,7 +1221,7 @@ if __name__ == '__main__':
 
     client.scatter(current_objects)
 
-    current_objects['METADATA'] = dd.DataFrame(current_objects['CURRENT_OBJECTS']).apply(find_metadata, s3_host=s3_host, access_key=access_key, secret_key=secret_key, bucket_name=bucket_name)
+    current_objects['METADATA'] = dd.DataFrame(current_objects['CURRENT_OBJECTS']).apply(find_metadata, axis=1, s3_host=s3_host, access_key=access_key, secret_key=secret_key, bucket_name=bucket_name)
 
     print(current_objects['METADATA'].dropna())
 
