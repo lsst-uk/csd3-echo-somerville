@@ -24,7 +24,7 @@ from datetime import datetime, timedelta
 from time import sleep
 import hashlib
 import base64
-# import pandas as pd
+import pandas as pd
 import numpy as np
 import subprocess
 import yaml
@@ -1217,13 +1217,12 @@ if __name__ == '__main__':
     client = Client(n_workers=nprocs//2,threads_per_worker=2) #,memory_limit=mem_per_core*2)
     print(client)
 
-    current_objects = dd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects}).compute()
+    current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
 
     current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, s3_host=s3_host, access_key=access_key, secret_key=secret_key, bucket_name=bucket_name)
 
-    client.scatter(current_objects)
-
     print(current_objects['METADATA'].dropna())
+    client.scatter(current_objects)
 
     ## check if log exists in the bucket, and download it and append top it if it does
     # TODO: integrate this with local check for log file
