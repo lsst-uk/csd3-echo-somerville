@@ -45,9 +45,9 @@ from dask.distributed import Client, wait, progress
 import dask.array as da
 import dask.dataframe as dd
 
-from typing import List, Union
+from typing import List
 
-def find_metadata(key: Union[dd.core.Scalar, str], s3_host, access_key, secret_key, bucket_name) -> List[str]:
+def find_metadata(key: str, s3_host, access_key, secret_key, bucket_name) -> List[str]:
     """
     Finds the metadata for a given key in an S3 bucket.
 
@@ -58,8 +58,6 @@ def find_metadata(key: Union[dd.core.Scalar, str], s3_host, access_key, secret_k
     Returns:
         list[str]: A list of existing metadata contents if found, otherwise empty list.
     """
-    if type(key) == dd.core.Scalar:
-        key = key.compute() 
     if type(key) == str:
         existing_zip_contents = None
         if key.endswith('.zip'):
@@ -1212,9 +1210,18 @@ if __name__ == '__main__':
     current_objects = bm.object_list(bucket)
     print(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}')
 
-    current_objects = dd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
+    ############################
+    # Dask Setup               #
+    ############################
 
-    current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, s3_host=s3_host, access_key=access_key, secret_key=secret_key, bucket_name=bucket_name)
+    client = Client(n_workers=nprocs//2,threads_per_worker=2) #,memory_limit=mem_per_core*2)
+    print(client)
+
+    current_objects = dd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects}).compute()
+
+    client.scatter(current_objects)
+
+    current_objects['METADATA'] = dd.DataFrame(current_objects['CURRENT_OBJECTS']).apply(find_metadata, s3_host=s3_host, access_key=access_key, secret_key=secret_key, bucket_name=bucket_name)
 
     print(current_objects['METADATA'].dropna())
 
@@ -1231,12 +1238,7 @@ if __name__ == '__main__':
     while local_dir[-1] == '/':
         local_dir = local_dir[:-1]
 
-    ############################
-    # Dask Setup               #
-    ############################
-
-    client = Client(n_workers=nprocs//2,threads_per_worker=2) #,memory_limit=mem_per_core*2)
-    print(client)
+    
     
     exit()
     # Process the files
