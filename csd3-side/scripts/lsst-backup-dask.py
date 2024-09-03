@@ -45,7 +45,7 @@ from dask.distributed import Client, wait, progress
 import dask.array as da
 import dask.dataframe as dd
 
-def find_metadata(key: str, s3) -> list[str]:
+def find_metadata(key: str, s3_host, access_key, secret_key, bucket_name) -> list[str]:
     """
     Finds the metadata for a given key in an S3 bucket.
 
@@ -60,10 +60,10 @@ def find_metadata(key: str, s3) -> list[str]:
         existing_zip_contents = None
         if key.endswith('.zip'):
             try:
-                existing_zip_contents = str(s3.Object(bucket_name,''.join([key,'.metadata'])).get()['Body'].read().decode('UTF-8')).split(';')
+                existing_zip_contents = str(bm.get_client(access_key,secret_key,s3_host).Object(bucket_name,''.join([key,'.metadata'])).get()['Body'].read().decode('UTF-8')).split(';')
             except Exception as e:
                 try:
-                    existing_zip_contents = s3.Object(bucket_name,key).metadata['zip-contents'].split(';')
+                    existing_zip_contents = bm.get_client(access_key,secret_key,s3_host).Object(bucket_name,key).metadata['zip-contents'].split(';')
                 except KeyError:
                     return None
             if existing_zip_contents:
@@ -1210,7 +1210,7 @@ if __name__ == '__main__':
 
     current_objects = dd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
 
-    current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, s3=s3)
+    current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, s3_host=s3_host, access_key=access_key, secret_key=secret_key, bucket_name=bucket_name)
 
     print(current_objects['METADATA'].dropna())
 
