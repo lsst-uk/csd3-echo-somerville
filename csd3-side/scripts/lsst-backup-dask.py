@@ -1205,7 +1205,7 @@ if __name__ == '__main__':
     current_objects = bm.object_list(bucket)
     print(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}')
 
-    current_objects = dd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
+    current_objects = dd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects}).compute()
 
     current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, s3=s3)
 
