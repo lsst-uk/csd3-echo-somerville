@@ -510,6 +510,10 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     #     collate_ul_pool = Pool(processes=nprocs - half_cores)
     
     #pool = Pool(nprocs) # use 4 CPUs by default - very little speed-up, might drop multiprocessing and parallelise at shell level
+
+    client.scatter([s3_host, access_key, secret_key, bucket_name, perform_checksum, dryrun, current_objects], broadcast=True)
+
+    exit()
     
     #recursive loop over local folder
     results = []
@@ -1237,9 +1241,6 @@ if __name__ == '__main__':
     while local_dir[-1] == '/':
         local_dir = local_dir[:-1]
 
-    
-    
-    exit()
     # Process the files
     print(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}')
     print(f'Using {nprocs} processes.')
