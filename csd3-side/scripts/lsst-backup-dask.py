@@ -56,18 +56,20 @@ def find_metadata(key: str, s3) -> list[str]:
     Returns:
         list[str]: A list of existing metadata contents if found, otherwise empty list.
     """
-    print(key,type(key))
-    existing_zip_contents = None
-    if key.endswith('.zip'):
-        try:
-            existing_zip_contents = str(s3.Object(bucket_name,''.join([key,'.metadata'])).get()['Body'].read().decode('UTF-8')).split(';')
-        except Exception as e:
+    if type(key) == str:
+        existing_zip_contents = None
+        if key.endswith('.zip'):
             try:
-                existing_zip_contents = s3.Object(bucket_name,key).metadata['zip-contents'].split(';')
-            except KeyError:
-                return None
-        if existing_zip_contents:
-            return existing_zip_contents
+                existing_zip_contents = str(s3.Object(bucket_name,''.join([key,'.metadata'])).get()['Body'].read().decode('UTF-8')).split(';')
+            except Exception as e:
+                try:
+                    existing_zip_contents = s3.Object(bucket_name,key).metadata['zip-contents'].split(';')
+                except KeyError:
+                    return None
+            if existing_zip_contents:
+                return existing_zip_contents
+        else:
+            return None
     else:
         return None
 
