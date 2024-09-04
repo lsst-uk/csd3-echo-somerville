@@ -80,7 +80,7 @@ def find_metadata(key: str, bucket) -> List[str]:
 def remove_duplicates(l: list[dict]) -> list[dict]:
     return pd.DataFrame(l).drop_duplicates().to_dict(orient='records')
 
-def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_files:list[str], use_compression:bool, dryrun:bool, id:int, mem_per_core:int) -> tuple[str, int, bytes]:
+def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_files:list[str], use_compression:bool, dryrun:bool, id:int, mem_per_worker:int) -> tuple[str, int, bytes]:
     """
     Collates the specified folders into a zip file.
 
@@ -91,7 +91,7 @@ def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_file
         use_compression (bool): Flag indicating whether to use compression for the zip file.
         dryrun (bool): Flag indicating whether to perform a dry run without actually creating the zip file.
         id (int, optional): An optional identifier for the zip file. Defaults to 0.
-        mem_per_core (int): The amount of memory to allocate per CPU core.
+        mem_per_worker (int): The memory per worker in bytes.
 
     Returns:
         tuple: A tuple containing the parent folder path, the identifier, and the compressed zip file as a bytes object.
@@ -137,8 +137,8 @@ def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_file
                         zipped_size += os.path.getsize(file_path)
                         with open(file_path, 'rb') as src_file:
                             zip_file.writestr(arc_name, src_file.read())
-            if zipped_size > mem_per_core:
-                print(f'WARNING: Zipped size of {zipped_size} bytes exceeds memory per core of {mem_per_core} bytes.')
+            if zipped_size > mem_per_worker:
+                print(f'WARNING: Zipped size of {zipped_size} bytes exceeds memory per core of {mem_per_worker} bytes.')
         except MemoryError as e:
             print(f'Error zipping {parent_folder}: {e}')
             print(f'Namespace: {globals()}')
@@ -147,7 +147,7 @@ def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_file
     else:
         return parent_folder, id, b''
     
-def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun, mem_per_core) -> str:
+def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun, mem_per_worker) -> str:
     """
     Uploads a file to an S3 bucket.
     Optionally calculates a checksum for the file
@@ -163,7 +163,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
         object_key (str): The key to assign to the uploaded file in the S3 bucket.
         perform_checksum (bool): Flag indicating whether to perform a checksum on the file.
         dryrun (bool): Flag indicating whether to perform a dry run (no actual upload).
-        mem_per_core (int): The amount of memory to allocate per CPU core.
+        mem_per_worker (int): The memory per worker in bytes.
 
     Returns:
         str: A string containing information about the uploaded file in CSV format.
@@ -216,14 +216,14 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                 checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
                 file_data.seek(0)  # Reset the file pointer to the start
                 try:
-                    if file_size > mem_per_core or file_size > 5 * 1024**3:  # Check if file size is larger than 5GiB
+                    if file_size > mem_per_worker or file_size > 5 * 1024**3:  # Check if file size is larger than 5GiB
                         """
                         - Use multipart upload for large files
                         """
                         
                         obj = bucket.Object(object_key)
                         mp_upload = obj.initiate_multipart_upload()
-                        chunk_size = mem_per_core // 2 
+                        chunk_size = mem_per_worker // 4
                         chunk_count = int(np.ceil(file_size / chunk_size))
                         print(f'Uploading {filename} to {bucket_name}/{object_key} in {chunk_count} parts.')
                         parts = []
@@ -285,7 +285,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
     return_string += ',n/a'
     return return_string
 
-def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, folder, file_data, zip_contents, object_key, perform_checksum, dryrun, mem_per_core) -> str:
+def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, folder, file_data, zip_contents, object_key, perform_checksum, dryrun, mem_per_worker) -> str:
     """
     Uploads a file to an S3 bucket.
     Optionally calculates a checksum for the file
@@ -330,7 +330,7 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
             file_size = len(file_data)
 
             try:
-                if file_size > mem_per_core or file_size > 5 * 1024**3:  # Check if file size is larger than 5GiB
+                if file_size > mem_per_worker or file_size > 5 * 1024**3:  # Check if file size is larger than 5GiB
                     """
                     - Use multipart upload for large files
                     """
@@ -342,7 +342,7 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                     
                     obj = bucket.Object(object_key)
                     mp_upload = obj.initiate_multipart_upload(Metadata=metadata)
-                    chunk_size = mem_per_core // 2 # Set chunk size to half the mem_per_core - lowering this will increase the number of parts, in turn increasing multithreading overhead, and potentially leading to memory errors
+                    chunk_size = mem_per_worker // 4 
                     chunk_count = int(np.ceil(file_data_size / chunk_size))
                     print(f'Uploading "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key} in {chunk_count} parts.', flush=True)
 
@@ -452,21 +452,21 @@ def print_stats(file_name_or_data, file_count, total_size, file_start, file_end,
     # del file_name_or_data
     # gc.collect()
 
-def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded, collated, mem_per_core) -> None:
+def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded, collated, mem_per_worker) -> None:
     # upload files in parallel and log output
     file_start = datetime.now()
     print(f'collated = {collated}', flush=True)
     if collated:
         try:
             print(f'Uploading zip containing {file_count} subfolders from {folder}.')
-            result = upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, mem_per_core)
+            result = upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, mem_per_worker)
             # print(result)
         except Exception as e:
             print(f'Error uploading {folder} to {bucket_name}/{object_key}: {e}')
             sys.exit(1)
     else:
         print(f'Uploading {file_count} files from {folder}.')
-        result = upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, object_key, perform_checksum, dryrun, mem_per_core)
+        result = upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, object_key, perform_checksum, dryrun, mem_per_worker)
     
     file_end = datetime.now()
     print_stats(file_name_or_data, file_count, folder_files_size, file_start, file_end, processing_start, total_size_uploaded, total_files_uploaded, collated)
@@ -478,7 +478,7 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, fi
 
     return None
 
-def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, perform_checksum, dryrun, log, global_collate, use_compression, client) -> None:
+def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, perform_checksum, dryrun, log, global_collate, use_compression, client, mem_per_worker) -> None:
     """
     Uploads files from a local directory to an S3 bucket in parallel.
 
@@ -496,6 +496,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         global_collate (bool): Flag indicating whether to collate files into zip files before uploading.
         use_compression (bool): Flag indicating whether to use compression for the zip files.
         client (dask.Client): The Dask client object.
+        mem_per_worker (int): The memory per worker in bytes.
 
     Returns:
         None
@@ -521,6 +522,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     total_all_files = 0
     folder_num = 0
     file_num = 0
+    uploads = []
+    zip_uploads = []
     for folder, sub_folders, files in os.walk(local_dir, topdown=True):
         total_all_folders += 1
         total_all_files += len(files)
@@ -681,7 +684,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         repeat(total_size_uploaded),
                         repeat(total_files_uploaded),
                         repeat(False),
-                        repeat(mem_per_core),
+                        repeat(mem_per_worker),
                     )):
                     client.submit(upload_and_callback, *args)
                     uploads.append({'folder':args[4],'folder_size':args[12],'file_size':os.lstat(folder_files[i]).st_size,'file':args[5],'object':args[7],'uploaded':False})
@@ -867,7 +870,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     repeat(use_compression),
                     repeat(dryrun),
                     [i for i in range(len(chunks))],
-                    repeat(mem_per_core),
+                    repeat(mem_per_worker),
                     )):
                 client.submit(
                     zip_folders,
@@ -953,7 +956,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     #                                     total_size_uploaded,
     #                                     total_files_uploaded,
     #                                     True,
-    #                                     mem_per_core,
+    #                                     mem_per_worker,
     #                                     )
     #                             ))
     #                             zip_uploads.append({'folder':parent_folder,'size':len(zip_data),'object_name':to_collate[parent_folder]['zips'][-1]['zip_object_name'],'uploaded':False}) # removed ,'zip_contents':to_collate[parent_folder]['zips'][-1]['zip_contents']
@@ -1075,7 +1078,7 @@ if __name__ == '__main__':
 
     if not args.config_file and not (args.bucket_name and args.local_path and args.S3_prefix):
         parser.error('If a config file is not provided, the bucket name, local path, and S3 prefix must be provided.')
-    if args.config_file and (args.bucket_name or args.local_path or args.S3_prefix or args.S3_folder or args.exclude or args.nprocs or args.no_collate or args.dryrun or args.no_checksum or args.no_compression or args.mem_per_core):
+    if args.config_file and (args.bucket_name or args.local_path or args.S3_prefix or args.S3_folder or args.exclude or args.nprocs or args.no_collate or args.dryrun or args.no_checksum or args.no_compression):
         print(f'WARNING: Options provide on command line override options in {args.config_file}.')
     if args.config_file:
         config_file = args.config_file
@@ -1224,9 +1227,9 @@ if __name__ == '__main__':
     ############################
     #        Dask Setup        #
     ############################
-    
-    client = Client(n_workers=nprocs//threads,threads_per_worker=threads,silence_logs=ERROR,memory_limit=virtual_memory().total//nprocs) #,memory_limit=mem_per_core*2)
-    client.memory_limit
+    mem_per_worker = virtual_memory().total//nprocs
+    client = Client(n_workers=nprocs//threads,threads_per_worker=threads,silence_logs=ERROR,memory_limit=mem_per_worker)
+
     print(f'Dask Client: {client}', flush=True)
 
     current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
@@ -1253,7 +1256,7 @@ if __name__ == '__main__':
     print(f'Using {nprocs} processes.')
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore')
-        process_files(s3_host,access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, perform_checksum, dryrun, log, global_collate, use_compression, client)
+        process_files(s3_host,access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, perform_checksum, dryrun, log, global_collate, use_compression, client, mem_per_worker)
     
     client.close()
     print(f'Dask Client closed at {datetime.now()}, elapsed time = {datetime.now() - start}')
@@ -1278,7 +1281,7 @@ if __name__ == '__main__':
                         os.path.basename(log), 
                         False, # perform_checksum
                         False, # dryrun
-                        mem_per_core,
+                        mem_per_worker,
                         )
     
     final_size = log["FILE_SIZE"].sum() / 1024**2
