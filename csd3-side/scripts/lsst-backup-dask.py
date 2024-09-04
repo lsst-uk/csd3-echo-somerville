@@ -948,7 +948,13 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     # Exit gracefully
                     sys.exit(1)        
 
-
+    for future in as_completed(upload_futures+zul_futures):
+        print(f'Zipped {sum([f.done() for f in zip_futures])} of {len(zip_futures)} zip files.', flush=True)
+        print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
+        print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
+        print(f'Failed uploads: {sum([f.exception() for f in upload_futures+zul_futures])}', flush=True)
+        if future.cancelled():
+            print(future.result())
     ####
     # Monitor upload tasks
     ####
