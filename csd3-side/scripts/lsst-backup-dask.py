@@ -42,7 +42,7 @@ import os
 import argparse
 import time
 
-from dask.distributed import Client, wait, progress
+from dask.distributed import Client, as_completed
 import dask.array as da
 import dask.dataframe as dd
 
@@ -524,6 +524,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     file_num = 0
     uploads = []
     zip_uploads = []
+    upload_futures = []
+    zip_futures = []
     for folder, sub_folders, files in os.walk(local_dir, topdown=True):
         total_all_folders += 1
         total_all_files += len(files)
@@ -686,7 +688,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         repeat(False),
                         repeat(mem_per_worker),
                     )):
-                    client.submit(upload_and_callback, *args)
+                    upload_futures.append(client.submit(upload_and_callback, *args))
                     uploads.append({'folder':args[4],'folder_size':args[12],'file_size':os.lstat(folder_files[i]).st_size,'file':args[5],'object':args[7],'uploaded':False})
             except BrokenPipeError as e:
                 print(f'Caught BrokenPipeError: {e}')
@@ -799,7 +801,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             to_collate[parent_folder]['folder_files'].append(folder_files)
     
     # collate folders
-    total_zips = 0
+    # total_zips = 0
     if len(to_collate) > 0:
         # print(f"zips: {to_collate[parent_folder]['zips']}")
         print(f'Collating {len([to_collate[parent_folder]["folders"] for parent_folder in to_collate.keys()])} folders into zip files.') #{sum([len(x["zips"]) for x in to_collate.keys()])}
@@ -822,13 +824,11 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             except ValueError:
                 # no files in folder - likely removed from file list due to previous PermissionError - continue without message
                 continue
-            total_memory = virtual_memory().total * 0.75
-            client.memory = total_memory
-            max_zipsize = total_memory / zip_pool._processes
-            max_files_per_zip = int(np.ceil(max_zipsize / max_filesize))
+            
+            max_files_per_zip = int(np.ceil(mem_per_worker / max_filesize))
             num_zips = int(np.ceil(num_files / max_files_per_zip))
             # print(f'num_zips = {num_zips}')
-            # print(f'max_zipsize,max_files_per_zip,num_zips: {max_zipsize},{max_files_per_zip},{num_zips}')
+            
             chunk_subfolders = False
             if num_zips > len(folders):
                 chunk_subfolders = True
@@ -851,7 +851,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 sys.exit(1)
             # print(f'parent_folder above zip(s): {parent_folder}')
             # print(f'collating into: {len(chunks)} zip file(s)')
-            total_zips += len(chunks)
+            # total_zips += len(chunks)
             # print(f'parent_folder: {parent_folder}')
             # print(f'chunks: {chunks}')
             # print(f'chunk_files: {chunk_files}')
@@ -872,18 +872,18 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     [i for i in range(len(chunks))],
                     repeat(mem_per_worker),
                     )):
-                client.submit(
+                zip_futures.append(client.submit(
                     zip_folders,
                     *args
-                )
+                ))
                 # if i > nprocs*4/2 and i % nprocs*4/2 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
                 #     for result in results:
                 #         result.get()  # Wait until current processes in pool are finished
                 
         zipped = 0
         uploaded = []
-        zul_results = []
-        total_zips = len(zip_results)
+        zul_futures = []
+        total_zips = len(zip_futures)
     #     while zipped < total_zips:
     #         # print(f'Zipped {zipped} of {total_zips} zip files.', flush=True)
     #         for i, result in enumerate(zip_results):
