@@ -77,7 +77,7 @@ def find_metadata(key: str, bucket) -> List[str]:
 def remove_duplicates(l: list[dict]) -> list[dict]:
     return pd.DataFrame(l).drop_duplicates().to_dict(orient='records')
 
-def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_files:list[str], use_compression:bool, dryrun:bool, processing_start, id:int, mem_per_worker:int, zul_futures: list, total_size_uploaded: int, total_files_uploaded:int) -> tuple[str, int, bytes]:
+def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_files:list[str], use_compression:bool, dryrun:bool, processing_start, id:int, mem_per_worker:int, total_size_uploaded: int, total_files_uploaded:int) -> tuple[str, int, bytes]:
     """
     Collates the specified folders into a zip file.
 
@@ -144,7 +144,7 @@ def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_file
             exit(1)
         zip_data = zip_buffer.getvalue()
         zip_object_name = str(os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated_{id}.zip', local_dir)]))
-        zul_futures.append(client.submit(upload_and_callback, 
+        return client.submit(upload_and_callback, 
                                 s3_host,
                                 access_key,
                                 secret_key,
@@ -162,8 +162,7 @@ def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_file
                                 total_files_uploaded,
                                 True,
                                 mem_per_worker,
-                        ))
-    return
+                        )
     
     
 def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun, mem_per_worker) -> str:
@@ -892,7 +891,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     repeat(processing_start),
                     [i for i in range(len(chunks))],
                     repeat(mem_per_worker),
-                    repeat(zul_futures),
                     repeat(total_size_uploaded),
                     repeat(total_files_uploaded),
                     )):
@@ -910,6 +908,10 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
             print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
             print(f'Failed uploads: {len(failed)} of {len(zul_futures)+len(upload_futures)}', flush=True)
+
+            for f in zip_futures:
+                if f.done():
+                    zul_futures.append(f.result())
 
             for f in upload_futures+zul_futures:
                 if 'exception' in f.status and f not in failed:
