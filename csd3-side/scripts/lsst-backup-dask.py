@@ -1068,6 +1068,7 @@ if __name__ == '__main__':
     parser.add_argument('--S3-folder', type=str, help='Subfolder(s) at the end of the local path to be used in S3 object keys.', nargs='?', const='', default='')
     parser.add_argument('--exclude', nargs='+', help="Files or folders to exclude from upload as a list in the form ['dir1', 'dir2', ...] or other valid YAML. Must relative paths to local_path.")
     parser.add_argument('--nprocs', type=int, help='Number of CPU cores to use for parallel upload.')
+    parser.add_argument('--threads-per-process', type=int, help='Number of threads per processes to use for parallel upload.', default=4)
     parser.add_argument('--no-collate', default=False, action='store_true', help='Turn off collation of subfolders containing small numbers of small files into zip files.')
     parser.add_argument('--dryrun', default=False, action='store_true', help='Perform a dry run without uploading files.')
     parser.add_argument('--no-checksum', default=False, action='store_true', help='Do not perform checksum validation during upload.')
@@ -1101,6 +1102,8 @@ if __name__ == '__main__':
                     args.nprocs = config['nprocs']
                 if 'nprocs' not in config.keys() and not args.nprocs: # required to allow default value of 4 as this overrides "default" in add_argument
                     args.nprocs = 4
+                if 'threads_per_process' in config.keys() and not args.threads_per_process:
+                    args.threads_per_process = config['threads_per_process']
                 if 'no_collate' in config.keys() and not args.no_collate:
                     args.no_collate = config['no_collate']
                 if 'dryrun' in config.keys() and not args.dryrun:
@@ -1123,6 +1126,7 @@ if __name__ == '__main__':
     sub_dirs = args.S3_folder
     print(f'sub_dirs {sub_dirs}')
     nprocs = args.nprocs 
+    threads = args.threads_per_process
     global_collate = not args.no_collate # internally, flag turns *on* collate, but for user no-collate turns it off - makes flag more intuitive
     perform_checksum = not args.no_checksum # internally, flag turns *on* checksumming, but for user no-checksum  turns it off - makes flag more intuitive
     dryrun = args.dryrun
@@ -1138,7 +1142,20 @@ if __name__ == '__main__':
 
     if save_config:
         with open(config_file, 'w') as f:
-            yaml.dump({'bucket_name': bucket_name, 'local_path': local_dir, 'S3_prefix': prefix, 'S3_folder': sub_dirs, 'exclude': exclude.to_list(), 'nprocs': nprocs, 'no_collate': not global_collate, 'dryrun': dryrun, 'no_checksum': not perform_checksum, 'no_compression': not use_compression, 'mem_per_core': mem_per_core / 1024**2}, f)
+            yaml.dump({
+                'bucket_name': bucket_name,
+                'local_path': local_dir,
+                'S3_prefix': prefix,
+                'S3_folder': sub_dirs,
+                'exclude': exclude.to_list(),
+                'nprocs': nprocs,
+                'threads_per_process': threads,
+                'no_collate': not global_collate,
+                'dryrun': dryrun,
+                'no_checksum': not perform_checksum,
+                'no_compression': not use_compression,
+                'mem_per_core': mem_per_core / 1024**2
+                }, f)
         sys.exit(0)
 
     print(f'Symlinks will be replaced with the target file. A new file <simlink_file>.symlink will contain the symlink target path.')
@@ -1216,7 +1233,7 @@ if __name__ == '__main__':
     #        Dask Setup        #
     ############################
 
-    client = Client(n_workers=nprocs//4,threads_per_worker=4) #,memory_limit=mem_per_core*2)
+    client = Client(n_workers=nprocs//threads,threads_per_worker=threads) #,memory_limit=mem_per_core*2)
     print(f'Dask Client: {client}', flush=True)
 
     current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
