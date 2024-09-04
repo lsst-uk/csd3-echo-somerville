@@ -1130,9 +1130,9 @@ if __name__ == '__main__':
     mem_per_core = 1024**3 # fix as 1 GiB
     
     if args.exclude:
-        exclude = dd.Series(args.exclude)
+        exclude = pd.Series(args.exclude)
     else:
-        exclude = dd.Series([])
+        exclude = pd.Series([])
     
     print(f'Config: {args}')
 
