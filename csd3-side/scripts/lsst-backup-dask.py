@@ -33,6 +33,7 @@ import zipfile
 import warnings
 from psutil import virtual_memory
 warnings.filterwarnings('ignore')
+from logging import ERROR
 
 import bucket_manager.bucket_manager as bm
 
@@ -1233,7 +1234,7 @@ if __name__ == '__main__':
     #        Dask Setup        #
     ############################
 
-    client = Client(n_workers=nprocs//threads,threads_per_worker=threads) #,memory_limit=mem_per_core*2)
+    client = Client(n_workers=nprocs//threads,threads_per_worker=threads,silence_logs=ERROR) #,memory_limit=mem_per_core*2)
     print(f'Dask Client: {client}', flush=True)
 
     current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
