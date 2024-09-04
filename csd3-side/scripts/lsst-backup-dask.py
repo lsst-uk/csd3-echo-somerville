@@ -1266,10 +1266,10 @@ if __name__ == '__main__':
     # Complete
     final_time = datetime.now() - start
     final_time_seconds = final_time.seconds + final_time.microseconds / 1e6
-    log_dd = dd.read_csv(log)
-    log_dd = log_dd.drop_duplicates(subset='DESTINATION_KEY', keep='last')
-    log_dd = log_dd.reset_index(drop=True)
-    log_dd.to_csv(log, index=False, single_file=True)
+    log = pd.read_csv(log)
+    log = log.drop_duplicates(subset='DESTINATION_KEY', keep='last')
+    log = log.reset_index(drop=True)
+    log.to_csv(log, index=False, single_file=True)
 
     # Upload log file
     if not dryrun:
@@ -1293,8 +1293,8 @@ if __name__ == '__main__':
     except ZeroDivisionError:
         final_transfer_speed = 0
     try:
-        final_transfer_speed_sperf = final_time_seconds / len(log_dd)
+        final_transfer_speed_sperf = final_time_seconds / len(log)
     except ZeroDivisionError:
         final_transfer_speed_sperf = 0
     print(f'Finished at {datetime.now()}, elapsed time = {final_time}')
-    print(f'Total: {len(log_dd)} files; {(final_size):.2f} MiB; {(final_transfer_speed):.2f} MiB/s including setup time; {final_transfer_speed_sperf:.2f} s/file including setup time')
+    print(f'Total: {len(log)} files; {(final_size):.2f} MiB; {(final_transfer_speed):.2f} MiB/s including setup time; {final_transfer_speed_sperf:.2f} s/file including setup time')
