@@ -820,7 +820,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             # print(f'folder_files: {len(folder_files)}')
             try:
                 max_filesize = max([max([os.lstat(filename).st_size for filename in ff]) for ff in folder_files])
-                folder_size = sum([sum([os.lstat(filename).st_size for filename in ff]) for ff in folder_files])
+                # folder_size = sum([sum([os.lstat(filename).st_size for filename in ff]) for ff in folder_files])
             except ValueError:
                 # no files in folder - likely removed from file list due to previous PermissionError - continue without message
                 continue
@@ -898,6 +898,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 zipped += 1
                 uploaded.append((parent_folder,id))
                 print(f'Zipped {zipped} of {total_zips} zip files.', flush=True)
+                print(f'Uploaded {sum([f.done() for f in zul_futures])} of {total_zips} zip files.', flush=True)
+                print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
                 # print(f'zip size: {len(zip_data)}')
                 # print(parent_folder, id, uploaded, flush=True)
                 with zipfile.ZipFile(io.BytesIO(zip_data), 'r') as z:
@@ -944,7 +946,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     with open('error_log.err', 'a') as f:
                         f.write(f'Unexpected error: {e}\n')
                     # Exit gracefully
-                    sys.exit(1)                                
+                    sys.exit(1)        
+
 
     ####
     # Monitor upload tasks
@@ -1188,8 +1191,9 @@ if __name__ == '__main__':
     ############################
     #        Dask Setup        #
     ############################
+    client_memory = virtual_memory().total//10*9
     mem_per_worker = virtual_memory().total//nprocs
-    client = Client(n_workers=nprocs//threads,threads_per_worker=threads,memory_limit=virtual_memory().total//10*9) #,silence_logs=ERROR
+    client = Client(n_workers=nprocs//threads,threads_per_worker=threads,memory_limit=client_memory) #,silence_logs=ERROR
 
     print(f'Dask Client: {client}', flush=True)
 
