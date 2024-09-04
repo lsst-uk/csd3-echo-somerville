@@ -903,7 +903,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 #         result.get()  # Wait until current processes in pool are finished
                 
         failed = []
-        while 'pending' in [f.status for f in zip_futures+upload_futures+zul_futures]:
+        while True:
             print(f'Zipped {sum([f.done() for f in zip_futures])} of {len(zip_futures)} zip files.', flush=True)
             print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
             print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
@@ -916,6 +916,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             for f in upload_futures+zul_futures:
                 if 'exception' in f.status and f not in failed:
                     failed.append(f)
+            if 'pending' not in in [f.status for f in zip_futures+upload_futures+zul_futures]:
+                break
             sleep(5)
             # for zip_future in zip_futures:
             #     if zip_future.status == 'finished' and zip_future not in zipped:
