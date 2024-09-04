@@ -900,7 +900,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 print(f'Zipped {zipped} of {total_zips} zip files.', flush=True)
                 print(f'Uploaded {sum([f.done() for f in zul_futures])} of {total_zips} zip files.', flush=True)
                 print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
-                print(zip_future.get_state())
+                for f in zul_futures + upload_futures + zip_futures:
+                    print(f.status)
                 # print(f'zip size: {len(zip_data)}')
                 # print(parent_folder, id, uploaded, flush=True)
                 with zipfile.ZipFile(io.BytesIO(zip_data), 'r') as z:
