@@ -892,7 +892,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             for f in upload_futures+zul_futures:
                 if 'exception' in f.status and f not in failed:
                     failed.append(f)
-
+            sleep(5)
             for zip_future in zip_futures:
                 if zip_future.done() and zip_future not in zipped:
                     zipped.append(zip_future)
