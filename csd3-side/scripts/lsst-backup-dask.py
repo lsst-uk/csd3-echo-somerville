@@ -1216,14 +1216,14 @@ if __name__ == '__main__':
     #        Dask Setup        #
     ############################
 
-    client = Client(n_workers=nprocs//2,threads_per_worker=2) #,memory_limit=mem_per_core*2)
-    print(f'Dask Client: {client}')
+    client = Client(n_workers=nprocs//4,threads_per_worker=4) #,memory_limit=mem_per_core*2)
+    print(f'Dask Client: {client}', flush=True)
 
     current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
 
     current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, bucket=bucket)
 
-    print(current_objects['METADATA'].dropna())
+    print(current_objects['METADATA'].dropna(), flush=True)
 
     ## check if log exists in the bucket, and download it and append top it if it does
     # TODO: integrate this with local check for log file
