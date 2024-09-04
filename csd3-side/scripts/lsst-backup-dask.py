@@ -448,8 +448,8 @@ def print_stats(file_name_or_data, file_count, total_size, file_start, file_end,
     print(f'Total size uploaded = {total_size_uploaded / 1024**3:.2f} GiB', flush=True)
     print(f'Running average speed = {total_size_uploaded / 1024**2 / (file_end-processing_start).seconds:.2f} MiB/s', flush=True)
     print(f'Running average rate = {(file_end-processing_start).seconds / total_files_uploaded:.2f} s/file', flush=True)
-    del file_name_or_data
-    gc.collect()
+    # del file_name_or_data
+    # gc.collect()
 
 def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded, collated, mem_per_core) -> None:
     # upload files in parallel and log output
@@ -472,8 +472,8 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, fi
     with open(log, 'a') as logfile:
         logfile.write(f'{result}\n')
     
-    del file_name_or_data
-    gc.collect()
+    # del file_name_or_data
+    # gc.collect()
 
     return None
 
@@ -512,9 +512,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     #pool = Pool(nprocs) # use 4 CPUs by default - very little speed-up, might drop multiprocessing and parallelise at shell level
 
     client.scatter([s3_host, access_key, secret_key, bucket_name, perform_checksum, dryrun, current_objects], broadcast=True)
-    print('scattered')
-    exit()
-    
+        
     #recursive loop over local folder
     results = []
     to_collate = {} # store folders to collate
@@ -686,7 +684,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         repeat(False),
                         repeat(mem_per_core),
                     )):
-                    results.append(pool.apply_async(upload_and_callback, args=args))
+                    results.append(client.submit(upload_and_callback, args=args))
                     uploads.append({'folder':args[4],'folder_size':args[12],'file_size':os.lstat(folder_files[i]).st_size,'file':args[5],'object':args[7],'uploaded':False})
             except BrokenPipeError as e:
                 print(f'Caught BrokenPipeError: {e}')
@@ -707,348 +705,348 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 #         result.get()  # Wait until current processes in pool are finished
             
             # release block of files if the list for results is greater than 4 times the number of processes
-            gc.collect()
+            # gc.collect()
 
-        elif len(folder_files) > 0 and global_collate: # small files in folder
-            folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
-            parent_folder = os.path.abspath(os.path.join(folder, os.pardir))
-            print(f'parent_folder: {parent_folder}')
-            # possibly pass if parent_folder == local_dir or parent_folder contains '..'
-            if parent_folder not in to_collate.keys():
-                #initialise parent folder
-                to_collate[parent_folder] = {'parent_folder':parent_folder,'folders':[],'object_names':[], 'folder_files':[], 'zips':[{'zip_data':None, 'id':None, 'zip_object_name':''}]} # store folders to collate
+    #     elif len(folder_files) > 0 and global_collate: # small files in folder
+    #         folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
+    #         parent_folder = os.path.abspath(os.path.join(folder, os.pardir))
+    #         print(f'parent_folder: {parent_folder}')
+    #         # possibly pass if parent_folder == local_dir or parent_folder contains '..'
+    #         if parent_folder not in to_collate.keys():
+    #             #initialise parent folder
+    #             to_collate[parent_folder] = {'parent_folder':parent_folder,'folders':[],'object_names':[], 'folder_files':[], 'zips':[{'zip_data':None, 'id':None, 'zip_object_name':''}]} # store folders to collate
             
 
-            #Don't remove existing files from object_names?
-            # for oni, on in enumerate(object_names):
-            #     if current_objects.isin([on]).any() or current_objects.isin([f'{on}.symlink']).any():
-            #         object_names.remove(on)
-            #         print(f'Removing {on} from object_names - previously uploaded.')
-            #         del folder_files[oni]
-            #     else:
-            #         print(f'Keeping {on} in object_names - not previously uploaded.')
+    #         #Don't remove existing files from object_names?
+    #         # for oni, on in enumerate(object_names):
+    #         #     if current_objects.isin([on]).any() or current_objects.isin([f'{on}.symlink']).any():
+    #         #         object_names.remove(on)
+    #         #         print(f'Removing {on} from object_names - previously uploaded.')
+    #         #         del folder_files[oni]
+    #         #     else:
+    #         #         print(f'Keeping {on} in object_names - not previously uploaded.')
 
-            pre_linkcheck_file_count = len(object_names)
-            if init_len - pre_linkcheck_file_count > 0:
-                print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.')
-            # print(f'folder_files: {folder_files}')
-            # print(f'object_names: {object_names}')
-            # folder_start = datetime.now()
+    #         pre_linkcheck_file_count = len(object_names)
+    #         if init_len - pre_linkcheck_file_count > 0:
+    #             print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.')
+    #         # print(f'folder_files: {folder_files}')
+    #         # print(f'object_names: {object_names}')
+    #         # folder_start = datetime.now()
             
-            # print('checking for symlinks')
-            #always do this AFTER removing "current_objects" to avoid re-uploading
-            symlink_targets = []
-            symlink_obj_names = []
-            for i in range(len(folder_files)):
-                if os.path.islink(folder_files[i]):
-                    #rename link in object_names
-                    symlink_obj_name = object_names[i]
-                    object_names[i] = '.'.join([object_names[i], 'symlink'])
-                    #add symlink target to symlink_targets list
-                    symlink_targets.append(os.path.realpath(folder_files[i]))
-                    #add real file to symlink_obj_names list
-                    symlink_obj_names.append(symlink_obj_name)
+    #         # print('checking for symlinks')
+    #         #always do this AFTER removing "current_objects" to avoid re-uploading
+    #         symlink_targets = []
+    #         symlink_obj_names = []
+    #         for i in range(len(folder_files)):
+    #             if os.path.islink(folder_files[i]):
+    #                 #rename link in object_names
+    #                 symlink_obj_name = object_names[i]
+    #                 object_names[i] = '.'.join([object_names[i], 'symlink'])
+    #                 #add symlink target to symlink_targets list
+    #                 symlink_targets.append(os.path.realpath(folder_files[i]))
+    #                 #add real file to symlink_obj_names list
+    #                 symlink_obj_names.append(symlink_obj_name)
 
-            # append symlink_targets and symlink_obj_names to folder_files and object_names
+    #         # append symlink_targets and symlink_obj_names to folder_files and object_names
 
-            folder_files.extend(symlink_targets)
-            object_names.extend(symlink_obj_names)
+    #         folder_files.extend(symlink_targets)
+    #         object_names.extend(symlink_obj_names)
 
-            file_count = len(object_names)
-            # folder_end = datetime.now()
+    #         file_count = len(object_names)
+    #         # folder_end = datetime.now()
             
-            # print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
-            # print(f'folder {folder} has {len(files)} files (total size: {folder_files_size/1024**2:.0f} MiB); will be uploaded as part of a collated upload.')
+    #         # print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
+    #         # print(f'folder {folder} has {len(files)} files (total size: {folder_files_size/1024**2:.0f} MiB); will be uploaded as part of a collated upload.')
             
-            ###############################
-            # CHECK HERE FOR ZIP CONTENTS #
-            ###############################
-            these_zip_contents = [ff.replace(parent_folder+'/','') for ff in folder_files]
+    #         ###############################
+    #         # CHECK HERE FOR ZIP CONTENTS #
+    #         ###############################
+    #         these_zip_contents = [ff.replace(parent_folder+'/','') for ff in folder_files]
 
-            if current_objects['METADATA'].isin([these_zip_contents]).any():
-                existing_zip_contents = current_objects[current_objects['METADATA'].isin([these_zip_contents])]['METADATA'].values[0]
-                # try:
-                #     existing_zip_contents = str(bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,''.join([to_collate[parent_folder]['zips'][-1]['zip_object_name'],'.metadata'])).get()['Body'].read().decode('UTF-8')).split(',')
-                # except Exception as e:
-                #     # print(f'No metadata object found for {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}. Trying object.metadata')
-                #     try:
-                #         existing_zip_contents = bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,to_collate[parent_folder]['zips'][-1]['zip_object_name']).metadata['zip-contents'].split(',')
-                #     except KeyError:
-                #         print(f'No "zip-contents" metadata found for {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}.')
-                # print(existing_zip_contents)
-                # checksum_hash = hashlib.md5(zip_data)
-                # checksum_string = checksum_hash.hexdigest()
-                # print(f'Checksum of zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}: {checksum_string}')
-                # print(f'Checksum of existing zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}: {existing_zip_checksum}')
+    #         if current_objects['METADATA'].isin([these_zip_contents]).any():
+    #             existing_zip_contents = current_objects[current_objects['METADATA'].isin([these_zip_contents])]['METADATA'].values[0]
+    #             # try:
+    #             #     existing_zip_contents = str(bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,''.join([to_collate[parent_folder]['zips'][-1]['zip_object_name'],'.metadata'])).get()['Body'].read().decode('UTF-8')).split(',')
+    #             # except Exception as e:
+    #             #     # print(f'No metadata object found for {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}. Trying object.metadata')
+    #             #     try:
+    #             #         existing_zip_contents = bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,to_collate[parent_folder]['zips'][-1]['zip_object_name']).metadata['zip-contents'].split(',')
+    #             #     except KeyError:
+    #             #         print(f'No "zip-contents" metadata found for {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}.')
+    #             # print(existing_zip_contents)
+    #             # checksum_hash = hashlib.md5(zip_data)
+    #             # checksum_string = checksum_hash.hexdigest()
+    #             # print(f'Checksum of zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}: {checksum_string}')
+    #             # print(f'Checksum of existing zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}: {existing_zip_checksum}')
 
-                # print(zip_contents)
+    #             # print(zip_contents)
                 
-                # if len(existing_zip_contents) == 0:
-                #     print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but no metadata found - reuploading.')
-                if all([x in existing_zip_contents for x in these_zip_contents]):
-                    print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and file lists match - skipping.')
-                    # zip_results[i] = None
-                    del to_collate[parent_folder]
-                    continue
-                else:
-                    print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but file lists do not match - reuploading.')
+    #             # if len(existing_zip_contents) == 0:
+    #             #     print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but no metadata found - reuploading.')
+    #             if all([x in existing_zip_contents for x in these_zip_contents]):
+    #                 print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and file lists match - skipping.')
+    #                 # zip_results[i] = None
+    #                 del to_collate[parent_folder]
+    #                 continue
+    #             else:
+    #                 print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but file lists do not match - reuploading.')
 
 
-            to_collate[parent_folder]['folders'].append(folder)
-            to_collate[parent_folder]['object_names'].append(object_names)
-            to_collate[parent_folder]['folder_files'].append(folder_files)
+    #         to_collate[parent_folder]['folders'].append(folder)
+    #         to_collate[parent_folder]['object_names'].append(object_names)
+    #         to_collate[parent_folder]['folder_files'].append(folder_files)
     
-    # collate folders
-    zip_results = []
-    total_zips = 0
-    if len(to_collate) > 0:
-        # print(f"zips: {to_collate[parent_folder]['zips']}")
-        print(f'Collating {len([to_collate[parent_folder]["folders"] for parent_folder in to_collate.keys()])} folders into zip files.') #{sum([len(x["zips"]) for x in to_collate.keys()])}
-        # print(f'parent_folders: {to_collate.keys()}')
-        # call zip_folder in parallel
-        # print(to_collate)
-        for zip_tuple in to_collate.items():
-            parent_folder = zip_tuple[0]
-            if os.path.abspath(parent_folder) == os.path.abspath(os.sep.join([local_dir,'..'])):
-                continue
-            folders = zip_tuple[1]['folders']
-            folder_files = zip_tuple[1]['folder_files']
-            num_files = sum([len(ff) for ff in folder_files])
-            # print(f'num_files = {num_files}')
-            # print(f'folders: {len(folders)}')
-            # print(f'folder_files: {len(folder_files)}')
-            try:
-                max_filesize = max([max([os.lstat(filename).st_size for filename in ff]) for ff in folder_files])
-                folder_size = sum([sum([os.lstat(filename).st_size for filename in ff]) for ff in folder_files])
-            except ValueError:
-                # no files in folder - likely removed from file list due to previous PermissionError - continue without message
-                continue
-            total_memory = virtual_memory().total * 0.75
-            max_zipsize = total_memory / zip_pool._processes
-            max_files_per_zip = int(np.ceil(max_zipsize / max_filesize))
-            num_zips = int(np.ceil(num_files / max_files_per_zip))
-            # print(f'num_zips = {num_zips}')
-            # print(f'max_zipsize,max_files_per_zip,num_zips: {max_zipsize},{max_files_per_zip},{num_zips}')
-            chunk_subfolders = False
-            if num_zips > len(folders):
-                chunk_subfolders = True
+    # # collate folders
+    # zip_results = []
+    # total_zips = 0
+    # if len(to_collate) > 0:
+    #     # print(f"zips: {to_collate[parent_folder]['zips']}")
+    #     print(f'Collating {len([to_collate[parent_folder]["folders"] for parent_folder in to_collate.keys()])} folders into zip files.') #{sum([len(x["zips"]) for x in to_collate.keys()])}
+    #     # print(f'parent_folders: {to_collate.keys()}')
+    #     # call zip_folder in parallel
+    #     # print(to_collate)
+    #     for zip_tuple in to_collate.items():
+    #         parent_folder = zip_tuple[0]
+    #         if os.path.abspath(parent_folder) == os.path.abspath(os.sep.join([local_dir,'..'])):
+    #             continue
+    #         folders = zip_tuple[1]['folders']
+    #         folder_files = zip_tuple[1]['folder_files']
+    #         num_files = sum([len(ff) for ff in folder_files])
+    #         # print(f'num_files = {num_files}')
+    #         # print(f'folders: {len(folders)}')
+    #         # print(f'folder_files: {len(folder_files)}')
+    #         try:
+    #             max_filesize = max([max([os.lstat(filename).st_size for filename in ff]) for ff in folder_files])
+    #             folder_size = sum([sum([os.lstat(filename).st_size for filename in ff]) for ff in folder_files])
+    #         except ValueError:
+    #             # no files in folder - likely removed from file list due to previous PermissionError - continue without message
+    #             continue
+    #         total_memory = virtual_memory().total * 0.75
+    #         max_zipsize = total_memory / zip_pool._processes
+    #         max_files_per_zip = int(np.ceil(max_zipsize / max_filesize))
+    #         num_zips = int(np.ceil(num_files / max_files_per_zip))
+    #         # print(f'num_zips = {num_zips}')
+    #         # print(f'max_zipsize,max_files_per_zip,num_zips: {max_zipsize},{max_files_per_zip},{num_zips}')
+    #         chunk_subfolders = False
+    #         if num_zips > len(folders):
+    #             chunk_subfolders = True
 
-            if chunk_subfolders:
-                subchunks_files = []
-                for j in range(len(folders)):
-                    for i in range(0, len(folder_files[j]), len(folder_files[j])//num_zips):
-                        # print(f'folder_files[{j}][{i}]: {folder_files[j][i]}')
-                        subchunks_files.append(folder_files[j][i:i+len(folder_files[j])//num_zips])
-                subchunks = [folder for folder in folders for _ in range(len(subchunks_files))]
-                chunks = subchunks
-                chunk_files = subchunks_files
-            else:
-                chunks = folders
-                chunk_files = folder_files
+    #         if chunk_subfolders:
+    #             subchunks_files = []
+    #             for j in range(len(folders)):
+    #                 for i in range(0, len(folder_files[j]), len(folder_files[j])//num_zips):
+    #                     # print(f'folder_files[{j}][{i}]: {folder_files[j][i]}')
+    #                     subchunks_files.append(folder_files[j][i:i+len(folder_files[j])//num_zips])
+    #             subchunks = [folder for folder in folders for _ in range(len(subchunks_files))]
+    #             chunks = subchunks
+    #             chunk_files = subchunks_files
+    #         else:
+    #             chunks = folders
+    #             chunk_files = folder_files
 
-            if len(chunks) != len(chunk_files):
-                print('Error: chunks and chunk_files are not the same length.')
-                sys.exit(1)
-            # print(f'parent_folder above zip(s): {parent_folder}')
-            # print(f'collating into: {len(chunks)} zip file(s)')
-            total_zips += len(chunks)
-            # print(f'parent_folder: {parent_folder}')
-            # print(f'chunks: {chunks}')
-            # print(f'chunk_files: {chunk_files}')
-            # print(f'len(chunks): {len(chunks)}')
-            # print(f'len(chunk_files): {len(chunk_files)}')
-            # print(f'use_compression: {use_compression}')
-            # print(f'dryrun: {dryrun}')
-            # print(f'mem_per_core: {mem_per_core}')
-            # print(f'folder_size: {folder_size}')
-            # for id,chunk in enumerate(zip(chunks,chunk_files)):
-            #     # print(f'chunk {id} contains {len(chunk[0])} folders')
-            for i, args in enumerate(zip(
-                    repeat(parent_folder),
-                    chunks,
-                    chunk_files,
-                    repeat(use_compression),
-                    repeat(dryrun),
-                    [i for i in range(len(chunks))],
-                    repeat(mem_per_core),
-                    )):
-                zip_results.append(
-                    zip_pool.apply_async(
-                        zip_folders,
-                        args=args
-                    )
-                )
-                # if i > nprocs*4/2 and i % nprocs*4/2 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
-                #     for result in results:
-                #         result.get()  # Wait until current processes in pool are finished
+    #         if len(chunks) != len(chunk_files):
+    #             print('Error: chunks and chunk_files are not the same length.')
+    #             sys.exit(1)
+    #         # print(f'parent_folder above zip(s): {parent_folder}')
+    #         # print(f'collating into: {len(chunks)} zip file(s)')
+    #         total_zips += len(chunks)
+    #         # print(f'parent_folder: {parent_folder}')
+    #         # print(f'chunks: {chunks}')
+    #         # print(f'chunk_files: {chunk_files}')
+    #         # print(f'len(chunks): {len(chunks)}')
+    #         # print(f'len(chunk_files): {len(chunk_files)}')
+    #         # print(f'use_compression: {use_compression}')
+    #         # print(f'dryrun: {dryrun}')
+    #         # print(f'mem_per_core: {mem_per_core}')
+    #         # print(f'folder_size: {folder_size}')
+    #         # for id,chunk in enumerate(zip(chunks,chunk_files)):
+    #         #     # print(f'chunk {id} contains {len(chunk[0])} folders')
+    #         for i, args in enumerate(zip(
+    #                 repeat(parent_folder),
+    #                 chunks,
+    #                 chunk_files,
+    #                 repeat(use_compression),
+    #                 repeat(dryrun),
+    #                 [i for i in range(len(chunks))],
+    #                 repeat(mem_per_core),
+    #                 )):
+    #             zip_results.append(
+    #                 zip_pool.apply_async(
+    #                     zip_folders,
+    #                     args=args
+    #                 )
+    #             )
+    #             # if i > nprocs*4/2 and i % nprocs*4/2 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
+    #             #     for result in results:
+    #             #         result.get()  # Wait until current processes in pool are finished
                 
-        zipped = 0
-        uploaded = []
-        zul_results = []
-        total_zips = len(zip_results)
-        while zipped < total_zips:
-            # print(f'Zipped {zipped} of {total_zips} zip files.', flush=True)
-            for i, result in enumerate(zip_results):
-                if result is not None:
-                    if result.ready():
-                        parent_folder, id, zip_data = result.get()
-                        # result = None
-                        # zip_results[i] = None # remove from list to free memory
-                        if (parent_folder,id) in uploaded: # this seems wasteful - zipping has occurred before this point
-                            continue
-                        else:
-                            zipped += 1
-                            uploaded.append((parent_folder,id))
-                            print(f'Zipped {zipped} of {total_zips} zip files.', flush=True)
-                            # print(f'zip size: {len(zip_data)}')
-                            # print(parent_folder, id, uploaded, flush=True)
-                            with zipfile.ZipFile(io.BytesIO(zip_data), 'r') as z:
-                                zip_contents = z.namelist()
-                            # print(f'zip contents: {zip_contents}')
-                            to_collate[parent_folder]['zips'].append({'zip_contents':zip_contents, 'id':id, 'zip_object_name':str(os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated_{id}.zip', local_dir)]))})
+    #     zipped = 0
+    #     uploaded = []
+    #     zul_results = []
+    #     total_zips = len(zip_results)
+    #     while zipped < total_zips:
+    #         # print(f'Zipped {zipped} of {total_zips} zip files.', flush=True)
+    #         for i, result in enumerate(zip_results):
+    #             if result is not None:
+    #                 if result.ready():
+    #                     parent_folder, id, zip_data = result.get()
+    #                     # result = None
+    #                     # zip_results[i] = None # remove from list to free memory
+    #                     if (parent_folder,id) in uploaded: # this seems wasteful - zipping has occurred before this point
+    #                         continue
+    #                     else:
+    #                         zipped += 1
+    #                         uploaded.append((parent_folder,id))
+    #                         print(f'Zipped {zipped} of {total_zips} zip files.', flush=True)
+    #                         # print(f'zip size: {len(zip_data)}')
+    #                         # print(parent_folder, id, uploaded, flush=True)
+    #                         with zipfile.ZipFile(io.BytesIO(zip_data), 'r') as z:
+    #                             zip_contents = z.namelist()
+    #                         # print(f'zip contents: {zip_contents}')
+    #                         to_collate[parent_folder]['zips'].append({'zip_contents':zip_contents, 'id':id, 'zip_object_name':str(os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated_{id}.zip', local_dir)]))})
 
-                            # check if zip_object_name exists in bucket and get its checksum
-                            # if current_objects.isin([to_collate[parent_folder]['zips'][-1]['zip_object_name']]).any():
-                            #     existing_zip_contents = []
-                            #     try:
-                            #         existing_zip_contents = str(bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,''.join([to_collate[parent_folder]['zips'][-1]['zip_object_name'],'.metadata'])).get()['Body'].read().decode('UTF-8')).split(',')
-                            #     except Exception as e:
-                            #         # print(f'No metadata object found for {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}. Trying object.metadata')
-                            #         try:
-                            #             existing_zip_contents = bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,to_collate[parent_folder]['zips'][-1]['zip_object_name']).metadata['zip-contents'].split(',')
-                            #         except KeyError:
-                            #             print(f'No "zip-contents" metadata found for {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}.')
-                            #     # print(existing_zip_contents)
-                            #     # checksum_hash = hashlib.md5(zip_data)
-                            #     # checksum_string = checksum_hash.hexdigest()
-                            #     # print(f'Checksum of zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}: {checksum_string}')
-                            #     # print(f'Checksum of existing zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}: {existing_zip_checksum}')
+    #                         # check if zip_object_name exists in bucket and get its checksum
+    #                         # if current_objects.isin([to_collate[parent_folder]['zips'][-1]['zip_object_name']]).any():
+    #                         #     existing_zip_contents = []
+    #                         #     try:
+    #                         #         existing_zip_contents = str(bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,''.join([to_collate[parent_folder]['zips'][-1]['zip_object_name'],'.metadata'])).get()['Body'].read().decode('UTF-8')).split(',')
+    #                         #     except Exception as e:
+    #                         #         # print(f'No metadata object found for {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}. Trying object.metadata')
+    #                         #         try:
+    #                         #             existing_zip_contents = bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,to_collate[parent_folder]['zips'][-1]['zip_object_name']).metadata['zip-contents'].split(',')
+    #                         #         except KeyError:
+    #                         #             print(f'No "zip-contents" metadata found for {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}.')
+    #                         #     # print(existing_zip_contents)
+    #                         #     # checksum_hash = hashlib.md5(zip_data)
+    #                         #     # checksum_string = checksum_hash.hexdigest()
+    #                         #     # print(f'Checksum of zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}: {checksum_string}')
+    #                         #     # print(f'Checksum of existing zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}: {existing_zip_checksum}')
 
-                            #     # print(zip_contents)
+    #                         #     # print(zip_contents)
                                 
-                            #     if len(existing_zip_contents) == 0:
-                            #         print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but no metadata found - reuploading.')
-                            #     elif all([x in existing_zip_contents for x in zip_contents]):
-                            #         print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and file lists match - skipping.')
-                            #         zip_results[i] = None
-                            #         continue
-                            #     else:
-                            #         print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but file lists do not match - reuploading.')
-                            try:
-                                # upload zipped folders
-                                total_size_uploaded += len(zip_data)
-                                total_files_uploaded += 1
-                                print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
+    #                         #     if len(existing_zip_contents) == 0:
+    #                         #         print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but no metadata found - reuploading.')
+    #                         #     elif all([x in existing_zip_contents for x in zip_contents]):
+    #                         #         print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and file lists match - skipping.')
+    #                         #         zip_results[i] = None
+    #                         #         continue
+    #                         #     else:
+    #                         #         print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but file lists do not match - reuploading.')
+    #                         try:
+    #                             # upload zipped folders
+    #                             total_size_uploaded += len(zip_data)
+    #                             total_files_uploaded += 1
+    #                             print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
 
-                                zul_results.append(collate_ul_pool.apply_async(
-                                    upload_and_callback, args=
-                                        (s3_host,
-                                        access_key,
-                                        secret_key,
-                                        bucket_name,
-                                        parent_folder,
-                                        zip_data,
-                                        to_collate[parent_folder]['zips'][-1]['zip_contents'],
-                                        to_collate[parent_folder]['zips'][-1]['zip_object_name'],
-                                        perform_checksum,
-                                        dryrun,
-                                        processing_start,
-                                        1,
-                                        len(zip_data),
-                                        total_size_uploaded,
-                                        total_files_uploaded,
-                                        True,
-                                        mem_per_core,
-                                        )
-                                ))
-                                zip_uploads.append({'folder':parent_folder,'size':len(zip_data),'object_name':to_collate[parent_folder]['zips'][-1]['zip_object_name'],'uploaded':False}) # removed ,'zip_contents':to_collate[parent_folder]['zips'][-1]['zip_contents']
-                            except BrokenPipeError as e:
-                                print(f'Caught BrokenPipeError: {e}')
-                                # Record the failure
-                                with open('error_log.err', 'a') as f:
-                                    f.write(f'BrokenPipeError: {e}\n')
-                                # Exit gracefully
-                                sys.exit(1)
-                            except Exception as e:
-                                print(f'An unexpected error occurred: {e}')
-                                # Record the failure
-                                with open('error_log.err', 'a') as f:
-                                    f.write(f'Unexpected error: {e}\n')
-                                # Exit gracefully
-                                sys.exit(1)                                
+    #                             zul_results.append(collate_ul_pool.apply_async(
+    #                                 upload_and_callback, args=
+    #                                     (s3_host,
+    #                                     access_key,
+    #                                     secret_key,
+    #                                     bucket_name,
+    #                                     parent_folder,
+    #                                     zip_data,
+    #                                     to_collate[parent_folder]['zips'][-1]['zip_contents'],
+    #                                     to_collate[parent_folder]['zips'][-1]['zip_object_name'],
+    #                                     perform_checksum,
+    #                                     dryrun,
+    #                                     processing_start,
+    #                                     1,
+    #                                     len(zip_data),
+    #                                     total_size_uploaded,
+    #                                     total_files_uploaded,
+    #                                     True,
+    #                                     mem_per_core,
+    #                                     )
+    #                             ))
+    #                             zip_uploads.append({'folder':parent_folder,'size':len(zip_data),'object_name':to_collate[parent_folder]['zips'][-1]['zip_object_name'],'uploaded':False}) # removed ,'zip_contents':to_collate[parent_folder]['zips'][-1]['zip_contents']
+    #                         except BrokenPipeError as e:
+    #                             print(f'Caught BrokenPipeError: {e}')
+    #                             # Record the failure
+    #                             with open('error_log.err', 'a') as f:
+    #                                 f.write(f'BrokenPipeError: {e}\n')
+    #                             # Exit gracefully
+    #                             sys.exit(1)
+    #                         except Exception as e:
+    #                             print(f'An unexpected error occurred: {e}')
+    #                             # Record the failure
+    #                             with open('error_log.err', 'a') as f:
+    #                                 f.write(f'Unexpected error: {e}\n')
+    #                             # Exit gracefully
+    #                             sys.exit(1)                                
     
-    pool.close()
+    # pool.close()
     # pool.join()
-    if global_collate:
-        zip_pool.close()
-        # zip_pool.join()
-        collate_ul_pool.close()
-        # collate_ul_pool.join()
+    # if global_collate:
+    #     zip_pool.close()
+    #     # zip_pool.join()
+    #     collate_ul_pool.close()
+    #     # collate_ul_pool.join()
     
-    gc.collect()
+    # gc.collect()
 
     ####
     # Monitor upload tasks
     ####
 
-    waited_time = 0       
-    failed = []                     
-    while True:
-        if global_collate:
-            all_zips_uploaded = all([result.ready() for result in zul_results])
-        all_files_uploaded = all([result.ready() for result in results])
-        if all_files_uploaded:
-            if global_collate:
-                if all_zips_uploaded:
-                    break
-            else:
-                break
-        else:
-            for i, result in enumerate(results):
-                if not result.ready():
-                    # print(f'{uploads[i]}')
-                    if waited_time >= 200: # short timeout for testing
-                        failed.append(uploads[i])
-                        # print(f'WARNING: Removing {uploads[i]} - problem uploading file.')
-                else:
-                    uploads[i]['uploaded'] = True
-                    # uploads[i]['folder_files'] = None # free up memory
-                    # result = None
-                if not all_files_uploaded and not global_collate:
-                    print(f'Waiting for {len([result for result in results if not result.ready()])} individual uploads to complete'+''.join(['.' for _ in range(waited_time//5)]), end='\r')
-            if global_collate:
-                if not all_zips_uploaded:
-                    print(f'Waiting for {len([result for result in results if not result.ready()])} individual uploads and {len([result for result in zul_results if not result.ready()])} zip uploads to complete'+''.join(['.' for _ in range(waited_time//5)]), end='\r')
-                    for i, result in enumerate(zul_results):
-                        if not result.ready():
-                            # print(f'{zip_uploads[i]}')
-                            if waited_time >= 200:
-                                failed.append(zip_uploads[i])
-                        else:
-                            zip_uploads[i]['uploaded'] = True
-                            # zip_uploads[i]['zip_contents'] = None # free up memory
-                            # result = None
-        gc.collect()
+    # waited_time = 0       
+    # failed = []                     
+    # while True:
+    #     if global_collate:
+    #         all_zips_uploaded = all([result.ready() for result in zul_results])
+    #     all_files_uploaded = all([result.ready() for result in results])
+    #     if all_files_uploaded:
+    #         if global_collate:
+    #             if all_zips_uploaded:
+    #                 break
+    #         else:
+    #             break
+    #     else:
+    #         for i, result in enumerate(results):
+    #             if not result.ready():
+    #                 # print(f'{uploads[i]}')
+    #                 if waited_time >= 200: # short timeout for testing
+    #                     failed.append(uploads[i])
+    #                     # print(f'WARNING: Removing {uploads[i]} - problem uploading file.')
+    #             else:
+    #                 uploads[i]['uploaded'] = True
+    #                 # uploads[i]['folder_files'] = None # free up memory
+    #                 # result = None
+    #             if not all_files_uploaded and not global_collate:
+    #                 print(f'Waiting for {len([result for result in results if not result.ready()])} individual uploads to complete'+''.join(['.' for _ in range(waited_time//5)]), end='\r')
+    #         if global_collate:
+    #             if not all_zips_uploaded:
+    #                 print(f'Waiting for {len([result for result in results if not result.ready()])} individual uploads and {len([result for result in zul_results if not result.ready()])} zip uploads to complete'+''.join(['.' for _ in range(waited_time//5)]), end='\r')
+    #                 for i, result in enumerate(zul_results):
+    #                     if not result.ready():
+    #                         # print(f'{zip_uploads[i]}')
+    #                         if waited_time >= 200:
+    #                             failed.append(zip_uploads[i])
+    #                     else:
+    #                         zip_uploads[i]['uploaded'] = True
+    #                         # zip_uploads[i]['zip_contents'] = None # free up memory
+    #                         # result = None
+    #     gc.collect()
                 
-        time.sleep(5)
-        waited_time += 5
-        if waited_time >= 250:
-            failed = remove_duplicates(failed)
-            print(f'WARNING: Timeout reached. Exiting.')
-            print(f'Failed uploads: {failed}')
-            pool.terminate()
-            if global_collate:
-                collate_ul_pool.terminate()
-            break
+    #     time.sleep(5)
+    #     waited_time += 5
+    #     if waited_time >= 250:
+    #         failed = remove_duplicates(failed)
+    #         print(f'WARNING: Timeout reached. Exiting.')
+    #         print(f'Failed uploads: {failed}')
+    #         pool.terminate()
+    #         if global_collate:
+    #             collate_ul_pool.terminate()
+    #         break
     
-    # pool.close()
-    pool.join()
-    if global_collate:
-        # zip_pool.close()
-        zip_pool.join()
-        # collate_ul_pool.close()
-        collate_ul_pool.join()
-    gc.collect()
+    # # pool.close()
+    # pool.join()
+    # if global_collate:
+    #     # zip_pool.close()
+    #     zip_pool.join()
+    #     # collate_ul_pool.close()
+    #     collate_ul_pool.join()
+    # gc.collect()
 
 # # Go!
 if __name__ == '__main__':
