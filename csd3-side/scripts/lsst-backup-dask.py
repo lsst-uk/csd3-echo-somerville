@@ -916,7 +916,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             for f in upload_futures+zul_futures:
                 if 'exception' in f.status and f not in failed:
                     failed.append(f)
-            if 'pending' not in in [f.status for f in zip_futures+upload_futures+zul_futures]:
+            if 'pending' not in [f.status for f in zip_futures+upload_futures+zul_futures]:
                 break
             sleep(5)
             # for zip_future in zip_futures:
