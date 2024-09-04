@@ -1263,6 +1263,9 @@ if __name__ == '__main__':
         warnings.filterwarnings('ignore')
         process_files(s3_host,access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, perform_checksum, dryrun, log, global_collate, use_compression, client)
     
+    client.close()
+    print(f'Dask Client closed at {datetime.now()}, elapsed time = {datetime.now() - start}')
+
     # Complete
     final_time = datetime.now() - start
     final_time_seconds = final_time.seconds + final_time.microseconds / 1e6
@@ -1286,7 +1289,7 @@ if __name__ == '__main__':
                         mem_per_core,
                         )
     
-    final_size = log_dd["FILE_SIZE"].sum() / 1024**2
+    final_size = log["FILE_SIZE"].sum() / 1024**2
     try:
         final_transfer_speed = final_size / final_time_seconds
         
