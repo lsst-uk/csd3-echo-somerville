@@ -708,94 +708,94 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             # release block of files if the list for results is greater than 4 times the number of processes
             # gc.collect()
 
-    #     elif len(folder_files) > 0 and global_collate: # small files in folder
-    #         folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
-    #         parent_folder = os.path.abspath(os.path.join(folder, os.pardir))
-    #         print(f'parent_folder: {parent_folder}')
-    #         # possibly pass if parent_folder == local_dir or parent_folder contains '..'
-    #         if parent_folder not in to_collate.keys():
-    #             #initialise parent folder
-    #             to_collate[parent_folder] = {'parent_folder':parent_folder,'folders':[],'object_names':[], 'folder_files':[], 'zips':[{'zip_data':None, 'id':None, 'zip_object_name':''}]} # store folders to collate
+        elif len(folder_files) > 0 and global_collate: # small files in folder
+            folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
+            parent_folder = os.path.abspath(os.path.join(folder, os.pardir))
+            print(f'parent_folder: {parent_folder}')
+            # possibly pass if parent_folder == local_dir or parent_folder contains '..'
+            if parent_folder not in to_collate.keys():
+                #initialise parent folder
+                to_collate[parent_folder] = {'parent_folder':parent_folder,'folders':[],'object_names':[], 'folder_files':[], 'zips':[{'zip_data':None, 'id':None, 'zip_object_name':''}]} # store folders to collate
             
 
-    #         #Don't remove existing files from object_names?
-    #         # for oni, on in enumerate(object_names):
-    #         #     if current_objects.isin([on]).any() or current_objects.isin([f'{on}.symlink']).any():
-    #         #         object_names.remove(on)
-    #         #         print(f'Removing {on} from object_names - previously uploaded.')
-    #         #         del folder_files[oni]
-    #         #     else:
-    #         #         print(f'Keeping {on} in object_names - not previously uploaded.')
+            #Don't remove existing files from object_names?
+            # for oni, on in enumerate(object_names):
+            #     if current_objects.isin([on]).any() or current_objects.isin([f'{on}.symlink']).any():
+            #         object_names.remove(on)
+            #         print(f'Removing {on} from object_names - previously uploaded.')
+            #         del folder_files[oni]
+            #     else:
+            #         print(f'Keeping {on} in object_names - not previously uploaded.')
 
-    #         pre_linkcheck_file_count = len(object_names)
-    #         if init_len - pre_linkcheck_file_count > 0:
-    #             print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.')
-    #         # print(f'folder_files: {folder_files}')
-    #         # print(f'object_names: {object_names}')
-    #         # folder_start = datetime.now()
+            pre_linkcheck_file_count = len(object_names)
+            if init_len - pre_linkcheck_file_count > 0:
+                print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.')
+            # print(f'folder_files: {folder_files}')
+            # print(f'object_names: {object_names}')
+            # folder_start = datetime.now()
             
-    #         # print('checking for symlinks')
-    #         #always do this AFTER removing "current_objects" to avoid re-uploading
-    #         symlink_targets = []
-    #         symlink_obj_names = []
-    #         for i in range(len(folder_files)):
-    #             if os.path.islink(folder_files[i]):
-    #                 #rename link in object_names
-    #                 symlink_obj_name = object_names[i]
-    #                 object_names[i] = '.'.join([object_names[i], 'symlink'])
-    #                 #add symlink target to symlink_targets list
-    #                 symlink_targets.append(os.path.realpath(folder_files[i]))
-    #                 #add real file to symlink_obj_names list
-    #                 symlink_obj_names.append(symlink_obj_name)
+            # print('checking for symlinks')
+            #always do this AFTER removing "current_objects" to avoid re-uploading
+            symlink_targets = []
+            symlink_obj_names = []
+            for i in range(len(folder_files)):
+                if os.path.islink(folder_files[i]):
+                    #rename link in object_names
+                    symlink_obj_name = object_names[i]
+                    object_names[i] = '.'.join([object_names[i], 'symlink'])
+                    #add symlink target to symlink_targets list
+                    symlink_targets.append(os.path.realpath(folder_files[i]))
+                    #add real file to symlink_obj_names list
+                    symlink_obj_names.append(symlink_obj_name)
 
-    #         # append symlink_targets and symlink_obj_names to folder_files and object_names
+            # append symlink_targets and symlink_obj_names to folder_files and object_names
 
-    #         folder_files.extend(symlink_targets)
-    #         object_names.extend(symlink_obj_names)
+            folder_files.extend(symlink_targets)
+            object_names.extend(symlink_obj_names)
 
-    #         file_count = len(object_names)
-    #         # folder_end = datetime.now()
+            file_count = len(object_names)
+            # folder_end = datetime.now()
             
-    #         # print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
-    #         # print(f'folder {folder} has {len(files)} files (total size: {folder_files_size/1024**2:.0f} MiB); will be uploaded as part of a collated upload.')
+            # print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
+            # print(f'folder {folder} has {len(files)} files (total size: {folder_files_size/1024**2:.0f} MiB); will be uploaded as part of a collated upload.')
             
-    #         ###############################
-    #         # CHECK HERE FOR ZIP CONTENTS #
-    #         ###############################
-    #         these_zip_contents = [ff.replace(parent_folder+'/','') for ff in folder_files]
+            ###############################
+            # CHECK HERE FOR ZIP CONTENTS #
+            ###############################
+            these_zip_contents = [ff.replace(parent_folder+'/','') for ff in folder_files]
 
-    #         if current_objects['METADATA'].isin([these_zip_contents]).any():
-    #             existing_zip_contents = current_objects[current_objects['METADATA'].isin([these_zip_contents])]['METADATA'].values[0]
-    #             # try:
-    #             #     existing_zip_contents = str(bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,''.join([to_collate[parent_folder]['zips'][-1]['zip_object_name'],'.metadata'])).get()['Body'].read().decode('UTF-8')).split(',')
-    #             # except Exception as e:
-    #             #     # print(f'No metadata object found for {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}. Trying object.metadata')
-    #             #     try:
-    #             #         existing_zip_contents = bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,to_collate[parent_folder]['zips'][-1]['zip_object_name']).metadata['zip-contents'].split(',')
-    #             #     except KeyError:
-    #             #         print(f'No "zip-contents" metadata found for {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}.')
-    #             # print(existing_zip_contents)
-    #             # checksum_hash = hashlib.md5(zip_data)
-    #             # checksum_string = checksum_hash.hexdigest()
-    #             # print(f'Checksum of zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}: {checksum_string}')
-    #             # print(f'Checksum of existing zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}: {existing_zip_checksum}')
+            if current_objects['METADATA'].isin([these_zip_contents]).any():
+                existing_zip_contents = current_objects[current_objects['METADATA'].isin([these_zip_contents])]['METADATA'].values[0]
+                # try:
+                #     existing_zip_contents = str(bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,''.join([to_collate[parent_folder]['zips'][-1]['zip_object_name'],'.metadata'])).get()['Body'].read().decode('UTF-8')).split(',')
+                # except Exception as e:
+                #     # print(f'No metadata object found for {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}. Trying object.metadata')
+                #     try:
+                #         existing_zip_contents = bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,to_collate[parent_folder]['zips'][-1]['zip_object_name']).metadata['zip-contents'].split(',')
+                #     except KeyError:
+                #         print(f'No "zip-contents" metadata found for {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}.')
+                # print(existing_zip_contents)
+                # checksum_hash = hashlib.md5(zip_data)
+                # checksum_string = checksum_hash.hexdigest()
+                # print(f'Checksum of zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}: {checksum_string}')
+                # print(f'Checksum of existing zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}: {existing_zip_checksum}')
 
-    #             # print(zip_contents)
+                # print(zip_contents)
                 
-    #             # if len(existing_zip_contents) == 0:
-    #             #     print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but no metadata found - reuploading.')
-    #             if all([x in existing_zip_contents for x in these_zip_contents]):
-    #                 print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and file lists match - skipping.')
-    #                 # zip_results[i] = None
-    #                 del to_collate[parent_folder]
-    #                 continue
-    #             else:
-    #                 print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but file lists do not match - reuploading.')
+                # if len(existing_zip_contents) == 0:
+                #     print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but no metadata found - reuploading.')
+                if all([x in existing_zip_contents for x in these_zip_contents]):
+                    print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and file lists match - skipping.')
+                    # zip_results[i] = None
+                    del to_collate[parent_folder]
+                    continue
+                else:
+                    print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but file lists do not match - reuploading.')
 
 
-    #         to_collate[parent_folder]['folders'].append(folder)
-    #         to_collate[parent_folder]['object_names'].append(object_names)
-    #         to_collate[parent_folder]['folder_files'].append(folder_files)
+            to_collate[parent_folder]['folders'].append(folder)
+            to_collate[parent_folder]['object_names'].append(object_names)
+            to_collate[parent_folder]['folder_files'].append(folder_files)
     
     # # collate folders
     # zip_results = []
@@ -1048,6 +1048,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     #     # collate_ul_pool.close()
     #     collate_ul_pool.join()
     # gc.collect()
+    print(to_collate)
 
 # # Go!
 if __name__ == '__main__':
