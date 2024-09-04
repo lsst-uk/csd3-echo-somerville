@@ -514,7 +514,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     client.scatter([s3_host, access_key, secret_key, bucket_name, perform_checksum, dryrun, current_objects], broadcast=True)
         
     #recursive loop over local folder
-    results = []
+    # results = []
     to_collate = {} # store folders to collate
     total_all_folders = 0
     total_all_files = 0
@@ -684,7 +684,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         repeat(False),
                         repeat(mem_per_core),
                     )):
-                    results.append(client.submit(upload_and_callback, args=args))
+                    client.submit(upload_and_callback, *args)
                     uploads.append({'folder':args[4],'folder_size':args[12],'file_size':os.lstat(folder_files[i]).st_size,'file':args[5],'object':args[7],'uploaded':False})
             except BrokenPipeError as e:
                 print(f'Caught BrokenPipeError: {e}')
@@ -1224,7 +1224,6 @@ if __name__ == '__main__':
     current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, bucket=bucket)
 
     print(current_objects['METADATA'].dropna())
-    # client.scatter(current_objects)
 
     ## check if log exists in the bucket, and download it and append top it if it does
     # TODO: integrate this with local check for log file
