@@ -1048,7 +1048,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     #     # collate_ul_pool.close()
     #     collate_ul_pool.join()
     # gc.collect()
-    print(to_collate)
 
 # # Go!
 if __name__ == '__main__':
