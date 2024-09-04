@@ -1161,7 +1161,7 @@ if __name__ == '__main__':
     ############################
     #        Dask Setup        #
     ############################
-    client_memory = virtual_memory().total//10*9
+    client_memory = virtual_memory().total
     mem_per_worker = virtual_memory().total//nprocs
     client = Client(n_workers=nprocs//threads,threads_per_worker=threads,memory_limit=client_memory) #,silence_logs=ERROR
 
