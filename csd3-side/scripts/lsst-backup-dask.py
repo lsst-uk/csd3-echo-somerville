@@ -521,8 +521,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     total_all_files = 0
     folder_num = 0
     file_num = 0
-    uploads = []
-    zip_uploads = []
     for folder, sub_folders, files in os.walk(local_dir, topdown=True):
         total_all_folders += 1
         total_all_files += len(files)
@@ -797,94 +795,92 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             to_collate[parent_folder]['object_names'].append(object_names)
             to_collate[parent_folder]['folder_files'].append(folder_files)
     
-    # # collate folders
-    # zip_results = []
-    # total_zips = 0
-    # if len(to_collate) > 0:
-    #     # print(f"zips: {to_collate[parent_folder]['zips']}")
-    #     print(f'Collating {len([to_collate[parent_folder]["folders"] for parent_folder in to_collate.keys()])} folders into zip files.') #{sum([len(x["zips"]) for x in to_collate.keys()])}
-    #     # print(f'parent_folders: {to_collate.keys()}')
-    #     # call zip_folder in parallel
-    #     # print(to_collate)
-    #     for zip_tuple in to_collate.items():
-    #         parent_folder = zip_tuple[0]
-    #         if os.path.abspath(parent_folder) == os.path.abspath(os.sep.join([local_dir,'..'])):
-    #             continue
-    #         folders = zip_tuple[1]['folders']
-    #         folder_files = zip_tuple[1]['folder_files']
-    #         num_files = sum([len(ff) for ff in folder_files])
-    #         # print(f'num_files = {num_files}')
-    #         # print(f'folders: {len(folders)}')
-    #         # print(f'folder_files: {len(folder_files)}')
-    #         try:
-    #             max_filesize = max([max([os.lstat(filename).st_size for filename in ff]) for ff in folder_files])
-    #             folder_size = sum([sum([os.lstat(filename).st_size for filename in ff]) for ff in folder_files])
-    #         except ValueError:
-    #             # no files in folder - likely removed from file list due to previous PermissionError - continue without message
-    #             continue
-    #         total_memory = virtual_memory().total * 0.75
-    #         max_zipsize = total_memory / zip_pool._processes
-    #         max_files_per_zip = int(np.ceil(max_zipsize / max_filesize))
-    #         num_zips = int(np.ceil(num_files / max_files_per_zip))
-    #         # print(f'num_zips = {num_zips}')
-    #         # print(f'max_zipsize,max_files_per_zip,num_zips: {max_zipsize},{max_files_per_zip},{num_zips}')
-    #         chunk_subfolders = False
-    #         if num_zips > len(folders):
-    #             chunk_subfolders = True
+    # collate folders
+    total_zips = 0
+    if len(to_collate) > 0:
+        # print(f"zips: {to_collate[parent_folder]['zips']}")
+        print(f'Collating {len([to_collate[parent_folder]["folders"] for parent_folder in to_collate.keys()])} folders into zip files.') #{sum([len(x["zips"]) for x in to_collate.keys()])}
+        # print(f'parent_folders: {to_collate.keys()}')
+        # call zip_folder in parallel
+        # print(to_collate)
+        for zip_tuple in to_collate.items():
+            parent_folder = zip_tuple[0]
+            if os.path.abspath(parent_folder) == os.path.abspath(os.sep.join([local_dir,'..'])):
+                continue
+            folders = zip_tuple[1]['folders']
+            folder_files = zip_tuple[1]['folder_files']
+            num_files = sum([len(ff) for ff in folder_files])
+            # print(f'num_files = {num_files}')
+            # print(f'folders: {len(folders)}')
+            # print(f'folder_files: {len(folder_files)}')
+            try:
+                max_filesize = max([max([os.lstat(filename).st_size for filename in ff]) for ff in folder_files])
+                folder_size = sum([sum([os.lstat(filename).st_size for filename in ff]) for ff in folder_files])
+            except ValueError:
+                # no files in folder - likely removed from file list due to previous PermissionError - continue without message
+                continue
+            total_memory = virtual_memory().total * 0.75
+            client.memory = total_memory
+            max_zipsize = total_memory / zip_pool._processes
+            max_files_per_zip = int(np.ceil(max_zipsize / max_filesize))
+            num_zips = int(np.ceil(num_files / max_files_per_zip))
+            # print(f'num_zips = {num_zips}')
+            # print(f'max_zipsize,max_files_per_zip,num_zips: {max_zipsize},{max_files_per_zip},{num_zips}')
+            chunk_subfolders = False
+            if num_zips > len(folders):
+                chunk_subfolders = True
 
-    #         if chunk_subfolders:
-    #             subchunks_files = []
-    #             for j in range(len(folders)):
-    #                 for i in range(0, len(folder_files[j]), len(folder_files[j])//num_zips):
-    #                     # print(f'folder_files[{j}][{i}]: {folder_files[j][i]}')
-    #                     subchunks_files.append(folder_files[j][i:i+len(folder_files[j])//num_zips])
-    #             subchunks = [folder for folder in folders for _ in range(len(subchunks_files))]
-    #             chunks = subchunks
-    #             chunk_files = subchunks_files
-    #         else:
-    #             chunks = folders
-    #             chunk_files = folder_files
+            if chunk_subfolders:
+                subchunks_files = []
+                for j in range(len(folders)):
+                    for i in range(0, len(folder_files[j]), len(folder_files[j])//num_zips):
+                        # print(f'folder_files[{j}][{i}]: {folder_files[j][i]}')
+                        subchunks_files.append(folder_files[j][i:i+len(folder_files[j])//num_zips])
+                subchunks = [folder for folder in folders for _ in range(len(subchunks_files))]
+                chunks = subchunks
+                chunk_files = subchunks_files
+            else:
+                chunks = folders
+                chunk_files = folder_files
 
-    #         if len(chunks) != len(chunk_files):
-    #             print('Error: chunks and chunk_files are not the same length.')
-    #             sys.exit(1)
-    #         # print(f'parent_folder above zip(s): {parent_folder}')
-    #         # print(f'collating into: {len(chunks)} zip file(s)')
-    #         total_zips += len(chunks)
-    #         # print(f'parent_folder: {parent_folder}')
-    #         # print(f'chunks: {chunks}')
-    #         # print(f'chunk_files: {chunk_files}')
-    #         # print(f'len(chunks): {len(chunks)}')
-    #         # print(f'len(chunk_files): {len(chunk_files)}')
-    #         # print(f'use_compression: {use_compression}')
-    #         # print(f'dryrun: {dryrun}')
-    #         # print(f'mem_per_core: {mem_per_core}')
-    #         # print(f'folder_size: {folder_size}')
-    #         # for id,chunk in enumerate(zip(chunks,chunk_files)):
-    #         #     # print(f'chunk {id} contains {len(chunk[0])} folders')
-    #         for i, args in enumerate(zip(
-    #                 repeat(parent_folder),
-    #                 chunks,
-    #                 chunk_files,
-    #                 repeat(use_compression),
-    #                 repeat(dryrun),
-    #                 [i for i in range(len(chunks))],
-    #                 repeat(mem_per_core),
-    #                 )):
-    #             zip_results.append(
-    #                 zip_pool.apply_async(
-    #                     zip_folders,
-    #                     args=args
-    #                 )
-    #             )
-    #             # if i > nprocs*4/2 and i % nprocs*4/2 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
-    #             #     for result in results:
-    #             #         result.get()  # Wait until current processes in pool are finished
+            if len(chunks) != len(chunk_files):
+                print('Error: chunks and chunk_files are not the same length.')
+                sys.exit(1)
+            # print(f'parent_folder above zip(s): {parent_folder}')
+            # print(f'collating into: {len(chunks)} zip file(s)')
+            total_zips += len(chunks)
+            # print(f'parent_folder: {parent_folder}')
+            # print(f'chunks: {chunks}')
+            # print(f'chunk_files: {chunk_files}')
+            # print(f'len(chunks): {len(chunks)}')
+            # print(f'len(chunk_files): {len(chunk_files)}')
+            # print(f'use_compression: {use_compression}')
+            # print(f'dryrun: {dryrun}')
+            # print(f'mem_per_core: {mem_per_core}')
+            # print(f'folder_size: {folder_size}')
+            # for id,chunk in enumerate(zip(chunks,chunk_files)):
+            #     # print(f'chunk {id} contains {len(chunk[0])} folders')
+            for i, args in enumerate(zip(
+                    repeat(parent_folder),
+                    chunks,
+                    chunk_files,
+                    repeat(use_compression),
+                    repeat(dryrun),
+                    [i for i in range(len(chunks))],
+                    repeat(mem_per_core),
+                    )):
+                client.submit(
+                    zip_folders,
+                    *args
+                )
+                # if i > nprocs*4/2 and i % nprocs*4/2 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
+                #     for result in results:
+                #         result.get()  # Wait until current processes in pool are finished
                 
-    #     zipped = 0
-    #     uploaded = []
-    #     zul_results = []
-    #     total_zips = len(zip_results)
+        zipped = 0
+        uploaded = []
+        zul_results = []
+        total_zips = len(zip_results)
     #     while zipped < total_zips:
     #         # print(f'Zipped {zipped} of {total_zips} zip files.', flush=True)
     #         for i, result in enumerate(zip_results):
@@ -1075,7 +1071,6 @@ if __name__ == '__main__':
     parser.add_argument('--no-checksum', default=False, action='store_true', help='Do not perform checksum validation during upload.')
     parser.add_argument('--no-compression', default=False, action='store_true', help='Do not use compression when collating files.')
     parser.add_argument('--save-config', default=False, action='store_true', help='Save the configuration to the provided config file path and exit.')
-    parser.add_argument('--mem-per-core', type=int, help='Memory per core in MiB. (0 = no limit - max_vmem/nprocs will be used)', default=0)
     args = parser.parse_args()
 
     if not args.config_file and not (args.bucket_name and args.local_path and args.S3_prefix):
@@ -1113,8 +1108,6 @@ if __name__ == '__main__':
                     args.no_checksum = config['no_checksum']
                 if 'no_compression' in config.keys() and not args.no_compression:
                     args.no_compression = config['no_compression']
-                if 'mem_per_core' in config.keys() and not args.mem_per_core:
-                    args.mem_per_core = config['mem_per_core']
     if args.save_config and not args.config_file:
         parser.error('A config file must be provided to save the configuration.')
 
@@ -1132,7 +1125,6 @@ if __name__ == '__main__':
     perform_checksum = not args.no_checksum # internally, flag turns *on* checksumming, but for user no-checksum  turns it off - makes flag more intuitive
     dryrun = args.dryrun
     use_compression = not args.no_compression # internally, flag turns *on* compression, but for user no-compression turns it off - makes flag more intuitive
-    mem_per_core = 1024**3 # fix as 1 GiB
     
     if args.exclude:
         exclude = pd.Series(args.exclude)
@@ -1155,7 +1147,6 @@ if __name__ == '__main__':
                 'dryrun': dryrun,
                 'no_checksum': not perform_checksum,
                 'no_compression': not use_compression,
-                'mem_per_core': mem_per_core / 1024**2
                 }, f)
         sys.exit(0)
 
@@ -1233,8 +1224,9 @@ if __name__ == '__main__':
     ############################
     #        Dask Setup        #
     ############################
-
-    client = Client(n_workers=nprocs//threads,threads_per_worker=threads,silence_logs=ERROR) #,memory_limit=mem_per_core*2)
+    
+    client = Client(n_workers=nprocs//threads,threads_per_worker=threads,silence_logs=ERROR,memory_limit=virtual_memory().total//nprocs) #,memory_limit=mem_per_core*2)
+    client.memory_limit
     print(f'Dask Client: {client}', flush=True)
 
     current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
