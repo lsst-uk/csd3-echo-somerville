@@ -498,7 +498,7 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, fi
     with open(log, 'a') as logfile:
         logfile.write(f'{result}\n')
     
-    del file_name_or_data
+    # del file_name_or_data
     gc.collect()
 
     return None
@@ -893,6 +893,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 
         failed = []
         while True:
+            gc.collect()
             print(f'Zipped {sum([f.done() for f in zip_futures])} of {len(zip_futures)} zip files.', flush=True)
             print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
             print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
@@ -923,7 +924,24 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     total_size_uploaded += len(zip_data)
                     total_files_uploaded += 1
                     print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
-
+                    #s3_host, access_key, secret_key, bucket_name, folder, file_data, zip_contents, object_key, perform_checksum, dryrun, mem_per_worker
+                    #s3_host, 
+                    # access_key, 
+                    # secret_key, 
+                    # bucket_name, 
+                    # folder, 
+                    # file_name_or_data, 
+                    # zip_contents, 
+                    # object_key, 
+                    # perform_checksum,
+                    #  dryrun, 
+                    # processing_start, 
+                    # file_count, 
+                    # folder_files_size, 
+                    # total_size_uploaded, 
+                    # total_files_uploaded, 
+                    # collated, 
+                    # mem_per_worker
                     zul_futures.append(client.submit(upload_and_callback, 
                             s3_host,
                             access_key,
