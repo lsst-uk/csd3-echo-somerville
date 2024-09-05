@@ -60,10 +60,10 @@ def find_metadata(key: str, bucket) -> List[str]:
         existing_zip_contents = None
         if key.endswith('.zip'):
             try:
-                existing_zip_contents = str(bucket.Object(''.join([key,'.metadata'])).get()['Body'].read().decode('UTF-8')).split('\0') # use null byte as separator
+                existing_zip_contents = str(bucket.Object(''.join([key,'.metadata'])).get()['Body'].read().decode('UTF-8')).split('|') # use | as separator
             except Exception as e:
                 try:
-                    existing_zip_contents = bucket.Object(key).metadata['zip-contents'].split('\0') # use null byte as separator
+                    existing_zip_contents = bucket.Object(key).metadata['zip-contents'].split('|') # use | as separator
                 except KeyError:
                     return None
             if existing_zip_contents:
@@ -397,7 +397,7 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                     - Upload the file to the bucket
                     """
                     print(f'Uploading zip file "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key}')
-                    metadata_value = '\0'.join(zip_contents) # use null byte as separator
+                    metadata_value = '|'.join(zip_contents) # use | as separator
                     metadata_size = len(metadata_value.encode('utf-8'))
 
                     # print(f'Metadata size: {metadata_size} bytes', flush=True)
@@ -418,7 +418,7 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                 exit(1)
         else:
             try:
-                bucket.put_object(Body=file_data, Key=object_key, Metadata={'zip-contents': '\0'.join(zip_contents)}) # use null byte as separator
+                bucket.put_object(Body=file_data, Key=object_key, Metadata={'zip-contents': '|'.join(zip_contents)}) # use | as separator
             except Exception as e:
                 print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
                 exit(1)
