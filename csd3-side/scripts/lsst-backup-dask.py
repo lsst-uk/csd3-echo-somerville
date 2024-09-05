@@ -356,7 +356,7 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                     - Use multipart upload for large files
                     """
                     # Do metadata first so its URI can be added to up_upload on initiation
-                    metadata_value = ';'.join(zip_contents)
+                    metadata_value = '\0'.join(zip_contents) # use null byte as separator
                     metadata_object_key = object_key + '.metadata'
                     bucket.put_object(Body=metadata_value, Key=metadata_object_key, Metadata={'corresponding-zip': object_key})
                     metadata = {'zip-contents-object': metadata_object_key}
@@ -393,7 +393,7 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                     - Upload the file to the bucket
                     """
                     print(f'Uploading zip file "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key}')
-                    metadata_value = ';'.join(zip_contents)
+                    metadata_value = '\0'.join(zip_contents) # use null byte as separator
                     metadata_size = len(metadata_value.encode('utf-8'))
 
                     # print(f'Metadata size: {metadata_size} bytes', flush=True)
@@ -414,7 +414,7 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                 exit(1)
         else:
             try:
-                bucket.put_object(Body=file_data, Key=object_key, Metadata={'zip-contents': ';'.join(zip_contents)})
+                bucket.put_object(Body=file_data, Key=object_key, Metadata={'zip-contents': '\0'.join(zip_contents)}) # use null byte as separator
             except Exception as e:
                 print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
                 exit(1)
