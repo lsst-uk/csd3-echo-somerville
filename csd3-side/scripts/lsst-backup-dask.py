@@ -1038,7 +1038,7 @@ if __name__ == '__main__':
                 if 'threads_per_worker' in config.keys() and not args.threads_per_worker:
                     args.threads_per_worker = config['threads_per_worker']
                 if 'threads_per_worker' not in config.keys() and not args.threads_per_worker: # required to allow default value of 4 as this overrides "default" in add_argument
-                    args.threads_per_worker = 4
+                    args.threads_per_worker = 2
                 if 'no_collate' in config.keys() and not args.no_collate:
                     args.no_collate = config['no_collate']
                 if 'dryrun' in config.keys() and not args.dryrun:
