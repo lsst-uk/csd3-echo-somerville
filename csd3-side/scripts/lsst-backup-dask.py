@@ -1057,6 +1057,7 @@ if __name__ == '__main__':
     sub_dirs = args.S3_folder
     print(f'sub_dirs {sub_dirs}')
     nprocs = args.nprocs 
+    print(f'THREADS PER PROCESS: {args.threads_per_process}')
     threads = args.threads_per_process
     global_collate = not args.no_collate # internally, flag turns *on* collate, but for user no-collate turns it off - makes flag more intuitive
     perform_checksum = not args.no_checksum # internally, flag turns *on* checksumming, but for user no-checksum  turns it off - makes flag more intuitive
