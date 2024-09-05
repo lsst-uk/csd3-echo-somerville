@@ -60,10 +60,10 @@ def find_metadata(key: str, bucket) -> List[str]:
         existing_zip_contents = None
         if key.endswith('.zip'):
             try:
-                existing_zip_contents = str(bucket.Object(''.join([key,'.metadata'])).get()['Body'].read().decode('UTF-8')).split(';')
+                existing_zip_contents = str(bucket.Object(''.join([key,'.metadata'])).get()['Body'].read().decode('UTF-8')).split('\0') # use null byte as separator
             except Exception as e:
                 try:
-                    existing_zip_contents = bucket.Object(key).metadata['zip-contents'].split(';')
+                    existing_zip_contents = bucket.Object(key).metadata['zip-contents'].split('\0') # use null byte as separator
                 except KeyError:
                     return None
             if existing_zip_contents:
