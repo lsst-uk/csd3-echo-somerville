@@ -1164,10 +1164,11 @@ if __name__ == '__main__':
     ############################
     #        Dask Setup        #
     ############################
-    client_memory = virtual_memory().total
-    mem_per_worker = virtual_memory().total//nprocs
-    print(f'Threads per worker: {threads_per_worker}, Memory per worker: {mem_per_worker}, Total memory: {client_memory}')
-    client = Client(n_workers=nprocs//threads_per_worker,threads_per_worker=threads_per_worker,memory_limit=mem_per_worker) #,silence_logs=ERROR
+    total_memory = virtual_memory().total
+    n_workers = nprocs//threads_per_worker
+    mem_per_worker = virtual_memory().total//n_workers # e.g., 187 GiB / 48 * 2 = 7.8 GiB
+    print(f'nprocs: {nprocs}, Threads per worker: {threads_per_worker}, Number of workers: {n_workers}, Total memory: {total_memory}, Memory per worker: {mem_per_worker}')
+    client = Client(n_workers=n_workers,threads_per_worker=threads_per_worker,memory_limit=mem_per_worker) #,silence_logs=ERROR
 
     print(f'Dask Client: {client}', flush=True)
 
