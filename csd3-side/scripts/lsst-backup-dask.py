@@ -1011,6 +1011,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     print(args.threads_per_process)
+    print(args.S3_folder)
 
     if not args.config_file and not (args.bucket_name and args.local_path and args.S3_prefix):
         parser.error('If a config file is not provided, the bucket name, local path, and S3 prefix must be provided.')
