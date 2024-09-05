@@ -1010,6 +1010,8 @@ if __name__ == '__main__':
     parser.add_argument('--save-config', default=False, action='store_true', help='Save the configuration to the provided config file path and exit.')
     args = parser.parse_args()
 
+    print(args.thread_per_process)
+
     if not args.config_file and not (args.bucket_name and args.local_path and args.S3_prefix):
         parser.error('If a config file is not provided, the bucket name, local path, and S3 prefix must be provided.')
     if args.config_file and (args.bucket_name or args.local_path or args.S3_prefix or args.S3_folder or args.exclude or args.nprocs or args.threads_per_process or args.no_collate or args.dryrun or args.no_checksum or args.no_compression):
@@ -1036,7 +1038,10 @@ if __name__ == '__main__':
                 if 'nprocs' not in config.keys() and not args.nprocs: # required to allow default value of 4 as this overrides "default" in add_argument
                     args.nprocs = 4
                 if 'threads_per_process' in config.keys() and not args.threads_per_process:
+                    print('in if')
                     args.threads_per_process = config['threads_per_process']
+                    print(f'args.threads_per_process: {args.threads_per_process}')
+                    print(f'config.threads_per_process: {config["threads_per_process"]}')
                 if 'no_collate' in config.keys() and not args.no_collate:
                     args.no_collate = config['no_collate']
                 if 'dryrun' in config.keys() and not args.dryrun:
@@ -1059,6 +1064,7 @@ if __name__ == '__main__':
     nprocs = args.nprocs 
     print(f'THREADS PER PROCESS: {args.threads_per_process}')
     threads = args.threads_per_process
+    print(f'threads: {threads}')
     global_collate = not args.no_collate # internally, flag turns *on* collate, but for user no-collate turns it off - makes flag more intuitive
     perform_checksum = not args.no_checksum # internally, flag turns *on* checksumming, but for user no-checksum  turns it off - makes flag more intuitive
     dryrun = args.dryrun
