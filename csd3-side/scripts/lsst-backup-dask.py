@@ -885,6 +885,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             # print(f'folder_size: {folder_size}')
             # for id,chunk in enumerate(zip(chunks,chunk_files)):
             #     # print(f'chunk {id} contains {len(chunk[0])} folders')
+         
             for i, args in enumerate(zip(
                     repeat(parent_folder),
                     chunks,
@@ -906,22 +907,22 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 #         result.get()  # Wait until current processes in pool are finished
                 
         failed = []
-        while True:
-            print(f'Zipped {sum([f.done() for f in zip_futures])} of {len(zip_futures)} zip files.', flush=True)
-            print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
-            print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
-            print(f'Failed uploads: {len(failed)} of {len(zul_futures)+len(upload_futures)}', flush=True)
+        # while True:
+        #     print(f'Zipped {sum([f.done() for f in zip_futures])} of {len(zip_futures)} zip files.', flush=True)
+        #     print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
+        #     print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
+        #     print(f'Failed uploads: {len(failed)} of {len(zul_futures)+len(upload_futures)}', flush=True)
 
-            for f in zip_futures:
-                if f.done():
-                    zul_futures.append(f.result())
+        #     for f in zip_futures:
+        #         if f.done():
+        #             zul_futures.append(f.result())
 
-            for f in upload_futures+zul_futures:
-                if 'exception' in f.status and f not in failed:
-                    failed.append(f)
-            if 'pending' not in [f.status for f in zip_futures+upload_futures+zul_futures]:
-                break
-            sleep(5)
+        #     for f in upload_futures+zul_futures:
+        #         if 'exception' in f.status and f not in failed:
+        #             failed.append(f)
+        #     if 'pending' not in [f.status for f in zip_futures+upload_futures+zul_futures]:
+        #         break
+        #     sleep(5)
             # for zip_future in zip_futures:
             #     if zip_future.status == 'finished' and zip_future not in zipped:
             #         zipped.append(zip_future)
