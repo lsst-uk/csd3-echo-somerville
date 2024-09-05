@@ -1002,16 +1002,13 @@ if __name__ == '__main__':
     parser.add_argument('--S3-folder', type=str, help='Subfolder(s) at the end of the local path to be used in S3 object keys.', nargs='?', const='', default='')
     parser.add_argument('--exclude', nargs='+', help="Files or folders to exclude from upload as a list in the form ['dir1', 'dir2', ...] or other valid YAML. Must relative paths to local_path.")
     parser.add_argument('--nprocs', type=int, help='Number of CPU cores to use for parallel upload.')
-    parser.add_argument('--threads-per-process', type=int, help='Number of threads per processes to use for parallel upload.')
+    parser.add_argument('--threads-per-worker', type=int, help='Number of threads per Dask worker to use for parallel upload.')
     parser.add_argument('--no-collate', default=False, action='store_true', help='Turn off collation of subfolders containing small numbers of small files into zip files.')
     parser.add_argument('--dryrun', default=False, action='store_true', help='Perform a dry run without uploading files.')
     parser.add_argument('--no-checksum', default=False, action='store_true', help='Do not perform checksum validation during upload.')
     parser.add_argument('--no-compression', default=False, action='store_true', help='Do not use compression when collating files.')
     parser.add_argument('--save-config', default=False, action='store_true', help='Save the configuration to the provided config file path and exit.')
     args = parser.parse_args()
-
-    print(args.threads_per_process)
-    print(args.S3_folder)
 
     if not args.config_file and not (args.bucket_name and args.local_path and args.S3_prefix):
         parser.error('If a config file is not provided, the bucket name, local path, and S3 prefix must be provided.')
@@ -1038,11 +1035,10 @@ if __name__ == '__main__':
                     args.nprocs = config['nprocs']
                 if 'nprocs' not in config.keys() and not args.nprocs: # required to allow default value of 4 as this overrides "default" in add_argument
                     args.nprocs = 4
-                if 'threads_per_process' in config.keys() and not args.threads_per_process:
-                    print('in if')
-                    args.threads_per_process = config['threads_per_process']
-                    print(f'args.threads_per_process: {args.threads_per_process}')
-                    print(f'config.threads_per_process: {config["threads_per_process"]}')
+                if 'threads_per_worker' in config.keys() and not args.threads_per_worker:
+                    args.threads_per_worker = config['threads_per_worker']
+                if 'threads_per_worker' not in config.keys() and not args.threads_per_worker: # required to allow default value of 4 as this overrides "default" in add_argument
+                    args.threads_per_worker = 4
                 if 'no_collate' in config.keys() and not args.no_collate:
                     args.no_collate = config['no_collate']
                 if 'dryrun' in config.keys() and not args.dryrun:
@@ -1063,9 +1059,8 @@ if __name__ == '__main__':
     sub_dirs = args.S3_folder
     print(f'sub_dirs {sub_dirs}')
     nprocs = args.nprocs 
-    print(f'THREADS PER PROCESS: {args.threads_per_process}')
-    threads = args.threads_per_process
-    print(f'threads: {threads}')
+    threads_per_worker = args.threads_per_worker
+    print(f'threads per worker: {threads_per_worker}')
     global_collate = not args.no_collate # internally, flag turns *on* collate, but for user no-collate turns it off - makes flag more intuitive
     perform_checksum = not args.no_checksum # internally, flag turns *on* checksumming, but for user no-checksum  turns it off - makes flag more intuitive
     dryrun = args.dryrun
@@ -1087,7 +1082,7 @@ if __name__ == '__main__':
                 'S3_folder': sub_dirs,
                 'exclude': exclude.to_list(),
                 'nprocs': nprocs,
-                'threads_per_process': threads,
+                'threads_per_process': threads_per_worker,
                 'no_collate': not global_collate,
                 'dryrun': dryrun,
                 'no_checksum': not perform_checksum,
@@ -1170,8 +1165,8 @@ if __name__ == '__main__':
     #        Dask Setup        #
     ############################
     mem_per_worker = virtual_memory().total//nprocs
-    print(f'Threads per worker: {threads}, Memory per worker: {mem_per_worker}')
-    client = Client(n_workers=nprocs//threads,threads_per_worker=threads,memory_limit=mem_per_worker) #,silence_logs=ERROR
+    print(f'Threads per worker: {threads_per_worker}, Memory per worker: {mem_per_worker}')
+    client = Client(n_workers=nprocs//threads_per_worker,threads_per_worker=threads_per_worker,memory_limit=mem_per_worker) #,silence_logs=ERROR
 
     print(f'Dask Client: {client}', flush=True)
 
