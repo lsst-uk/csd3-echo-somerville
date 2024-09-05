@@ -77,7 +77,8 @@ def find_metadata(key: str, bucket) -> List[str]:
 def remove_duplicates(l: list[dict]) -> list[dict]:
     return pd.DataFrame(l).drop_duplicates().to_dict(orient='records')
 
-def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_files:list[str], use_compression:bool, dryrun:bool, processing_start, id:int, mem_per_worker:int, total_size_uploaded: int, total_files_uploaded:int) -> tuple[str, int, bytes]:
+# def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_files:list[str], use_compression:bool, dryrun:bool, processing_start, id:int, mem_per_worker:int, total_size_uploaded: int, total_files_uploaded:int) -> tuple[str, int, bytes]:
+def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_files:list[str], use_compression:bool, dryrun:bool, id:int, mem_per_worker:int) -> tuple[str, int, bytes]:
     """
     Collates the specified folders into a zip file.
 
@@ -115,7 +116,7 @@ def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_file
     # print(f'subfolders_to_collate: {subfolders_to_collate}')
     # print(f'folders_files: {folders_files}')
     # exit()
-    client = get_client()
+    # client = get_client()
     if not dryrun:
         try:
             zip_buffer = io.BytesIO()
@@ -135,37 +136,40 @@ def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_file
                         zipped_size += os.path.getsize(file_path)
                         with open(file_path, 'rb') as src_file:
                             zip_file.writestr(arc_name, src_file.read())
-                    zip_contents = zip_file.namelist()
+                    # zip_contents = zip_file.namelist()
             if zipped_size > mem_per_worker:
                 print(f'WARNING: Zipped size of {zipped_size} bytes exceeds memory per core of {mem_per_worker} bytes.')
         except MemoryError as e:
             print(f'Error zipping {parent_folder}: {e}')
             print(f'Namespace: {globals()}')
             exit(1)
-        secede()
-        zip_object_name = str(os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated_{id}.zip', local_dir)]))
-        future = client.submit(upload_and_callback, 
-                                s3_host,
-                                access_key,
-                                secret_key,
-                                bucket_name,
-                                parent_folder,
-                                zip_buffer.getvalue(),
-                                zip_contents,
-                                zip_object_name,
-                                perform_checksum,
-                                dryrun,
-                                processing_start,
-                                1,
-                                len(zip_buffer.getvalue()),
-                                total_size_uploaded,
-                                total_files_uploaded,
-                                True,
-                                mem_per_worker,
-                        )
-        # del zip_buffer
-        gc.collect()
-        return future
+        return parent_folder, id, zip_buffer.getvalue()
+    else:
+        return parent_folder, id, b''
+        # secede()
+        # zip_object_name = str(os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated_{id}.zip', local_dir)]))
+        # future = client.submit(upload_and_callback, 
+        #                         s3_host,
+        #                         access_key,
+        #                         secret_key,
+        #                         bucket_name,
+        #                         parent_folder,
+        #                         zip_buffer.getvalue(),
+        #                         zip_contents,
+        #                         zip_object_name,
+        #                         perform_checksum,
+        #                         dryrun,
+        #                         processing_start,
+        #                         1,
+        #                         len(zip_buffer.getvalue()),
+        #                         total_size_uploaded,
+        #                         total_files_uploaded,
+        #                         True,
+        #                         mem_per_worker,
+        #                 )
+        # # del zip_buffer
+        # gc.collect()
+        # return future
     
     
 def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun, mem_per_worker) -> str:
@@ -873,11 +877,11 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     chunk_files,
                     repeat(use_compression),
                     repeat(dryrun),
-                    repeat(processing_start),
+                    # repeat(processing_start),
                     [i for i in range(len(chunks))],
                     repeat(mem_per_worker),
-                    repeat(total_size_uploaded),
-                    repeat(total_files_uploaded),
+                    # repeat(total_size_uploaded),
+                    # repeat(total_files_uploaded),
                     )):
                 zip_futures.append(client.submit(
                     zip_folders,
@@ -894,71 +898,66 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
             print(f'Failed uploads: {len(failed)} of {len(zul_futures)+len(upload_futures)}', flush=True)
 
-            for f in zip_futures:
-                if f.done():
-                    zul_futures.append(f.result())
-
             for f in upload_futures+zul_futures:
                 if 'exception' in f.status and f not in failed:
                     failed.append(f)
             if 'pending' not in [f.status for f in zip_futures+upload_futures+zul_futures]:
                 break
             sleep(5)
-            for zip_future in zip_futures:
-                if zip_future.status == 'finished' and zip_future not in zipped:
-                    zipped.append(zip_future)
-                    # if result is not None: # not required with dask.distributed.as_completed
-                        # if result.ready(): # not required with dask.distributed.as_completed
-                    parent_folder, id, zip_data = zip_future.result()
-                    # result = None
-                    # zip_results[i] = None # remove from list to free memory
-                    # print(f'zip size: {len(zip_data)}')
-                    # print(parent_folder, id, uploaded, flush=True)
-                    with zipfile.ZipFile(io.BytesIO(zip_data), 'r') as z:
-                        zip_contents = z.namelist()
-                    # print(f'zip contents: {zip_contents}')
-                    to_collate[parent_folder]['zips'].append({'zip_contents':zip_contents, 'id':id, 'zip_object_name':str(os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated_{id}.zip', local_dir)]))})
+            for zip_future in [zf for zf in zip_futures if zf.status == 'finished']:
+                # if zip_future.status == 'finished':
+                # if result is not None: # not required with dask.distributed.as_completed
+                    # if result.ready(): # not required with dask.distributed.as_completed
+                parent_folder, id, zip_data = zip_future.result()
+                # result = None
+                # zip_results[i] = None # remove from list to free memory
+                # print(f'zip size: {len(zip_data)}')
+                # print(parent_folder, id, uploaded, flush=True)
+                with zipfile.ZipFile(io.BytesIO(zip_data), 'r') as z:
+                    zip_contents = z.namelist()
+                # print(f'zip contents: {zip_contents}')
+                to_collate[parent_folder]['zips'].append({'zip_contents':zip_contents, 'id':id, 'zip_object_name':str(os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated_{id}.zip', local_dir)]))})
 
-                    try:
-                        # upload zipped folders
-                        total_size_uploaded += len(zip_data)
-                        total_files_uploaded += 1
-                        print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
+                try:
+                    # upload zipped folders
+                    total_size_uploaded += len(zip_data)
+                    total_files_uploaded += 1
+                    print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
 
-                        zul_futures.append(client.submit(upload_and_callback, 
-                                s3_host,
-                                access_key,
-                                secret_key,
-                                bucket_name,
-                                parent_folder,
-                                zip_data,
-                                to_collate[parent_folder]['zips'][-1]['zip_contents'],
-                                to_collate[parent_folder]['zips'][-1]['zip_object_name'],
-                                perform_checksum,
-                                dryrun,
-                                processing_start,
-                                1,
-                                len(zip_data),
-                                total_size_uploaded,
-                                total_files_uploaded,
-                                True,
-                                mem_per_worker,
-                        ))
-                        zip_uploads.append({'folder':parent_folder,'size':len(zip_data),'object_name':to_collate[parent_folder]['zips'][-1]['zip_object_name'],'uploaded':False}) # removed ,'zip_contents':to_collate[parent_folder]['zips'][-1]['zip_contents']
-                    except BrokenPipeError as e:
-                        print(f'Caught BrokenPipeError: {e}')
-                        # Record the failure
-                        with open('error_log.err', 'a') as f:
-                            f.write(f'BrokenPipeError: {e}\n')
-                        # Exit gracefully
-                        sys.exit(1)
-                    except Exception as e:
-                        print(f'An unexpected error occurred: {e}')
-                        # Record the failure
-                        with open('error_log.err', 'a') as f:
-                            f.write(f'Unexpected error: {e}\n')
-                        # Exit gracefully
-                        sys.exit(1)        
+                    zul_futures.append(client.submit(upload_and_callback, 
+                            s3_host,
+                            access_key,
+                            secret_key,
+                            bucket_name,
+                            parent_folder,
+                            zip_data,
+                            to_collate[parent_folder]['zips'][-1]['zip_contents'],
+                            to_collate[parent_folder]['zips'][-1]['zip_object_name'],
+                            perform_checksum,
+                            dryrun,
+                            processing_start,
+                            1,
+                            len(zip_data),
+                            total_size_uploaded,
+                            total_files_uploaded,
+                            True,
+                            mem_per_worker,
+                    ))
+                    zip_uploads.append({'folder':parent_folder,'size':len(zip_data),'object_name':to_collate[parent_folder]['zips'][-1]['zip_object_name'],'uploaded':False}) # removed ,'zip_contents':to_collate[parent_folder]['zips'][-1]['zip_contents']
+                except BrokenPipeError as e:
+                    print(f'Caught BrokenPipeError: {e}')
+                    # Record the failure
+                    with open('error_log.err', 'a') as f:
+                        f.write(f'BrokenPipeError: {e}\n')
+                    # Exit gracefully
+                    sys.exit(1)
+                except Exception as e:
+                    print(f'An unexpected error occurred: {e}')
+                    # Record the failure
+                    with open('error_log.err', 'a') as f:
+                        f.write(f'Unexpected error: {e}\n')
+                    # Exit gracefully
+                    sys.exit(1)        
 
     ####
     # Monitor upload tasks
