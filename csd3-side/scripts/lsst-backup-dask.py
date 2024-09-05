@@ -41,7 +41,7 @@ import hashlib
 import os
 import argparse
 
-from dask.distributed import Client, get_client #, secede
+from dask.distributed import Client, get_client, secede
 
 from typing import List
 
@@ -142,7 +142,7 @@ def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_file
             print(f'Error zipping {parent_folder}: {e}')
             print(f'Namespace: {globals()}')
             exit(1)
-
+        secede()
         zip_object_name = str(os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated_{id}.zip', local_dir)]))
         future = client.submit(upload_and_callback, 
                                 s3_host,
