@@ -163,7 +163,7 @@ def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_file
                                 True,
                                 mem_per_worker,
                         )
-        del zip_buffer
+        # del zip_buffer
         gc.collect()
         return future
     
