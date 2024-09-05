@@ -1002,7 +1002,7 @@ if __name__ == '__main__':
     parser.add_argument('--S3-folder', type=str, help='Subfolder(s) at the end of the local path to be used in S3 object keys.', nargs='?', const='', default='')
     parser.add_argument('--exclude', nargs='+', help="Files or folders to exclude from upload as a list in the form ['dir1', 'dir2', ...] or other valid YAML. Must relative paths to local_path.")
     parser.add_argument('--nprocs', type=int, help='Number of CPU cores to use for parallel upload.')
-    parser.add_argument('--threads-per-process', type=int, help='Number of threads per processes to use for parallel upload.', default=1)
+    parser.add_argument('--threads-per-process', type=int, help='Number of threads per processes to use for parallel upload.', default=4)
     parser.add_argument('--no-collate', default=False, action='store_true', help='Turn off collation of subfolders containing small numbers of small files into zip files.')
     parser.add_argument('--dryrun', default=False, action='store_true', help='Perform a dry run without uploading files.')
     parser.add_argument('--no-checksum', default=False, action='store_true', help='Do not perform checksum validation during upload.')
