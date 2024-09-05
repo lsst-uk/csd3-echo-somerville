@@ -791,24 +791,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
             if current_objects['METADATA'].isin([these_zip_contents]).any():
                 existing_zip_contents = current_objects[current_objects['METADATA'].isin([these_zip_contents])]['METADATA'].values[0]
-                # try:
-                #     existing_zip_contents = str(bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,''.join([to_collate[parent_folder]['zips'][-1]['zip_object_name'],'.metadata'])).get()['Body'].read().decode('UTF-8')).split(',')
-                # except Exception as e:
-                #     # print(f'No metadata object found for {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}. Trying object.metadata')
-                #     try:
-                #         existing_zip_contents = bm.get_resource(access_key, secret_key, s3_host).Object(bucket_name,to_collate[parent_folder]['zips'][-1]['zip_object_name']).metadata['zip-contents'].split(',')
-                #     except KeyError:
-                #         print(f'No "zip-contents" metadata found for {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}.')
-                # print(existing_zip_contents)
-                # checksum_hash = hashlib.md5(zip_data)
-                # checksum_string = checksum_hash.hexdigest()
-                # print(f'Checksum of zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}: {checksum_string}')
-                # print(f'Checksum of existing zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]}: {existing_zip_checksum}')
-
-                # print(zip_contents)
-                
-                # if len(existing_zip_contents) == 0:
-                #     print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but no metadata found - reuploading.')
                 if all([x in existing_zip_contents for x in these_zip_contents]):
                     print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and file lists match - skipping.')
                     # zip_results[i] = None
@@ -816,7 +798,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     continue
                 else:
                     print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but file lists do not match - reuploading.')
-
 
             to_collate[parent_folder]['folders'].append(folder)
             to_collate[parent_folder]['object_names'].append(object_names)
