@@ -41,7 +41,7 @@ import hashlib
 import os
 import argparse
 
-from dask.distributed import Client, get_client, secede
+from dask.distributed import Client
 
 from typing import List
 
@@ -146,31 +146,6 @@ def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_file
         return parent_folder, id, zip_buffer.getvalue()
     else:
         return parent_folder, id, b''
-        # secede()
-        # zip_object_name = str(os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated_{id}.zip', local_dir)]))
-        # future = client.submit(upload_and_callback, 
-        #                         s3_host,
-        #                         access_key,
-        #                         secret_key,
-        #                         bucket_name,
-        #                         parent_folder,
-        #                         zip_buffer.getvalue(),
-        #                         zip_contents,
-        #                         zip_object_name,
-        #                         perform_checksum,
-        #                         dryrun,
-        #                         processing_start,
-        #                         1,
-        #                         len(zip_buffer.getvalue()),
-        #                         total_size_uploaded,
-        #                         total_files_uploaded,
-        #                         True,
-        #                         mem_per_worker,
-        #                 )
-        # # del zip_buffer
-        # gc.collect()
-        # return future
-    
     
 def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun, mem_per_worker) -> str:
     """
@@ -942,6 +917,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     # total_files_uploaded, 
                     # collated, 
                     # mem_per_worker
+                    client.scatter(zip_data, broadcast=True)
                     zul_futures.append(client.submit(upload_and_callback, 
                             s3_host,
                             access_key,
@@ -962,6 +938,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                             mem_per_worker,
                     ))
                     zip_uploads.append({'folder':parent_folder,'size':len(zip_data),'object_name':to_collate[parent_folder]['zips'][-1]['zip_object_name'],'uploaded':False}) # removed ,'zip_contents':to_collate[parent_folder]['zips'][-1]['zip_contents']
+                    del zip_data
                 except BrokenPipeError as e:
                     print(f'Caught BrokenPipeError: {e}')
                     # Record the failure
