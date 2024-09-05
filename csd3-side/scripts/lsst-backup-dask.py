@@ -983,8 +983,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     # Monitor upload tasks
     ####
 
-    if len(failed > 0):
-        print(failed)
+    # if len(failed > 0):
+    #     print(failed)
 
 # # Go!
 if __name__ == '__main__':
