@@ -142,27 +142,30 @@ def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_file
             print(f'Error zipping {parent_folder}: {e}')
             print(f'Namespace: {globals()}')
             exit(1)
-        zip_data = zip_buffer.getvalue()
+
         zip_object_name = str(os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated_{id}.zip', local_dir)]))
-        return client.submit(upload_and_callback, 
+        future = client.submit(upload_and_callback, 
                                 s3_host,
                                 access_key,
                                 secret_key,
                                 bucket_name,
                                 parent_folder,
-                                zip_data,
+                                zip_buffer.getvalue(),
                                 zip_contents,
                                 zip_object_name,
                                 perform_checksum,
                                 dryrun,
                                 processing_start,
                                 1,
-                                len(zip_data),
+                                len(zip_buffer.getvalue()),
                                 total_size_uploaded,
                                 total_files_uploaded,
                                 True,
                                 mem_per_worker,
                         )
+        del zip_buffer
+        gc.collect()
+        return future
     
     
 def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun, mem_per_worker) -> str:
