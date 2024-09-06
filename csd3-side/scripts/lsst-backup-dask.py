@@ -185,19 +185,10 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
         file_data = os.path.realpath(filename)
     else:
         file_data = open(filename, 'rb')
-    
-    if len(file_data) > 1024**3:
-        get_client().scatter([file_data], broadcast=True)
-    
-    # print(file_data)
-    # print(type(file_data))
-    # print('length of bytes data:', len(file_data))
-    # file_data.seek(0, os.SEEK_END)
-    # file_data_size = file_data.tell()
-    # file_data.seek(0)
 
     file_size = os.path.getsize(filename)
-    
+    if file_size > 1024**3:
+        get_client().scatter([file_data], broadcast=True)
 
     print(f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, {file_size} bytes, checksum = {perform_checksum}, dryrun = {dryrun}', flush=True)
     """
