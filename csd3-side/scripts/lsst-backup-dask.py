@@ -229,6 +229,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                             with open(filename, 'rb') as f:
                                 f.seek(start)
                                 chunk_data = f.read(end - start)
+                                client.scarred([chunk_data], broadcast=True)
                             part = s3_client.upload_part(
                                 Body=chunk_data,
                                 Bucket=bucket_name,
