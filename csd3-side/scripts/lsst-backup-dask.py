@@ -938,7 +938,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     ))
                     zip_uploads.append({'folder':parent_folder,'size':len(zip_data),'object_name':to_collate[parent_folder]['zips'][-1]['zip_object_name'],'uploaded':False}) # removed ,'zip_contents':to_collate[parent_folder]['zips'][-1]['zip_contents']
                     if len(zip_data) > 5*1024**3:
-                        wait(zul_futures, return_when='ALL_COMPLETED')
+                        wait(zul_futures[-1])
                     del zip_data
                 except BrokenPipeError as e:
                     print(f'Caught BrokenPipeError: {e}')
