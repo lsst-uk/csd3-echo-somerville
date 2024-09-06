@@ -532,6 +532,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         total_all_files += len(files)
     
     for folder, sub_folders, files in os.walk(local_dir, topdown=True):
+        gc.collect()
         folder_num += 1
         file_num += len(files)
         print(f'Processing {folder_num}/{total_all_folders} folders; {file_num}/{total_all_files} files in {local_dir}.')
