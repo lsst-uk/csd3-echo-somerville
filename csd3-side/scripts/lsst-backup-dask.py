@@ -148,6 +148,31 @@ def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_file
     else:
         return parent_folder, id, b''
     
+def part_uploader(s3_host, access_key, secret_key, bucket_name, object_key, part_number, chunk_data, upload_id) -> dict:
+    """
+    Uploads a part of a file to an S3 bucket.
+
+    Args:
+        s3_host (str): The host URL of the S3 service.
+        access_key (str): The access key for the S3 service.
+        secret_key (str): The secret key for the S3 service.
+        bucket_name (str): The name of the S3 bucket.
+        object_key (str): The key of the object in the S3 bucket.
+        part_number (int): The part number of the chunk being uploaded.
+        chunk_data (bytes): The data of the chunk being uploaded.
+        upload_id (str): The ID of the ongoing multipart upload.
+
+    Returns:
+        dict: A dictionary containing the part number and ETag of the uploaded part.
+    """
+    s3_client = bm.get_client(access_key, secret_key, s3_host)
+    return {"PartNumber":part_number,
+            "ETag":s3_client.upload_part(Body=chunk_data,
+                          Bucket=bucket_name,
+                          Key=object_key,
+                          PartNumber=part_number,
+                          UploadId=upload_id)["ETag"]}
+    
 def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun, mem_per_worker) -> str:
     """
     Uploads a file to an S3 bucket.
@@ -229,17 +254,18 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                                 f.seek(start)
                                 chunk_data = f.read(end - start)
                             part_futures.append(get_client().submit(
-                                s3_client.upload_part,
-                                **{'Body':chunk_data,
-                                'Bucket':bucket_name,
-                                'Key':object_key,
-                                'PartNumber':part_number,
-                                'UploadId':mp_upload.id
-                                }
-                                
+                                part_uploader, #s3_host, access_key, secret_key, bucket_name, object_key, part_number, chunk_data, upload_id
+                                s3_host,
+                                access_key,
+                                secret_key,
+                                bucket_name,
+                                object_key,
+                                part_number,
+                                chunk_data,
+                                mp_upload.id
                             ))
                         for future in as_completed(part_futures):
-                            parts.append({"PartNumber": int(future.key)+1, "ETag": future.result()["ETag"]})
+                            parts.append(future.result())
                         s3_client.complete_multipart_upload(
                             Bucket=bucket_name,
                             Key=object_key,
