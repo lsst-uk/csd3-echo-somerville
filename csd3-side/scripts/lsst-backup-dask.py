@@ -41,7 +41,7 @@ import hashlib
 import os
 import argparse
 
-from dask.distributed import Client
+from dask.distributed import Client, get_client
 
 from typing import List
 
@@ -116,7 +116,7 @@ def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_file
     # print(f'subfolders_to_collate: {subfolders_to_collate}')
     # print(f'folders_files: {folders_files}')
     # exit()
-    # client = get_client()
+    client = get_client()
     if not dryrun:
         try:
             zip_buffer = io.BytesIO()
@@ -143,6 +143,7 @@ def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_file
             print(f'Error zipping {parent_folder}: {e}')
             print(f'Namespace: {globals()}')
             exit(1)
+        client.scatter([parent_folder, id, zip_buffer.getvalue()], broadcast=True)
         return parent_folder, id, zip_buffer.getvalue()
     else:
         return parent_folder, id, b''
@@ -184,6 +185,9 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
         file_data = os.path.realpath(filename)
     else:
         file_data = open(filename, 'rb')
+    
+    if len(file_data) > 1024**3:
+        get_client().scatter([file_data], broadcast=True)
     
     # print(file_data)
     # print(type(file_data))
@@ -473,7 +477,7 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, fi
     with open(log, 'a') as logfile:
         logfile.write(f'{result}\n')
     
-    # del file_name_or_data
+    del file_name_or_data
     gc.collect()
 
     return None
