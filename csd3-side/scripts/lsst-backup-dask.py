@@ -143,7 +143,7 @@ def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_file
             print(f'Error zipping {parent_folder}: {e}')
             print(f'Namespace: {globals()}')
             exit(1)
-        client.scatter([parent_folder, id, zip_buffer.getvalue()], broadcast=True)
+        # client.scatter([parent_folder, id, zip_buffer.getvalue()], broadcast=True)
         return parent_folder, id, zip_buffer.getvalue()
     else:
         return parent_folder, id, b''
@@ -964,7 +964,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     # total_files_uploaded, 
                     # collated, 
                     # mem_per_worker
-                    client.scatter(zip_data, broadcast=True)
+                    # client.scatter(zip_data, broadcast=True)
                     zul_futures.append(client.submit(upload_and_callback, 
                             s3_host,
                             access_key,
