@@ -20,7 +20,7 @@ import sys
 import os
 from itertools import repeat
 import warnings
-from datetime import datetime
+from datetime import datetime, timedelta
 from time import sleep
 import hashlib
 import base64
@@ -916,19 +916,33 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 #         result.get()  # Wait until current processes in pool are finished
                 
         failed = []
+        # failed = []
+        # for f in as_completed(upload_futures+zul_futures):
+        #     if 'exception' in f.status:
+        #         f_tuple = f.exception(), f.traceback()
+        #         if f_tuple not in failed:
+        #             failed.append(f_tuple)
+        #         del f
+        #     elif 'finished' in f.status:
+        #         del f
+        #     gc.collect()
+        monitor_interval = datetime.now()
         while True:
-            gc.collect()
-            print(f'Zipped {sum([f.done() for f in zip_futures])} of {len(zip_futures)} zip files.', flush=True)
-            print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
-            print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
-            print(f'Failed uploads: {len(failed)} of {len(zul_futures)+len(upload_futures)}', flush=True)
+            if datetime.now() - monitor_interval > timedelta(seconds=10):
+                print(f'Zipped {sum([f.done() for f in zip_futures])} of {len(zip_futures)} zip files.', flush=True)
+                print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
+                print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
+                print(f'Failed uploads: {len(failed)} of {len(zul_futures)+len(upload_futures)}', flush=True)
+                monitor_interval = datetime.now()
 
             for f in upload_futures+zul_futures:
                 if 'exception' in f.status and f not in failed:
-                    failed.append(f)
-            if 'pending' not in [f.status for f in zip_futures+upload_futures+zul_futures]:
-                break
-            sleep(5)
+                    f_tuple = f.exception(), f.traceback()
+                    if f_tuple not in failed:
+                        failed.append(f_tuple)
+            for finished in [f for f in upload_futures+zul_futures if f.status == 'finished']:
+                del finished
+                gc.collect()
             for zip_future in [zf for zf in zip_futures if zf.status == 'finished']:
                 # if zip_future.status == 'finished':
                 # if result is not None: # not required with dask.distributed.as_completed
@@ -948,25 +962,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     total_size_uploaded += len(zip_data)
                     total_files_uploaded += 1
                     print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
-                    #s3_host, access_key, secret_key, bucket_name, folder, file_data, zip_contents, object_key, perform_checksum, dryrun, mem_per_worker
-                    #s3_host, 
-                    # access_key, 
-                    # secret_key, 
-                    # bucket_name, 
-                    # folder, 
-                    # file_name_or_data, 
-                    # zip_contents, 
-                    # object_key, 
-                    # perform_checksum,
-                    #  dryrun, 
-                    # processing_start, 
-                    # file_count, 
-                    # folder_files_size, 
-                    # total_size_uploaded, 
-                    # total_files_uploaded, 
-                    # collated, 
-                    # mem_per_worker
-                    # client.scatter(zip_data, broadcast=True)
                     zul_futures.append(client.submit(upload_and_callback, 
                             s3_host,
                             access_key,
@@ -991,6 +986,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         wait(zul_futures[-1])
                         del zul_futures[-1]
                     del zip_data
+                    del zip_future
                     gc.collect()
                 except BrokenPipeError as e:
                     print(f'Caught BrokenPipeError: {e}')
@@ -1006,16 +1002,10 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         f.write(f'Unexpected error: {e}\n')
                     # Exit gracefully
                     sys.exit(1)        
-    failed = []
-    for f in as_completed(upload_futures+zul_futures):
-        if 'exception' in f.status:
-            f_tuple = f.exception(), f.traceback()
-            if f_tuple not in failed:
-                failed.append(f_tuple)
-            del f
-        elif 'finished' in f.status:
-            del f
-        gc.collect()
+            # End loop if all futures are finished (or failed)
+            if 'pending' not in [f.status for f in upload_futures+zul_futures+zip_futures]:
+                break
+    
     ####
     # Monitor upload tasks
     ####
