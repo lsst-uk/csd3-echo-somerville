@@ -41,7 +41,7 @@ import hashlib
 import os
 import argparse
 
-from dask.distributed import Client, get_client, wait
+from dask.distributed import Client, get_client, wait, as_completed
 
 from typing import List
 
@@ -187,8 +187,6 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
         file_data = open(filename, 'rb')
 
     file_size = os.path.getsize(filename)
-    # if file_size > 1024**3:
-    #     get_client().scatter([file_data.read()], broadcast=True)
 
     print(f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, {file_size} bytes, checksum = {perform_checksum}, dryrun = {dryrun}', flush=True)
     """
@@ -222,6 +220,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                         chunk_count = int(np.ceil(file_size / chunk_size))
                         print(f'Uploading {filename} to {bucket_name}/{object_key} in {chunk_count} parts.')
                         parts = []
+                        part_futures = []
                         for i in range(chunk_count):
                             start = i * chunk_size
                             end = min(start + chunk_size, file_size)
@@ -229,15 +228,18 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                             with open(filename, 'rb') as f:
                                 f.seek(start)
                                 chunk_data = f.read(end - start)
-                                # client.scatter([chunk_data], broadcast=True)
-                            part = s3_client.upload_part(
-                                Body=chunk_data,
-                                Bucket=bucket_name,
-                                Key=object_key,
-                                PartNumber=part_number,
-                                UploadId=mp_upload.id
-                            )
-                            parts.append({"PartNumber": part_number, "ETag": part["ETag"]})
+                            part_futures.append(get_client().submit(
+                                s3_client.upload_part,
+                                **{'Body':chunk_data,
+                                'Bucket':bucket_name,
+                                'Key':object_key,
+                                'PartNumber':part_number,
+                                'UploadId':mp_upload.id
+                                }
+                                
+                            ))
+                        for future in as_completed(part_futures):
+                            parts.append({"PartNumber": int(future.key)+1, "ETag": future.result()["ETag"]})
                         s3_client.complete_multipart_upload(
                             Bucket=bucket_name,
                             Key=object_key,
