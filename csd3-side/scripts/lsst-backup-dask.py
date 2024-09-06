@@ -929,6 +929,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         monitor_interval = datetime.now()
         while True:
             if datetime.now() - monitor_interval > timedelta(seconds=10):
+                # these prints make no sense as futures are deleted after completion
                 print(f'Zipped {sum([f.done() for f in zip_futures])} of {len(zip_futures)} zip files.', flush=True)
                 print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
                 print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
