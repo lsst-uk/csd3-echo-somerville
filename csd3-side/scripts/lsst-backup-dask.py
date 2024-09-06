@@ -1006,13 +1006,23 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         f.write(f'Unexpected error: {e}\n')
                     # Exit gracefully
                     sys.exit(1)        
-
+    failed = []
+    for f in as_completed(upload_futures+zul_futures):
+        if 'exception' in f.status:
+            f_tuple = f.exception(), f.traceback()
+            if f_tuple not in failed:
+                failed.append(f_tuple)
+            del f
+        elif 'finished' in f.status:
+            del f
+        gc.collect()
     ####
     # Monitor upload tasks
     ####
 
-    # if len(failed > 0):
-    #     print(failed)
+    if failed:
+        for i, failed_upload in enumerate(failed):
+            print(f'Error upload {i}:\nException: {failed_upload[0]}\nTraceback: {failed_upload[1]}')
 
 # # Go!
 if __name__ == '__main__':
