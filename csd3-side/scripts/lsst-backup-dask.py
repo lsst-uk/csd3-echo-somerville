@@ -326,7 +326,7 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
             file_size = len(file_data)
 
             try:
-                if file_size > mem_per_worker or file_size > 5 * 1024**3:  # Check if file size is larger than 5GiB
+                if file_size > 5 * 1024**3:  # Check if file size is larger than 5GiB
                     """
                     - Use multipart upload for large files
                     """
@@ -806,7 +806,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 # no files in folder - likely removed from file list due to previous PermissionError - continue without message
                 continue
             
-            max_files_per_zip = int(np.ceil(mem_per_worker / max_filesize))
+            max_files_per_zip = int(np.ceil(1024**3 / max_filesize)) # limit zips to 1 GiB - using available memory too inconsistent
             num_zips = int(np.ceil(num_files / max_files_per_zip))
             # print(f'num_zips = {num_zips}')
             
