@@ -41,7 +41,7 @@ import hashlib
 import os
 import argparse
 
-from dask.distributed import Client, get_client, wait, ALL_COMPLETED
+from dask.distributed import Client, get_client, wait
 
 from typing import List
 
@@ -688,7 +688,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     )):
                     upload_futures.append(client.submit(upload_and_callback, *args))
                     if folder_files_size > 5*1024**3:
-                        wait(upload_futures, return_when=ALL_COMPLETED)
+                        wait(upload_futures, return_when='ALL_COMPLETED')
                     uploads.append({'folder':args[4],'folder_size':args[12],'file_size':os.lstat(folder_files[i]).st_size,'file':args[5],'object':args[7],'uploaded':False})
             except BrokenPipeError as e:
                 print(f'Caught BrokenPipeError: {e}')
@@ -938,7 +938,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     ))
                     zip_uploads.append({'folder':parent_folder,'size':len(zip_data),'object_name':to_collate[parent_folder]['zips'][-1]['zip_object_name'],'uploaded':False}) # removed ,'zip_contents':to_collate[parent_folder]['zips'][-1]['zip_contents']
                     if len(zip_data) > 5*1024**3:
-                        wait(zul_futures, return_when=ALL_COMPLETED)
+                        wait(zul_futures, return_when='ALL_COMPLETED')
                     del zip_data
                 except BrokenPipeError as e:
                     print(f'Caught BrokenPipeError: {e}')
