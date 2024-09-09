@@ -845,8 +845,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             if f.status == 'finished':
                 del f
                     #gc.collect()
-        print(f'Pending uploads: {len(upload_futures) + len(zul_futures)}')
-        print(f'Pending zips: {len(zip_futures)}')
+        print(f'Pending uploads: {len([None for f in upload_futures + zul_futures if f.status == "pending"])}')
+        print(f'Pending zips: {len([None for f in zip_futures if f.status == "pending"])}')
     
     # collate folders
     # total_zips = 0
