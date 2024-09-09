@@ -833,17 +833,17 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             to_collate[parent_folder]['folder_files'].append(folder_files)
 
         
-        if len(zul_futures) > 1000:
-            print(f'WARNING: >1000 zipfiles in memory. Purging.')
-            for f in zul_futures:
-                if f.status == 'finished':
-                    del f
+        # if len(zul_futures) > 1000:
+        #     print(f'WARNING: >1000 zipfiles in memory. Purging.')
+        for f in zul_futures:
+            if f.status == 'finished':
+                del f
                     #gc.collect()
-        if len(upload_futures) > 1000:
-            print(f'WARNING: >1000 files in memory. Purging.')
-            for f in upload_futures:
-                if f.status == 'finished':
-                    del f
+        # if len(upload_futures) > 1000:
+        #     print(f'WARNING: >1000 files in memory. Purging.')
+        for f in upload_futures:
+            if f.status == 'finished':
+                del f
                     #gc.collect()
     
     # collate folders
