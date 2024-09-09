@@ -736,6 +736,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     )):
                     upload_futures.append(client.submit(upload_and_callback, *args))
                     if folder_files_size > 5*1024**3:
+                        print(f'WARNING: Total size of {folder_files_size} bytes exceeds 5 GiB. Waiting and purging.')
                         wait(upload_futures[-1])
                         del upload_futures[-1]
                         gc.collect()
@@ -830,6 +831,20 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             to_collate[parent_folder]['folders'].append(folder)
             to_collate[parent_folder]['object_names'].append(object_names)
             to_collate[parent_folder]['folder_files'].append(folder_files)
+
+        
+        if len(zul_futures) > 1000:
+            print(f'WARNING: >1000 zipfiles in memory. Purging.')
+            for f in zul_futures:
+                if f.status == 'finished':
+                    del f
+                    gc.collect()
+        if len(upload_futures) > 1000:
+            print(f'WARNING: >1000 files in memory. Purging.')
+            for f in upload_futures:
+                if f.status == 'finished':
+                    del f
+                    gc.collect()
     
     # collate folders
     # total_zips = 0
@@ -915,23 +930,9 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 #     for result in results:
                 #         result.get()  # Wait until current processes in pool are finished
 
-                if len(zip_futures) > 1000:
-                    for f in zip_futures:
-                        if f.status == 'finished':
-                            del f
-                            gc.collect()
-                if len(zul_futures) > 1000:
-                    for f in zul_futures:
-                        if f.status == 'finished':
-                            del f
-                            gc.collect()
-                if len(upload_futures) > 1000:
-                    for f in upload_futures:
-                        if f.status == 'finished':
-                            del f
-                            gc.collect()
+                
         
-        # This code isn't accessed - find better monitoring method
+        # This code isn't accessed early enough - find better monitoring method
         failed = []
         monitor_interval = datetime.now()
         while True:
