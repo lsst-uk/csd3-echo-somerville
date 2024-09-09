@@ -682,17 +682,17 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             for oni, on in enumerate(object_names):
                 if current_objects['CURRENT_OBJECTS'].isin([on]).any() or current_objects['CURRENT_OBJECTS'].isin([f'{on}.symlink']).any():
                     object_names.remove(on)
-                    print(f'Removing {on} in object_names - previously uploaded.', flush=True)
+                    # print(f'Removing {on} in object_names - previously uploaded.', flush=True)
                     del folder_files[oni]
-                else:
-                    print(f'Keeping {on} in object_names - not previously uploaded.', flush=True)
+                # else:
+                    # print(f'Keeping {on} in object_names - not previously uploaded.', flush=True)
             pre_linkcheck_file_count = len(object_names)
             if init_len - pre_linkcheck_file_count > 0:
                 print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.')
             # print(f'folder_files: {folder_files}')
             # print(f'object_names: {object_names}')
             # folder_start = datetime.now()
-            print(object_names, flush=True)
+            # print(object_names, flush=True)
             # print('checking for symlinks')
             #always do this AFTER removing "current_objects" to avoid re-uploading
             symlink_targets = []
@@ -706,7 +706,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     symlink_targets.append(os.path.realpath(folder_files[i]))
                     #add real file to symlink_obj_names list
                     symlink_obj_names.append(symlink_obj_name)
-            print(object_names, flush=True)
+            # print(object_names, flush=True)
             # append symlink_targets and symlink_obj_names to folder_files and object_names
 
             folder_files.extend(symlink_targets)
