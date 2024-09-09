@@ -682,9 +682,10 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             for oni, on in enumerate(object_names):
                 if current_objects['CURRENT_OBJECTS'].isin([on]).any() or current_objects['CURRENT_OBJECTS'].isin([f'{on}.symlink']).any():
                     object_names.remove(on)
+                    print(f'Removing {on} in object_names - previously uploaded.', flush=True)
                     del folder_files[oni]
                 else:
-                    print(f'Keeping {on} in object_names - not previously uploaded.')
+                    print(f'Keeping {on} in object_names - not previously uploaded.', flush=True)
             pre_linkcheck_file_count = len(object_names)
             if init_len - pre_linkcheck_file_count > 0:
                 print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.')
@@ -719,7 +720,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
 
             print(f'Sending {file_count} files (total size: {folder_files_size/1024**2:.0f} MiB) in {folder} to S3 bucket {bucket_name}.')
-            print(object_names)
             
             try:
                 for i,args in enumerate(zip(
