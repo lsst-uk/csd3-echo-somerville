@@ -719,6 +719,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
 
             print(f'Sending {file_count} files (total size: {folder_files_size/1024**2:.0f} MiB) in {folder} to S3 bucket {bucket_name}.')
+            print(object_names)
             
             try:
                 for i,args in enumerate(zip(
@@ -1217,7 +1218,7 @@ if __name__ == '__main__':
 
     print(current_objects['METADATA'].dropna(), flush=True)
 
-    current_objects.to_csv('current_objects.csv', index=False)
+    # current_objects.to_csv('current_objects.csv', index=False)
 
     ## check if log exists in the bucket, and download it and append top it if it does
     # TODO: integrate this with local check for log file
