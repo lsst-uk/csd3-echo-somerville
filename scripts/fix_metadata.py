@@ -54,15 +54,15 @@ def find_metadata(key: str, bucket) -> List[str]:
                 try:
                     existing_zip_contents = bucket.Object(key).metadata['zip-contents'].split('|') # use | as separator
                 except KeyError:
-                    return [None]
+                    return None
             if existing_zip_contents:
                 return existing_zip_contents
         else:
-            return [None]
+            return None
     else:
-        return [None]
+        return None
 
-def get_zipfile_lists(bucket_name, access_key, secret_key, s3_host, get_contents_metadata, debug):
+def get_zipfile_lists(bucket_name, access_key, secret_key, s3_host, debug):
     zipfile_list = []
     contents_list = []
     zipfile_sizes = []
@@ -76,6 +76,9 @@ def get_zipfile_lists(bucket_name, access_key, secret_key, s3_host, get_contents
     paginator = s3_client.get_paginator('list_objects_v2')
     page_iterator = paginator.paginate(Bucket=bucket_name)
     zipfile_count = 0
+    if_count = 0
+    elif_count = 0
+    else_count = 0
     for page in page_iterator:
         if 'Contents' in page:
             for obj in page['Contents']:
@@ -83,31 +86,36 @@ def get_zipfile_lists(bucket_name, access_key, secret_key, s3_host, get_contents
                 if pattern.match(key):
                     zipfile_count += 1
                     zipfile_list.append(key)
-                    if get_contents_metadata:
-                        try:
-                            metadata = bucket.Object(key).get()['Metadata']
-                            if 'zip-contents' in metadata:
-                                print('Using zip-contents metadata.')
-                                contents_list.append(find_metadata(key, bucket))
-                                contents_objects.append(False)
-                            elif 'zip-contents-object' in metadata:
-                                print('Using zip-contents-object.')
-                                contents = metadata['zip-contents-object']
-                                contents_list.append(find_metadata(contents, bucket))
-                                contents_objects.append(True)
-                            else:
-                                raise KeyError(f'Key {key} has no zip-contents metadata.')
+                    try:
+                        metadata = bucket.Object(key).get()['Metadata']
+                        if 'zip-contents' in metadata:
+                            if_count += 1
+                            print('Using zip-contents metadata.',if_count)
+                            contents_list.append(find_metadata(key, bucket))
+                            contents_objects.append(False)
+                        elif 'zip-contents-object' in metadata:
+                            elif_count += 1
+                            print('Using zip-contents-object.',elif_count)
+                            contents = metadata['zip-contents-object']
+                            contents_list.append(find_metadata(contents, bucket))
+                            contents_objects.append(True)
+                        else:
+                            else_count += 1
+                            contents_list.append(False)
+                            print(f'Key {key} has no zip-contents metadata.',else_count)
+                            raise KeyError(f'Key {key} has no zip-contents metadata.')
 
-                        except KeyError as e:
-                            print(f'Key {key} has no zip-contents metadata.')
-                            contents_list.append([])
-                        zipfile_sizes.append(obj['Size'])
+                    except KeyError as e:
+                        print(f'Key {key} has no zip-contents metadata.')
+                        
+                    zipfile_sizes.append(obj['Size'])
             print(f'Zip files found: {zipfile_count}', end='\r')
             # for debugging
             if debug:
                 if zipfile_count >= 200:
                     break
     print()
+    print(len(zipfile_list),len(contents_list),len(contents_objects))
     a = np.array([zipfile_list,contents_objects,contents_list], dtype=object).T
     print(a.shape)
     zipfile_df = pd.DataFrame(a, columns=['zipfile','contents_object','contents'])
@@ -128,10 +136,9 @@ import warnings
 warnings.filterwarnings('ignore')
 
 s3 = bm.get_resource(access_key,secret_key,s3_host)
-get_contents_metadata = True
 debug = True
 bucket_name = 'LSST-IR-FUSION-rdsip005'
 
-zipfiles_df = get_zipfile_lists(bucket_name, access_key, secret_key, s3_host, get_contents_metadata, debug)
+zipfiles_df = get_zipfile_lists(bucket_name, access_key, secret_key, s3_host, debug)
 
 print(zipfiles_df)
