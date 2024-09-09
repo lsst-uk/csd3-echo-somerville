@@ -54,13 +54,13 @@ def find_metadata(key: str, bucket) -> List[str]:
                 try:
                     existing_zip_contents = bucket.Object(key).metadata['zip-contents'].split('|') # use | as separator
                 except KeyError:
-                    return None
+                    return [None]
             if existing_zip_contents:
                 return existing_zip_contents
         else:
-            return None
+            return [None]
     else:
-        return None
+        return [None]
 
 def get_zipfile_lists(bucket_name, access_key, secret_key, s3_host, get_contents_metadata, debug):
     zipfile_list = []
@@ -108,7 +108,7 @@ def get_zipfile_lists(bucket_name, access_key, secret_key, s3_host, get_contents
                 if zipfile_count >= 200:
                     break
     print()
-    a = np.array([zipfile_list,contents_objects,contents_list], dtype=object).reshape(zipfile_count,3).T
+    a = np.array([zipfile_list,contents_objects,contents_list], dtype=object).T
     print(a.shape)
     zipfile_df = pd.DataFrame(a, columns=['zipfile','contents_object','contents'])
     if debug:
