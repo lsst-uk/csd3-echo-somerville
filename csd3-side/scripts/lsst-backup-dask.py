@@ -290,7 +290,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
         checksum_string = "DRYRUN"
 
     del file_data # Delete the file data to free up memory
-    gc.collect()
+    #gc.collect()
 
     """
         report actions
@@ -445,7 +445,7 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
         checksum_string = "DRYRUN"
 
     del file_data # Delete the file data to free up memory
-    gc.collect()
+    #gc.collect()
 
     """
         report actions
@@ -494,7 +494,7 @@ def print_stats(file_name_or_data, file_count, total_size, file_start, file_end,
     print(f'Running average speed = {total_size_uploaded / 1024**2 / (file_end-processing_start).seconds:.2f} MiB/s', flush=True)
     print(f'Running average rate = {(file_end-processing_start).seconds / total_files_uploaded:.2f} s/file', flush=True)
     del file_name_or_data
-    gc.collect()
+    #gc.collect()
 
 def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded, collated, mem_per_worker) -> None:
     # upload files in parallel and log output
@@ -518,7 +518,7 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, fi
         logfile.write(f'{result}\n')
     
     del file_name_or_data
-    gc.collect()
+    #gc.collect()
 
     return None
 
@@ -576,7 +576,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         total_all_files += len(files)
     
     for folder, sub_folders, files in os.walk(local_dir, topdown=True):
-        gc.collect()
+        #gc.collect()
         folder_num += 1
         file_num += len(files)
         print(f'Processing {folder_num}/{total_all_folders} folders; {file_num}/{total_all_files} files in {local_dir}.')
@@ -626,7 +626,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         #     if virtual_memory().available * 0.5 < total_filesize or mean_filesize > mem_per_core:
         #         for result in results:
         #             result.get()
-        #         gc.collect()
+        #         #gc.collect()
 
         # check if any subfolders contain no subfolders and < 4 files
         if len(sub_folders) > 0:
@@ -739,7 +739,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         print(f'WARNING: Total size of {folder_files_size} bytes exceeds 5 GiB. Waiting and purging.')
                         wait(upload_futures[-1])
                         del upload_futures[-1]
-                        gc.collect()
+                        #gc.collect()
                     uploads.append({'folder':args[4],'folder_size':args[12],'file_size':os.lstat(folder_files[i]).st_size,'file':args[5],'object':args[7],'uploaded':False})
             except BrokenPipeError as e:
                 print(f'Caught BrokenPipeError: {e}')
@@ -760,7 +760,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 #         result.get()  # Wait until current processes in pool are finished
             
             # release block of files if the list for results is greater than 4 times the number of processes
-            # gc.collect()
+            # #gc.collect()
 
         elif len(folder_files) > 0 and global_collate: # small files in folder
             folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
@@ -838,13 +838,13 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             for f in zul_futures:
                 if f.status == 'finished':
                     del f
-                    gc.collect()
+                    #gc.collect()
         if len(upload_futures) > 1000:
             print(f'WARNING: >1000 files in memory. Purging.')
             for f in upload_futures:
                 if f.status == 'finished':
                     del f
-                    gc.collect()
+                    #gc.collect()
     
     # collate folders
     # total_zips = 0
@@ -951,7 +951,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         failed.append(f_tuple)
             for finished in [f for f in upload_futures+zul_futures if f.status == 'finished']:
                 del finished
-                gc.collect()
+                #gc.collect()
             for zip_future in [zf for zf in zip_futures if zf.status == 'finished']:
                 # if zip_future.status == 'finished':
                 # if result is not None: # not required with dask.distributed.as_completed
@@ -996,7 +996,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         del zul_futures[-1]
                     del zip_data
                     del zip_future
-                    gc.collect()
+                    #gc.collect()
                 except BrokenPipeError as e:
                     print(f'Caught BrokenPipeError: {e}')
                     # Record the failure
