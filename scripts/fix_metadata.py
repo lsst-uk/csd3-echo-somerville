@@ -108,7 +108,7 @@ def get_zipfile_lists(bucket_name, access_key, secret_key, s3_host, get_contents
                 if zipfile_count >= 200:
                     break
     print()
-    a = np.array([zipfile_list,contents_objects,contents_list], dtype=object).reshape(3,zipfile_count).T
+    a = np.array([zipfile_list,contents_objects,contents_list], dtype=object).reshape(zipfile_count,3).T
     print(a.shape)
     zipfile_df = pd.DataFrame(a, columns=['zipfile','contents_object','contents'])
     if debug:
