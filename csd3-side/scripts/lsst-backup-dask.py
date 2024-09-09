@@ -914,18 +914,25 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 # if i > nprocs*4/2 and i % nprocs*4/2 == 0: # have at most 4 times the number of processes in the pool - may be more efficient with higher numbers
                 #     for result in results:
                 #         result.get()  # Wait until current processes in pool are finished
-                
+
+                if len(zip_futures) > 1000:
+                    for f in zip_futures:
+                        if f.status == 'finished':
+                            del f
+                            gc.collect()
+                if len(zul_futures) > 1000:
+                    for f in zul_futures:
+                        if f.status == 'finished':
+                            del f
+                            gc.collect()
+                if len(upload_futures) > 1000:
+                    for f in upload_futures:
+                        if f.status == 'finished':
+                            del f
+                            gc.collect()
+        
+        # This code isn't accessed - find better monitoring method
         failed = []
-        # failed = []
-        # for f in as_completed(upload_futures+zul_futures):
-        #     if 'exception' in f.status:
-        #         f_tuple = f.exception(), f.traceback()
-        #         if f_tuple not in failed:
-        #             failed.append(f_tuple)
-        #         del f
-        #     elif 'finished' in f.status:
-        #         del f
-        #     gc.collect()
         monitor_interval = datetime.now()
         while True:
             if datetime.now() - monitor_interval > timedelta(seconds=10):
