@@ -692,7 +692,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             # print(f'folder_files: {folder_files}')
             # print(f'object_names: {object_names}')
             # folder_start = datetime.now()
-            
+            print(object_names, flush=True)
             # print('checking for symlinks')
             #always do this AFTER removing "current_objects" to avoid re-uploading
             symlink_targets = []
@@ -706,7 +706,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     symlink_targets.append(os.path.realpath(folder_files[i]))
                     #add real file to symlink_obj_names list
                     symlink_obj_names.append(symlink_obj_name)
-
+            print(object_names, flush=True)
             # append symlink_targets and symlink_obj_names to folder_files and object_names
 
             folder_files.extend(symlink_targets)
