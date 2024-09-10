@@ -1214,6 +1214,7 @@ if __name__ == '__main__':
     print(f'Dask Client: {client}', flush=True)
 
     current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
+    print(f'Current objects: {len(current_objects)}')
 
     current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, bucket=bucket)
 
