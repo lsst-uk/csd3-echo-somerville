@@ -884,6 +884,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 chunk_subfolders = True
 
             if chunk_subfolders:
+                print('in: chunking subfolders')
                 subchunks_files = []
                 for j in range(len(folders)):
                     for i in range(0, len(folder_files[j]), len(folder_files[j])//num_zips):
