@@ -674,7 +674,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             continue
 
 
-        if mean_filesize > 128*1024**2 or not global_collate:
+        if mean_filesize > 256*1024**2 or not global_collate:
             # all files within folder
             # print(f'Processing {len(files)} files (total size: {total_filesize}) individually in {folder}.')
             
@@ -885,12 +885,15 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
             if chunk_subfolders:
                 print('in: chunking subfolders')
+                print('folders:',folders)
                 subchunks_files = []
                 for j in range(len(folders)):
                     for i in range(0, len(folder_files[j]), len(folder_files[j])//num_zips):
                         # print(f'folder_files[{j}][{i}]: {folder_files[j][i]}')
                         subchunks_files.append(folder_files[j][i:i+len(folder_files[j])//num_zips])
+                print('subchunks_files:',subchunks_files)
                 subchunks = [folder for folder in folders for _ in range(len(subchunks_files))]
+                print('subchunks:',subchunks)
                 chunks = subchunks
                 chunk_files = subchunks_files
             else:
