@@ -1212,7 +1212,7 @@ if __name__ == '__main__':
     client = Client(n_workers=n_workers,threads_per_worker=threads_per_worker,memory_limit=mem_per_worker) #,silence_logs=ERROR
 
     print(f'Dask Client: {client}', flush=True)
-
+    print(f'Current objects before pd: {current_objects}, {type(current_objects)}')
     current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
     print(f'Current objects: {len(current_objects)}')
 
