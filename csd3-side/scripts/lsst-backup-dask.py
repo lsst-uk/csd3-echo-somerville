@@ -716,7 +716,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
             file_count = len(object_names)
             # folder_end = datetime.now()
-            folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
+            folder_files_size = np.sum(np.array([os.stat(filename).st_size for filename in folder_files]))
             total_size_uploaded += folder_files_size
             total_files_uploaded += file_count
             print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
