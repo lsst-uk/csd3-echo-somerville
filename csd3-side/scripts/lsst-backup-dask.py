@@ -219,7 +219,6 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
     """
     if not dryrun:
         if link:
-            print('is link', flush=True)
             """
             - Upload the link target _path_ to an object
             """
@@ -484,7 +483,10 @@ def print_stats(file_name_or_data, file_count, total_size, file_start, file_end,
         print(f'Uploaded zip file, elapsed time = {elapsed}')
     else:
         print(f'Uploaded {file_name_or_data}, elapsed time = {elapsed}')
-    elapsed_seconds = elapsed.seconds + elapsed.microseconds / 1e6
+    try:
+        elapsed_seconds = elapsed.seconds + elapsed.microseconds / 1e6
+    except ZeroDivisionError:
+        elapsed_seconds = 1e-6
     avg_file_size = total_size / file_count / 1024**2
     print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded in {elapsed_seconds:.2f} seconds, {elapsed_seconds/file_count:.2f} s/file', flush=True)
     print(f'{total_size / 1024**2:.2f} MiB uploaded in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/s', flush=True)
