@@ -49,13 +49,20 @@ def find_metadata(key: str, bucket) -> List[str]:
         existing_zip_contents = None
         if key.endswith('.zip'):
             try:
-                existing_zip_contents = str(bucket.Object(''.join([key,'.metadata'])).get()['Body'].read().decode('UTF-8')).split('|') # use | as separator
+                existing_zip_contents_str = str(bucket.Object(''.join([key,'.metadata'])).get()['Body'].read().decode('UTF-8'))
             except Exception as e:
                 try:
-                    existing_zip_contents = bucket.Object(key).metadata['zip-contents'].split('|') # use | as separator
+                    existing_zip_contents_str = bucket.Object(key).metadata['zip-contents']
                 except KeyError:
                     return None
             if existing_zip_contents:
+                # Guess separator
+                if '|' in existing_zip_contents:
+                    existing_zip_contents = existing_zip_contents.split('|')
+                elif ';' in existing_zip_contents:
+                    existing_zip_contents = existing_zip_contents.split(';')
+                else:
+                    existing_zip_contents = existing_zip_contents.split(',')
                 return existing_zip_contents
         else:
             return None
@@ -137,8 +144,8 @@ import warnings
 warnings.filterwarnings('ignore')
 
 s3 = bm.get_resource(access_key,secret_key,s3_host)
-debug = False
-bucket_name = 'LSST-IR-FUSION-rdsip005'
+debug = True
+bucket_name = 'LSST-IR-FUSION-Butlers'
 
 zipfiles_df = get_zipfile_lists(bucket_name, access_key, secret_key, s3_host, debug)
 
