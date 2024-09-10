@@ -744,10 +744,10 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         repeat(mem_per_worker),
                     )):
                     upload_futures.append(client.submit(upload_and_callback, *args))
-                    if folder_files_size > 5*1024**3:
-                        print(f'WARNING: Total size of {folder_files_size} bytes exceeds 5 GiB. Waiting and purging.')
-                        wait(upload_futures[-1])
-                        del upload_futures[-1]
+                    # if folder_files_size > 5*1024**3:
+                    #     print(f'WARNING: Total size of {folder_files_size} bytes exceeds 5 GiB. Waiting and purging.')
+                    #     wait(upload_futures[-1])
+                    #     del upload_futures[-1]
                         #gc.collect()
                     uploads.append({'folder':args[4],'folder_size':args[12],'file_size':os.lstat(folder_files[i]).st_size,'file':args[5],'object':args[7],'uploaded':False})
             except BrokenPipeError as e:
