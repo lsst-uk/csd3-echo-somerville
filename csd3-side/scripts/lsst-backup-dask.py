@@ -219,6 +219,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
     """
     if not dryrun:
         if link:
+            print('is link', flush=True)
             """
             - Upload the link target _path_ to an object
             """
@@ -366,10 +367,7 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                     obj = bucket.Object(object_key)
                     mp_upload = obj.initiate_multipart_upload(Metadata=metadata)
                     chunk_size = 512 * 1024**2  # 512 MiB
-                    try:
-                        chunk_count = int(np.ceil(file_data_size / chunk_size))
-                    except ZeroDivisionError:
-                        exit(1)
+                    chunk_count = int(np.ceil(file_data_size / chunk_size))
                     print(f'Uploading "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key} in {chunk_count} parts.', flush=True)
 
                     parts = []
