@@ -571,6 +571,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     upload_futures = []
     zip_futures = []
     zul_futures = []
+    failed = []
     for folder, sub_folders, files in os.walk(local_dir, topdown=True):
         total_all_folders += 1
         total_all_files += len(files)
@@ -974,7 +975,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 
         
         # This code isn't accessed early enough - find better monitoring method
-        failed = []
+        
         monitor_interval = datetime.now()
         while True:
             if datetime.now() - monitor_interval > timedelta(seconds=10):
