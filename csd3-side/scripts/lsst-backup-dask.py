@@ -668,7 +668,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         # remove current objects - avoids reuploading
         # could provide overwrite flag if this is desirable
         # print(f'current_objects: {current_objects}')
-        if current_objects['CURRENT_OBJECTS'].isin(object_names).all():
+        if not current_objects.empty and current_objects['CURRENT_OBJECTS'].isin(object_names).all():
             #all files in this subfolder already in bucket
             print(f'Skipping subfolder - all files exist.')
             continue
@@ -680,11 +680,12 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             
             
             # if uploading file individually, remove existing files from object_names
-            for oni, on in enumerate(object_names):
-                if current_objects['CURRENT_OBJECTS'].isin([on]).any() or current_objects['CURRENT_OBJECTS'].isin([f'{on}.symlink']).any():
-                    object_names.remove(on)
-                    # print(f'Removing {on} in object_names - previously uploaded.', flush=True)
-                    del folder_files[oni]
+            if not current_objects.empty:
+                for oni, on in enumerate(object_names):
+                    if current_objects['CURRENT_OBJECTS'].isin([on]).any() or current_objects['CURRENT_OBJECTS'].isin([f'{on}.symlink']).any():
+                        object_names.remove(on)
+                        # print(f'Removing {on} in object_names - previously uploaded.', flush=True)
+                        del folder_files[oni]
                 # else:
                     # print(f'Keeping {on} in object_names - not previously uploaded.', flush=True)
             pre_linkcheck_file_count = len(object_names)
@@ -825,16 +826,16 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             # CHECK HERE FOR ZIP CONTENTS #
             ###############################
             these_zip_contents = [ff.replace(parent_folder+'/','') for ff in folder_files]
-
-            if current_objects['METADATA'].isin([these_zip_contents]).any():
-                existing_zip_contents = current_objects[current_objects['METADATA'].isin([these_zip_contents])]['METADATA'].values[0]
-                if all([x in existing_zip_contents for x in these_zip_contents]):
-                    print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and file lists match - skipping.')
-                    # zip_results[i] = None
-                    del to_collate[parent_folder]
-                    continue
-                else:
-                    print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but file lists do not match - reuploading.')
+            if not current_objects.empty:
+                if current_objects['METADATA'].isin([these_zip_contents]).any():
+                    existing_zip_contents = current_objects[current_objects['METADATA'].isin([these_zip_contents])]['METADATA'].values[0]
+                    if all([x in existing_zip_contents for x in these_zip_contents]):
+                        print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and file lists match - skipping.')
+                        # zip_results[i] = None
+                        del to_collate[parent_folder]
+                        continue
+                    else:
+                        print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but file lists do not match - reuploading.')
 
             to_collate[parent_folder]['folders'].append(folder)
             to_collate[parent_folder]['object_names'].append(object_names)
@@ -1212,11 +1213,12 @@ if __name__ == '__main__':
     client = Client(n_workers=n_workers,threads_per_worker=threads_per_worker,memory_limit=mem_per_worker) #,silence_logs=ERROR
 
     print(f'Dask Client: {client}', flush=True)
-    print(f'Current objects before pd: {current_objects}, {type(current_objects)}')
     current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
     print(f'Current objects: {len(current_objects)}')
-
-    current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, bucket=bucket)
+    if not current_objects.empty:
+        current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, bucket=bucket)
+    else:
+        current_objects['METADATA'] = None
 
     print(current_objects['METADATA'].dropna(), flush=True)
 
