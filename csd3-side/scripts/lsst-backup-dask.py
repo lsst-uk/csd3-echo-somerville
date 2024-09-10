@@ -701,6 +701,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             symlink_obj_names = []
             for i in range(len(folder_files)):
                 if os.path.islink(folder_files[i]):
+                    print(f'Permissions of {os.path.realpath(folder_files[i])}: {os.stat(os.path.realpath(folder_files[i])).st_mode}')
                     #rename link in object_names
                     symlink_obj_name = object_names[i]
                     object_names[i] = '.'.join([object_names[i], 'symlink'])
