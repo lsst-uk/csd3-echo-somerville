@@ -1134,15 +1134,15 @@ if __name__ == '__main__':
                         mem_per_worker,
                         )
     
-    final_size = log["FILE_SIZE"].sum() / 1024**2
+    final_size = logdf["FILE_SIZE"].sum() / 1024**2
     try:
         final_transfer_speed = final_size / final_time_seconds
         
     except ZeroDivisionError:
         final_transfer_speed = 0
     try:
-        final_transfer_speed_sperf = final_time_seconds / len(log)
+        final_transfer_speed_sperf = final_time_seconds / len(logdf)
     except ZeroDivisionError:
         final_transfer_speed_sperf = 0
     print(f'Finished at {datetime.now()}, elapsed time = {final_time}')
-    print(f'Total: {len(log)} files; {(final_size):.2f} MiB; {(final_transfer_speed):.2f} MiB/s including setup time; {final_transfer_speed_sperf:.2f} s/file including setup time')
+    print(f'Total: {len(logdf)} files; {(final_size):.2f} MiB; {(final_transfer_speed):.2f} MiB/s including setup time; {final_transfer_speed_sperf:.2f} s/file including setup time')
