@@ -1250,7 +1250,7 @@ if __name__ == '__main__':
     log = pd.read_csv(log)
     log = log.drop_duplicates(subset='DESTINATION_KEY', keep='last')
     log = log.reset_index(drop=True)
-    log.to_csv(log, index=False, single_file=True)
+    log.to_csv(log, index=False)
 
     # Upload log file
     if not dryrun:
