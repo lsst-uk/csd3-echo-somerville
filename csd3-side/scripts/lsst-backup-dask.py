@@ -485,16 +485,16 @@ def print_stats(file_name_or_data, file_count, total_size, file_start, file_end,
         print(f'Uploaded {file_name_or_data}, elapsed time = {elapsed}')
     try:
         elapsed_seconds = elapsed.seconds + elapsed.microseconds / 1e6
+        avg_file_size = total_size / file_count / 1024**2
+        print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded in {elapsed_seconds:.2f} seconds, {elapsed_seconds/file_count:.2f} s/file', flush=True)
+        print(f'{total_size / 1024**2:.2f} MiB uploaded in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/s', flush=True)
+        print(f'Total elapsed time = {file_end-processing_start}', flush=True)
+        print(f'Total files uploaded = {total_files_uploaded}', flush=True)
+        print(f'Total size uploaded = {total_size_uploaded / 1024**3:.2f} GiB', flush=True)
+        print(f'Running average speed = {total_size_uploaded / 1024**2 / (file_end-processing_start).seconds:.2f} MiB/s', flush=True)
+        print(f'Running average rate = {(file_end-processing_start).seconds / total_files_uploaded:.2f} s/file', flush=True)
     except ZeroDivisionError:
-        elapsed_seconds = 1e-6
-    avg_file_size = total_size / file_count / 1024**2
-    print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded in {elapsed_seconds:.2f} seconds, {elapsed_seconds/file_count:.2f} s/file', flush=True)
-    print(f'{total_size / 1024**2:.2f} MiB uploaded in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/s', flush=True)
-    print(f'Total elapsed time = {file_end-processing_start}', flush=True)
-    print(f'Total files uploaded = {total_files_uploaded}', flush=True)
-    print(f'Total size uploaded = {total_size_uploaded / 1024**3:.2f} GiB', flush=True)
-    print(f'Running average speed = {total_size_uploaded / 1024**2 / (file_end-processing_start).seconds:.2f} MiB/s', flush=True)
-    print(f'Running average rate = {(file_end-processing_start).seconds / total_files_uploaded:.2f} s/file', flush=True)
+        pass
     del file_name_or_data
     #gc.collect()
 
