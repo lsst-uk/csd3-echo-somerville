@@ -898,8 +898,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
             if len(chunks) != len(chunk_files):
                 print('Error: chunks and chunk_files are not the same length.')
-                print(chunks)
-                print(chunk_files)
+                print(len(chunks), chunks)
+                print(len(chunk_files), chunk_files)
                 sys.exit(1)
             # print(f'parent_folder above zip(s): {parent_folder}')
             # print(f'collating into: {len(chunks)} zip file(s)')
