@@ -351,10 +351,9 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
             checksum_hash = hashlib.md5(file_data)
             checksum_string = checksum_hash.hexdigest()
             checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
-            file_size = len(file_data)
 
             try:
-                if file_size > 5 * 1024**3:  # Check if file size is larger than 5GiB
+                if file_data_size > 5 * 1024**3:  # Check if file size is larger than 5GiB
                     """
                     - Use multipart upload for large files
                     """
@@ -367,7 +366,10 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                     obj = bucket.Object(object_key)
                     mp_upload = obj.initiate_multipart_upload(Metadata=metadata)
                     chunk_size = 512 * 1024**2  # 512 MiB
-                    chunk_count = int(np.ceil(file_data_size / chunk_size))
+                    try:
+                        chunk_count = int(np.ceil(file_data_size / chunk_size))
+                    except ZeroDivisionError:
+                        exit(1)
                     print(f'Uploading "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key} in {chunk_count} parts.', flush=True)
 
                     parts = []
@@ -955,7 +957,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 total_size_uploaded += len(zip_data)
                 total_files_uploaded += 1
                 print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
-                print('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
                 zul_futures.append(client.submit(upload_and_callback, 
                         s3_host,
                         access_key,
