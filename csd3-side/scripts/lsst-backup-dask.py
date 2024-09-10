@@ -674,7 +674,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             continue
 
 
-        if mean_filesize > 128*1024**2 or not global_collate:
+        if mean_filesize > 256*1024**2 or not global_collate:
             # all files within folder
             # print(f'Processing {len(files)} files (total size: {total_filesize}) individually in {folder}.')
             
