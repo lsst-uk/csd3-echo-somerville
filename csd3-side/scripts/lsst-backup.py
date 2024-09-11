@@ -758,9 +758,27 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             to_collate[parent_folder]['object_names'].append(object_names)
             to_collate[parent_folder]['folder_files'].append(folder_files)
 
-        print(f'Pending file uploads: {len([None for f in upload_futures if f.status == "pending"])}')
-        print(f'Pending zips: {len([None for f in zip_futures if f.status == "pending"])}')
-        print(f'Pending zip uploads: {len([None for f in zul_futures if f.status == "pending"])}')
+        # print(f'Pending file uploads: {len([None for f in upload_futures if f.status == "pending"])}')
+        # print(f'Pending zips: {len([None for f in zip_futures if f.status == "pending"])}')
+        # print(f'Pending zip uploads: {len([None for f in zul_futures if f.status == "pending"])}')
+    
+    for f in upload_futures:
+        # if datetime.now() - monitor_interval > timedelta(seconds=5):
+        # these prints make no sense as futures are deleted after completion
+        # print(f'Zipped {sum([f.done() for f in zip_futures])} of {len(zip_futures)} zip files.', flush=True)
+        # print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
+        print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
+        print(f'Failed uploads: {len(failed)}', flush=True)
+        # monitor_interval = datetime.now()
+
+        # for f in upload_futures+zul_futures:
+        if 'exception' in f.status and f not in failed:
+            f_tuple = f.exception(), f.traceback()
+            del f
+            if f_tuple not in failed:
+                failed.append(f_tuple)
+        elif 'finished' in f.status:
+            del f
     
     # collate folders
     if len(to_collate) > 0:
@@ -861,13 +879,13 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         # This code isn't accessed early enough because it waits until all zip futures complete - find better monitoring method
         
         # monitor_interval = datetime.now()
-        for f in upload_futures+zul_futures:
+        for f in zul_futures:
             # if datetime.now() - monitor_interval > timedelta(seconds=5):
             # these prints make no sense as futures are deleted after completion
             # print(f'Zipped {sum([f.done() for f in zip_futures])} of {len(zip_futures)} zip files.', flush=True)
             print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
-            print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
-            print(f'Failed uploads: {len(failed)} of {len(zul_futures)+len(upload_futures)}', flush=True)
+            # print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
+            print(f'Failed uploads: {len(failed)}', flush=True)
             # monitor_interval = datetime.now()
 
             # for f in upload_futures+zul_futures:
