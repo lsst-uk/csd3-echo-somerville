@@ -852,35 +852,36 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         mem_per_worker,
                 ))
                 zip_uploads.append({'folder':parent_folder,'size':len(zip_data),'object_name':to_collate[parent_folder]['zips'][-1]['zip_object_name'],'uploaded':False}) # removed ,'zip_contents':to_collate[parent_folder]['zips'][-1]['zip_contents']
-                if len(zip_data) > 5*1024**3:
-                    wait(zul_futures[-1])
-                    del zul_futures[-1]
+                # if len(zip_data) > 5*1024**3:
+                #     wait(zul_futures[-1])
+                #     del zul_futures[-1]
                 del zip_data
                 del zip_future
                 
-        # This code isn't accessed early enough - find better monitoring method
+        # This code isn't accessed early enough because it waits until all zip futures complete - find better monitoring method
         
-        monitor_interval = datetime.now()
-        while True:
-            if datetime.now() - monitor_interval > timedelta(seconds=10):
-                # these prints make no sense as futures are deleted after completion
-                print(f'Zipped {sum([f.done() for f in zip_futures])} of {len(zip_futures)} zip files.', flush=True)
-                print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
-                print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
-                print(f'Failed uploads: {len(failed)} of {len(zul_futures)+len(upload_futures)}', flush=True)
-                monitor_interval = datetime.now()
+        # monitor_interval = datetime.now()
+        for f in upload_futures+zul_futures:
+            # if datetime.now() - monitor_interval > timedelta(seconds=5):
+            # these prints make no sense as futures are deleted after completion
+            # print(f'Zipped {sum([f.done() for f in zip_futures])} of {len(zip_futures)} zip files.', flush=True)
+            print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
+            print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
+            print(f'Failed uploads: {len(failed)} of {len(zul_futures)+len(upload_futures)}', flush=True)
+            # monitor_interval = datetime.now()
 
-            for f in upload_futures+zul_futures:
-                if 'exception' in f.status and f not in failed:
-                    f_tuple = f.exception(), f.traceback()
-                    if f_tuple not in failed:
-                        failed.append(f_tuple)
-            for finished in [f for f in upload_futures+zul_futures if f.status == 'finished']:
-                del finished
+            # for f in upload_futures+zul_futures:
+            if 'exception' in f.status and f not in failed:
+                f_tuple = f.exception(), f.traceback()
+                del f
+                if f_tuple not in failed:
+                    failed.append(f_tuple)
+            elif 'finished' in f.status:
+                del f
 
-            # End loop if all futures are finished (or failed)
-            if 'pending' not in [f.status for f in upload_futures+zul_futures+zip_futures]:
-                break
+            # # End loop if all futures are finished (or failed)
+            # if 'pending' not in [f.status for f in upload_futures+zul_futures+zip_futures]:
+            #     break
     
     ####
     # Monitor upload tasks
