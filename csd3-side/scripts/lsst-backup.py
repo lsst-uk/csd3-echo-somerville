@@ -77,15 +77,43 @@ def remove_duplicates(l: list[dict]) -> list[dict]:
     return pd.DataFrame(l).drop_duplicates().to_dict(orient='records')
 
 #upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, folder, file_data, zip_contents, object_key, perform_checksum, dryrun, mem_per_worker)
-def zip_and_upload(s3_host, access_key, secret_key, bucket_name, parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun, id, mem_per_worker, perform_checksum) -> tuple[str, int, bytes]:
+def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir, local_dir, parent_folder, subfolders_to_collate, folders_files, total_size_uploaded, total_files_uploaded, use_compression, dryrun, id, mem_per_worker, perform_checksum) -> tuple[str, int, bytes]:
     #############
     #  zip part #
     #############
-    zip_data = zip_folders(parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun, id, mem_per_worker)
+    zip_data, namelist = zip_folders(
+        parent_folder, 
+        subfolders_to_collate, 
+        folders_files, 
+        use_compression, 
+        dryrun, 
+        id, 
+        mem_per_worker
+        )
+    
     ###############
     # upload part #
     ###############
-    upload_and_callback(s3_host, access_key, secret_key, bucket_name, parent_folder, zip_data, subfolders_to_collate, id, perform_checksum, dryrun, datetime.now(), 1, len(zip_data), 0, 0, True, mem_per_worker)
+    zip_object_key = os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated_{id}.zip', local_dir)])
+    upload_and_callback(
+        s3_host,
+        access_key,
+        secret_key,
+        bucket_name,
+        parent_folder,
+        zip_data,
+        namelist,
+        zip_object_key,
+        perform_checksum,
+        dryrun,
+        datetime.now(),
+        1,
+        len(zip_data),
+        total_size_uploaded,
+        total_files_uploaded,
+        True,
+        mem_per_worker
+        )
 
 def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_files:list[str], use_compression:bool, dryrun:bool, id:int, mem_per_worker:int) -> tuple[str, int, bytes]:
     """
@@ -139,15 +167,16 @@ def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_file
                     zipped_size += os.path.getsize(file_path)
                     with open(file_path, 'rb') as src_file:
                         zip_file.writestr(arc_name, src_file.read())
+                namelist = zip_file.namelist()
             if zipped_size > mem_per_worker:
                 print(f'WARNING: Zipped size of {zipped_size} bytes exceeds memory per core of {mem_per_worker} bytes.')
         except MemoryError as e:
             print(f'Error zipping {parent_folder}: {e}')
             print(f'Namespace: {globals()}')
             exit(1)
-        return zip_buffer.getvalue()
+        return zip_buffer.getvalue(), namelist
     else:
-        return b''
+        return b'', []
     
 def part_uploader(s3_host, access_key, secret_key, bucket_name, object_key, part_number, chunk_data, upload_id) -> dict:
     """
@@ -458,6 +487,8 @@ def print_stats(file_name_or_data, file_count, total_size, file_start, file_end,
     """
 
     # This give false information as it is called once per file, not once per folder.
+    print('#######################################')
+    print('THIS INFORMATION IS CURRENTLY INCORRECT')
 
     elapsed = file_end - file_start
     if collated:
@@ -474,6 +505,8 @@ def print_stats(file_name_or_data, file_count, total_size, file_start, file_end,
         print(f'Total size uploaded = {total_size_uploaded / 1024**3:.2f} GiB', flush=True)
         print(f'Running average speed = {total_size_uploaded / 1024**2 / (file_end-processing_start).seconds:.2f} MiB/s', flush=True)
         print(f'Running average rate = {(file_end-processing_start).seconds / total_files_uploaded:.2f} s/file', flush=True)
+        print('END OF INCORRENT REPORTING')
+        print('#######################################')
     except ZeroDivisionError:
         pass
     del file_name_or_data
@@ -820,6 +853,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     repeat(use_compression),
                     repeat(dryrun),
                     [i for i in range(len(chunks))],
+                    repeat(total_size_uploaded),
+                    repeat(total_files_uploaded),
                     repeat(mem_per_worker),
                     repeat(perform_checksum),
                     )):
