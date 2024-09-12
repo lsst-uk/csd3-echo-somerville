@@ -80,6 +80,7 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
     #############
     #  zip part #
     #############
+    client = get_client()
     print(f'Collating {len(subfolders_to_collate)} subfolders into a zip file.', flush=True)
     zip_data, namelist = zip_folders(
         parent_folder, 
@@ -91,19 +92,20 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
         mem_per_worker
         )
     if len(zip_data) > mem_per_worker/2:
-        get_client().scatter(zip_data)
+        print('Scattering zip data.')
+        scattered_zip_data = client.scatter(zip_data)
     ###############
     # upload part #
     ###############
     zip_object_key = os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated_{id}.zip', local_dir)])
     print(f'Uploading zip file containing {len(subfolders_to_collate)} subfolders to S3 bucket {bucket_name} to key {zip_object_key}.', flush=True)
-    upload_and_callback(
+    f = client.submit(upload_and_callback,
         s3_host,
         access_key,
         secret_key,
         bucket_name,
         parent_folder,
-        zip_data,
+        scattered_zip_data,
         namelist,
         zip_object_key,
         perform_checksum,
@@ -116,7 +118,7 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
         True,
         mem_per_worker
         )
-    del zip_data
+    wait(f)
 
     return zip_object_key+' success'
 
