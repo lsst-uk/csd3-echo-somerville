@@ -119,6 +119,7 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
         mem_per_worker
         )
     wait(f)
+    del f, zip_data
 
     return zip_object_key+' success'
 
