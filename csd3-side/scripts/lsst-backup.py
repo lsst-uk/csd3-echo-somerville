@@ -80,6 +80,7 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
     #############
     #  zip part #
     #############
+    print(f'Collating {len(subfolders_to_collate)} subfolders into a zip file.', flush=True)
     zip_data, namelist = zip_folders(
         parent_folder, 
         subfolders_to_collate, 
@@ -94,6 +95,7 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
     # upload part #
     ###############
     zip_object_key = os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated_{id}.zip', local_dir)])
+    print(f'Uploading zip file containing {len(subfolders_to_collate)} subfolders to S3 bucket {bucket_name} to key {zip_object_key}.', flush=True)
     upload_and_callback(
         s3_host,
         access_key,
@@ -113,9 +115,9 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
         True,
         mem_per_worker
         )
-    del zip_data, namelist, zip_object_key
+    del zip_data, namelist
 
-    return None
+    return zip_object_key+' success'
 
 def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_files:list[str], use_compression:bool, dryrun:bool, id:int, mem_per_worker:int) -> tuple[str, int, bytes]:
     """
