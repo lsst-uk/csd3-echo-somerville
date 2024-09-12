@@ -76,7 +76,6 @@ def find_metadata(key: str, bucket) -> List[str]:
 def remove_duplicates(l: list[dict]) -> list[dict]:
     return pd.DataFrame(l).drop_duplicates().to_dict(orient='records')
 
-#upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, folder, file_data, zip_contents, object_key, perform_checksum, dryrun, mem_per_worker)
 def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir, local_dir, parent_folder, subfolders_to_collate, folders_files, total_size_uploaded, total_files_uploaded, use_compression, dryrun, id, mem_per_worker, perform_checksum) -> tuple[str, int, bytes]:
     #############
     #  zip part #
@@ -841,12 +840,13 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             if len(chunks) != len(chunk_files):
                 print('Error: chunks and chunk_files are not the same length.')
                 sys.exit(1)
-         
             for i, args in enumerate(zip(
                     repeat(s3_host),
                     repeat(access_key),
                     repeat(secret_key),
                     repeat(bucket_name),
+                    repeat(destination_dir),
+                    repeat(local_dir),
                     repeat(parent_folder),
                     chunks,
                     chunk_files,
