@@ -105,7 +105,7 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
         secret_key,
         bucket_name,
         parent_folder,
-        scattered_zip_data,
+        zip_data,
         namelist,
         zip_object_key,
         perform_checksum,
