@@ -843,6 +843,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             if len(chunks) != len(chunk_files):
                 print('Error: chunks and chunk_files are not the same length.')
                 sys.exit(1)
+            #def zip_and_upload( total_size_uploaded, total_files_uploaded, use_compression, dryrun, id, mem_per_worker, perform_checksum) -> tuple[str, int, bytes]:
             for i, args in enumerate(zip(
                     repeat(s3_host),
                     repeat(access_key),
@@ -853,11 +854,11 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     repeat(parent_folder),
                     chunks,
                     chunk_files,
+                    repeat(total_size_uploaded),
+                    repeat(total_files_uploaded),
                     repeat(use_compression),
                     repeat(dryrun),
                     [i for i in range(len(chunks))],
-                    repeat(total_size_uploaded),
-                    repeat(total_files_uploaded),
                     repeat(mem_per_worker),
                     repeat(perform_checksum),
                     )):
