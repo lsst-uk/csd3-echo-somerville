@@ -90,7 +90,7 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
         id, 
         mem_per_worker
         )
-    
+    get_client().scatter(zip_data)
     ###############
     # upload part #
     ###############
@@ -115,7 +115,7 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
         True,
         mem_per_worker
         )
-    # del zip_data, namelist
+    del zip_data
 
     return zip_object_key+' success'
 
