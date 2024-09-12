@@ -873,7 +873,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     # Monitor upload tasks #
     ########################
                 
-    for f in upload_futures+zul_futures:
+    for f in as_completed(upload_futures+zul_futures):
         # print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
         # print(f'Failed uploads: {len(failed)}', flush=True)
         # print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
