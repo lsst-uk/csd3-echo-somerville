@@ -76,6 +76,17 @@ def find_metadata(key: str, bucket) -> List[str]:
 def remove_duplicates(l: list[dict]) -> list[dict]:
     return pd.DataFrame(l).drop_duplicates().to_dict(orient='records')
 
+#upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, folder, file_data, zip_contents, object_key, perform_checksum, dryrun, mem_per_worker)
+def zip_and_upload(s3_host, access_key, secret_key, bucket_name, parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun, id, mem_per_worker, perform_checksum) -> tuple[str, int, bytes]:
+    #############
+    #  zip part #
+    #############
+    zip_data = zip_folders(parent_folder, subfolders_to_collate, folders_files, use_compression, dryrun, id, mem_per_worker)
+    ###############
+    # upload part #
+    ###############
+    upload_and_callback(s3_host, access_key, secret_key, bucket_name, parent_folder, zip_data, subfolders_to_collate, id, perform_checksum, dryrun, datetime.now(), 1, len(zip_data), 0, 0, True, mem_per_worker)
+
 def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_files:list[str], use_compression:bool, dryrun:bool, id:int, mem_per_worker:int) -> tuple[str, int, bytes]:
     """
     Collates the specified folders into a zip file.
@@ -134,9 +145,9 @@ def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_file
             print(f'Error zipping {parent_folder}: {e}')
             print(f'Namespace: {globals()}')
             exit(1)
-        return parent_folder, id, zip_buffer.getvalue()
+        return zip_buffer.getvalue()
     else:
-        return parent_folder, id, b''
+        return b''
     
 def part_uploader(s3_host, access_key, secret_key, bucket_name, object_key, part_number, chunk_data, upload_id) -> dict:
     """
@@ -530,7 +541,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     uploads = []
     zip_uploads = []
     upload_futures = []
-    zip_futures = []
     zul_futures = []
     failed = []
     for folder, sub_folders, files in os.walk(local_dir, topdown=True):
@@ -622,7 +632,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             #all files in this subfolder already in bucket
             print(f'Skipping subfolder - all files exist.')
             continue
-
 
         if mean_filesize > 256*1024**2 or not global_collate:
             # all files within folder
@@ -757,28 +766,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             to_collate[parent_folder]['folders'].append(folder)
             to_collate[parent_folder]['object_names'].append(object_names)
             to_collate[parent_folder]['folder_files'].append(folder_files)
-
-        # print(f'Pending file uploads: {len([None for f in upload_futures if f.status == "pending"])}')
-        # print(f'Pending zips: {len([None for f in zip_futures if f.status == "pending"])}')
-        # print(f'Pending zip uploads: {len([None for f in zul_futures if f.status == "pending"])}')
-    
-    for f in upload_futures:
-        # if datetime.now() - monitor_interval > timedelta(seconds=5):
-        # these prints make no sense as futures are deleted after completion
-        # print(f'Zipped {sum([f.done() for f in zip_futures])} of {len(zip_futures)} zip files.', flush=True)
-        # print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
-        print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
-        print(f'Failed uploads: {len(failed)}', flush=True)
-        # monitor_interval = datetime.now()
-
-        # for f in upload_futures+zul_futures:
-        if 'exception' in f.status and f not in failed:
-            f_tuple = f.exception(), f.traceback()
-            del f
-            if f_tuple not in failed:
-                failed.append(f_tuple)
-        elif 'finished' in f.status:
-            del f
     
     # collate folders
     if len(to_collate) > 0:
@@ -823,87 +810,41 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 sys.exit(1)
          
             for i, args in enumerate(zip(
+                    repeat(s3_host),
+                    repeat(access_key),
+                    repeat(secret_key),
+                    repeat(bucket_name),
                     repeat(parent_folder),
                     chunks,
                     chunk_files,
                     repeat(use_compression),
                     repeat(dryrun),
-                    # repeat(processing_start),
                     [i for i in range(len(chunks))],
                     repeat(mem_per_worker),
-                    # repeat(total_size_uploaded),
-                    # repeat(total_files_uploaded),
+                    repeat(perform_checksum),
                     )):
-                zip_futures.append(client.submit(
-                    zip_folders,
+                zul_futures.append(client.submit(
+                    zip_and_upload,
                     *args
                 ))
-
-            for zip_future in as_completed(zip_futures):
-                parent_folder, id, zip_data = zip_future.result()
-                
-                with zipfile.ZipFile(io.BytesIO(zip_data), 'r') as z:
-                    zip_contents = z.namelist()
-                to_collate[parent_folder]['zips'].append({'zip_contents':zip_contents, 'id':id, 'zip_object_name':str(os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated_{id}.zip', local_dir)]))})
-
-                # upload zipped folders
-                total_size_uploaded += len(zip_data)
-                total_files_uploaded += 1
-                print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
-                zul_futures.append(client.submit(upload_and_callback, 
-                        s3_host,
-                        access_key,
-                        secret_key,
-                        bucket_name,
-                        parent_folder,
-                        zip_data,
-                        to_collate[parent_folder]['zips'][-1]['zip_contents'],
-                        to_collate[parent_folder]['zips'][-1]['zip_object_name'],
-                        perform_checksum,
-                        dryrun,
-                        processing_start,
-                        1,
-                        len(zip_data),
-                        total_size_uploaded,
-                        total_files_uploaded,
-                        True,
-                        mem_per_worker,
-                ))
-                zip_uploads.append({'folder':parent_folder,'size':len(zip_data),'object_name':to_collate[parent_folder]['zips'][-1]['zip_object_name'],'uploaded':False}) # removed ,'zip_contents':to_collate[parent_folder]['zips'][-1]['zip_contents']
-                # if len(zip_data) > 5*1024**3:
-                #     wait(zul_futures[-1])
-                #     del zul_futures[-1]
-                del zip_data
-                del zip_future
-                
-        # This code isn't accessed early enough because it waits until all zip futures complete - find better monitoring method
-        
-        # monitor_interval = datetime.now()
-        for f in zul_futures:
-            # if datetime.now() - monitor_interval > timedelta(seconds=5):
-            # these prints make no sense as futures are deleted after completion
-            # print(f'Zipped {sum([f.done() for f in zip_futures])} of {len(zip_futures)} zip files.', flush=True)
-            print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
-            # print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
-            print(f'Failed uploads: {len(failed)}', flush=True)
-            # monitor_interval = datetime.now()
-
-            # for f in upload_futures+zul_futures:
-            if 'exception' in f.status and f not in failed:
-                f_tuple = f.exception(), f.traceback()
-                del f
-                if f_tuple not in failed:
-                    failed.append(f_tuple)
-            elif 'finished' in f.status:
-                del f
-
-            # # End loop if all futures are finished (or failed)
-            # if 'pending' not in [f.status for f in upload_futures+zul_futures+zip_futures]:
-            #     break
     
-    ####
-    # Monitor upload tasks
-    ####
+    ########################
+    # Monitor upload tasks #
+    ########################
+                
+    for f in upload_futures+zul_futures:
+        print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
+        print(f'Failed uploads: {len(failed)}', flush=True)
+        print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
+        print(f'Failed uploads: {len(failed)}', flush=True)
+
+        if 'exception' in f.status and f not in failed:
+            f_tuple = f.exception(), f.traceback()
+            del f
+            if f_tuple not in failed:
+                failed.append(f_tuple)
+        elif 'finished' in f.status:
+            del f
 
     if failed:
         for i, failed_upload in enumerate(failed):
