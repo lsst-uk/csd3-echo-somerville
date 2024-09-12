@@ -115,7 +115,7 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
         True,
         mem_per_worker
         )
-    del zip_data, namelist
+    # del zip_data, namelist
 
     return zip_object_key+' success'
 
@@ -874,10 +874,10 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     ########################
                 
     for f in upload_futures+zul_futures:
-        print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
-        print(f'Failed uploads: {len(failed)}', flush=True)
-        print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
-        print(f'Failed uploads: {len(failed)}', flush=True)
+        # print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
+        # print(f'Failed uploads: {len(failed)}', flush=True)
+        # print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
+        # print(f'Failed uploads: {len(failed)}', flush=True)
 
         if 'exception' in f.status and f not in failed:
             f_tuple = f.exception(), f.traceback()
@@ -885,6 +885,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             if f_tuple not in failed:
                 failed.append(f_tuple)
         elif 'finished' in f.status:
+            print(f.result())
             del f
 
     if failed:
