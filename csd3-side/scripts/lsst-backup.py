@@ -93,7 +93,7 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
         )
     if len(zip_data) > mem_per_worker/2:
         print('Scattering zip data.')
-        scattered_zip_data = client.scatter(zip_data)
+        zip_data = client.scatter(zip_data)
     ###############
     # upload part #
     ###############
