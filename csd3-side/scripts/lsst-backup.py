@@ -90,7 +90,8 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
         id, 
         mem_per_worker
         )
-    get_client().scatter(zip_data)
+    if len(zip_data) > mem_per_worker:
+        get_client().scatter(zip_data)
     ###############
     # upload part #
     ###############
