@@ -112,7 +112,7 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
         dryrun,
         datetime.now(),
         1,
-        len(zip_data),
+        len(zip_data_f),
         total_size_uploaded,
         total_files_uploaded,
         True,
