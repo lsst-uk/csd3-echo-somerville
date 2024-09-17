@@ -305,8 +305,8 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                             with open(filename, 'rb') as f:
                                 f.seek(start)
                                 chunk_data = f.read(end - start)
-                            wait(get_client().submit(
-                                part_uploader, 
+                            # wait(get_client().submit(
+                            part_uploader( 
                                 s3_host,
                                 access_key,
                                 secret_key,
@@ -315,9 +315,9 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                                 part_number,
                                 chunk_data,
                                 mp_upload.id
-                            ))
-                        for future in as_completed(part_futures):
-                            parts.append(future.result())
+                            )
+                        # for future in as_completed(part_futures):
+                        #     parts.append(future.result())
                         s3_client.complete_multipart_upload(
                             Bucket=bucket_name,
                             Key=object_key,
@@ -434,8 +434,8 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                         end = min(start + chunk_size, file_data_size)
                         part_number = i + 1
                         chunk_data = file_data[start:end]
-                        wait(get_client().submit(
-                                part_uploader, 
+                        # wait(get_client().submit(
+                        part_uploader(
                                 s3_host,
                                 access_key,
                                 secret_key,
@@ -444,9 +444,9 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                                 part_number,
                                 chunk_data,
                                 mp_upload.id
-                            ))
-                    for future in as_completed(part_futures):
-                        parts.append(future.result())
+                            )
+                    # for future in as_completed(part_futures):
+                    #     parts.append(future.result())
                     s3_client.complete_multipart_upload(
                         Bucket=bucket_name,
                         Key=object_key,
