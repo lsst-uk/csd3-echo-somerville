@@ -251,6 +251,11 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
         file_data = open(filename, 'rb')
 
     file_size = os.path.getsize(filename)
+    use_future = False
+    if file_size > 0.5*mem_per_worker:
+        print(f'WARNING: File size of {file_size} bytes exceeds half the memory per worker of {mem_per_worker} bytes.')
+        file_data = get_client().scatter(file_data)
+        use_future = True
 
     print(f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, {file_size} bytes, checksum = {perform_checksum}, dryrun = {dryrun}', flush=True)
     """
@@ -261,17 +266,25 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
             """
             - Upload the link target _path_ to an object
             """
-            bucket.put_object(Body=file_data, Key=object_key)
+            if use_future:
+                bucket.put_object(Body=get_client().gather(file_data), Key=object_key)
+                get_client().scatter(file_data)
+            else:
+                bucket.put_object(Body=file_data, Key=object_key)
         if not link:
             if perform_checksum:
                 """
                 - Create checksum object
                 """
+                if use_future:
+                    file_data = get_client().gather(file_data)
                 file_data.seek(0)  # Ensure we're at the start of the file
                 checksum_hash = hashlib.md5(file_data.read())
                 checksum_string = checksum_hash.hexdigest()
                 checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
                 file_data.seek(0)  # Reset the file pointer to the start
+                if use_future:
+                    file_data = get_client().scatter(file_data)
                 try:
                     if file_size > mem_per_worker or file_size > 5 * 1024**3:  # Check if file size is larger than 5GiB
                         """
@@ -316,12 +329,19 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                         - Upload the file to the bucket
                         """
                         print(f'Uploading {filename} to {bucket_name}/{object_key}')
-                        bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64)
+                        if use_future:
+                            bucket.put_object(Body=get_client().gather(file_data), Key=object_key, ContentMD5=checksum_base64)
+                        else:
+                            bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64)
                 except Exception as e:
                     print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
             else:
                 try:
                     bucket.put_object(Body=file_data, Key=object_key)
+                    if use_future:
+                        bucket.put_object(Body=get_client().gather(file_data), Key=object_key)
+                    else:
+                        bucket.put_object(Body=file_data, Key=object_key)
                 except Exception as e:
                     print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
             file_data.close()
