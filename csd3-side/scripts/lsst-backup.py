@@ -808,6 +808,17 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             to_collate[parent_folder]['folders'].append(folder)
             to_collate[parent_folder]['object_names'].append(object_names)
             to_collate[parent_folder]['folder_files'].append(folder_files)
+        
+        sched_info = client.scheduler_info()
+        workers = list(sched_info['workers'])
+        max_mem_used = 0
+        for _, info in workers.items():
+            mem_used = info['memory']
+            if mem_used > max_mem_used:
+                max_mem_used = mem_used
+        if max_mem_used > 0.9 * mem_per_worker:
+            wait(futures=upload_futures, return_when='ALL_COMPLETED')
+
     
     # collate folders
     if len(to_collate) > 0:
@@ -876,6 +887,16 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     zip_and_upload,
                     *args
                 ))
+            
+            sched_info = client.scheduler_info()
+            workers = list(sched_info['workers'])
+            max_mem_used = 0
+            for _, info in workers.items():
+                mem_used = info['memory']
+                if mem_used > max_mem_used:
+                    max_mem_used = mem_used
+            if max_mem_used > 0.9 * mem_per_worker:
+                wait(futures=upload_futures+zul_futures, return_when='ALL_COMPLETED')
     
     ########################
     # Monitor upload tasks #
