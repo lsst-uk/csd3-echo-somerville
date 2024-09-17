@@ -40,7 +40,7 @@ import hashlib
 import os
 import argparse
 
-from dask.distributed import Client, get_client, wait, as_completed
+from dask.distributed import Client, get_client, wait, as_completed, get_worker
 
 from typing import List
 
@@ -810,6 +810,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             to_collate[parent_folder]['folder_files'].append(folder_files)
         
         sched_info = client.scheduler_info()
+        print(sched_info, file=sys.stderr)
         workers = sched_info['workers']
         max_mem_used = 0
         for _, info in workers.items():
