@@ -526,6 +526,7 @@ def print_stats(file_name_or_data, file_count, total_size, file_start, file_end,
     Returns:
         None
     """
+    pass
 
     # This give false information as it is called once per file, not once per folder.
     print('#######################################')
