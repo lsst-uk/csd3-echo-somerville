@@ -254,7 +254,11 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
     use_future = False
     if file_size > 0.5*mem_per_worker:
         print(f'WARNING: File size of {file_size} bytes exceeds half the memory per worker of {mem_per_worker} bytes.')
-        file_data = get_client().scatter(file_data)
+        try:
+            file_data = get_client().scatter(file_data)
+        except TypeError as e:
+            print(f'Error scattering {filename}: {e}')
+            exit(1)
         use_future = True
 
     print(f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, {file_size} bytes, checksum = {perform_checksum}, dryrun = {dryrun}', flush=True)
@@ -268,7 +272,11 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
             """
             if use_future:
                 bucket.put_object(Body=get_client().gather(file_data), Key=object_key)
-                get_client().scatter(file_data)
+                try:
+                    get_client().scatter(file_data)
+                except TypeError as e:
+                    print(f'Error scattering {filename}: {e}')
+                    exit(1)
             else:
                 bucket.put_object(Body=file_data, Key=object_key)
         if not link:
@@ -284,7 +292,11 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                 checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
                 file_data.seek(0)  # Reset the file pointer to the start
                 if use_future:
-                    file_data = get_client().scatter(file_data)
+                    try:
+                        file_data = get_client().scatter(file_data)
+                    except TypeError as e:
+                        print(f'Error scattering {filename}: {e}')
+                        exit(1)
                 try:
                     if file_size > mem_per_worker or file_size > 5 * 1024**3:  # Check if file size is larger than 5GiB
                         """
@@ -591,8 +603,11 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     total_size_uploaded = 0
     total_files_uploaded = 0
     i = 0
-
-    client.scatter([s3_host, access_key, secret_key, bucket_name, perform_checksum, dryrun, current_objects], broadcast=True)
+    try:
+        client.scatter([s3_host, access_key, secret_key, bucket_name, perform_checksum, dryrun, current_objects], broadcast=True)
+    except TypeError as e:
+        print(f'Error scattering {filename}: {e}')
+        exit(1)
         
     #recursive loop over local folder
     to_collate = {} # store folders to collate
