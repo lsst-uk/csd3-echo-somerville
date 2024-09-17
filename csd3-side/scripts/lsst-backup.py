@@ -810,14 +810,15 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             to_collate[parent_folder]['folder_files'].append(folder_files)
         
         sched_info = client.scheduler_info()
-        print(sched_info, file=sys.stderr)
-        workers = sched_info['workers']
-        max_mem_used = 0
-        for _, info in workers.items():
-            mem_used = info['memory']
-            if mem_used > max_mem_used:
-                max_mem_used = mem_used
-        if max_mem_used > 0.9 * mem_per_worker:
+        max_mem = 0
+        mem_lim = None
+        for _, winfo in sched_info['workers'].items():
+            if not mem_lim:
+                mem_lim = winfo['memory_limit']
+            mem = winfo['metrics']['memory']
+            if mem > max_mem:
+                max_mem = mem
+        if max_mem / mem_lim > 0.9:
             wait(futures=upload_futures, return_when='ALL_COMPLETED')
 
     
@@ -890,14 +891,16 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 ))
             
             sched_info = client.scheduler_info()
-            workers = sched_info['workers']
-            max_mem_used = 0
-            for _, info in workers.items():
-                mem_used = info['memory']
-                if mem_used > max_mem_used:
-                    max_mem_used = mem_used
-            if max_mem_used > 0.9 * mem_per_worker:
-                wait(futures=upload_futures+zul_futures, return_when='ALL_COMPLETED')
+            max_mem = 0
+            mem_lim = None
+            for _, winfo in sched_info['workers'].items():
+                if not mem_lim:
+                    mem_lim = winfo['memory_limit']
+                mem = winfo['metrics']['memory']
+                if mem > max_mem:
+                    max_mem = mem
+            if max_mem / mem_lim > 0.9:
+                wait(futures=upload_futures, return_when='ALL_COMPLETED')
     
     ########################
     # Monitor upload tasks #
