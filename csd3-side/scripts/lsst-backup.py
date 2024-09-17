@@ -286,11 +286,11 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                 """
                 if use_future:
                     file_data = get_client().gather(file_data)
-                file_data.seek(0)  # Ensure we're at the start of the file
+                # file_data.seek(0)  # Ensure we're at the start of the file
                 checksum_hash = hashlib.md5(file_data)
                 checksum_string = checksum_hash.hexdigest()
                 checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
-                file_data.seek(0)  # Reset the file pointer to the start
+                # file_data.seek(0)  # Reset the file pointer to the start
                 if use_future:
                     try:
                         file_data = get_client().scatter(file_data)
@@ -356,7 +356,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                         bucket.put_object(Body=file_data, Key=object_key)
                 except Exception as e:
                     print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
-            file_data.close()
+            # file_data.close()
     else:
         checksum_string = "DRYRUN"
 
