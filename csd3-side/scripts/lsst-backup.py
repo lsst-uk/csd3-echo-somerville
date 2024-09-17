@@ -528,30 +528,30 @@ def print_stats(file_name_or_data, file_count, total_size, file_start, file_end,
     """
     pass
 
-    # This give false information as it is called once per file, not once per folder.
-    print('#######################################')
-    print('THIS INFORMATION IS CURRENTLY INCORRECT')
+    # # This give false information as it is called once per file, not once per folder.
+    # print('#######################################')
+    # print('THIS INFORMATION IS CURRENTLY INCORRECT')
 
-    elapsed = file_end - file_start
-    if collated:
-        print(f'Uploaded zip file, elapsed time = {elapsed}')
-    else:
-        print(f'Uploaded {file_name_or_data}, elapsed time = {elapsed}')
-    try:
-        elapsed_seconds = elapsed.seconds + elapsed.microseconds / 1e6
-        avg_file_size = total_size / file_count / 1024**2
-        print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded in {elapsed_seconds:.2f} seconds, {elapsed_seconds/file_count:.2f} s/file', flush=True)
-        print(f'{total_size / 1024**2:.2f} MiB uploaded in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/s', flush=True)
-        print(f'Total elapsed time = {file_end-processing_start}', flush=True)
-        print(f'Total files uploaded = {total_files_uploaded}', flush=True)
-        print(f'Total size uploaded = {total_size_uploaded / 1024**3:.2f} GiB', flush=True)
-        print(f'Running average speed = {total_size_uploaded / 1024**2 / (file_end-processing_start).seconds:.2f} MiB/s', flush=True)
-        print(f'Running average rate = {(file_end-processing_start).seconds / total_files_uploaded:.2f} s/file', flush=True)
-        print('END OF INCORRENT REPORTING')
-        print('#######################################')
-    except ZeroDivisionError:
-        pass
-    del file_name_or_data
+    # elapsed = file_end - file_start
+    # if collated:
+    #     print(f'Uploaded zip file, elapsed time = {elapsed}')
+    # else:
+    #     print(f'Uploaded {file_name_or_data}, elapsed time = {elapsed}')
+    # try:
+    #     elapsed_seconds = elapsed.seconds + elapsed.microseconds / 1e6
+    #     avg_file_size = total_size / file_count / 1024**2
+    #     print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded in {elapsed_seconds:.2f} seconds, {elapsed_seconds/file_count:.2f} s/file', flush=True)
+    #     print(f'{total_size / 1024**2:.2f} MiB uploaded in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/s', flush=True)
+    #     print(f'Total elapsed time = {file_end-processing_start}', flush=True)
+    #     print(f'Total files uploaded = {total_files_uploaded}', flush=True)
+    #     print(f'Total size uploaded = {total_size_uploaded / 1024**3:.2f} GiB', flush=True)
+    #     print(f'Running average speed = {total_size_uploaded / 1024**2 / (file_end-processing_start).seconds:.2f} MiB/s', flush=True)
+    #     print(f'Running average rate = {(file_end-processing_start).seconds / total_files_uploaded:.2f} s/file', flush=True)
+    #     print('END OF INCORRENT REPORTING')
+    #     print('#######################################')
+    # except ZeroDivisionError:
+    #     pass
+    # del file_name_or_data
 
 def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded, collated, mem_per_worker) -> None:
     # upload files in parallel and log output
