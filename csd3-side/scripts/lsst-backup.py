@@ -854,7 +854,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             if mem > max_mem:
                 max_mem = mem
         if max_mem / mem_lim > 0.9:
-            wait(futures=upload_futures, return_when='ALL_COMPLETED')
+            wait(futures=upload_futures)
 
     
     # collate folders
@@ -935,7 +935,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 if mem > max_mem:
                     max_mem = mem
             if max_mem / mem_lim > 0.9:
-                wait(futures=upload_futures, return_when='ALL_COMPLETED')
+                wait(futures=upload_futures)
     
     ########################
     # Monitor upload tasks #
