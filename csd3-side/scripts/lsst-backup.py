@@ -810,7 +810,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             to_collate[parent_folder]['folder_files'].append(folder_files)
         
         sched_info = client.scheduler_info()
-        workers = list(sched_info['workers'])
+        workers = sched_info['workers']
         max_mem_used = 0
         for _, info in workers.items():
             mem_used = info['memory']
@@ -889,7 +889,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 ))
             
             sched_info = client.scheduler_info()
-            workers = list(sched_info['workers'])
+            workers = sched_info['workers']
             max_mem_used = 0
             for _, info in workers.items():
                 mem_used = info['memory']
