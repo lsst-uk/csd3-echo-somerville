@@ -248,7 +248,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
     if link:
         file_data = os.path.realpath(filename)
     else:
-        file_data = open(filename, 'rb')
+        file_data = open(filename, 'rb').read()
 
     file_size = os.path.getsize(filename)
     use_future = False
@@ -287,7 +287,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                 if use_future:
                     file_data = get_client().gather(file_data)
                 file_data.seek(0)  # Ensure we're at the start of the file
-                checksum_hash = hashlib.md5(file_data.read())
+                checksum_hash = hashlib.md5(file_data)
                 checksum_string = checksum_hash.hexdigest()
                 checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
                 file_data.seek(0)  # Reset the file pointer to the start
