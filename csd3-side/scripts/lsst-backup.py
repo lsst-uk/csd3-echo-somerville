@@ -957,21 +957,21 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     ########################
     # Monitor upload tasks #
     ########################
-                
-    for f in as_completed(upload_futures+zul_futures):
-        # print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
-        # print(f'Failed uploads: {len(failed)}', flush=True)
-        # print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
-        # print(f'Failed uploads: {len(failed)}', flush=True)
+    while len(upload_futures) +len(zul_futures) > 0:
+        for f in as_completed(upload_futures+zul_futures):
+            # print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
+            # print(f'Failed uploads: {len(failed)}', flush=True)
+            # print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
+            # print(f'Failed uploads: {len(failed)}', flush=True)
 
-        if 'exception' in f.status and f not in failed:
-            f_tuple = f.exception(), f.traceback()
-            del f
-            if f_tuple not in failed:
-                failed.append(f_tuple)
-        elif 'finished' in f.status:
-            print(f.result())
-            del f
+            if 'exception' in f.status and f not in failed:
+                f_tuple = f.exception(), f.traceback()
+                del f
+                if f_tuple not in failed:
+                    failed.append(f_tuple)
+            elif 'finished' in f.status:
+                print(f.result())
+                del f
 
     if failed:
         for i, failed_upload in enumerate(failed):
@@ -1156,16 +1156,6 @@ if __name__ == '__main__':
     current_objects = bm.object_list(bucket)
     print(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}')
 
-    ############################
-    #        Dask Setup        #
-    ############################
-    total_memory = virtual_memory().total
-    n_workers = nprocs//threads_per_worker
-    mem_per_worker = virtual_memory().total//n_workers # e.g., 187 GiB / 48 * 2 = 7.8 GiB
-    print(f'nprocs: {nprocs}, Threads per worker: {threads_per_worker}, Number of workers: {n_workers}, Total memory: {total_memory/1024**3:.2f} GiB, Memory per worker: {mem_per_worker/1024**3:.2f} GiB')
-    client = Client(n_workers=n_workers,threads_per_worker=threads_per_worker,memory_limit=mem_per_worker) #,silence_logs=ERROR
-
-    print(f'Dask Client: {client}', flush=True)
     current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
     print(f'Current objects: {len(current_objects)}')
     if not current_objects.empty:
@@ -1188,14 +1178,24 @@ if __name__ == '__main__':
     while local_dir[-1] == '/':
         local_dir = local_dir[:-1]
 
+    ############################
+    #        Dask Setup        #
+    ############################
+    total_memory = virtual_memory().total
+    n_workers = nprocs//threads_per_worker
+    mem_per_worker = virtual_memory().total//n_workers # e.g., 187 GiB / 48 * 2 = 7.8 GiB
+    print(f'nprocs: {nprocs}, Threads per worker: {threads_per_worker}, Number of workers: {n_workers}, Total memory: {total_memory/1024**3:.2f} GiB, Memory per worker: {mem_per_worker/1024**3:.2f} GiB')
+    # client = Client(n_workers=n_workers,threads_per_worker=threads_per_worker,memory_limit=mem_per_worker) #,silence_logs=ERROR
     # Process the files
-    print(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}')
-    print(f'Using {nprocs} processes.')
-    with warnings.catch_warnings():
-        warnings.filterwarnings('ignore')
-        process_files(s3_host,access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, perform_checksum, dryrun, log, global_collate, use_compression, client, mem_per_worker)
+    with Client(n_workers=n_workers,threads_per_worker=threads_per_worker,memory_limit=mem_per_worker) as client:
+        print(f'Dask Client: {client}', flush=True)
+        print(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}')
+        print(f'Using {nprocs} processes.')
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore')
+            process_files(s3_host,access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, perform_checksum, dryrun, log, global_collate, use_compression, client, mem_per_worker)
     
-    client.close()
+    
     print(f'Dask Client closed at {datetime.now()}, elapsed time = {datetime.now() - start}')
 
     # Complete
