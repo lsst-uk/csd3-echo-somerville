@@ -877,21 +877,21 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             ## rewrite expanding list comprehension
             #########################
             
-                max_filesize = 0
-                for ff in folder_files:
-                    for filename in ff:
-                        try:
-                            if os.lstat(filename).st_size > max_filesize:
-                                max_filesize += os.lstat(filename).st_size
-                        # except ValueError:
-                        #     # no files in folder - likely removed from file list due to previous PermissionError - continue without message
-                        #     continue
-                        except PermissionError:
-                            print(f'WARNING: Permission error reading {filename}. File will not be backed up.')
-                            folder_files.remove(filename)
-                            if len(folder_files) == 0:
-                                print(f'Skipping subfolder - no files - see permissions warning(s).')
-                                continue
+            max_filesize = 0
+            for ff in folder_files:
+                for filename in ff:
+                    try:
+                        if os.lstat(filename).st_size > max_filesize:
+                            max_filesize += os.lstat(filename).st_size
+                    # except ValueError:
+                    #     # no files in folder - likely removed from file list due to previous PermissionError - continue without message
+                    #     continue
+                    except PermissionError:
+                        print(f'WARNING: Permission error reading {filename}. File will not be backed up.')
+                        folder_files.remove(filename)
+                        if len(folder_files) == 0:
+                            print(f'Skipping subfolder - no files - see permissions warning(s).')
+                            continue
             
             max_files_per_zip = int(np.ceil(1024**3 / max_filesize)) # limit zips to 1 GiB - using available memory too inconsistent
             num_zips = int(np.ceil(num_files / max_files_per_zip))
