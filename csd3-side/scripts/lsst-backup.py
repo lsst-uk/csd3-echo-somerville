@@ -872,11 +872,25 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             folders = zip_tuple[1]['folders']
             folder_files = zip_tuple[1]['folder_files']
             num_files = sum([len(ff) for ff in folder_files])
+
+            ########################
+            ## rewrite expanding list comprehension
+            #########################
             try:
-                max_filesize = max([max([os.lstat(filename).st_size for filename in ff]) for ff in folder_files])
+                max_filesize = 0
+                for ff in folder_files:
+                    for filename in ff:
+                        if os.lstat(filename).st_size > max_filesize:
+                            max_filesize += os.lstat(filename).st_size
             except ValueError:
                 # no files in folder - likely removed from file list due to previous PermissionError - continue without message
                 continue
+            except PermissionError:
+                print(f'WARNING: Permission error reading {filename}. File will not be backed up.')
+                folder_files.remove(filename)
+                if len(folder_files) == 0:
+                    print(f'Skipping subfolder - no files - see permissions warning(s).')
+                    continue
             
             max_files_per_zip = int(np.ceil(1024**3 / max_filesize)) # limit zips to 1 GiB - using available memory too inconsistent
             num_zips = int(np.ceil(num_files / max_files_per_zip))
