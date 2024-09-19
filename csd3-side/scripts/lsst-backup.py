@@ -621,6 +621,79 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     Returns:
         None
     """
+
+
+    #######
+    ### HANDLE LINKS WITH UNKNOWN PERMISSIONS ###
+    # In [1]: p = '/home/ir-shir1/rds/rds-iris-ip005/data/private/VISTA/VIDEO/20131011/v20131011_00425_st.fit'
+
+    # In [2]: newp = '/rds/project/rds-rPTGgs6He74/data/private/VISTA/VIDEO/20131011/v20131011_00425_st.fit'
+
+    # In [3]: if 'rds-iris-ip005' in p:
+    # ...:     print(p)
+    # ...:
+    # /home/ir-shir1/rds/rds-iris-ip005/data/private/VISTA/VIDEO/20131011/v20131011_00425_st.fit
+
+    # In [4]: if 'rds-iris-ip005' in p:
+    # ...:     print(p.index('rds-iris-ip005'))
+    # ...:
+    # 19
+
+    # In [5]: if 'rds-iris-ip005' in p:
+    # ...:     print(p[:p.index('rds-iris-ip005')])
+    # ...:
+    # /home/ir-shir1/rds/
+
+    # In [6]: lp = '/rds/project/rds-rPTGgs6He74/ras81/lsst-ir-fusion/dmu4/dmu4_Example'
+
+    # In [7]: rdsp = '/rds/project/'
+
+    # In [8]: l /rds/project
+    # ---------------------------------------------------------------------------
+    # NameError                                 Traceback (most recent call last)
+    # Cell In[8], line 1
+    # ----> 1 l /rds/project
+
+    # NameError: name 'l' is not defined
+
+    # In [9]: ls /rds/project
+    # rds-5mCMIDBOkPU/  rds-lT5YGmtKack/  rds-rPTGgs6He74/
+
+    # In [10]: for f in lp.split('/'):
+    #     ...:     print(f)
+    #     ...:     if f.startswith('rds-'):
+    #     ...:         rdsp = '/'.join(lp.split('/')[:lp.split('/').index(f)])
+    #     ...:         break
+    #     ...:
+
+    # rds
+    # project
+    # rds-rPTGgs6He74
+
+    # In [11]: rdsp
+    # Out[11]: '/rds/project'
+
+    # In [12]: for f in lp.split('/'):
+    #     ...:     print(f)
+    #     ...:     if f.startswith('rds-'):
+    #     ...:         rdsp = '/'.join(lp.split('/')[:lp.split('/').index(f)+1])
+    #     ...:         break
+    #     ...:
+
+    # rds
+    # project
+    # rds-rPTGgs6He74
+
+    # In [13]: rdsp
+    # Out[13]: '/rds/project/rds-rPTGgs6He74'
+
+    # In [14]:
+
+
+
+
+
+
     processing_start = datetime.now()
     total_size_uploaded = 0
     total_files_uploaded = 0
