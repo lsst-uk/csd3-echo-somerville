@@ -25,7 +25,6 @@ import hashlib
 import base64
 import pandas as pd
 import numpy as np
-import subprocess
 import yaml
 import io
 import zipfile
@@ -44,6 +43,27 @@ from dask.distributed import Client, get_client, wait, as_completed, get_worker
 import subprocess
 
 from typing import List
+
+def to_rds_path(home_path: str, local_dir: str) -> str:
+    # get base folder for rds- folders
+    if 'rds-' in local_dir:
+        split = local_dir.split('/')
+        for f in split:
+            if f.startswith('rds-'):
+                local_dir_base = '/'.join(split[:split.index(f)+1])
+                break
+        if 'rds-iris' in home_path:
+            home_path_split = home_path.split('/')
+            for hp in home_path_split:
+                if hp.startswith('rds-iris'):
+                    home_path_base = '/'.join(home_path_split[:home_path_split.index(hp)+1])
+                    break
+            rds_path = home_path.replace(home_path_base, local_dir_base)
+            return rds_path
+        else:
+            return home_path
+    else:
+        return home_path
 
 def find_metadata(key: str, bucket) -> List[str]:
     """
@@ -105,6 +125,7 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
         access_key,
         secret_key,
         bucket_name,
+        local_dir,
         parent_folder,
         zip_data,
         namelist,
@@ -213,7 +234,7 @@ def part_uploader(s3_host, access_key, secret_key, bucket_name, object_key, part
                           PartNumber=part_number,
                           UploadId=upload_id)["ETag"]}
     
-def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun, mem_per_worker) -> str:
+def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, local_dir, folder, filename, object_key, perform_checksum, dryrun, mem_per_worker) -> str:
     """
     Uploads a file to an S3 bucket.
     Optionally calculates a checksum for the file
@@ -247,7 +268,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
     # Check if the file is a symlink
     # If it is, upload an object containing the target path instead
     if link:
-        file_data = os.path.realpath(filename)
+        file_data = to_rds_path(os.path.realpath(filename), local_dir)
     else:
         file_data = open(filename, 'rb').read()
 
@@ -264,13 +285,15 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
             del file_data
             # Ensure consistent path to upload_object.py
             upload_object_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../scripts/upload_object.py')
-            success = subprocess.run(['python', upload_object_path, '--bucket-name', bucket_name, '--object-name', object_key, '--local-path', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE, capture_output=True)
+            success = subprocess.run(['python', upload_object_path, '--bucket-name', bucket_name, '--object-name', object_key, '--local-path', filename], stderr=subprocess.PIPE, capture_output=True)
             if success.returncode == 0:
                 print(f'File {filename} uploaded successfully.')
                 if perform_checksum:
                     return f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}","{checksum_string}","n/a"'
                 else:
                     return f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}","n/a","n/a"'
+            else:
+                print(f'Error uploading {filename} to {bucket_name}/{object_key}: {success.stderr}')
     if file_size > 0.5*mem_per_worker:
         print(f'WARNING: File size of {file_size} bytes exceeds half the memory per worker of {mem_per_worker} bytes.')
         try:
@@ -574,7 +597,7 @@ def print_stats(file_name_or_data, file_count, total_size, file_start, file_end,
     #     pass
     # del file_name_or_data
 
-def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded, collated, mem_per_worker) -> None:
+def upload_and_callback(s3_host, access_key, secret_key, bucket_name, local_dir, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded, collated, mem_per_worker) -> None:
     # upload files in parallel and log output
     file_start = datetime.now()
     print(f'collated = {collated}', flush=True)
@@ -587,7 +610,7 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, fi
             sys.exit(1)
     else:
         print(f'Uploading {file_count} files from {folder}.')
-        result = upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, object_key, perform_checksum, dryrun, mem_per_worker)
+        result = upload_to_bucket(s3_host, access_key, secret_key, bucket_name, local_dir, folder, file_name_or_data, object_key, perform_checksum, dryrun, mem_per_worker)
     
     file_end = datetime.now()
     print_stats(file_name_or_data, file_count, folder_files_size, file_start, file_end, processing_start, total_size_uploaded, total_files_uploaded, collated)
@@ -631,14 +654,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         print(f'Error scattering {filename}: {e}')
         exit(1)
 
-    # get base folder for rds- folders
-    if 'rds-' in local_dir:
-        split = local_dir.split('/')
-        for f in split:
-            if f.startswith('rds-'):
-                local_dir_base = '/'.join(split[:split.index(f)+1])
-                break
-        
     #recursive loop over local folder
     to_collate = {} # store folders to collate
     total_all_folders = 0
@@ -765,14 +780,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     #add symlink target to symlink_targets list
                     #using target dir as-is can cause permissions issues
                     #reaplce /home path with /rds path uses as local_dir
-                    target = os.path.realpath(folder_files[i])
-                    if 'rds-iris' in target:
-                        target_split = target.split('/')
-                        for t in target_split:
-                            if t.startswith('rds-iris'):
-                                target_base = '/'.join(target_split[:target_split.index(t)+1])
-                                break
-                        target = target.replace(target_base, local_dir_base)
+                    target = to_rds_path(os.path.realpath(folder_files[i]), local_dir)
                     symlink_targets.append(target)
                     #add real file to symlink_obj_names list
                     symlink_obj_names.append(symlink_obj_name)
@@ -794,7 +802,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         repeat(s3_host), 
                         repeat(access_key), 
                         repeat(secret_key), 
-                        repeat(bucket_name), 
+                        repeat(bucket_name),
+                        repeat(local_dir),
                         repeat(folder), 
                         folder_files,
                         repeat(None),
@@ -860,14 +869,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     #add symlink target to symlink_targets list
                     #using target dir as-is can cause permissions issues
                     #reaplce /home path with /rds path uses as local_dir
-                    target = os.path.realpath(folder_files[i])
-                    if 'rds-iris' in target:
-                        target_split = target.split('/')
-                        for t in target_split:
-                            if t.startswith('rds-iris'):
-                                target_base = '/'.join(target_split[:target_split.index(t)+1])
-                                break
-                        target = target.replace(target_base, local_dir_base)
+                    target = to_rds_path(os.path.realpath(folder_files[i]), local_dir)
+                    symlink_targets.append(target)
                     #add real file to symlink_obj_names list
                     symlink_obj_names.append(symlink_obj_name)
 
