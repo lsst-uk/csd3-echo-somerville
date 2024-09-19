@@ -906,7 +906,10 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         fs = os.lstat(filename).st_size
                     except PermissionError:
                         print(f'WARNING: Permission error reading {filename}. File will not be backed up.')
-                        folder_files.remove(filename)
+                        try:
+                            folder_files.remove(filename)
+                        except ValueError:
+                            pass
                         if len(folder_files) == 0:
                             print(f'Skipping subfolder - no files - see permissions warning(s).')
                             continue
