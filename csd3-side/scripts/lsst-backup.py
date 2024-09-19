@@ -621,79 +621,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     Returns:
         None
     """
-
-
-    #######
-    ### HANDLE LINKS WITH UNKNOWN PERMISSIONS ###
-    # In [1]: p = '/home/ir-shir1/rds/rds-iris-ip005/data/private/VISTA/VIDEO/20131011/v20131011_00425_st.fit'
-
-    # In [2]: newp = '/rds/project/rds-rPTGgs6He74/data/private/VISTA/VIDEO/20131011/v20131011_00425_st.fit'
-
-    # In [3]: if 'rds-iris-ip005' in p:
-    # ...:     print(p)
-    # ...:
-    # /home/ir-shir1/rds/rds-iris-ip005/data/private/VISTA/VIDEO/20131011/v20131011_00425_st.fit
-
-    # In [4]: if 'rds-iris-ip005' in p:
-    # ...:     print(p.index('rds-iris-ip005'))
-    # ...:
-    # 19
-
-    # In [5]: if 'rds-iris-ip005' in p:
-    # ...:     print(p[:p.index('rds-iris-ip005')])
-    # ...:
-    # /home/ir-shir1/rds/
-
-    # In [6]: lp = '/rds/project/rds-rPTGgs6He74/ras81/lsst-ir-fusion/dmu4/dmu4_Example'
-
-    # In [7]: rdsp = '/rds/project/'
-
-    # In [8]: l /rds/project
-    # ---------------------------------------------------------------------------
-    # NameError                                 Traceback (most recent call last)
-    # Cell In[8], line 1
-    # ----> 1 l /rds/project
-
-    # NameError: name 'l' is not defined
-
-    # In [9]: ls /rds/project
-    # rds-5mCMIDBOkPU/  rds-lT5YGmtKack/  rds-rPTGgs6He74/
-
-    # In [10]: for f in lp.split('/'):
-    #     ...:     print(f)
-    #     ...:     if f.startswith('rds-'):
-    #     ...:         rdsp = '/'.join(lp.split('/')[:lp.split('/').index(f)])
-    #     ...:         break
-    #     ...:
-
-    # rds
-    # project
-    # rds-rPTGgs6He74
-
-    # In [11]: rdsp
-    # Out[11]: '/rds/project'
-
-    # In [12]: for f in lp.split('/'):
-    #     ...:     print(f)
-    #     ...:     if f.startswith('rds-'):
-    #     ...:         rdsp = '/'.join(lp.split('/')[:lp.split('/').index(f)+1])
-    #     ...:         break
-    #     ...:
-
-    # rds
-    # project
-    # rds-rPTGgs6He74
-
-    # In [13]: rdsp
-    # Out[13]: '/rds/project/rds-rPTGgs6He74'
-
-    # In [14]:
-
-
-
-
-
-
     processing_start = datetime.now()
     total_size_uploaded = 0
     total_files_uploaded = 0
@@ -703,6 +630,14 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     except TypeError as e:
         print(f'Error scattering {filename}: {e}')
         exit(1)
+
+    # get base folder for rds- folders
+    if 'rds-' in local_dir:
+        split = local_dir.split('/')
+        for f in split:
+            if f.startswith('rds-'):
+                local_dir_base = '/'.join(split[:split.index(f)+1])
+                break
         
     #recursive loop over local folder
     to_collate = {} # store folders to collate
@@ -828,7 +763,17 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     symlink_obj_name = object_names[i]
                     object_names[i] = '.'.join([object_names[i], 'symlink'])
                     #add symlink target to symlink_targets list
-                    symlink_targets.append(os.path.realpath(folder_files[i]))
+                    #using target dir as-is can cause permissions issues
+                    #reaplce /home path with /rds path uses as local_dir
+                    target = os.path.realpath(folder_files[i])
+                    if 'rds-iris' in target:
+                        target_split = target.split('/')
+                        for t in target_split:
+                            if t.startswith('rds-iris'):
+                                target_base = '/'.join(target_split[:target_split.index(t)+1])
+                                break
+                        target = target.replace(target_base, local_dir_base)
+                    symlink_targets.append(target)
                     #add real file to symlink_obj_names list
                     symlink_obj_names.append(symlink_obj_name)
             # append symlink_targets and symlink_obj_names to folder_files and object_names
@@ -913,7 +858,16 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     symlink_obj_name = object_names[i]
                     object_names[i] = '.'.join([object_names[i], 'symlink'])
                     #add symlink target to symlink_targets list
-                    symlink_targets.append(os.path.realpath(folder_files[i]))
+                    #using target dir as-is can cause permissions issues
+                    #reaplce /home path with /rds path uses as local_dir
+                    target = os.path.realpath(folder_files[i])
+                    if 'rds-iris' in target:
+                        target_split = target.split('/')
+                        for t in target_split:
+                            if t.startswith('rds-iris'):
+                                target_base = '/'.join(target_split[:target_split.index(t)+1])
+                                break
+                        target = target.replace(target_base, local_dir_base)
                     #add real file to symlink_obj_names list
                     symlink_obj_names.append(symlink_obj_name)
 
