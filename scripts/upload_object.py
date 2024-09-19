@@ -48,4 +48,7 @@ bucket = s3.Bucket(bucket_name)
 
 
 response = bucket.upload_file(local_path, object_name) 
-print(response)
+if response:
+    print(response)
+else:
+    print('Upload successful.')
