@@ -41,6 +41,7 @@ import os
 import argparse
 
 from dask.distributed import Client, get_client, wait, as_completed, get_worker
+import subprocess
 
 from typing import List
 
@@ -895,7 +896,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     #     # no files in folder - likely removed from file list due to previous PermissionError - continue without message
                     #     continue
                     
-            
             max_files_per_zip = int(np.ceil(1024**3 / max_filesize)) # limit zips to 1 GiB - using available memory too inconsistent
             num_zips = int(np.ceil(num_files / max_files_per_zip))
             
