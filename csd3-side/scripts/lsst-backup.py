@@ -119,32 +119,35 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
     # upload part #
     ###############
     zip_object_key = os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated_{id}.zip', local_dir)])
-    print(f'Uploading zip file containing {len(subfolders_to_collate)} subfolders to S3 bucket {bucket_name} to key {zip_object_key}.', flush=True)
-    f = client.submit(upload_and_callback,
-        s3_host,
-        access_key,
-        secret_key,
-        bucket_name,
-        local_dir,
-        parent_folder,
-        zip_data,
-        namelist,
-        zip_object_key,
-        perform_checksum,
-        dryrun,
-        datetime.now(),
-        1,
-        len(zip_data),
-        total_size_uploaded,
-        total_files_uploaded,
-        True,
-        mem_per_worker
-        )
-    del zip_data, namelist
-    wait(f)
-    del f
-
-    return zip_object_key+' success'
+    if namelist == []:
+        print(f'No files to upload in zip file containing {len(subfolders_to_collate)} subfolders.')
+        return zip_object_key+' nothing to upload'
+    else:
+        print(f'Uploading zip file containing {len(subfolders_to_collate)} subfolders to S3 bucket {bucket_name} to key {zip_object_key}.', flush=True)
+        f = client.submit(upload_and_callback,
+            s3_host,
+            access_key,
+            secret_key,
+            bucket_name,
+            local_dir,
+            parent_folder,
+            zip_data,
+            namelist,
+            zip_object_key,
+            perform_checksum,
+            dryrun,
+            datetime.now(),
+            1,
+            len(zip_data),
+            total_size_uploaded,
+            total_files_uploaded,
+            True,
+            mem_per_worker
+            )
+        del zip_data, namelist
+        wait(f)
+        del f
+        return zip_object_key+' success'
 
 def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_files:list[str], use_compression:bool, dryrun:bool, id:int, mem_per_worker:int) -> tuple[str, int, bytes]:
     """
@@ -195,9 +198,13 @@ def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_file
                     else:
                         file_path = os.path.join(subfolders_to_collate, file)
                     arc_name = os.path.relpath(file_path, parent_folder)
-                    zipped_size += os.path.getsize(file_path)
-                    with open(file_path, 'rb') as src_file:
-                        zip_file.writestr(arc_name, src_file.read())
+                    try:
+                        zipped_size += os.path.getsize(file_path)
+                        with open(file_path, 'rb') as src_file:
+                            zip_file.writestr(arc_name, src_file.read())
+                    except PermissionError:
+                        print(f'WARNING: Permission error reading {file_path}. File will not be backed up.')
+                        continue
                 namelist = zip_file.namelist()
             if zipped_size > mem_per_worker:
                 print(f'WARNING: Zipped size of {zipped_size} bytes exceeds memory per core of {mem_per_worker} bytes.')
@@ -205,6 +212,8 @@ def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_file
             print(f'Error zipping {parent_folder}: {e}')
             print(f'Namespace: {globals()}')
             exit(1)
+        if namelist == []:
+            return b'', []
         return zip_buffer.getvalue(), namelist
     else:
         return b'', []
