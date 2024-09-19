@@ -40,7 +40,8 @@ import hashlib
 import os
 import argparse
 
-from dask.distributed import Client, get_client, wait, as_completed
+from dask.distributed import Client, get_client, wait, as_completed, get_worker
+import subprocess
 
 from typing import List
 
@@ -75,6 +76,54 @@ def find_metadata(key: str, bucket) -> List[str]:
 
 def remove_duplicates(l: list[dict]) -> list[dict]:
     return pd.DataFrame(l).drop_duplicates().to_dict(orient='records')
+
+def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir, local_dir, parent_folder, subfolders_to_collate, folders_files, total_size_uploaded, total_files_uploaded, use_compression, dryrun, id, mem_per_worker, perform_checksum) -> tuple[str, int, bytes]:
+    #############
+    #  zip part #
+    #############
+    client = get_client()
+    print(f'Collating {len(subfolders_to_collate)} subfolders into a zip file.', flush=True)
+    zip_data, namelist = client.submit(zip_folders,
+        parent_folder, 
+        subfolders_to_collate, 
+        folders_files, 
+        use_compression, 
+        dryrun, 
+        id, 
+        mem_per_worker
+        ).result()
+    # if len(zip_data) > mem_per_worker/2:
+    print('Scattering zip data.')
+    # scattered_zip_data = client.scatter(zip_data)
+    ###############
+    # upload part #
+    ###############
+    zip_object_key = os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated_{id}.zip', local_dir)])
+    print(f'Uploading zip file containing {len(subfolders_to_collate)} subfolders to S3 bucket {bucket_name} to key {zip_object_key}.', flush=True)
+    f = client.submit(upload_and_callback,
+        s3_host,
+        access_key,
+        secret_key,
+        bucket_name,
+        parent_folder,
+        zip_data,
+        namelist,
+        zip_object_key,
+        perform_checksum,
+        dryrun,
+        datetime.now(),
+        1,
+        len(zip_data),
+        total_size_uploaded,
+        total_files_uploaded,
+        True,
+        mem_per_worker
+        )
+    del zip_data, namelist
+    wait(f)
+    del f
+
+    return zip_object_key+' success'
 
 def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_files:list[str], use_compression:bool, dryrun:bool, id:int, mem_per_worker:int) -> tuple[str, int, bytes]:
     """
@@ -128,15 +177,16 @@ def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_file
                     zipped_size += os.path.getsize(file_path)
                     with open(file_path, 'rb') as src_file:
                         zip_file.writestr(arc_name, src_file.read())
+                namelist = zip_file.namelist()
             if zipped_size > mem_per_worker:
                 print(f'WARNING: Zipped size of {zipped_size} bytes exceeds memory per core of {mem_per_worker} bytes.')
         except MemoryError as e:
             print(f'Error zipping {parent_folder}: {e}')
             print(f'Namespace: {globals()}')
             exit(1)
-        return parent_folder, id, zip_buffer.getvalue()
+        return zip_buffer.getvalue(), namelist
     else:
-        return parent_folder, id, b''
+        return b'', []
     
 def part_uploader(s3_host, access_key, secret_key, bucket_name, object_key, part_number, chunk_data, upload_id) -> dict:
     """
@@ -199,9 +249,18 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
     if link:
         file_data = os.path.realpath(filename)
     else:
-        file_data = open(filename, 'rb')
+        file_data = open(filename, 'rb').read()
 
     file_size = os.path.getsize(filename)
+    use_future = False
+    if file_size > 0.5*mem_per_worker:
+        print(f'WARNING: File size of {file_size} bytes exceeds half the memory per worker of {mem_per_worker} bytes.')
+        try:
+            file_data = get_client().scatter(file_data)
+        except TypeError as e:
+            print(f'Error scattering {filename}: {e}')
+            exit(1)
+        use_future = True
 
     print(f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, {file_size} bytes, checksum = {perform_checksum}, dryrun = {dryrun}', flush=True)
     """
@@ -212,17 +271,33 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
             """
             - Upload the link target _path_ to an object
             """
-            bucket.put_object(Body=file_data, Key=object_key)
+            if use_future:
+                bucket.put_object(Body=get_client().gather(file_data), Key=object_key)
+                try:
+                    get_client().scatter(file_data)
+                except TypeError as e:
+                    print(f'Error scattering {filename}: {e}')
+                    exit(1)
+            else:
+                bucket.put_object(Body=file_data, Key=object_key)
         if not link:
             if perform_checksum:
                 """
                 - Create checksum object
                 """
-                file_data.seek(0)  # Ensure we're at the start of the file
-                checksum_hash = hashlib.md5(file_data.read())
+                if use_future:
+                    file_data = get_client().gather(file_data)
+                # file_data.seek(0)  # Ensure we're at the start of the file
+                checksum_hash = hashlib.md5(file_data)
                 checksum_string = checksum_hash.hexdigest()
                 checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
-                file_data.seek(0)  # Reset the file pointer to the start
+                # file_data.seek(0)  # Reset the file pointer to the start
+                if use_future:
+                    try:
+                        file_data = get_client().scatter(file_data)
+                    except TypeError as e:
+                        print(f'Error scattering {filename}: {e}')
+                        exit(1)
                 try:
                     if file_size > mem_per_worker or file_size > 5 * 1024**3:  # Check if file size is larger than 5GiB
                         """
@@ -240,22 +315,23 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                             start = i * chunk_size
                             end = min(start + chunk_size, file_size)
                             part_number = i + 1
-                            with open(filename, 'rb') as f:
-                                f.seek(start)
-                                chunk_data = f.read(end - start)
+                            # with open(filename, 'rb') as f:
+                            #     f.seek(start)
+                            # chunk_data = get_client.gather(file_data)[start:end]
                             part_futures.append(get_client().submit(
-                                part_uploader, 
+                            part_uploader,
                                 s3_host,
                                 access_key,
                                 secret_key,
                                 bucket_name,
                                 object_key,
                                 part_number,
-                                chunk_data,
+                                file_data[start:end],
                                 mp_upload.id
                             ))
                         for future in as_completed(part_futures):
                             parts.append(future.result())
+                            del future
                         s3_client.complete_multipart_upload(
                             Bucket=bucket_name,
                             Key=object_key,
@@ -267,15 +343,22 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
                         - Upload the file to the bucket
                         """
                         print(f'Uploading {filename} to {bucket_name}/{object_key}')
-                        bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64)
+                        if use_future:
+                            bucket.put_object(Body=get_client().gather(file_data), Key=object_key, ContentMD5=checksum_base64)
+                        else:
+                            bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64)
                 except Exception as e:
                     print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
             else:
                 try:
                     bucket.put_object(Body=file_data, Key=object_key)
+                    if use_future:
+                        bucket.put_object(Body=get_client().gather(file_data), Key=object_key)
+                    else:
+                        bucket.put_object(Body=file_data, Key=object_key)
                 except Exception as e:
                     print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
-            file_data.close()
+            # file_data.close()
     else:
         checksum_string = "DRYRUN"
 
@@ -364,20 +447,21 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
                         start = i * chunk_size
                         end = min(start + chunk_size, file_data_size)
                         part_number = i + 1
-                        chunk_data = file_data[start:end]
+                        # chunk_data = file_data[start:end]
                         part_futures.append(get_client().submit(
-                                part_uploader, 
-                                s3_host,
-                                access_key,
-                                secret_key,
-                                bucket_name,
-                                object_key,
-                                part_number,
-                                chunk_data,
-                                mp_upload.id
-                            ))
+                            part_uploader,
+                            s3_host,
+                            access_key,
+                            secret_key,
+                            bucket_name,
+                            object_key,
+                            part_number,
+                            file_data[start:end],
+                            mp_upload.id
+                        ))
                     for future in as_completed(part_futures):
                         parts.append(future.result())
+                        del future
                     s3_client.complete_multipart_upload(
                         Bucket=bucket_name,
                         Key=object_key,
@@ -445,27 +529,32 @@ def print_stats(file_name_or_data, file_count, total_size, file_start, file_end,
     Returns:
         None
     """
+    pass
 
-    # This give false information as it is called once per file, not once per folder.
+    # # This give false information as it is called once per file, not once per folder.
+    # print('#######################################')
+    # print('THIS INFORMATION IS CURRENTLY INCORRECT')
 
-    elapsed = file_end - file_start
-    if collated:
-        print(f'Uploaded zip file, elapsed time = {elapsed}')
-    else:
-        print(f'Uploaded {file_name_or_data}, elapsed time = {elapsed}')
-    try:
-        elapsed_seconds = elapsed.seconds + elapsed.microseconds / 1e6
-        avg_file_size = total_size / file_count / 1024**2
-        print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded in {elapsed_seconds:.2f} seconds, {elapsed_seconds/file_count:.2f} s/file', flush=True)
-        print(f'{total_size / 1024**2:.2f} MiB uploaded in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/s', flush=True)
-        print(f'Total elapsed time = {file_end-processing_start}', flush=True)
-        print(f'Total files uploaded = {total_files_uploaded}', flush=True)
-        print(f'Total size uploaded = {total_size_uploaded / 1024**3:.2f} GiB', flush=True)
-        print(f'Running average speed = {total_size_uploaded / 1024**2 / (file_end-processing_start).seconds:.2f} MiB/s', flush=True)
-        print(f'Running average rate = {(file_end-processing_start).seconds / total_files_uploaded:.2f} s/file', flush=True)
-    except ZeroDivisionError:
-        pass
-    del file_name_or_data
+    # elapsed = file_end - file_start
+    # if collated:
+    #     print(f'Uploaded zip file, elapsed time = {elapsed}')
+    # else:
+    #     print(f'Uploaded {file_name_or_data}, elapsed time = {elapsed}')
+    # try:
+    #     elapsed_seconds = elapsed.seconds + elapsed.microseconds / 1e6
+    #     avg_file_size = total_size / file_count / 1024**2
+    #     print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded in {elapsed_seconds:.2f} seconds, {elapsed_seconds/file_count:.2f} s/file', flush=True)
+    #     print(f'{total_size / 1024**2:.2f} MiB uploaded in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/s', flush=True)
+    #     print(f'Total elapsed time = {file_end-processing_start}', flush=True)
+    #     print(f'Total files uploaded = {total_files_uploaded}', flush=True)
+    #     print(f'Total size uploaded = {total_size_uploaded / 1024**3:.2f} GiB', flush=True)
+    #     print(f'Running average speed = {total_size_uploaded / 1024**2 / (file_end-processing_start).seconds:.2f} MiB/s', flush=True)
+    #     print(f'Running average rate = {(file_end-processing_start).seconds / total_files_uploaded:.2f} s/file', flush=True)
+    #     print('END OF INCORRENT REPORTING')
+    #     print('#######################################')
+    # except ZeroDivisionError:
+    #     pass
+    # del file_name_or_data
 
 def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded, collated, mem_per_worker) -> None:
     # upload files in parallel and log output
@@ -518,8 +607,11 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     total_size_uploaded = 0
     total_files_uploaded = 0
     i = 0
-
-    client.scatter([s3_host, access_key, secret_key, bucket_name, perform_checksum, dryrun, current_objects], broadcast=True)
+    try:
+        client.scatter([s3_host, access_key, secret_key, bucket_name, perform_checksum, dryrun, current_objects], broadcast=True)
+    except TypeError as e:
+        print(f'Error scattering {filename}: {e}')
+        exit(1)
         
     #recursive loop over local folder
     to_collate = {} # store folders to collate
@@ -530,7 +622,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     uploads = []
     zip_uploads = []
     upload_futures = []
-    zip_futures = []
     zul_futures = []
     failed = []
     for folder, sub_folders, files in os.walk(local_dir, topdown=True):
@@ -622,7 +713,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             #all files in this subfolder already in bucket
             print(f'Skipping subfolder - all files exist.')
             continue
-
 
         if mean_filesize > 256*1024**2 or not global_collate:
             # all files within folder
@@ -757,28 +847,19 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             to_collate[parent_folder]['folders'].append(folder)
             to_collate[parent_folder]['object_names'].append(object_names)
             to_collate[parent_folder]['folder_files'].append(folder_files)
+        
+        sched_info = client.scheduler_info()
+        max_mem = 0
+        mem_lim = None
+        for _, winfo in sched_info['workers'].items():
+            if not mem_lim:
+                mem_lim = winfo['memory_limit']
+            mem = winfo['metrics']['memory']
+            if mem > max_mem:
+                max_mem = mem
+        if max_mem / mem_lim > 0.9:
+            wait(upload_futures)
 
-        # print(f'Pending file uploads: {len([None for f in upload_futures if f.status == "pending"])}')
-        # print(f'Pending zips: {len([None for f in zip_futures if f.status == "pending"])}')
-        # print(f'Pending zip uploads: {len([None for f in zul_futures if f.status == "pending"])}')
-    
-    for f in upload_futures:
-        # if datetime.now() - monitor_interval > timedelta(seconds=5):
-        # these prints make no sense as futures are deleted after completion
-        # print(f'Zipped {sum([f.done() for f in zip_futures])} of {len(zip_futures)} zip files.', flush=True)
-        # print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
-        print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
-        print(f'Failed uploads: {len(failed)}', flush=True)
-        # monitor_interval = datetime.now()
-
-        # for f in upload_futures+zul_futures:
-        if 'exception' in f.status and f not in failed:
-            f_tuple = f.exception(), f.traceback()
-            del f
-            if f_tuple not in failed:
-                failed.append(f_tuple)
-        elif 'finished' in f.status:
-            del f
     
     # collate folders
     if len(to_collate) > 0:
@@ -792,12 +873,29 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             folders = zip_tuple[1]['folders']
             folder_files = zip_tuple[1]['folder_files']
             num_files = sum([len(ff) for ff in folder_files])
-            try:
-                max_filesize = max([max([os.lstat(filename).st_size for filename in ff]) for ff in folder_files])
-            except ValueError:
-                # no files in folder - likely removed from file list due to previous PermissionError - continue without message
-                continue
+
+            ########################
+            ## rewrite expanding list comprehension
+            #########################
             
+            max_filesize = 0
+            for ff in folder_files:
+                for filename in ff:
+                    try:
+                        fs = os.lstat(filename).st_size
+                    except PermissionError:
+                        print(f'WARNING: Permission error reading {filename}. File will not be backed up.')
+                        folder_files.remove(filename)
+                        if len(folder_files) == 0:
+                            print(f'Skipping subfolder - no files - see permissions warning(s).')
+                            continue
+
+                    if fs > max_filesize:
+                        max_filesize = fs
+                    # except ValueError:
+                    #     # no files in folder - likely removed from file list due to previous PermissionError - continue without message
+                    #     continue
+                    
             max_files_per_zip = int(np.ceil(1024**3 / max_filesize)) # limit zips to 1 GiB - using available memory too inconsistent
             num_zips = int(np.ceil(num_files / max_files_per_zip))
             
@@ -809,8 +907,11 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 subchunks_files = []
                 subchunks = []
                 for j in range(len(folders)):
-                    for i in range(0, len(folder_files[j]), len(folder_files[j])//num_zips):
-                        subchunks_files.append(folder_files[j][i:i+len(folder_files[j])//num_zips])
+                    step = len(folder_files[j])//num_zips
+                    if step == 0:
+                        step = 1
+                    for i in range(0, len(folder_files[j]), step):
+                        subchunks_files.append(folder_files[j][i:i+step])
                         subchunks.append(folders[j])
                 chunks = subchunks
                 chunk_files = subchunks_files
@@ -821,89 +922,60 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             if len(chunks) != len(chunk_files):
                 print('Error: chunks and chunk_files are not the same length.')
                 sys.exit(1)
-         
+            #def zip_and_upload( total_size_uploaded, total_files_uploaded, use_compression, dryrun, id, mem_per_worker, perform_checksum) -> tuple[str, int, bytes]:
             for i, args in enumerate(zip(
+                    repeat(s3_host),
+                    repeat(access_key),
+                    repeat(secret_key),
+                    repeat(bucket_name),
+                    repeat(destination_dir),
+                    repeat(local_dir),
                     repeat(parent_folder),
                     chunks,
                     chunk_files,
+                    repeat(total_size_uploaded),
+                    repeat(total_files_uploaded),
                     repeat(use_compression),
                     repeat(dryrun),
-                    # repeat(processing_start),
                     [i for i in range(len(chunks))],
                     repeat(mem_per_worker),
-                    # repeat(total_size_uploaded),
-                    # repeat(total_files_uploaded),
+                    repeat(perform_checksum),
                     )):
-                zip_futures.append(client.submit(
-                    zip_folders,
+                zul_futures.append(client.submit(
+                    zip_and_upload,
                     *args
                 ))
-
-            for zip_future in as_completed(zip_futures):
-                parent_folder, id, zip_data = zip_future.result()
-                
-                with zipfile.ZipFile(io.BytesIO(zip_data), 'r') as z:
-                    zip_contents = z.namelist()
-                to_collate[parent_folder]['zips'].append({'zip_contents':zip_contents, 'id':id, 'zip_object_name':str(os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated_{id}.zip', local_dir)]))})
-
-                # upload zipped folders
-                total_size_uploaded += len(zip_data)
-                total_files_uploaded += 1
-                print(f"Uploading {to_collate[parent_folder]['zips'][-1]['zip_object_name']}.")
-                zul_futures.append(client.submit(upload_and_callback, 
-                        s3_host,
-                        access_key,
-                        secret_key,
-                        bucket_name,
-                        parent_folder,
-                        zip_data,
-                        to_collate[parent_folder]['zips'][-1]['zip_contents'],
-                        to_collate[parent_folder]['zips'][-1]['zip_object_name'],
-                        perform_checksum,
-                        dryrun,
-                        processing_start,
-                        1,
-                        len(zip_data),
-                        total_size_uploaded,
-                        total_files_uploaded,
-                        True,
-                        mem_per_worker,
-                ))
-                zip_uploads.append({'folder':parent_folder,'size':len(zip_data),'object_name':to_collate[parent_folder]['zips'][-1]['zip_object_name'],'uploaded':False}) # removed ,'zip_contents':to_collate[parent_folder]['zips'][-1]['zip_contents']
-                # if len(zip_data) > 5*1024**3:
-                #     wait(zul_futures[-1])
-                #     del zul_futures[-1]
-                del zip_data
-                del zip_future
-                
-        # This code isn't accessed early enough because it waits until all zip futures complete - find better monitoring method
-        
-        # monitor_interval = datetime.now()
-        for f in zul_futures:
-            # if datetime.now() - monitor_interval > timedelta(seconds=5):
-            # these prints make no sense as futures are deleted after completion
-            # print(f'Zipped {sum([f.done() for f in zip_futures])} of {len(zip_futures)} zip files.', flush=True)
-            print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
+            
+            sched_info = client.scheduler_info()
+            max_mem = 0
+            mem_lim = None
+            for _, winfo in sched_info['workers'].items():
+                if not mem_lim:
+                    mem_lim = winfo['memory_limit']
+                mem = winfo['metrics']['memory']
+                if mem > max_mem:
+                    max_mem = mem
+            if max_mem / mem_lim > 0.9:
+                wait(upload_futures)
+    
+    ########################
+    # Monitor upload tasks #
+    ########################
+    while len(upload_futures) +len(zul_futures) > 0:
+        for f in as_completed(upload_futures+zul_futures):
             # print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
-            print(f'Failed uploads: {len(failed)}', flush=True)
-            # monitor_interval = datetime.now()
+            # print(f'Failed uploads: {len(failed)}', flush=True)
+            # print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
+            # print(f'Failed uploads: {len(failed)}', flush=True)
 
-            # for f in upload_futures+zul_futures:
             if 'exception' in f.status and f not in failed:
                 f_tuple = f.exception(), f.traceback()
                 del f
                 if f_tuple not in failed:
                     failed.append(f_tuple)
             elif 'finished' in f.status:
+                print(f.result())
                 del f
-
-            # # End loop if all futures are finished (or failed)
-            # if 'pending' not in [f.status for f in upload_futures+zul_futures+zip_futures]:
-            #     break
-    
-    ####
-    # Monitor upload tasks
-    ####
 
     if failed:
         for i, failed_upload in enumerate(failed):
@@ -1088,16 +1160,6 @@ if __name__ == '__main__':
     current_objects = bm.object_list(bucket)
     print(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}')
 
-    ############################
-    #        Dask Setup        #
-    ############################
-    total_memory = virtual_memory().total
-    n_workers = nprocs//threads_per_worker
-    mem_per_worker = virtual_memory().total//n_workers # e.g., 187 GiB / 48 * 2 = 7.8 GiB
-    print(f'nprocs: {nprocs}, Threads per worker: {threads_per_worker}, Number of workers: {n_workers}, Total memory: {total_memory/1024**3:.2f} GiB, Memory per worker: {mem_per_worker/1024**3:.2f} GiB')
-    client = Client(n_workers=n_workers,threads_per_worker=threads_per_worker,memory_limit=mem_per_worker) #,silence_logs=ERROR
-
-    print(f'Dask Client: {client}', flush=True)
     current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
     print(f'Current objects: {len(current_objects)}')
     if not current_objects.empty:
@@ -1120,14 +1182,24 @@ if __name__ == '__main__':
     while local_dir[-1] == '/':
         local_dir = local_dir[:-1]
 
+    ############################
+    #        Dask Setup        #
+    ############################
+    total_memory = virtual_memory().total
+    n_workers = nprocs//threads_per_worker
+    mem_per_worker = virtual_memory().total//n_workers # e.g., 187 GiB / 48 * 2 = 7.8 GiB
+    print(f'nprocs: {nprocs}, Threads per worker: {threads_per_worker}, Number of workers: {n_workers}, Total memory: {total_memory/1024**3:.2f} GiB, Memory per worker: {mem_per_worker/1024**3:.2f} GiB')
+    # client = Client(n_workers=n_workers,threads_per_worker=threads_per_worker,memory_limit=mem_per_worker) #,silence_logs=ERROR
     # Process the files
-    print(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}')
-    print(f'Using {nprocs} processes.')
-    with warnings.catch_warnings():
-        warnings.filterwarnings('ignore')
-        process_files(s3_host,access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, perform_checksum, dryrun, log, global_collate, use_compression, client, mem_per_worker)
+    with Client(n_workers=n_workers,threads_per_worker=threads_per_worker,memory_limit=mem_per_worker) as client:
+        print(f'Dask Client: {client}', flush=True)
+        print(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}')
+        print(f'Using {nprocs} processes.')
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore')
+            process_files(s3_host,access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, perform_checksum, dryrun, log, global_collate, use_compression, client, mem_per_worker)
     
-    client.close()
+    
     print(f'Dask Client closed at {datetime.now()}, elapsed time = {datetime.now() - start}')
 
     # Complete
