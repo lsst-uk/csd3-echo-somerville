@@ -134,7 +134,7 @@ def print_objects(bucket) -> None:
     for obj in bucket.objects.all():
         print(obj.key)
 
-def object_list(bucket) -> list[str]:
+def object_list(bucket, count=False) -> list[str]:
     """
     Returns a list of keys of all objects in the specified bucket.
 
@@ -144,7 +144,15 @@ def object_list(bucket) -> list[str]:
     Returns:
     A list of object keys.
     """
-    return [ obj.key for obj in bucket.objects.all() ]
+    keys = []
+    if count:
+        o = 0
+    for obj in bucket.objects.all():
+        keys.append(obj.key)
+        if count:
+            o += 1
+            print(o, end='\r', flush=True)
+    return keys
 
 
 def print_containers_swift(conn: swiftclient.Connection) -> None:

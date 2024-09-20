@@ -113,7 +113,7 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
         mem_per_worker
         ).result()
     # if len(zip_data) > mem_per_worker/2:
-    print('Scattering zip data.')
+    # print('Scattering zip data.')
     # scattered_zip_data = client.scatter(zip_data)
     ###############
     # upload part #
@@ -626,7 +626,7 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, local_dir,
     with open(log, 'a') as logfile:
         logfile.write(f'{result}\n')
     
-    del file_name_or_data
+    # del file_name_or_data
 
     return None
 
@@ -1219,12 +1219,12 @@ if __name__ == '__main__':
             print('dryrun == True, so continuing.')
     
     bucket = s3.Bucket(bucket_name)
-    print(f'Getting current object list for {bucket_name}. This may take some time.\nStarting at {datetime.now()}, elapsed time = {datetime.now() - start}')
+    print(f'Getting current object list for {bucket_name}. This may take some time.\nStarting at {datetime.now()}, elapsed time = {datetime.now() - start}', flush=True)
     current_objects = bm.object_list(bucket)
-    print(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}')
+    print(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', flush=True)
 
     current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
-    print(f'Current objects: {len(current_objects)}')
+    print(f'Current objects: {len(current_objects)}', flush=True)
     if not current_objects.empty:
         current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, bucket=bucket)
     else:
