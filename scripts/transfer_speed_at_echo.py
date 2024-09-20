@@ -26,6 +26,9 @@ with warnings.catch_warnings():
 
     bucket_name = sys.argv[1]
     bucket = s3.Bucket(bucket_name)
+    prefix = ''
+    if len(sys.argv) == 3:
+        prefix = sys.argv[2]
 
     print('Connection established.')
 
@@ -34,7 +37,7 @@ with warnings.catch_warnings():
 
     start_time = datetime.now()  # Move the start_time assignment here
 
-    for ob in bucket.objects.all():
+    for ob in bucket.objects.filter(Prefix = prefix):
         start_num_files += 1
         start_size += ob.size
         #print(ob.size)
@@ -47,7 +50,7 @@ with warnings.catch_warnings():
 
     end_num_files = 0
     end_size = 0
-    for ob in bucket.objects.all():
+    for ob in bucket.objects.filter(Prefix = prefix):
         end_num_files+=1
         end_size += ob.size
     end_time = datetime.now()
