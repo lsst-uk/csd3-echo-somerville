@@ -1230,7 +1230,7 @@ if __name__ == '__main__':
     else:
         current_objects['METADATA'] = None
 
-    # current_objects.to_csv('current_objects.csv', index=False)
+    current_objects.to_csv('current_objects.csv', index=False)
 
     ## check if log exists in the bucket, and download it and append top it if it does
     # TODO: integrate this with local check for log file
