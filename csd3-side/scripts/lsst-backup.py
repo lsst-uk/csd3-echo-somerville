@@ -1222,16 +1222,18 @@ if __name__ == '__main__':
     print(f'Getting current object list for {bucket_name}. This may take some time.\nStarting at {datetime.now()}, elapsed time = {datetime.now() - start}', flush=True)
     current_objects = bm.object_list(bucket, count=True, prefix=destination_dir)
     print(f'\nDone.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', flush=True)
-
+    
     current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
+    current_objects.to_csv('current_objects.csv', index=False)
+    exit()
     print(f'Current objects: {len(current_objects)}', flush=True)
     if not current_objects.empty:
         current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, bucket=bucket)
     else:
         current_objects['METADATA'] = None
 
-    current_objects.to_csv('current_objects.csv', index=False)
-    exit()
+    
+    
     ## check if log exists in the bucket, and download it and append top it if it does
     # TODO: integrate this with local check for log file
     if current_objects['CURRENT_OBJECTS'].isin([log]).any():
