@@ -1221,7 +1221,7 @@ if __name__ == '__main__':
     bucket = s3.Bucket(bucket_name)
     print(f'Getting current object list for {bucket_name}. This may take some time.\nStarting at {datetime.now()}, elapsed time = {datetime.now() - start}', flush=True)
     current_objects = bm.object_list(bucket, count=True)
-    print(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', flush=True)
+    print(f'\nDone.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', flush=True)
 
     current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
     print(f'Current objects: {len(current_objects)}', flush=True)

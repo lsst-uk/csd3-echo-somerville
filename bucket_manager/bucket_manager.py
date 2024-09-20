@@ -151,7 +151,8 @@ def object_list(bucket, count=False) -> list[str]:
         keys.append(obj.key)
         if count:
             o += 1
-            print(f'Existing objects: {o}', end='\r', flush=True)
+            if o % 10000 == 0:
+                print(f'Existing objects: {o}', end='\r', flush=True)
     return keys
 
 
