@@ -40,6 +40,7 @@ import os
 import argparse
 
 from dask.distributed import Client, get_client, wait, as_completed, get_worker
+from dask import annotate
 import subprocess
 
 from typing import List
@@ -103,15 +104,16 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
     #############
     client = get_client()
     print(f'Collating {len(subfolders_to_collate)} subfolders into a zip file.', flush=True)
-    zip_data, namelist = client.submit(zip_folders,
-        parent_folder, 
-        subfolders_to_collate, 
-        folders_files, 
-        use_compression, 
-        dryrun, 
-        id, 
-        mem_per_worker
-        ).result()
+    with annotate(parent_folder=parent_folder):
+        zip_data, namelist = client.submit(zip_folders,
+            parent_folder, 
+            subfolders_to_collate, 
+            folders_files, 
+            use_compression, 
+            dryrun, 
+            id, 
+            mem_per_worker
+            ).result()
     # if len(zip_data) > mem_per_worker/2:
     # print('Scattering zip data.')
     # scattered_zip_data = client.scatter(zip_data)
@@ -124,30 +126,31 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
         return zip_object_key+' nothing to upload'
     else:
         print(f'Uploading zip file containing {len(subfolders_to_collate)} subfolders to S3 bucket {bucket_name} to key {zip_object_key}.', flush=True)
-        f = client.submit(upload_and_callback,
-            s3_host,
-            access_key,
-            secret_key,
-            bucket_name,
-            local_dir,
-            parent_folder,
-            zip_data,
-            namelist,
-            zip_object_key,
-            perform_checksum,
-            dryrun,
-            datetime.now(),
-            1,
-            len(zip_data),
-            total_size_uploaded,
-            total_files_uploaded,
-            True,
-            mem_per_worker
-            )
-        del zip_data, namelist
-        # wait(f)
-        # del f
-        return zip_object_key+' success'
+        with annotate(parent_folder=parent_folder):
+            f = client.submit(upload_and_callback,
+                s3_host,
+                access_key,
+                secret_key,
+                bucket_name,
+                local_dir,
+                parent_folder,
+                zip_data,
+                namelist,
+                zip_object_key,
+                perform_checksum,
+                dryrun,
+                datetime.now(),
+                1,
+                len(zip_data),
+                total_size_uploaded,
+                total_files_uploaded,
+                True,
+                mem_per_worker
+                )
+            del zip_data, namelist
+            # wait(f)
+            # del f
+            return zip_object_key+' success'
 
 def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_files:list[str], use_compression:bool, dryrun:bool, id:int, mem_per_worker:int) -> tuple[str, int, bytes]:
     """
@@ -582,8 +585,8 @@ def print_stats(file_name_or_data, file_count, total_size, file_start, file_end,
     # pass
 
     # This give false information as it is called once per file, not once per folder.
-    print('#######################################')
-    print('THIS INFORMATION IS CURRENTLY INCORRECT')
+    # print('#######################################')
+    # print('THIS INFORMATION IS CURRENTLY INCORRECT')
 
     elapsed = file_end - file_start
     if collated:
@@ -600,8 +603,8 @@ def print_stats(file_name_or_data, file_count, total_size, file_start, file_end,
         # print(f'Total size uploaded = {total_size_uploaded / 1024**3:.2f} GiB', flush=True)
         # print(f'Running average speed = {total_size_uploaded / 1024**2 / (file_end-processing_start).seconds:.2f} MiB/s', flush=True)
         # print(f'Running average rate = {(file_end-processing_start).seconds / total_files_uploaded:.2f} s/file', flush=True)
-        print('END OF INCORRENT REPORTING')
-        print('#######################################')
+        # print('END OF INCORRENT REPORTING')
+        # print('#######################################')
     except ZeroDivisionError:
         pass
     # del file_name_or_data
@@ -827,7 +830,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         repeat(False),
                         repeat(mem_per_worker),
                     )):
-                    upload_futures.append(client.submit(upload_and_callback, *args))
+                    with annotate(folder=folder):
+                        upload_futures.append(client.submit(upload_and_callback, *args))
                     uploads.append({'folder':args[4],'folder_size':args[12],'file_size':os.lstat(folder_files[i]).st_size,'file':args[5],'object':args[7],'uploaded':False})
             except BrokenPipeError as e:
                 print(f'Caught BrokenPipeError: {e}')
@@ -1004,10 +1008,11 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     repeat(mem_per_worker),
                     repeat(perform_checksum),
                     )):
-                zul_futures.append(client.submit(
-                    zip_and_upload,
-                    *args
-                ))
+                with annotate(parent_folder=parent_folder):
+                    zul_futures.append(client.submit(
+                        zip_and_upload,
+                        *args
+                    ))
             
             sched_info = client.scheduler_info()
             max_mem = 0
