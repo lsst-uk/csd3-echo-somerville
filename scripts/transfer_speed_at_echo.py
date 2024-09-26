@@ -9,63 +9,82 @@ import sys
 
 import bucket_manager.bucket_manager as bm
 import warnings
-with warnings.catch_warnings():
-    warnings.filterwarnings('ignore')
+import argparse
 
-    s3_host = 'echo.stfc.ac.uk'
-    try:
-        keys = bm.get_keys()
-    except KeyError as e:
-        print(e)
-        sys.exit()
+def size_all(bucket):
+    num_files = 0
+    size = 0
+    for ob in bucket.objects.all():
+        num_files += 1
+        size += ob.size
+    return num_files, size
 
-    access_key = keys['access_key']
-    secret_key = keys['secret_key']
+def size_prefix(bucket,prefix):
+    num_files = 0
+    size = 0
+    for ob in bucket.objects.filter(Prefix = prefix):
+        num_files += 1
+        size += ob.size
+    return num_files, size
 
-    s3 = bm.get_resource(access_key, secret_key, s3_host)
+if __name__ == '__main__':
 
-    bucket_name = sys.argv[1]
-    bucket = s3.Bucket(bucket_name)
-    prefix = ''
-    if len(sys.argv) == 3:
-        prefix = sys.argv[2]
+    parser = argparse.ArgumentParser(description='Measure transfer speed to an S3 bucket.')
+    parser.add_argument('--bucket-name', '-b' type=str, help='Name of the S3 bucket', required=True)
+    parser.add_argument('--prefix', '-p', type=str, default='', help='Optional prefix to filter objects in the bucket')
 
-    print('Connection established.')
+    args = parser.parse_args()
+    bucket_name = args.bucket_name
+    prefix = args.prefix
 
-    start_num_files = 0
-    start_size = 0
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore')
 
-    start_time = datetime.now()  # Move the start_time assignment here
+        s3_host = 'echo.stfc.ac.uk'
+        try:
+            keys = bm.get_keys()
+        except KeyError as e:
+            print(e)
+            sys.exit()
 
-    for ob in bucket.objects.all(): #filter(Prefix = prefix):
-        start_num_files += 1
-        start_size += ob.size
-        #print(ob.size)
+        access_key = keys['access_key']
+        secret_key = keys['secret_key']
 
-    print(start_size)
+        s3 = bm.get_resource(access_key, secret_key, s3_host)
 
-    for i in range(5):
-        print(i)
-        time.sleep(1)
+        bucket = s3.Bucket(bucket_name)
 
-    end_num_files = 0
-    end_size = 0
-    for ob in bucket.objects.all(): #filter(Prefix = prefix):
-        end_num_files+=1
-        end_size += ob.size
-    end_time = datetime.now()
-    print(end_size)
+        print('Connection established.')
 
-    elapsed = end_time - start_time
-    elapsed_seconds = elapsed.seconds + elapsed.microseconds / 1e6
-    size_diff = end_size - start_size
-    size_diff_MiB = size_diff / 1024**2
-    files_diff = end_num_files - start_num_files
+        start_time = datetime.now()  # Move the start_time assignment here
+        if prefix:
+            start_num_files, start_size = size_prefix(bucket, prefix)
+        else:
+            start_num_files, start_size = size_all(bucket)
 
-    transfer_speed = size_diff_MiB / elapsed_seconds
-    if files_diff > 0:
-        seconds_per_file = elapsed_seconds / files_diff
-    else:
-        seconds_per_file = 0
+        print(start_size)
 
-    print(f'Transfer speed = {transfer_speed:.2f} MiB/s - {seconds_per_file:.2f} s/file')
+        for i in range(5):
+            print(i)
+            time.sleep(1)
+
+        if prefix:
+            end_num_files, end_size = size_prefix(bucket, prefix)
+        else:
+            end_num_files, end_size = size_all(bucket)
+        end_time = datetime.now()
+        print(end_size)
+
+        elapsed = end_time - start_time
+        elapsed_seconds = elapsed.seconds + elapsed.microseconds / 1e6
+        size_diff = end_size - start_size
+        size_diff_MiB = size_diff / 1024**2
+        files_diff = end_num_files - start_num_files
+
+        transfer_speed = size_diff_MiB / elapsed_seconds
+        if files_diff > 0:
+            seconds_per_file = elapsed_seconds / files_diff
+        else:
+            seconds_per_file = 0
+
+        print(f'Transfer speed = {transfer_speed:.2f} MiB/s - {seconds_per_file:.2f} s/file')
