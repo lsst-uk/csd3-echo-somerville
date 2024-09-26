@@ -1283,10 +1283,12 @@ if __name__ == '__main__':
     # Upload log file
     if not dryrun:
         print('Uploading log file.')
+        #upload_to_bucket(s3_host, access_key, secret_key, bucket_name, local_dir, folder, filename, object_key, perform_checksum, dryrun, mem_per_worker) -> str:
         upload_to_bucket(s3_host,
                         access_key, 
                         secret_key, 
-                        bucket_name, 
+                        bucket_name,
+                        local_dir,
                         '/', #path
                         log, 
                         os.path.basename(log), 
