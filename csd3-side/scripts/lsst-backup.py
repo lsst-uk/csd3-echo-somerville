@@ -19,8 +19,7 @@ import sys
 import os
 from itertools import repeat
 import warnings
-from datetime import datetime, timedelta
-from time import sleep
+from datetime import datetime
 import hashlib
 import base64
 import pandas as pd
@@ -39,7 +38,7 @@ import hashlib
 import os
 import argparse
 
-from dask.distributed import Client, get_client, wait, as_completed, get_worker
+from dask.distributed import Client, get_client, wait, as_completed
 # from dask import annotate
 import subprocess
 
@@ -1030,21 +1029,21 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     ########################
     # Monitor upload tasks #
     ########################
-    while len(upload_futures) +len(zul_futures) > 0:
-        for f in as_completed(upload_futures+zul_futures):
-            print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
-            print(f'Failed uploads: {len(failed)}', flush=True)
-            print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
-            print(f'Failed uploads: {len(failed)}', flush=True)
+    # while len(upload_futures) +len(zul_futures) > 0:
+    for f in as_completed(upload_futures+zul_futures):
+        print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
+        print(f'Failed uploads: {len(failed)}', flush=True)
+        print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
+        print(f'Failed uploads: {len(failed)}', flush=True)
 
-            if 'exception' in f.status and f not in failed:
-                f_tuple = f.exception(), f.traceback()
-                del f
-                if f_tuple not in failed:
-                    failed.append(f_tuple)
-            elif 'finished' in f.status:
-                print(f.result())
-                del f
+        if 'exception' in f.status and f not in failed:
+            f_tuple = f.exception(), f.traceback()
+            del f
+            if f_tuple not in failed:
+                failed.append(f_tuple)
+        elif 'finished' in f.status:
+            print(f.result())
+            del f
 
     if failed:
         for i, failed_upload in enumerate(failed):
