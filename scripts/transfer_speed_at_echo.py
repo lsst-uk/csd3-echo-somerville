@@ -30,7 +30,7 @@ def size_prefix(bucket,prefix):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Measure transfer speed to an S3 bucket.')
-    parser.add_argument('--bucket-name', '-b' type=str, help='Name of the S3 bucket', required=True)
+    parser.add_argument('--bucket-name', '-b', type=str, help='Name of the S3 bucket', required=True)
     parser.add_argument('--prefix', '-p', type=str, default='', help='Optional prefix to filter objects in the bucket')
 
     args = parser.parse_args()
