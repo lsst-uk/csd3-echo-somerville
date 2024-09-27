@@ -297,7 +297,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, local_dir, fo
             del file_data
             # Ensure consistent path to upload_object.py
             upload_object_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../scripts/upload_object.py')
-            success = subprocess.Popen(['python', upload_object_path, '--bucket-name', bucket_name, '--object-name', object_key, '--local-path', filename, '>>', '$USER/ext_upload.log', '2>>', '$USER/ext_upload.err'])
+            success = subprocess.Popen(['python', upload_object_path, '--bucket-name', bucket_name, '--object-name', object_key, '--local-path', filename, '>>', f'{os.environ["PWD"]}/ext_upload.log', '2>>', f'{os.environ["PWD"]}/ext_upload.err'])
             print(f'Running upload_object.py for {filename}.', flush=True)
             print(f'External upload {success.stdout.read()}', flush=True)
             # if success.returncode == 0:
