@@ -289,6 +289,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, local_dir, fo
         if not dryrun:
             print(f'WARNING: File size of {file_size} bytes exceeds memory per worker of {mem_per_worker} bytes.')
             print('Running upload_object.py.')
+            print('This upload WILL NOT be checksummed or tracked!')
             if perform_checksum:
                 checksum_string = hashlib.md5(file_data).hexdigest()
             # Ensure the file is closed before running the upload script
@@ -296,15 +297,15 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, local_dir, fo
             del file_data
             # Ensure consistent path to upload_object.py
             upload_object_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../scripts/upload_object.py')
-            success = subprocess.run(['python', upload_object_path, '--bucket-name', bucket_name, '--object-name', object_key, '--local-path', filename], stderr=subprocess.PIPE, capture_output=True)
-            if success.returncode == 0:
-                print(f'File {filename} uploaded successfully.')
-                if perform_checksum:
-                    return f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}","{checksum_string}","n/a"'
-                else:
-                    return f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}","n/a","n/a"'
-            else:
-                print(f'Error uploading {filename} to {bucket_name}/{object_key}: {success.stderr}')
+            success = subprocess.Popen(['python', upload_object_path, '--bucket-name', bucket_name, '--object-name', object_key, '--local-path', filename], stderr=subprocess.PIPE, stdout=subprocess.PIPE, start_new_session=True)
+            # if success.returncode == 0:
+            #     print(f'File {filename} uploaded successfully.')
+            #     if perform_checksum:
+            #         return f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}","{checksum_string}","n/a"'
+            #     else:
+            #         return f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}","n/a","n/a"'
+            # else:
+            #     print(f'Error uploading {filename} to {bucket_name}/{object_key}: {success.stderr}')
     if file_size > 0.5*mem_per_worker:
         print(f'WARNING: File size of {file_size} bytes exceeds half the memory per worker of {mem_per_worker} bytes.')
         try:
@@ -1285,17 +1286,17 @@ if __name__ == '__main__':
         print('Uploading log file.')
         #upload_to_bucket(s3_host, access_key, secret_key, bucket_name, local_dir, folder, filename, object_key, perform_checksum, dryrun, mem_per_worker) -> str:
         upload_to_bucket(s3_host,
-                        access_key, 
-                        secret_key, 
-                        bucket_name,
-                        local_dir,
-                        '/', #path
-                        log, 
-                        os.path.basename(log), 
-                        False, # perform_checksum
-                        False, # dryrun
-                        mem_per_worker,
-                        )
+            access_key, 
+            secret_key, 
+            bucket_name,
+            local_dir,
+            '/', #path
+            log, 
+            os.path.basename(log), 
+            False, # perform_checksum
+            False, # dryrun
+            mem_per_worker,
+            )
     
     final_size = logdf["FILE_SIZE"].sum() / 1024**2
     try:
