@@ -286,7 +286,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, local_dir, fo
     file_size = os.path.getsize(filename)
     use_future = False
     print('t1', flush=True)
-    if file_size > mem_per_worker:
+    if file_size > 0.5*mem_per_worker:
         print('t2', flush=True)
         if not dryrun:
             print('t3', flush=True)
@@ -311,14 +311,14 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, local_dir, fo
             #         return f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}","n/a","n/a"'
             # else:
             #     print(f'Error uploading {filename} to {bucket_name}/{object_key}: {success.stderr}')
-    if file_size > 0.5*mem_per_worker:
-        print(f'WARNING: File size of {file_size} bytes exceeds half the memory per worker of {mem_per_worker} bytes.')
-        try:
-            file_data = get_client().scatter(file_data)
-        except TypeError as e:
-            print(f'Error scattering {filename}: {e}')
-            exit(1)
-        use_future = True
+    # if file_size > 0.5*mem_per_worker:
+    #     print(f'WARNING: File size of {file_size} bytes exceeds half the memory per worker of {mem_per_worker} bytes.')
+    #     try:
+    #         file_data = get_client().scatter(file_data)
+    #     except TypeError as e:
+    #         print(f'Error scattering {filename}: {e}')
+    #         exit(1)
+    #     use_future = True
 
     print(f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, {file_size} bytes, checksum = {perform_checksum}, dryrun = {dryrun}', flush=True)
     """
