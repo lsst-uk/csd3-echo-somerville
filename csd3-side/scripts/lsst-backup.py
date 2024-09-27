@@ -287,7 +287,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, local_dir, fo
     use_future = False
     if file_size > mem_per_worker:
         if not dryrun:
-            print(f'WARNING: File size of {file_size} bytes exceeds memory per worker of {mem_per_worker} bytes.')
+            print(f'WARNING: File size of {file_size} bytes exceeds memory per worker of {mem_per_worker} bytes.', flush=True)
             print('Running upload_object.py.')
             print('This upload WILL NOT be checksummed or tracked!')
             if perform_checksum:
@@ -298,6 +298,8 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, local_dir, fo
             # Ensure consistent path to upload_object.py
             upload_object_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../scripts/upload_object.py')
             success = subprocess.Popen(['python', upload_object_path, '--bucket-name', bucket_name, '--object-name', object_key, '--local-path', filename], stderr=subprocess.PIPE, stdout=subprocess.PIPE, start_new_session=True)
+            print(f'Running upload_object.py for {filename}.')
+            print(f'External upload {success.stdout.read()}')
             # if success.returncode == 0:
             #     print(f'File {filename} uploaded successfully.')
             #     if perform_checksum:
