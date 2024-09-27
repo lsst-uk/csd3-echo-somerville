@@ -286,7 +286,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, local_dir, fo
     file_size = os.path.getsize(filename)
     use_future = False
     print('t1', flush=True)
-    if file_size > 0.5*mem_per_worker:
+    if file_size > 10 * 1024**3:
         print('t2', flush=True)
         if not dryrun:
             print('t3', flush=True)
