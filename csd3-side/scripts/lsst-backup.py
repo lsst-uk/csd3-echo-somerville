@@ -43,6 +43,7 @@ from dask.distributed import Client, get_client, wait, as_completed
 import subprocess
 
 from typing import List
+import random
 
 def to_rds_path(home_path: str, local_dir: str) -> str:
     # get base folder for rds- folders
@@ -301,9 +302,9 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, local_dir, fo
             # Ensure consistent path to upload_object.py
             upload_object_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../scripts/upload_object.py')
             success = subprocess.Popen(
-                ['nohup', 'python', upload_object_path, '--bucket-name', bucket_name, '--object-name', object_key, '--local-path', filename],
-                stdout=open(f'{os.environ["PWD"]}/ext_upload.log', 'a'),
-                stderr=open(f'{os.environ["PWD"]}/ext_upload.err', 'a'),
+                ['nohup', 'nice', '-n', '10', 'python', upload_object_path, '--bucket-name', bucket_name, '--object-name', object_key, '--local-path', filename],
+                stdout=open(f'{os.environ["PWD"]}/ext_upload_{random.randint(1, 10000):05}.log', 'a'),
+                stderr=open(f'{os.environ["PWD"]}/ext_upload_{random.randint(1, 10000):05}.err', 'a'),
                 env=os.environ,
                 preexec_fn=os.setsid
                 )
