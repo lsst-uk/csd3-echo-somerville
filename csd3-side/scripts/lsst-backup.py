@@ -942,6 +942,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         #         max_mem = mem
         # if max_mem / mem_lim > 0.9:
         #     wait(upload_futures)
+        print('', flush=True)
 
     
     # collate folders
