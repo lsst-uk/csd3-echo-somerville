@@ -87,6 +87,8 @@ def find_metadata(key: str, bucket) -> List[str]:
                     existing_zip_contents = bucket.Object(key).metadata['zip-contents'].split('|') # use | as separator
                 except KeyError:
                     return None
+                except Exception as e:
+                    return None
             if existing_zip_contents:
                 return existing_zip_contents
         else:
