@@ -293,14 +293,20 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, local_dir, fo
             print(f'WARNING: File size of {file_size} bytes exceeds memory per worker of {mem_per_worker} bytes.', flush=True)
             print('Running upload_object.py.', flush=True)
             print('This upload WILL NOT be checksummed or tracked!', flush=True)
-            if perform_checksum:
-                checksum_string = hashlib.md5(file_data).hexdigest()
+            # if perform_checksum:
+            #     checksum_string = hashlib.md5(file_data).hexdigest()
             # Ensure the file is closed before running the upload script
             file_data.close()
             del file_data
             # Ensure consistent path to upload_object.py
             upload_object_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../scripts/upload_object.py')
-            success = subprocess.Popen(['python', upload_object_path, '--bucket-name', bucket_name, '--object-name', object_key, '--local-path', filename, '>>', f'{os.environ["PWD"]}/ext_upload.log', '2>>', f'{os.environ["PWD"]}/ext_upload.err'], start_new_session=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=os.environ)
+            success = subprocess.Popen(
+                ['nohup', 'python', upload_object_path, '--bucket-name', bucket_name, '--object-name', object_key, '--local-path', filename],
+                stdout=open(f'{os.environ["PWD"]}/ext_upload.log', 'a'),
+                stderr=open(f'{os.environ["PWD"]}/ext_upload.err', 'a'),
+                env=os.environ,
+                preexec_fn=os.setsid
+                )
             print(f'Running upload_object.py for {filename}.', flush=True)
             print(f'External upload {success.stdout.read()}', flush=True)
             # if success.returncode == 0:
