@@ -19,13 +19,11 @@ import sys
 import os
 from itertools import repeat
 import warnings
-from datetime import datetime, timedelta
-from time import sleep
+from datetime import datetime
 import hashlib
 import base64
 import pandas as pd
 import numpy as np
-import subprocess
 import yaml
 import io
 import zipfile
@@ -40,10 +38,33 @@ import hashlib
 import os
 import argparse
 
-from dask.distributed import Client, get_client, wait, as_completed, get_worker
+from dask.distributed import Client, get_client, wait, as_completed
+# from dask import annotate
 import subprocess
 
 from typing import List
+
+
+def to_rds_path(home_path: str, local_dir: str) -> str:
+    # get base folder for rds- folders
+    if 'rds-' in local_dir:
+        split = local_dir.split('/')
+        for f in split:
+            if f.startswith('rds-'):
+                local_dir_base = '/'.join(split[:split.index(f)+1])
+                break
+        if 'rds-iris' in home_path:
+            home_path_split = home_path.split('/')
+            for hp in home_path_split:
+                if hp.startswith('rds-iris'):
+                    home_path_base = '/'.join(home_path_split[:home_path_split.index(hp)+1])
+                    break
+            rds_path = home_path.replace(home_path_base, local_dir_base)
+            return rds_path
+        else:
+            return home_path
+    else:
+        return home_path
 
 def find_metadata(key: str, bucket) -> List[str]:
     """
@@ -83,6 +104,7 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
     #############
     client = get_client()
     print(f'Collating {len(subfolders_to_collate)} subfolders into a zip file.', flush=True)
+    # with annotate(parent_folder=parent_folder):
     zip_data, namelist = client.submit(zip_folders,
         parent_folder, 
         subfolders_to_collate, 
@@ -93,37 +115,42 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
         mem_per_worker
         ).result()
     # if len(zip_data) > mem_per_worker/2:
-    print('Scattering zip data.')
+    # print('Scattering zip data.')
     # scattered_zip_data = client.scatter(zip_data)
     ###############
     # upload part #
     ###############
     zip_object_key = os.sep.join([destination_dir, os.path.relpath(f'{parent_folder}/collated_{id}.zip', local_dir)])
-    print(f'Uploading zip file containing {len(subfolders_to_collate)} subfolders to S3 bucket {bucket_name} to key {zip_object_key}.', flush=True)
-    f = client.submit(upload_and_callback,
-        s3_host,
-        access_key,
-        secret_key,
-        bucket_name,
-        parent_folder,
-        zip_data,
-        namelist,
-        zip_object_key,
-        perform_checksum,
-        dryrun,
-        datetime.now(),
-        1,
-        len(zip_data),
-        total_size_uploaded,
-        total_files_uploaded,
-        True,
-        mem_per_worker
-        )
-    del zip_data, namelist
-    wait(f)
-    del f
-
-    return zip_object_key+' success'
+    if namelist == []:
+        print(f'No files to upload in zip file containing {len(subfolders_to_collate)} subfolders.')
+        return zip_object_key+' nothing to upload'
+    else:
+        print(f'Uploading zip file containing {len(subfolders_to_collate)} subfolders to S3 bucket {bucket_name} to key {zip_object_key}.', flush=True)
+        # with annotate(parent_folder=parent_folder):
+        f = client.submit(upload_and_callback,
+            s3_host,
+            access_key,
+            secret_key,
+            bucket_name,
+            local_dir,
+            parent_folder,
+            zip_data,
+            namelist,
+            zip_object_key,
+            perform_checksum,
+            dryrun,
+            datetime.now(),
+            1,
+            len(zip_data),
+            total_size_uploaded,
+            total_files_uploaded,
+            True,
+            mem_per_worker
+            )
+        del zip_data, namelist
+        # wait(f)
+        # del f
+        return zip_object_key+' success'
 
 def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_files:list[str], use_compression:bool, dryrun:bool, id:int, mem_per_worker:int) -> tuple[str, int, bytes]:
     """
@@ -174,9 +201,13 @@ def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_file
                     else:
                         file_path = os.path.join(subfolders_to_collate, file)
                     arc_name = os.path.relpath(file_path, parent_folder)
-                    zipped_size += os.path.getsize(file_path)
-                    with open(file_path, 'rb') as src_file:
-                        zip_file.writestr(arc_name, src_file.read())
+                    try:
+                        zipped_size += os.path.getsize(file_path)
+                        with open(file_path, 'rb') as src_file:
+                            zip_file.writestr(arc_name, src_file.read())
+                    except PermissionError:
+                        print(f'WARNING: Permission error reading {file_path}. File will not be backed up.')
+                        continue
                 namelist = zip_file.namelist()
             if zipped_size > mem_per_worker:
                 print(f'WARNING: Zipped size of {zipped_size} bytes exceeds memory per core of {mem_per_worker} bytes.')
@@ -184,6 +215,8 @@ def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_file
             print(f'Error zipping {parent_folder}: {e}')
             print(f'Namespace: {globals()}')
             exit(1)
+        if namelist == []:
+            return b'', []
         return zip_buffer.getvalue(), namelist
     else:
         return b'', []
@@ -213,7 +246,7 @@ def part_uploader(s3_host, access_key, secret_key, bucket_name, object_key, part
                           PartNumber=part_number,
                           UploadId=upload_id)["ETag"]}
     
-def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filename, object_key, perform_checksum, dryrun, mem_per_worker) -> str:
+def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, local_dir, folder, filename, object_key, perform_checksum, dryrun, mem_per_worker) -> str:
     """
     Uploads a file to an S3 bucket.
     Optionally calculates a checksum for the file
@@ -247,38 +280,53 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
     # Check if the file is a symlink
     # If it is, upload an object containing the target path instead
     if link:
-        file_data = os.path.realpath(filename)
+        file_data = to_rds_path(os.path.realpath(filename), local_dir)
     else:
         file_data = open(filename, 'rb').read()
 
     file_size = os.path.getsize(filename)
     use_future = False
-    if file_size > mem_per_worker:
+    print('t1', flush=True)
+    if file_size > 10 * 1024**3:
+        print('t2', flush=True)
         if not dryrun:
-            print(f'WARNING: File size of {file_size} bytes exceeds memory per worker of {mem_per_worker} bytes.')
-            print('Running upload_object.py.')
-            if perform_checksum:
-                checksum_string = hashlib.md5(file_data).hexdigest()
+            print('t3', flush=True)
+            print(f'WARNING: File size of {file_size} bytes exceeds memory per worker of {mem_per_worker} bytes.', flush=True)
+            print('Running upload_object.py.', flush=True)
+            print('This upload WILL NOT be checksummed or tracked!', flush=True)
+            # if perform_checksum:
+            #     checksum_string = hashlib.md5(file_data).hexdigest()
             # Ensure the file is closed before running the upload script
-            file_data.close()
+            # file_data.close()
             del file_data
             # Ensure consistent path to upload_object.py
             upload_object_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../scripts/upload_object.py')
-            success = subprocess.run(['python', upload_object_path, '--bucket-name', bucket_name, '--object-name', object_key, '--local-path', filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE, capture_output=True)
-            if success.returncode == 0:
-                print(f'File {filename} uploaded successfully.')
-                if perform_checksum:
-                    return f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}","{checksum_string}","n/a"'
-                else:
-                    return f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}","n/a","n/a"'
-    if file_size > 0.5*mem_per_worker:
-        print(f'WARNING: File size of {file_size} bytes exceeds half the memory per worker of {mem_per_worker} bytes.')
-        try:
-            file_data = get_client().scatter(file_data)
-        except TypeError as e:
-            print(f'Error scattering {filename}: {e}')
-            exit(1)
-        use_future = True
+            success = subprocess.Popen(
+                ['nohup', 'nice', '-n', '10', 'python', upload_object_path, '--bucket-name', bucket_name, '--object-name', object_key, '--local-path', filename],
+                stdout=open(f'{os.environ["PWD"]}/ext_uploads.log', 'a'),
+                stderr=open(f'{os.environ["PWD"]}/ext_uploads.err', 'a'),
+                env=os.environ,
+                preexec_fn=os.setsid
+                )
+            print(f'Running upload_object.py for {filename}.', flush=True)
+            return f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}","n/a","n/a"'
+            # print(f'External upload {success.stdout.read()}', flush=True)
+            # if success.returncode == 0:
+            #     print(f'File {filename} uploaded successfully.')
+            #     if perform_checksum:
+            #         return f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}","{checksum_string}","n/a"'
+            #     else:
+            #         return f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}","n/a","n/a"'
+            # else:
+            #     print(f'Error uploading {filename} to {bucket_name}/{object_key}: {success.stderr}')
+    # if file_size > 0.5*mem_per_worker:
+    #     print(f'WARNING: File size of {file_size} bytes exceeds half the memory per worker of {mem_per_worker} bytes.')
+    #     try:
+    #         file_data = get_client().scatter(file_data)
+    #     except TypeError as e:
+    #         print(f'Error scattering {filename}: {e}')
+    #         exit(1)
+    #     use_future = True
 
     print(f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, {file_size} bytes, checksum = {perform_checksum}, dryrun = {dryrun}', flush=True)
     """
@@ -380,7 +428,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, filen
     else:
         checksum_string = "DRYRUN"
 
-    del file_data # Delete the file data to free up memory
+    # del file_data # Delete the file data to free up memory
 
     """
         report actions
@@ -516,7 +564,7 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
     else:
         checksum_string = "DRYRUN"
 
-    del file_data # Delete the file data to free up memory
+    # del file_data # Delete the file data to free up memory
 
     """
         report actions
@@ -547,34 +595,34 @@ def print_stats(file_name_or_data, file_count, total_size, file_start, file_end,
     Returns:
         None
     """
-    pass
+    # pass
 
-    # # This give false information as it is called once per file, not once per folder.
+    # This give false information as it is called once per file, not once per folder.
     # print('#######################################')
     # print('THIS INFORMATION IS CURRENTLY INCORRECT')
 
-    # elapsed = file_end - file_start
-    # if collated:
-    #     print(f'Uploaded zip file, elapsed time = {elapsed}')
-    # else:
-    #     print(f'Uploaded {file_name_or_data}, elapsed time = {elapsed}')
-    # try:
-    #     elapsed_seconds = elapsed.seconds + elapsed.microseconds / 1e6
-    #     avg_file_size = total_size / file_count / 1024**2
-    #     print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded in {elapsed_seconds:.2f} seconds, {elapsed_seconds/file_count:.2f} s/file', flush=True)
-    #     print(f'{total_size / 1024**2:.2f} MiB uploaded in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/s', flush=True)
-    #     print(f'Total elapsed time = {file_end-processing_start}', flush=True)
-    #     print(f'Total files uploaded = {total_files_uploaded}', flush=True)
-    #     print(f'Total size uploaded = {total_size_uploaded / 1024**3:.2f} GiB', flush=True)
-    #     print(f'Running average speed = {total_size_uploaded / 1024**2 / (file_end-processing_start).seconds:.2f} MiB/s', flush=True)
-    #     print(f'Running average rate = {(file_end-processing_start).seconds / total_files_uploaded:.2f} s/file', flush=True)
-    #     print('END OF INCORRENT REPORTING')
-    #     print('#######################################')
-    # except ZeroDivisionError:
-    #     pass
+    elapsed = file_end - file_start
+    if collated:
+        print(f'Uploaded zip file, elapsed time = {elapsed}')
+    else:
+        print(f'Uploaded {file_name_or_data}, elapsed time = {elapsed}')
+    try:
+        elapsed_seconds = elapsed.seconds + elapsed.microseconds / 1e6
+        avg_file_size = total_size / file_count / 1024**2
+        print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded in {elapsed_seconds:.2f} seconds, {elapsed_seconds/file_count:.2f} s/file', flush=True)
+        print(f'{total_size / 1024**2:.2f} MiB uploaded in {elapsed_seconds:.2f} seconds, {total_size / 1024**2 / elapsed_seconds:.2f} MiB/s', flush=True)
+        # print(f'Total elapsed time = {file_end-processing_start}', flush=True)
+        # print(f'Total files uploaded = {total_files_uploaded}', flush=True)
+        # print(f'Total size uploaded = {total_size_uploaded / 1024**3:.2f} GiB', flush=True)
+        # print(f'Running average speed = {total_size_uploaded / 1024**2 / (file_end-processing_start).seconds:.2f} MiB/s', flush=True)
+        # print(f'Running average rate = {(file_end-processing_start).seconds / total_files_uploaded:.2f} s/file', flush=True)
+        # print('END OF INCORRENT REPORTING')
+        # print('#######################################')
+    except ZeroDivisionError:
+        pass
     # del file_name_or_data
 
-def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded, collated, mem_per_worker) -> None:
+def upload_and_callback(s3_host, access_key, secret_key, bucket_name, local_dir, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded, collated, mem_per_worker) -> None:
     # upload files in parallel and log output
     file_start = datetime.now()
     print(f'collated = {collated}', flush=True)
@@ -587,7 +635,7 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, folder, fi
             sys.exit(1)
     else:
         print(f'Uploading {file_count} files from {folder}.')
-        result = upload_to_bucket(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, object_key, perform_checksum, dryrun, mem_per_worker)
+        result = upload_to_bucket(s3_host, access_key, secret_key, bucket_name, local_dir, folder, file_name_or_data, object_key, perform_checksum, dryrun, mem_per_worker)
     
     file_end = datetime.now()
     print_stats(file_name_or_data, file_count, folder_files_size, file_start, file_end, processing_start, total_size_uploaded, total_files_uploaded, collated)
@@ -621,79 +669,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     Returns:
         None
     """
-
-
-    #######
-    ### HANDLE LINKS WITH UNKNOWN PERMISSIONS ###
-    # In [1]: p = '/home/ir-shir1/rds/rds-iris-ip005/data/private/VISTA/VIDEO/20131011/v20131011_00425_st.fit'
-
-    # In [2]: newp = '/rds/project/rds-rPTGgs6He74/data/private/VISTA/VIDEO/20131011/v20131011_00425_st.fit'
-
-    # In [3]: if 'rds-iris-ip005' in p:
-    # ...:     print(p)
-    # ...:
-    # /home/ir-shir1/rds/rds-iris-ip005/data/private/VISTA/VIDEO/20131011/v20131011_00425_st.fit
-
-    # In [4]: if 'rds-iris-ip005' in p:
-    # ...:     print(p.index('rds-iris-ip005'))
-    # ...:
-    # 19
-
-    # In [5]: if 'rds-iris-ip005' in p:
-    # ...:     print(p[:p.index('rds-iris-ip005')])
-    # ...:
-    # /home/ir-shir1/rds/
-
-    # In [6]: lp = '/rds/project/rds-rPTGgs6He74/ras81/lsst-ir-fusion/dmu4/dmu4_Example'
-
-    # In [7]: rdsp = '/rds/project/'
-
-    # In [8]: l /rds/project
-    # ---------------------------------------------------------------------------
-    # NameError                                 Traceback (most recent call last)
-    # Cell In[8], line 1
-    # ----> 1 l /rds/project
-
-    # NameError: name 'l' is not defined
-
-    # In [9]: ls /rds/project
-    # rds-5mCMIDBOkPU/  rds-lT5YGmtKack/  rds-rPTGgs6He74/
-
-    # In [10]: for f in lp.split('/'):
-    #     ...:     print(f)
-    #     ...:     if f.startswith('rds-'):
-    #     ...:         rdsp = '/'.join(lp.split('/')[:lp.split('/').index(f)])
-    #     ...:         break
-    #     ...:
-
-    # rds
-    # project
-    # rds-rPTGgs6He74
-
-    # In [11]: rdsp
-    # Out[11]: '/rds/project'
-
-    # In [12]: for f in lp.split('/'):
-    #     ...:     print(f)
-    #     ...:     if f.startswith('rds-'):
-    #     ...:         rdsp = '/'.join(lp.split('/')[:lp.split('/').index(f)+1])
-    #     ...:         break
-    #     ...:
-
-    # rds
-    # project
-    # rds-rPTGgs6He74
-
-    # In [13]: rdsp
-    # Out[13]: '/rds/project/rds-rPTGgs6He74'
-
-    # In [14]:
-
-
-
-
-
-
     processing_start = datetime.now()
     total_size_uploaded = 0
     total_files_uploaded = 0
@@ -703,7 +678,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     except TypeError as e:
         print(f'Error scattering {filename}: {e}')
         exit(1)
-        
+
     #recursive loop over local folder
     to_collate = {} # store folders to collate
     total_all_folders = 0
@@ -803,10 +778,13 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         # remove current objects - avoids reuploading
         # could provide overwrite flag if this is desirable
         # print(f'current_objects: {current_objects}')
-        if not current_objects.empty and current_objects['CURRENT_OBJECTS'].isin(object_names).all():
-            #all files in this subfolder already in bucket
-            print(f'Skipping subfolder - all files exist.')
-            continue
+        if not current_objects.empty:
+            if set(object_names).issubset(current_objects['CURRENT_OBJECTS']):
+                #all files in this subfolder already in bucket
+                print(current_objects['CURRENT_OBJECTS'])
+                print(object_names)
+                print(f'Skipping subfolder - all files exist.')
+                continue
 
         if mean_filesize > 256*1024**2 or not global_collate:
             # all files within folder
@@ -828,7 +806,10 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     symlink_obj_name = object_names[i]
                     object_names[i] = '.'.join([object_names[i], 'symlink'])
                     #add symlink target to symlink_targets list
-                    symlink_targets.append(os.path.realpath(folder_files[i]))
+                    #using target dir as-is can cause permissions issues
+                    #reaplce /home path with /rds path uses as local_dir
+                    target = to_rds_path(os.path.realpath(folder_files[i]), local_dir)
+                    symlink_targets.append(target)
                     #add real file to symlink_obj_names list
                     symlink_obj_names.append(symlink_obj_name)
             # append symlink_targets and symlink_obj_names to folder_files and object_names
@@ -849,7 +830,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         repeat(s3_host), 
                         repeat(access_key), 
                         repeat(secret_key), 
-                        repeat(bucket_name), 
+                        repeat(bucket_name),
+                        repeat(local_dir),
                         repeat(folder), 
                         folder_files,
                         repeat(None),
@@ -864,6 +846,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         repeat(False),
                         repeat(mem_per_worker),
                     )):
+                    # with annotate(folder=folder):
                     upload_futures.append(client.submit(upload_and_callback, *args))
                     uploads.append({'folder':args[4],'folder_size':args[12],'file_size':os.lstat(folder_files[i]).st_size,'file':args[5],'object':args[7],'uploaded':False})
             except BrokenPipeError as e:
@@ -913,7 +896,10 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     symlink_obj_name = object_names[i]
                     object_names[i] = '.'.join([object_names[i], 'symlink'])
                     #add symlink target to symlink_targets list
-                    symlink_targets.append(os.path.realpath(folder_files[i]))
+                    #using target dir as-is can cause permissions issues
+                    #reaplce /home path with /rds path uses as local_dir
+                    target = to_rds_path(os.path.realpath(folder_files[i]), local_dir)
+                    symlink_targets.append(target)
                     #add real file to symlink_obj_names list
                     symlink_obj_names.append(symlink_obj_name)
 
@@ -942,17 +928,18 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             to_collate[parent_folder]['object_names'].append(object_names)
             to_collate[parent_folder]['folder_files'].append(folder_files)
         
-        sched_info = client.scheduler_info()
-        max_mem = 0
-        mem_lim = None
-        for _, winfo in sched_info['workers'].items():
-            if not mem_lim:
-                mem_lim = winfo['memory_limit']
-            mem = winfo['metrics']['memory']
-            if mem > max_mem:
-                max_mem = mem
-        if max_mem / mem_lim > 0.9:
-            wait(upload_futures)
+        #Does this just slow it down?
+        # sched_info = client.scheduler_info()
+        # max_mem = 0
+        # mem_lim = None
+        # for _, winfo in sched_info['workers'].items():
+        #     if not mem_lim:
+        #         mem_lim = winfo['memory_limit']
+        #     mem = winfo['metrics']['memory']
+        #     if mem > max_mem:
+        #         max_mem = mem
+        # if max_mem / mem_lim > 0.9:
+        #     wait(upload_futures)
 
     
     # collate folders
@@ -1038,41 +1025,42 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     repeat(mem_per_worker),
                     repeat(perform_checksum),
                     )):
+                # with annotate(parent_folder=parent_folder):
                 zul_futures.append(client.submit(
                     zip_and_upload,
                     *args
                 ))
-            
-            sched_info = client.scheduler_info()
-            max_mem = 0
-            mem_lim = None
-            for _, winfo in sched_info['workers'].items():
-                if not mem_lim:
-                    mem_lim = winfo['memory_limit']
-                mem = winfo['metrics']['memory']
-                if mem > max_mem:
-                    max_mem = mem
-            if max_mem / mem_lim > 0.9:
-                wait(upload_futures)
+            # DOes this just slow it down?
+            # sched_info = client.scheduler_info()
+            # max_mem = 0
+            # mem_lim = None
+            # for _, winfo in sched_info['workers'].items():
+            #     if not mem_lim:
+            #         mem_lim = winfo['memory_limit']
+            #     mem = winfo['metrics']['memory']
+            #     if mem > max_mem:
+            #         max_mem = mem
+            # if max_mem / mem_lim > 0.9:
+            #     wait(upload_futures)
     
     ########################
     # Monitor upload tasks #
     ########################
-    while len(upload_futures) +len(zul_futures) > 0:
-        for f in as_completed(upload_futures+zul_futures):
-            # print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
-            # print(f'Failed uploads: {len(failed)}', flush=True)
-            # print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
-            # print(f'Failed uploads: {len(failed)}', flush=True)
+    # while len(upload_futures) +len(zul_futures) > 0:
+    for f in as_completed(upload_futures+zul_futures):
+        print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
+        print(f'Failed uploads: {len(failed)}', flush=True)
+        print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
+        print(f'Failed uploads: {len(failed)}', flush=True)
 
-            if 'exception' in f.status and f not in failed:
-                f_tuple = f.exception(), f.traceback()
-                del f
-                if f_tuple not in failed:
-                    failed.append(f_tuple)
-            elif 'finished' in f.status:
-                print(f.result())
-                del f
+        if 'exception' in f.status and f not in failed:
+            f_tuple = f.exception(), f.traceback()
+            del f
+            if f_tuple not in failed:
+                failed.append(f_tuple)
+        elif 'finished' in f.status:
+            print(f.result())
+            del f
 
     if failed:
         for i, failed_upload in enumerate(failed):
@@ -1253,19 +1241,21 @@ if __name__ == '__main__':
             print('dryrun == True, so continuing.')
     
     bucket = s3.Bucket(bucket_name)
-    print(f'Getting current object list for {bucket_name}. This may take some time.\nStarting at {datetime.now()}, elapsed time = {datetime.now() - start}')
-    current_objects = bm.object_list(bucket)
-    print(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}')
-
+    print(f'Getting current object list for {bucket_name}. This may take some time.\nStarting at {datetime.now()}, elapsed time = {datetime.now() - start}', flush=True)
+    current_objects = bm.object_list(bucket, count=True, prefix=destination_dir)
+    print(f'\nDone.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', flush=True)
+    
     current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
-    print(f'Current objects: {len(current_objects)}')
+    
+    print(f'Current objects (with matching prefix): {len(current_objects)}', flush=True)
     if not current_objects.empty:
         current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, bucket=bucket)
     else:
         current_objects['METADATA'] = None
 
     # current_objects.to_csv('current_objects.csv', index=False)
-
+    # exit()
+    
     ## check if log exists in the bucket, and download it and append top it if it does
     # TODO: integrate this with local check for log file
     if current_objects['CURRENT_OBJECTS'].isin([log]).any():
@@ -1310,17 +1300,19 @@ if __name__ == '__main__':
     # Upload log file
     if not dryrun:
         print('Uploading log file.')
+        #upload_to_bucket(s3_host, access_key, secret_key, bucket_name, local_dir, folder, filename, object_key, perform_checksum, dryrun, mem_per_worker) -> str:
         upload_to_bucket(s3_host,
-                        access_key, 
-                        secret_key, 
-                        bucket_name, 
-                        '/', #path
-                        log, 
-                        os.path.basename(log), 
-                        False, # perform_checksum
-                        False, # dryrun
-                        mem_per_worker,
-                        )
+            access_key, 
+            secret_key, 
+            bucket_name,
+            local_dir,
+            '/', #path
+            log, 
+            os.path.basename(log), 
+            False, # perform_checksum
+            False, # dryrun
+            mem_per_worker,
+            )
     
     final_size = logdf["FILE_SIZE"].sum() / 1024**2
     try:
