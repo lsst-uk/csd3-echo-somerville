@@ -296,7 +296,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, local_dir, fo
             # if perform_checksum:
             #     checksum_string = hashlib.md5(file_data).hexdigest()
             # Ensure the file is closed before running the upload script
-            file_data.close()
+            # file_data.close()
             del file_data
             # Ensure consistent path to upload_object.py
             upload_object_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../scripts/upload_object.py')
