@@ -783,8 +783,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         if not current_objects.empty:
             if set(object_names).issubset(current_objects['CURRENT_OBJECTS']):
                 #all files in this subfolder already in bucket
-                print(current_objects['CURRENT_OBJECTS'])
-                print(object_names)
+                # print(current_objects['CURRENT_OBJECTS'])
+                # print(object_names)
                 print(f'Skipping subfolder - all files exist.')
                 continue
 
