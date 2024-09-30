@@ -1294,7 +1294,11 @@ if __name__ == '__main__':
     # Complete
     final_time = datetime.now() - start
     final_time_seconds = final_time.seconds + final_time.microseconds / 1e6
-    logdf = pd.read_csv(log)
+    try:
+        logdf = pd.read_csv(log)
+    except Exception as e:
+        print(f'Error reading log file {log}: {e}')
+        sys.exit()
     logdf = logdf.drop_duplicates(subset='DESTINATION_KEY', keep='last')
     logdf = logdf.reset_index(drop=True)
     logdf.to_csv(log, index=False)
