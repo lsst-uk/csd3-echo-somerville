@@ -308,6 +308,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, local_dir, fo
                 preexec_fn=os.setsid
                 )
             print(f'Running upload_object.py for {filename}.', flush=True)
+            return f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}","n/a","n/a"'
             # print(f'External upload {success.stdout.read()}', flush=True)
             # if success.returncode == 0:
             #     print(f'File {filename} uploaded successfully.')
