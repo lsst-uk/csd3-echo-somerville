@@ -697,6 +697,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         total_all_folders += 1
         total_all_files += len(files)
         print(f'Folders: {total_all_folders}; Files: {total_all_files}.', flush=True, end='\r')
+    print()
 
     print(f'Preparing to upload {total_all_files} files in {total_all_folders} folders from {local_dir} to {bucket_name}/{destination_dir}.', flush=True)
     for folder, sub_folders, files in os.walk(local_dir, topdown=True):
@@ -1249,7 +1250,8 @@ if __name__ == '__main__':
     bucket = s3.Bucket(bucket_name)
     print(f'Getting current object list for {bucket_name}. This may take some time.\nStarting at {datetime.now()}, elapsed time = {datetime.now() - start}', flush=True)
     current_objects = bm.object_list(bucket, count=True, prefix=destination_dir)
-    print(f'\nDone.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', flush=True)
+    print()
+    print(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', flush=True)
     
     current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
     
