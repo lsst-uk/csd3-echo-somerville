@@ -77,6 +77,7 @@ def find_metadata(key: str, bucket) -> List[str]:
     Returns:
         list[str]: A list of existing metadata contents if found, otherwise empty list.
     """
+    print('.', end='', flush=True)
     if type(key) == str:
         existing_zip_contents = None
         if key.endswith('.zip'):
@@ -1257,7 +1258,9 @@ if __name__ == '__main__':
     
     print(f'Current objects (with matching prefix): {len(current_objects)}', flush=True)
     if not current_objects.empty:
+        print('Obtaining current object metadata.')
         current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, bucket=bucket)
+        print()
     else:
         current_objects['METADATA'] = None
 
