@@ -77,10 +77,10 @@ def find_metadata(key: str, bucket) -> List[str]:
     Returns:
         list[str]: A list of existing metadata contents if found, otherwise empty list.
     """
-    print('.', end='', flush=True)
     if type(key) == str:
         existing_zip_contents = None
         if key.endswith('.zip'):
+            print('.', end='', flush=True)
             try:
                 existing_zip_contents = str(bucket.Object(''.join([key,'.metadata'])).get()['Body'].read().decode('UTF-8')).split('|') # use | as separator
             except Exception as e:
