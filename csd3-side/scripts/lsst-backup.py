@@ -1051,28 +1051,28 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             # if max_mem / mem_lim > 0.9:
             #     wait(upload_futures)
     
-    ########################
-    # Monitor upload tasks #
-    ########################
-    # while len(upload_futures) +len(zul_futures) > 0:
-    for f in as_completed(upload_futures+zul_futures):
-        print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
-        print(f'Failed uploads: {len(failed)}', flush=True)
-        print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
-        print(f'Failed uploads: {len(failed)}', flush=True)
+        ########################
+        # Monitor upload tasks #
+        ########################
+        # while len(upload_futures) +len(zul_futures) > 0:
+        for f in as_completed(upload_futures+zul_futures):
+            print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
+            print(f'Failed uploads: {len(failed)}', flush=True)
+            print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
+            print(f'Failed uploads: {len(failed)}', flush=True)
 
-        if 'exception' in f.status and f not in failed:
-            f_tuple = f.exception(), f.traceback()
-            del f
-            if f_tuple not in failed:
-                failed.append(f_tuple)
-        elif 'finished' in f.status:
-            print(f.result())
-            del f
+            if 'exception' in f.status and f not in failed:
+                f_tuple = f.exception(), f.traceback()
+                del f
+                if f_tuple not in failed:
+                    failed.append(f_tuple)
+            elif 'finished' in f.status:
+                print(f.result())
+                del f
 
-    if failed:
-        for i, failed_upload in enumerate(failed):
-            print(f'Error upload {i}:\nException: {failed_upload[0]}\nTraceback: {failed_upload[1]}')
+        if failed:
+            for i, failed_upload in enumerate(failed):
+                print(f'Error upload {i}:\nException: {failed_upload[0]}\nTraceback: {failed_upload[1]}')
 
 # # Go!
 if __name__ == '__main__':
