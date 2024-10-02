@@ -38,8 +38,7 @@ import hashlib
 import os
 import argparse
 
-from dask.distributed import Client, get_client, wait, as_completed
-# from dask import annotate
+from dask.distributed import Client, get_client, wait, as_completed, Future
 import subprocess
 
 from typing import List
@@ -150,10 +149,8 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
             True,
             mem_per_worker
             )
-        del zip_data, namelist
-        wait(f)
-        del f
-        return zip_object_key+' success'
+        # del zip_data, namelist
+        return f
 
 def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_files:list[str], use_compression:bool, dryrun:bool, id:int, mem_per_worker:int) -> tuple[str, int, bytes]:
     """
@@ -1057,6 +1054,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         # Monitor upload tasks #
         ########################
         # while len(upload_futures) +len(zul_futures) > 0:
+
         for f in as_completed(upload_futures+zul_futures):
             print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
             print(f'Failed uploads: {len(failed)}', flush=True)
@@ -1069,8 +1067,10 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 if f_tuple not in failed:
                     failed.append(f_tuple)
             elif 'finished' in f.status:
-                print(f.result())
-                del f
+                if f in zul_futures:
+                    if isinstance(f, Future):
+                        zul_futures.append(f.result())
+                    del f
 
         if failed:
             for i, failed_upload in enumerate(failed):
