@@ -151,8 +151,8 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
             mem_per_worker
             )
         del zip_data, namelist
-        # wait(f)
-        # del f
+        wait(f)
+        del f
         return zip_object_key+' success'
 
 def zip_folders(parent_folder:str, subfolders_to_collate:list[str], folders_files:list[str], use_compression:bool, dryrun:bool, id:int, mem_per_worker:int) -> tuple[str, int, bytes]:
