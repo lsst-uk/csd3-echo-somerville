@@ -794,6 +794,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 continue
 
         if mean_filesize > 256*1024**2 or not global_collate:
+            print('Individual upload.')
             # all files within folder
             # if uploading file individually, remove existing files from object_names
             if not current_objects.empty:
@@ -874,6 +875,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             # release block of files if the list for results is greater than 4 times the number of processes
 
         elif len(folder_files) > 0 and global_collate: # small files in folder
+            print('Collated upload.')
             folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
             parent_folder = os.path.abspath(os.path.join(folder, os.pardir))
             print(f'parent_folder: {parent_folder}')
@@ -951,105 +953,105 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
     
     # collate folders
-    if len(to_collate) > 0:
-        print(f'Collating {len([to_collate[parent_folder]["folders"] for parent_folder in to_collate.keys()])} folders into zip files.') #{sum([len(x["zips"]) for x in to_collate.keys()])}
-        
-        # call zip_folder in parallel
-        for zip_tuple in to_collate.items():
-            parent_folder = zip_tuple[0]
-            if os.path.abspath(parent_folder) == os.path.abspath(os.sep.join([local_dir,'..'])):
-                continue
-            folders = zip_tuple[1]['folders']
-            folder_files = zip_tuple[1]['folder_files']
-            num_files = sum([len(ff) for ff in folder_files])
-
-            ########################
-            ## rewrite expanding list comprehension
-            #########################
+        if len(to_collate) > 0:
+            print(f'Collating {len([to_collate[parent_folder]["folders"] for parent_folder in to_collate.keys()])} folders into zip files.') #{sum([len(x["zips"]) for x in to_collate.keys()])}
             
-            max_filesize = 0
-            for ff in folder_files:
-                for filename in ff:
-                    try:
-                        fs = os.lstat(filename).st_size
-                    except PermissionError:
-                        print(f'WARNING: Permission error reading {filename}. File will not be backed up.')
+            # call zip_folder in parallel
+            for zip_tuple in to_collate.items():
+                parent_folder = zip_tuple[0]
+                if os.path.abspath(parent_folder) == os.path.abspath(os.sep.join([local_dir,'..'])):
+                    continue
+                folders = zip_tuple[1]['folders']
+                folder_files = zip_tuple[1]['folder_files']
+                num_files = sum([len(ff) for ff in folder_files])
+
+                ########################
+                ## rewrite expanding list comprehension
+                #########################
+                
+                max_filesize = 0
+                for ff in folder_files:
+                    for filename in ff:
                         try:
-                            folder_files.remove(filename)
-                        except ValueError:
-                            pass
-                        if len(folder_files) == 0:
-                            print(f'Skipping subfolder - no files - see permissions warning(s).')
-                            continue
+                            fs = os.lstat(filename).st_size
+                        except PermissionError:
+                            print(f'WARNING: Permission error reading {filename}. File will not be backed up.')
+                            try:
+                                folder_files.remove(filename)
+                            except ValueError:
+                                pass
+                            if len(folder_files) == 0:
+                                print(f'Skipping subfolder - no files - see permissions warning(s).')
+                                continue
 
-                    if fs > max_filesize:
-                        max_filesize = fs
-                    # except ValueError:
-                    #     # no files in folder - likely removed from file list due to previous PermissionError - continue without message
-                    #     continue
-                    
-            max_files_per_zip = int(np.ceil(1024**3 / max_filesize)) # limit zips to 1 GiB - using available memory too inconsistent
-            num_zips = int(np.ceil(num_files / max_files_per_zip))
-            
-            chunk_subfolders = False
-            if num_zips > len(folders):
-                chunk_subfolders = True
+                        if fs > max_filesize:
+                            max_filesize = fs
+                        # except ValueError:
+                        #     # no files in folder - likely removed from file list due to previous PermissionError - continue without message
+                        #     continue
+                        
+                max_files_per_zip = int(np.ceil(1024**3 / max_filesize)) # limit zips to 1 GiB - using available memory too inconsistent
+                num_zips = int(np.ceil(num_files / max_files_per_zip))
+                
+                chunk_subfolders = False
+                if num_zips > len(folders):
+                    chunk_subfolders = True
 
-            if chunk_subfolders:
-                subchunks_files = []
-                subchunks = []
-                for j in range(len(folders)):
-                    step = len(folder_files[j])//num_zips
-                    if step == 0:
-                        step = 1
-                    for i in range(0, len(folder_files[j]), step):
-                        subchunks_files.append(folder_files[j][i:i+step])
-                        subchunks.append(folders[j])
-                chunks = subchunks
-                chunk_files = subchunks_files
-            else:
-                chunks = folders
-                chunk_files = folder_files
+                if chunk_subfolders:
+                    subchunks_files = []
+                    subchunks = []
+                    for j in range(len(folders)):
+                        step = len(folder_files[j])//num_zips
+                        if step == 0:
+                            step = 1
+                        for i in range(0, len(folder_files[j]), step):
+                            subchunks_files.append(folder_files[j][i:i+step])
+                            subchunks.append(folders[j])
+                    chunks = subchunks
+                    chunk_files = subchunks_files
+                else:
+                    chunks = folders
+                    chunk_files = folder_files
 
-            if len(chunks) != len(chunk_files):
-                print('Error: chunks and chunk_files are not the same length.')
-                sys.exit(1)
-            #def zip_and_upload( total_size_uploaded, total_files_uploaded, use_compression, dryrun, id, mem_per_worker, perform_checksum) -> tuple[str, int, bytes]:
-            for i, args in enumerate(zip(
-                    repeat(s3_host),
-                    repeat(access_key),
-                    repeat(secret_key),
-                    repeat(bucket_name),
-                    repeat(destination_dir),
-                    repeat(local_dir),
-                    repeat(parent_folder),
-                    chunks,
-                    chunk_files,
-                    repeat(total_size_uploaded),
-                    repeat(total_files_uploaded),
-                    repeat(use_compression),
-                    repeat(dryrun),
-                    [i for i in range(len(chunks))],
-                    repeat(mem_per_worker),
-                    repeat(perform_checksum),
-                    )):
-                # with annotate(parent_folder=parent_folder):
-                zul_futures.append(client.submit(
-                    zip_and_upload,
-                    *args
-                ))
-            # DOes this just slow it down?
-            # sched_info = client.scheduler_info()
-            # max_mem = 0
-            # mem_lim = None
-            # for _, winfo in sched_info['workers'].items():
-            #     if not mem_lim:
-            #         mem_lim = winfo['memory_limit']
-            #     mem = winfo['metrics']['memory']
-            #     if mem > max_mem:
-            #         max_mem = mem
-            # if max_mem / mem_lim > 0.9:
-            #     wait(upload_futures)
+                if len(chunks) != len(chunk_files):
+                    print('Error: chunks and chunk_files are not the same length.')
+                    sys.exit(1)
+                #def zip_and_upload( total_size_uploaded, total_files_uploaded, use_compression, dryrun, id, mem_per_worker, perform_checksum) -> tuple[str, int, bytes]:
+                for i, args in enumerate(zip(
+                        repeat(s3_host),
+                        repeat(access_key),
+                        repeat(secret_key),
+                        repeat(bucket_name),
+                        repeat(destination_dir),
+                        repeat(local_dir),
+                        repeat(parent_folder),
+                        chunks,
+                        chunk_files,
+                        repeat(total_size_uploaded),
+                        repeat(total_files_uploaded),
+                        repeat(use_compression),
+                        repeat(dryrun),
+                        [i for i in range(len(chunks))],
+                        repeat(mem_per_worker),
+                        repeat(perform_checksum),
+                        )):
+                    # with annotate(parent_folder=parent_folder):
+                    zul_futures.append(client.submit(
+                        zip_and_upload,
+                        *args
+                    ))
+                # DOes this just slow it down?
+                # sched_info = client.scheduler_info()
+                # max_mem = 0
+                # mem_lim = None
+                # for _, winfo in sched_info['workers'].items():
+                #     if not mem_lim:
+                #         mem_lim = winfo['memory_limit']
+                #     mem = winfo['metrics']['memory']
+                #     if mem > max_mem:
+                #         max_mem = mem
+                # if max_mem / mem_lim > 0.9:
+                #     wait(upload_futures)
     
         ########################
         # Monitor upload tasks #
