@@ -1066,8 +1066,10 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     failed.append(f_tuple)
             elif 'finished' in f.status:
                 if f in zul_futures:
-                    if isinstance(f, Future):
+                    if isinstance(f.result(), Future):
                         zul_futures.append(f.result())
+                    del f
+                else:
                     del f
 
         if failed:
