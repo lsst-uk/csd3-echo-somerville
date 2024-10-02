@@ -722,12 +722,10 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         folder_files = [os.sep.join([folder, filename]) for filename in files]
 
         sizes = []
-        for f in zul_futures:
-            if f.status == 'finished':
-                del f
-        for f in upload_futures:
-            if f.status == 'finished':
-                del f
+        for f in zul_futures+upload_futures:
+            if isinstance(f, Future):
+                if f.status == 'finished':
+                    del f
         for filename in folder_files:
             if exclude.isin([os.path.relpath(filename, local_dir)]).any():
                 print(f'Skipping file {filename} - excluded.')
