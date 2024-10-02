@@ -1052,12 +1052,12 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         # Monitor upload tasks #
         ########################
         # while len(upload_futures) +len(zul_futures) > 0:
-
+        monitor_start = datetime.now()
         for f in as_completed(upload_futures+zul_futures):
-            print(f'Uploaded {sum([f.done() for f in upload_futures])} of {len(upload_futures)} files.', flush=True)
-            print(f'Failed uploads: {len(failed)}', flush=True)
-            print(f'Uploaded {sum([f.done() for f in zul_futures])} of {len(zul_futures)} zip files.', flush=True)
-            print(f'Failed uploads: {len(failed)}', flush=True)
+            if datetime.now() - monitor_start > timedelta(seconds=5):
+                print(f'Current queue: {len(upload_futures)} file upload; {len(zul_futures)} zip and upload', end='\r')
+                monitor_start = datetime.now()
+
 
             if 'exception' in f.status and f not in failed:
                 f_tuple = f.exception(), f.traceback()
