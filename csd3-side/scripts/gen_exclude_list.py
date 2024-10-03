@@ -135,7 +135,5 @@ for folder_row in df.iterrows():
         else:
             print('Unverified')
 
-print(exclude_list)
-with open('exclude_list.txt', 'w') as excl_f:
-    for exclude in exclude_list:
-        excl_f.write(f'  - {exclude}\n')
+for exclude in exclude_list:
+    print(f'  - {exclude}\n')
