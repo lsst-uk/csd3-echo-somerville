@@ -137,5 +137,5 @@ for folder_row in df.iterrows():
 
 print(exclude_list)
 with open('exclude_list.txt', 'w') as excl_f:
-    excl_f.write(str(exclude_list))
-    excl_f.write('\n')
+    for exclude in exclude_list:
+        excl_f.write(f'  - {exclude}\n')
