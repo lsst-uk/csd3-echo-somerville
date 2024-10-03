@@ -136,4 +136,4 @@ for folder_row in df.iterrows():
             print('Unverified')
 
 for exclude in exclude_list:
-    print(f'  - {exclude}\n')
+    print(f'  - {exclude}')
