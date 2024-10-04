@@ -965,10 +965,10 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             # print(f'PPFS: {ppfs}')
             print(f'to_collate: {to_collate}')
             print('reverse reducing to_collate dict')
+            to_collate_reduced = {}
             for zip_tuple in to_collate.items():
-                print(zip_tuple)
                 changes = False
-                to_collate_reduced = {}
+                
                 if zip_tuple[1]['size'] >= 128*1024**2:
                     print('SIZE')
                     to_collate_reduced[zip_tuple[0]] = zip_tuple[1]
@@ -982,30 +982,28 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     to_collate_reduced[zip_tuple[0]] = zip_tuple[1]
                     continue
                 print('REDUCING')
-                # if zip_tuple[1]['parent_parent_folder'] in ppfs:
-                changes = True
-                if zip_tuple[1]['parent_parent_folder'] not in to_collate_reduced.keys():
-                    to_collate_reduced[zip_tuple[1]['parent_parent_folder']] = {'parent_folder':str(zip_tuple[1]['parent_parent_folder']),
-                                                                                'folders':list(zip_tuple[1]['folders']),
-                                                                                'object_names':list(zip_tuple[1]['object_names']), 
-                                                                                'folder_files':list(zip_tuple[1]['folder_files']), 
-                                                                                'parent_parent_folder':str(zip_tuple[1]['parent_parent_folder']),
-                                                                                'size':int(zip_tuple[1]['size']),
-                                                                                'zips':[{'zip_data':None, 'id':None, 'zip_object_name':''}]} # store folders to collate
-                else:
-                    to_collate_reduced[zip_tuple[1]['parent_parent_folder']]['folders'].extend(list(zip_tuple[1]['folders']))
-                    to_collate_reduced[zip_tuple[1]['parent_parent_folder']]['object_names'].extend(list(zip_tuple[1]['object_names']))
-                    to_collate_reduced[zip_tuple[1]['parent_parent_folder']]['folder_files'].extend(list(zip_tuple[1]['folder_files']))
-                    to_collate_reduced[zip_tuple[1]['parent_parent_folder']]['size'] += int(zip_tuple[1]['size'])
-                # else:
-                #     to_collate_reduced[zip_tuple[0]] = zip_tuple[1]
-            if changes:
-                to_collate = to_collate_reduced
-            else:
-                print(f'to_collate: {to_collate}')
+                if zip_tuple[1]['parent_parent_folder'] is not local_dir:
+                    changes = True
+                    if zip_tuple[1]['parent_parent_folder'] not in to_collate_reduced.keys():
+                        # print(zip_tuple)
+                        to_collate_reduced[zip_tuple[1]['parent_parent_folder']] = {'parent_folder':str(zip_tuple[1]['parent_parent_folder']),
+                                                                                    'folders':list(zip_tuple[1]['folders']),
+                                                                                    'object_names':list(zip_tuple[1]['object_names']), 
+                                                                                    'folder_files':list(zip_tuple[1]['folder_files']), 
+                                                                                    'parent_parent_folder':os.path.abspath(os.sep.join([zip_tuple[1]['parent_parent_folder'],os.path.pardir])),
+                                                                                    'size':int(zip_tuple[1]['size']),
+                                                                                    'zips':[{'zip_data':None, 'id':None, 'zip_object_name':''}]} # store folders to collate
+                    else:
+                        to_collate_reduced[zip_tuple[1]['parent_parent_folder']]['folders'] = to_collate_reduced[zip_tuple[1]['parent_parent_folder']]['folders'] + list(zip_tuple[1]['folders'])
+                        to_collate_reduced[zip_tuple[1]['parent_parent_folder']]['object_names'] = to_collate_reduced[zip_tuple[1]['parent_parent_folder']]['object_names'] + list(zip_tuple[1]['object_names'])
+                        to_collate_reduced[zip_tuple[1]['parent_parent_folder']]['folder_files'] = to_collate_reduced[zip_tuple[1]['parent_parent_folder']]['folder_files'] + list(zip_tuple[1]['folder_files'])
+                        to_collate_reduced[zip_tuple[1]['parent_parent_folder']]['size'] += int(zip_tuple[1]['size'])
+        
+        to_collate = to_collate_reduced
+        print(f'to_collate: {to_collate}')
 
             
-        # exit()
+        exit()
 
         print(f'Collating {len([to_collate[parent_folder]["folders"] for parent_folder in to_collate.keys()])} folders into zip files.', flush=True) #{sum([len(x["zips"]) for x in to_collate.keys()])}
         
