@@ -876,7 +876,13 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             # possibly pass if parent_folder == local_dir or parent_folder contains '..'
             if parent_folder not in to_collate.keys():
                 #initialise parent folder
-                to_collate[parent_folder] = {'parent_folder':parent_folder,'folders':[],'object_names':[], 'folder_files':[], 'zips':[{'zip_data':None, 'id':None, 'zip_object_name':''}, 'parent_parent_folder':'', 'size':None]} # store folders to collate
+                to_collate[parent_folder] = {'parent_folder':parent_folder,
+                                             'folders':[],
+                                             'object_names':[],
+                                             'folder_files':[],
+                                             'zips':[{'zip_data':None, 'id':None, 'zip_object_name':''}], 
+                                             'parent_parent_folder':'', 
+                                             'size':None} # store folders to collate
 
             if not current_objects.empty:
                 for oni, on in enumerate(object_names):
