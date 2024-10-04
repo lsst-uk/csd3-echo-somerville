@@ -105,7 +105,7 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
     #  zip part #
     #############
     client = get_client()
-    print(f'Collating {len(subfolders_to_collate)} subfolders into a zip file.', flush=True)
+    print(f'Collating {len(subfolders_to_collate)} subfolders into zip file(s).', flush=True)
     # with annotate(parent_folder=parent_folder):
     zip_data, namelist = client.submit(zip_folders,
         parent_folder, 
@@ -935,7 +935,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             to_collate[parent_folder]['object_names'].append(object_names)
             to_collate[parent_folder]['folder_files'].append(folder_files)
             to_collate[parent_folder]['parent_parent_folder'] = os.path.abspath(os.path.join(parent_folder, os.pardir))
-            to_collate[parent_folder]['size'] = folder_files_size
+            to_collate[parent_folder]['size'] = int(folder_files_size)
         
         #Does this just slow it down?
         # sched_info = client.scheduler_info()
@@ -954,41 +954,60 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     
     # collate folders
     if len(to_collate) > 0:
-        ppfs = []
-        for zip_tuple in to_collate.items():
-            print(zip_tuple)
-            if zip_tuple[1]['size'] < 128*1024**2:
-                ppfs.append(zip_tuple[1]['parent_parent_folder'])
-        set_ppfs = list(set(ppfs))
-        if len(ppfs) // len(set_ppfs) > 2:
-            print(f'Parent folders to collate: {set_ppfs}')
-                
-            to_collate_reduced = {}
-            print(to_collate)
-            
+        print(f'TO_COLLATE: {to_collate}')
+        changes = True
+        while changes:
+            # ppfs = []
+            # for zip_tuple in to_collate.items():
+            #     ppfs.append(zip_tuple[1]['parent_parent_folder'])
+            # print(f'PPFS: {ppfs}')
+            # ppfs = list(set(ppfs))
+            # print(f'PPFS: {ppfs}')
+            print(f'to_collate: {to_collate}')
+            print('reverse reducing to_collate dict')
             for zip_tuple in to_collate.items():
-                if zip_tuple[1]['parent_parent_folder'] in ppfs and zip_tuple[0] != zip_tuple[1]['parent_parent_folder']:
-                    if zip_tuple[1]['parent_parent_folder'] not in to_collate_reduced.keys():
-                        to_collate_reduced[zip_tuple[1]['parent_parent_folder']] = {'parent_folder':zip_tuple[1]['parent_parent_folder'],
-                                                                                    'folders':zip_tuple[1]['folders'],
-                                                                                    'object_names':zip_tuple[1]['object_names'], 
-                                                                                    'folder_files':zip_tuple[1]['folder_files'], 
-                                                                                    'parent_parent_folder':zip_tuple[1]['parent_parent_folder'],
-                                                                                    'size':zip_tuple[1]['size'],
-                                                                                    'zips':[{'zip_data':None, 'id':None, 'zip_object_name':''}]} # store folders to collate
-                    else:
-                        to_collate_reduced[zip_tuple[1]['parent_parent_folder']]['folders'].extend(zip_tuple[1]['folders'])
-                        to_collate_reduced[zip_tuple[1]['parent_parent_folder']]['object_names'].extend(zip_tuple[1]['object_names'])
-                        to_collate_reduced[zip_tuple[1]['parent_parent_folder']]['folder_files'].extend(zip_tuple[1]['folder_files'])
-                        to_collate_reduced[zip_tuple[1]['parent_parent_folder']]['size'] += zip_tuple[1]['size']
-                else:
+                print(zip_tuple)
+                changes = False
+                to_collate_reduced = {}
+                if zip_tuple[1]['size'] >= 128*1024**2:
+                    print('SIZE')
                     to_collate_reduced[zip_tuple[0]] = zip_tuple[1]
-            to_collate = to_collate_reduced
+                    continue
+                if zip_tuple[0] == zip_tuple[1]['parent_parent_folder']:
+                    print('PPF')
+                    to_collate_reduced[zip_tuple[0]] = zip_tuple[1]
+                    continue
+                elif zip_tuple[0] == local_dir:
+                    print('LD')
+                    to_collate_reduced[zip_tuple[0]] = zip_tuple[1]
+                    continue
+                print('REDUCING')
+                # if zip_tuple[1]['parent_parent_folder'] in ppfs:
+                changes = True
+                if zip_tuple[1]['parent_parent_folder'] not in to_collate_reduced.keys():
+                    to_collate_reduced[zip_tuple[1]['parent_parent_folder']] = {'parent_folder':str(zip_tuple[1]['parent_parent_folder']),
+                                                                                'folders':list(zip_tuple[1]['folders']),
+                                                                                'object_names':list(zip_tuple[1]['object_names']), 
+                                                                                'folder_files':list(zip_tuple[1]['folder_files']), 
+                                                                                'parent_parent_folder':str(zip_tuple[1]['parent_parent_folder']),
+                                                                                'size':int(zip_tuple[1]['size']),
+                                                                                'zips':[{'zip_data':None, 'id':None, 'zip_object_name':''}]} # store folders to collate
+                else:
+                    to_collate_reduced[zip_tuple[1]['parent_parent_folder']]['folders'].extend(list(zip_tuple[1]['folders']))
+                    to_collate_reduced[zip_tuple[1]['parent_parent_folder']]['object_names'].extend(list(zip_tuple[1]['object_names']))
+                    to_collate_reduced[zip_tuple[1]['parent_parent_folder']]['folder_files'].extend(list(zip_tuple[1]['folder_files']))
+                    to_collate_reduced[zip_tuple[1]['parent_parent_folder']]['size'] += int(zip_tuple[1]['size'])
+                # else:
+                #     to_collate_reduced[zip_tuple[0]] = zip_tuple[1]
+            if changes:
+                to_collate = to_collate_reduced
+            else:
+                print(f'to_collate: {to_collate}')
 
-            print(to_collate)
+            
         # exit()
 
-        print(f'Collating {len([to_collate[parent_folder]["folders"] for parent_folder in to_collate.keys()])} folders into zip files.') #{sum([len(x["zips"]) for x in to_collate.keys()])}
+        print(f'Collating {len([to_collate[parent_folder]["folders"] for parent_folder in to_collate.keys()])} folders into zip files.', flush=True) #{sum([len(x["zips"]) for x in to_collate.keys()])}
         
         # call zip_folder in parallel
         for zip_tuple in to_collate.items():
@@ -1091,10 +1110,15 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     # Monitor upload tasks #
     ########################
     # while len(upload_futures) +len(zul_futures) > 0:
+    
+    for f in as_completed(zul_futures):
+        upload_futures.append(f.result())
+        print('Zip created and added to upload queue.')
+
     monitor_start = datetime.now()
-    for f in as_completed(upload_futures+zul_futures):
+    for f in as_completed(upload_futures):
         if datetime.now() - monitor_start > timedelta(seconds=5):
-            print(f'Current queue: {len(upload_futures)} file upload; {len(zul_futures)} zip and upload', end='\r')
+            print(f'Current queues: {len(upload_futures)} file upload(s); {len(zul_futures)} zip upload(s)', end='\r')
             monitor_start = datetime.now()
 
 
@@ -1104,12 +1128,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             if f_tuple not in failed:
                 failed.append(f_tuple)
         elif 'finished' in f.status:
-            if f in zul_futures:
-                if isinstance(f.result(), Future):
-                    zul_futures.append(f.result())
-                del f
-            else:
-                del f
+            del f
 
     if failed:
         for i, failed_upload in enumerate(failed):
