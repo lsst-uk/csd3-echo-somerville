@@ -810,12 +810,11 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     object_names[i] = '.'.join([object_names[i], 'symlink'])
                     #add symlink target to symlink_targets list
                     #using target dir as-is can cause permissions issues
-                    #reaplce /home path with /rds path uses as local_dir
+                    #replace /home path with /rds path uses as local_dir
                     target = to_rds_path(os.path.realpath(folder_files[i]), local_dir)
                     symlink_targets.append(target)
                     #add real file to symlink_obj_names list
                     symlink_obj_names.append(symlink_obj_name)
-            # append symlink_targets and symlink_obj_names to folder_files and object_names
 
             folder_files.extend(symlink_targets)
             object_names.extend(symlink_obj_names)
@@ -877,11 +876,18 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             # possibly pass if parent_folder == local_dir or parent_folder contains '..'
             if parent_folder not in to_collate.keys():
                 #initialise parent folder
-                to_collate[parent_folder] = {'parent_folder':parent_folder,'folders':[],'object_names':[], 'folder_files':[], 'zips':[{'zip_data':None, 'id':None, 'zip_object_name':''}]} # store folders to collate
+                to_collate[parent_folder] = {'parent_folder':parent_folder,'folders':[],'object_names':[], 'folder_files':[], 'zips':[{'zip_data':None, 'id':None, 'zip_object_name':''}, 'parent_parent_folder':'', 'size':None]} # store folders to collate
+
+            if not current_objects.empty:
+                for oni, on in enumerate(object_names):
+                    if current_objects['CURRENT_OBJECTS'].isin([on]).any() or current_objects['CURRENT_OBJECTS'].isin([f'{on}.symlink']).any():
+                        object_names.remove(on)
+                        del folder_files[oni]
 
             pre_linkcheck_file_count = len(object_names)
             if init_len - pre_linkcheck_file_count > 0:
                 print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.')
+
             #always do this AFTER removing "current_objects" to avoid re-uploading
             symlink_targets = []
             symlink_obj_names = []
