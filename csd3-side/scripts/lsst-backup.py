@@ -690,6 +690,9 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     upload_futures = []
     zul_futures = []
     failed = []
+    max_zip_batch_size = 8*1024**2
+    zip_batches = [[]]
+    zip_batch_sizes = [0]
     print(f'Analysing local dataset {local_dir}.')
     for folder, sub_folders, files in os.walk(local_dir, topdown=True):
         total_all_folders += 1
@@ -698,7 +701,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     print()
 
     print(f'Preparing to upload {total_all_files} files in {total_all_folders} folders from {local_dir} to {bucket_name}/{destination_dir}.', flush=True)
-    for folder, sub_folders, files in os.walk(local_dir, topdown=True):
+    for folder, sub_folders, files in os.walk(local_dir, topdown=False):
         folder_num += 1
         file_num += len(files)
         print(f'Processing {folder_num}/{total_all_folders} folders; {file_num}/{total_all_files} files in {local_dir}.')
@@ -788,7 +791,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 print(f'Skipping subfolder - all files exist.')
                 continue
 
-        if mean_filesize > 256*1024**2 or not global_collate:
+        if mean_filesize > max_zip_batch_size or not global_collate:
             print('Individual upload.')
             # all files within folder
             # if uploading file individually, remove existing files from object_names
@@ -870,88 +873,128 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
         elif len(folder_files) > 0 and global_collate: # small files in folder
             print('Collated upload.')
-            folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
-            parent_folder = os.path.abspath(os.path.join(folder, os.pardir))
-            print(f'parent_folder: {parent_folder}')
-            # possibly pass if parent_folder == local_dir or parent_folder contains '..'
-            if parent_folder not in to_collate.keys():
-                #initialise parent folder
-                to_collate[parent_folder] = {'parent_folder':parent_folder,
-                                             'folders':[],
-                                             'object_names':[],
-                                             'folder_files':[],
-                                             'zips':[{'zip_data':None, 'id':None, 'zip_object_name':''}], 
-                                             'parent_parent_folder':'', 
-                                             'size':None} # store folders to collate
+            # Level n collation
+            size = zip_batch_sizes[-1]
+            print(f'Size: {size}')
+            for i, filename in enumerate(folder_files):
+                s = os.lstat(filename).st_size
+                size += s
+                if size <= max_zip_batch_size:
+                    zip_batches[-1].append(filename)
+                    zip_batch_sizes[-1] += size
+                else:
+                    zip_batches.append([filename])
+                    zip_batch_sizes.append(s)
+                    size = s
+            print(f'Folder: {folder}')
+            print(f'Level: {folder.replace(local_dir, "").count(os.sep)}') # level of folder in local_dir
+            print(f'local_dir: {local_dir}')
+            print(f'zip_batches: {zip_batches}')
+            print(f'zip_batch_sizes: {zip_batch_sizes}')
+            print(f'lens: {len(zip_batches)} {len(zip_batch_sizes)}')
 
-            if not current_objects.empty:
-                for oni, on in enumerate(object_names):
-                    if current_objects['CURRENT_OBJECTS'].isin([on]).any() or current_objects['CURRENT_OBJECTS'].isin([f'{on}.symlink']).any():
-                        object_names.remove(on)
-                        del folder_files[oni]
+            # Level n-1 collation
+            # i = 1
+            # if len(zip_batch_sizes) > 1:
+            #     while True:
+            #         print(i)
+            #         if zip_batch_sizes[-i] + zip_batch_sizes[-(i+1)] < max_zip_batch_size:
+            #             zip_batch_sizes[-(i+1)] += zip_batch_sizes.pop(-i)
+            #             zip_batches[-(i+1)].extend(zip_batches.pop(-i))
+            #         else:
+            #             if i == len(zip_batch_sizes) - 1:
+            #                 break
+            #             i+=1
+            # print(f'Folder: {folder}')
+            # print(f'Level: {folder.replace(local_dir, "").count(os.sep)}') # level of folder in local_dir
+            # print(f'local_dir: {local_dir}')
+            # print(f'zip_batches: {zip_batches}')
+            # print(f'zip_batch_sizes: {zip_batch_sizes}')
+            # print(f'lens: {len(zip_batches)} {len(zip_batch_sizes)}')
 
-            pre_linkcheck_file_count = len(object_names)
-            if init_len - pre_linkcheck_file_count > 0:
-                print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.')
+        #     folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
+        #     parent_folder = os.path.abspath(os.path.join(folder, os.pardir))
+        #     print(f'parent_folder: {parent_folder}')
+        #     print(f'Number of zip files: {len(zip_batches)}')
+        #     # possibly pass if parent_folder == local_dir or parent_folder contains '..'
+        #     if parent_folder not in to_collate.keys():
+        #         #initialise parent folder
+        #         to_collate[parent_folder] = {'parent_folder':parent_folder,
+        #                                      'folders':[],
+        #                                      'object_names':[],
+        #                                      'folder_files':[],
+        #                                      'zips':[{'zip_data':None, 'id':None, 'zip_object_name':''}], 
+        #                                      'parent_parent_folder':'', 
+        #                                      'size':None} # store folders to collate
 
-            #always do this AFTER removing "current_objects" to avoid re-uploading
-            symlink_targets = []
-            symlink_obj_names = []
-            for i in range(len(folder_files)):
-                if os.path.islink(folder_files[i]):
-                    #rename link in object_names
-                    symlink_obj_name = object_names[i]
-                    object_names[i] = '.'.join([object_names[i], 'symlink'])
-                    #add symlink target to symlink_targets list
-                    #using target dir as-is can cause permissions issues
-                    #replace /home path with /rds path uses as local_dir
-                    target = to_rds_path(os.path.realpath(folder_files[i]), local_dir)
-                    symlink_targets.append(target)
-                    #add real file to symlink_obj_names list
-                    symlink_obj_names.append(symlink_obj_name)
+        #     if not current_objects.empty:
+        #         for oni, on in enumerate(object_names):
+        #             if current_objects['CURRENT_OBJECTS'].isin([on]).any() or current_objects['CURRENT_OBJECTS'].isin([f'{on}.symlink']).any():
+        #                 object_names.remove(on)
+        #                 del folder_files[oni]
 
-            # append symlink_targets and symlink_obj_names to folder_files and object_names
+        #     pre_linkcheck_file_count = len(object_names)
+        #     if init_len - pre_linkcheck_file_count > 0:
+        #         print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.')
 
-            folder_files.extend(symlink_targets)
-            object_names.extend(symlink_obj_names)
+        #     #always do this AFTER removing "current_objects" to avoid re-uploading
+        #     symlink_targets = []
+        #     symlink_obj_names = []
+        #     for i in range(len(folder_files)):
+        #         if os.path.islink(folder_files[i]):
+        #             #rename link in object_names
+        #             symlink_obj_name = object_names[i]
+        #             object_names[i] = '.'.join([object_names[i], 'symlink'])
+        #             #add symlink target to symlink_targets list
+        #             #using target dir as-is can cause permissions issues
+        #             #replace /home path with /rds path uses as local_dir
+        #             target = to_rds_path(os.path.realpath(folder_files[i]), local_dir)
+        #             symlink_targets.append(target)
+        #             #add real file to symlink_obj_names list
+        #             symlink_obj_names.append(symlink_obj_name)
 
-            file_count = len(object_names)
+        #     # append symlink_targets and symlink_obj_names to folder_files and object_names
+
+        #     folder_files.extend(symlink_targets)
+        #     object_names.extend(symlink_obj_names)
+
+        #     file_count = len(object_names)
             
-            ###############################
-            # CHECK HERE FOR ZIP CONTENTS #
-            ###############################
-            these_zip_contents = [ff.replace(parent_folder+'/','') for ff in folder_files]
-            if not current_objects.empty:
-                if current_objects['METADATA'].isin([these_zip_contents]).any():
-                    existing_zip_contents = current_objects[current_objects['METADATA'].isin([these_zip_contents])]['METADATA'].values[0]
-                    if all([x in existing_zip_contents for x in these_zip_contents]):
-                        print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and file lists match - skipping.')
-                        del to_collate[parent_folder]
-                        continue
-                    else:
-                        print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but file lists do not match - reuploading.')
+        #     ###############################
+        #     # CHECK HERE FOR ZIP CONTENTS #
+        #     ###############################
+        #     these_zip_contents = [ff.replace(parent_folder+'/','') for ff in folder_files]
+        #     if not current_objects.empty:
+        #         if current_objects['METADATA'].isin([these_zip_contents]).any():
+        #             existing_zip_contents = current_objects[current_objects['METADATA'].isin([these_zip_contents])]['METADATA'].values[0]
+        #             if all([x in existing_zip_contents for x in these_zip_contents]):
+        #                 print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and file lists match - skipping.')
+        #                 del to_collate[parent_folder]
+        #                 continue
+        #             else:
+        #                 print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but file lists do not match - reuploading.')
 
-            to_collate[parent_folder]['folders'].append(folder)
-            to_collate[parent_folder]['object_names'].append(object_names)
-            to_collate[parent_folder]['folder_files'].append(folder_files)
-            to_collate[parent_folder]['parent_parent_folder'] = os.path.abspath(os.path.join(parent_folder, os.pardir))
-            to_collate[parent_folder]['size'] = int(folder_files_size)
+        #     to_collate[parent_folder]['folders'].append(folder)
+        #     to_collate[parent_folder]['object_names'].append(object_names)
+        #     to_collate[parent_folder]['folder_files'].append(folder_files)
+        #     to_collate[parent_folder]['parent_parent_folder'] = os.path.abspath(os.path.join(parent_folder, os.pardir))
+        #     to_collate[parent_folder]['size'] = int(folder_files_size)
         
-        #Does this just slow it down?
-        # sched_info = client.scheduler_info()
-        # max_mem = 0
-        # mem_lim = None
-        # for _, winfo in sched_info['workers'].items():
-        #     if not mem_lim:
-        #         mem_lim = winfo['memory_limit']
-        #     mem = winfo['metrics']['memory']
-        #     if mem > max_mem:
-        #         max_mem = mem
-        # if max_mem / mem_lim > 0.9:
-        #     wait(upload_futures)
-        print('', flush=True)
+        # #Does this just slow it down?
+        # # sched_info = client.scheduler_info()
+        # # max_mem = 0
+        # # mem_lim = None
+        # # for _, winfo in sched_info['workers'].items():
+        # #     if not mem_lim:
+        # #         mem_lim = winfo['memory_limit']
+        # #     mem = winfo['metrics']['memory']
+        # #     if mem > max_mem:
+        # #         max_mem = mem
+        # # if max_mem / mem_lim > 0.9:
+        # #     wait(upload_futures)
+        # print('', flush=True)
 
-    
+    exit()
     # collate folders
     if len(to_collate) > 0:
         print(f'TO_COLLATE: {to_collate}')
@@ -969,7 +1012,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             for zip_tuple in to_collate.items():
                 changes = False
                 
-                if zip_tuple[1]['size'] >= 128*1024**2:
+                if zip_tuple[1]['size'] >= 1024**3:
                     print('SIZE')
                     to_collate_reduced[zip_tuple[0]] = zip_tuple[1]
                     continue
