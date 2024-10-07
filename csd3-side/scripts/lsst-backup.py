@@ -912,6 +912,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'zip_batch_sizes: {zip_batch_sizes}')
             print(f'zip batch object names: {zip_batch_object_names}')
             print(f'lens: {len(zip_batch_files)} {len(zip_batch_sizes)}')
+            print(f'file batch lens: {[len(x) for x in zip_batch_files]} ')
             
             # Level n-1 collation
             # This is very tricky, but would be a nice addition
