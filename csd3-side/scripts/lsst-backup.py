@@ -944,38 +944,28 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             ###############################
             # CHECK HERE FOR ZIP CONTENTS #
             ###############################
-            for i, zip_batch in enumerate(zip_batch_files):
-                these_zip_contents = [ff.replace(parent_folder+'/','') for ff in zip_batch]
-                if not current_objects.empty:
-                    if current_objects['METADATA'].isin([these_zip_contents]).any():
-                        existing_zip_contents = current_objects[current_objects['METADATA'].isin([these_zip_contents])]['METADATA'].values[0]
-                        if all([x in existing_zip_contents for x in these_zip_contents]):
-                            print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and file lists match - skipping.')
-                            del to_collate[parent_folder]
-                            continue
-                        else:
-                            print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but file lists do not match - reuploading.')
-            
-            for i, file_batch in enumerate(zip_batch_files):
+            # Re-write for bottom-up approach
+            # for i, zip_batch in enumerate(zip_batch_files):
+            #     these_zip_contents = [ff.replace(parent_folder+'/','') for ff in zip_batch]
+            #     if not current_objects.empty:
+            #         if current_objects['METADATA'].isin([these_zip_contents]).any():
+            #             existing_zip_contents = current_objects[current_objects['METADATA'].isin([these_zip_contents])]['METADATA'].values[0]
+            #             if all([x in existing_zip_contents for x in these_zip_contents]):
+            #                 print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and file lists match - skipping.')
+            #                 del to_collate[parent_folder]
+            #                 continue
+            #             else:
+            #                 print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but file lists do not match - reuploading.')
+
+        print('', flush=True)
+        if global_collate:
+            for i, file_paths in enumerate(zip_batch_files):
+                print(file_paths)
                 to_collate.append(
                     {'object_names':zip_batch_object_names[i],
-                    'folder_files':file_batch,
+                    'file_paths':file_paths,
                     'zips':[{'zip_data':None, 'id':None, 'zip_object_name':''}], 
                     'size':zip_batch_sizes[i]}) # store folders to collate
-        
-        #Does this just slow it down?
-        # sched_info = client.scheduler_info()
-        # max_mem = 0
-        # mem_lim = None
-        # for _, winfo in sched_info['workers'].items():
-        #     if not mem_lim:
-        #         mem_lim = winfo['memory_limit']
-        #     mem = winfo['metrics']['memory']
-        #     if mem > max_mem:
-        #         max_mem = mem
-        # if max_mem / mem_lim > 0.9:
-        #     wait(upload_futures)
-        print('', flush=True)
     # print(f'TO_COLLATE: {to_collate}')
     # print(f'ZIP_BATCH_FILES: {zip_batch_files}')
     # parents = []
@@ -987,12 +977,14 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     # collate folders
     if len(to_collate) > 0:
         # print(f'Collating {len([to_collate[parent_folder]["folders"] for parent_folder in to_collate.keys()])} folders into zip files.', flush=True) #{sum([len(x["zips"]) for x in to_collate.keys()])}
-        print(f'TO_COLLATE: {to_collate}')
+        print('TO_COLLATE:')
+        for tc in to_collate:
+            print(tc['file_paths'])
+        print(len(to_collate))
         # call zip_folder in parallel
         print(f'Zipping {len(to_collate)} batches.', flush=True)
+        exit()
         for i, zip_batch_dict in enumerate(to_collate):
-            folder_files = zip_batch_dict['folder_files']
-            num_files = len(folder_files)
 
             ########################
             ## rewrite expanding list comprehension
@@ -1053,12 +1045,12 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     repeat(bucket_name),
                     repeat(destination_dir),
                     repeat(local_dir),
-                    zip_batch_dict['folder_files'],
+                    zip_batch_dict['file_paths'],
                     repeat(total_size_uploaded),
                     repeat(total_files_uploaded),
                     repeat(use_compression),
                     repeat(dryrun),
-                    [i for i in range(len(zip_batch_dict['folder_files']))],
+                    [i for i in range(len(zip_batch_dict['file_paths']))],
                     repeat(mem_per_worker),
                     repeat(perform_checksum),
                     )):
