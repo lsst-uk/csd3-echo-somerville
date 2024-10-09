@@ -168,6 +168,7 @@ def zip_folders(local_dir:str, file_paths:list[str], use_compression:bool, dryru
         None
 
     """
+    print(file_paths, flush=True)
     zipped_size = 0
     client = get_client()
     if not dryrun:
@@ -179,6 +180,7 @@ def zip_folders(local_dir:str, file_paths:list[str], use_compression:bool, dryru
                 compression = zipfile.ZIP_STORED  # zipfile.ZIP_STORED = no compression
             with zipfile.ZipFile(zip_buffer, "a", compression, True) as zip_file:
                 for file in file_paths:
+                    print(file, flush=True)
                     if file.startswith('/'):
                         file_path = file
                     else:
@@ -958,14 +960,14 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             #                 print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but file lists do not match - reuploading.')
 
         print('', flush=True)
-        if global_collate:
-            for i, file_paths in enumerate(zip_batch_files):
-                print(file_paths)
-                to_collate.append(
-                    {'object_names':zip_batch_object_names[i],
-                    'file_paths':file_paths,
-                    'zips':[{'zip_data':None, 'id':None, 'zip_object_name':''}], 
-                    'size':zip_batch_sizes[i]}) # store folders to collate
+        
+    if global_collate:
+        for i, file_paths in enumerate(zip_batch_files):
+            to_collate.append(
+                {'object_names':zip_batch_object_names[i],
+                'file_paths':file_paths,
+                'zips':[{'zip_data':None, 'id':None, 'zip_object_name':''}], 
+                'size':zip_batch_sizes[i]}) # store folders to collate
     # print(f'TO_COLLATE: {to_collate}')
     # print(f'ZIP_BATCH_FILES: {zip_batch_files}')
     # parents = []
@@ -983,8 +985,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         print(len(to_collate))
         # call zip_folder in parallel
         print(f'Zipping {len(to_collate)} batches.', flush=True)
-        exit()
-        for i, zip_batch_dict in enumerate(to_collate):
+        # for i, zip_batch_dict in enumerate(to_collate):
 
             ########################
             ## rewrite expanding list comprehension
@@ -1037,40 +1038,45 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             # if len(chunks) != len(chunk_files):
             #     print('Error: chunks and chunk_files are not the same length.')
             #     sys.exit(1)
-            #def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir, local_dir, file_paths, total_size_uploaded, total_files_uploaded, use_compression, dryrun, id, mem_per_worker, perform_checksum) -> tuple[str, int, bytes]:
-            for i, args in enumerate(zip(
-                    repeat(s3_host),
-                    repeat(access_key),
-                    repeat(secret_key),
-                    repeat(bucket_name),
-                    repeat(destination_dir),
-                    repeat(local_dir),
-                    zip_batch_dict['file_paths'],
-                    repeat(total_size_uploaded),
-                    repeat(total_files_uploaded),
-                    repeat(use_compression),
-                    repeat(dryrun),
-                    [i for i in range(len(zip_batch_dict['file_paths']))],
-                    repeat(mem_per_worker),
-                    repeat(perform_checksum),
-                    )):
-                # with annotate(parent_folder=parent_folder):
-                zul_futures.append(client.submit(
-                    zip_and_upload,
-                    *args
-                ))
-            # DOes this just slow it down?
-            # sched_info = client.scheduler_info()
-            # max_mem = 0
-            # mem_lim = None
-            # for _, winfo in sched_info['workers'].items():
-            #     if not mem_lim:
-            #         mem_lim = winfo['memory_limit']
-            #     mem = winfo['metrics']['memory']
-            #     if mem > max_mem:
-            #         max_mem = mem
-            # if max_mem / mem_lim > 0.9:
-            #     wait(upload_futures)
+            
+        # for i, args in enumerate(zip(
+        #         repeat(s3_host),
+        #         repeat(access_key),
+        #         repeat(secret_key),
+        #         repeat(bucket_name),
+        #         repeat(destination_dir),
+        #         repeat(local_dir),
+        #         zip_batch_dict['file_paths'],
+        #         repeat(total_size_uploaded),
+        #         repeat(total_files_uploaded),
+        #         repeat(use_compression),
+        #         repeat(dryrun),
+        #         [i for i in range(len(zip_batch_dict['file_paths']))],
+        #         repeat(mem_per_worker),
+        #         repeat(perform_checksum),
+        #         )):
+        #     # with annotate(parent_folder=parent_folder):
+        print(client.scheduler_info()['workers'])
+        for i, d in enumerate(to_collate):
+            print(f'Submit {i} {d}')
+            zul_futures.append(client.submit(
+                zip_and_upload,
+                s3_host,
+                access_key,
+                secret_key,
+                bucket_name,
+                destination_dir,
+                local_dir,
+                d['file_paths'],
+                total_size_uploaded,
+                total_files_uploaded,
+                use_compression,
+                dryrun,
+                i,
+                mem_per_worker,
+                perform_checksum,
+                workers=['0','1','2','3']
+            ))
     
     ########################
     # Monitor upload tasks #
@@ -1254,7 +1260,7 @@ if __name__ == '__main__':
     try:
         keys = bm.get_keys()
     except KeyError as e:
-        print(e)
+        print(f'KeyError {e}', file=sys.stderr)
         sys.exit()
     access_key = keys['access_key']
     secret_key = keys['secret_key']
