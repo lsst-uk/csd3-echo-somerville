@@ -953,17 +953,18 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             # CHECK HERE FOR ZIP CONTENTS #
             ###############################
             # Re-write for bottom-up approach
-            # for i, zip_batch in enumerate(zip_batch_files):
-            #     these_zip_contents = [ff.replace(parent_folder+'/','') for ff in zip_batch]
-            #     if not current_objects.empty:
-            #         if current_objects['METADATA'].isin([these_zip_contents]).any():
-            #             existing_zip_contents = current_objects[current_objects['METADATA'].isin([these_zip_contents])]['METADATA'].values[0]
-            #             if all([x in existing_zip_contents for x in these_zip_contents]):
-            #                 print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and file lists match - skipping.')
-            #                 del to_collate[parent_folder]
-            #                 continue
-            #             else:
-            #                 print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but file lists do not match - reuploading.')
+            for i, zip_batch in enumerate(zip_batch_object_names):
+                print(zip_batch)
+                exit()
+                if not current_objects.empty:
+                    if current_objects['METADATA'].isin([these_zip_contents]).any():
+                        existing_zip_contents = current_objects[current_objects['METADATA'].isin([these_zip_contents])]['METADATA'].values[0]
+                        if all([x in existing_zip_contents for x in these_zip_contents]):
+                            print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists and file lists match - skipping.')
+                            del to_collate[parent_folder]
+                            continue
+                        else:
+                            print(f'Zip file {to_collate[parent_folder]["zips"][-1]["zip_object_name"]} already exists but file lists do not match - reuploading.')
 
         print('', flush=True)
         
