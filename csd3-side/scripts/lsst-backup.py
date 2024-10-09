@@ -101,6 +101,7 @@ def remove_duplicates(l: list[dict]) -> list[dict]:
     return pd.DataFrame(l).drop_duplicates().to_dict(orient='records')
 
 def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir, local_dir, file_paths, total_size_uploaded, total_files_uploaded, use_compression, dryrun, id, mem_per_worker, perform_checksum) -> tuple[str, int, bytes]:
+    # print('in zip_and_upload', flush=True)
     #############
     #  zip part #
     #############
@@ -120,7 +121,9 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
     ###############
     # upload part #
     ###############
-    zip_object_key = os.sep.join([destination_dir, os.path.relpath(f'{destination_dir}/collated_{id}.zip', local_dir)])
+    # zips now placed at top level of backup == local_dir
+    zip_object_key = os.sep.join([destination_dir, os.path.relpath(f'{local_dir}/collated_{id}.zip', local_dir)])
+    print(f'zip_object_key: {zip_object_key}', flush=True)
     if namelist == []:
         print(f'No files to upload in zip file.')
         return zip_object_key+' nothing to upload'
@@ -168,9 +171,9 @@ def zip_folders(local_dir:str, file_paths:list[str], use_compression:bool, dryru
         None
 
     """
-    print(file_paths, flush=True)
+    # print(file_paths, flush=True)
     zipped_size = 0
-    client = get_client()
+    # client = get_client()
     if not dryrun:
         try:
             zip_buffer = io.BytesIO()
@@ -180,12 +183,13 @@ def zip_folders(local_dir:str, file_paths:list[str], use_compression:bool, dryru
                 compression = zipfile.ZIP_STORED  # zipfile.ZIP_STORED = no compression
             with zipfile.ZipFile(zip_buffer, "a", compression, True) as zip_file:
                 for file in file_paths:
-                    print(file, flush=True)
+                    # print(file, flush=True)
                     if file.startswith('/'):
                         file_path = file
                     else:
                         exit('Path is wrong')
                     arc_name = os.path.relpath(file_path, local_dir)
+                    # print(f'arc_name {arc_name}', flush=True)
                     try:
                         zipped_size += os.path.getsize(file_path)
                         with open(file_path, 'rb') as src_file:
@@ -631,6 +635,7 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, local_dir,
 
     return None
 
+### KEY FUNCTION TO FIND ALL FILES AND ORGANISE UPLOADS ###
 def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, perform_checksum, dryrun, log, global_collate, use_compression, client, mem_per_worker) -> None:
     """
     Uploads files from a local directory to an S3 bucket in parallel.
@@ -675,7 +680,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     upload_futures = []
     zul_futures = []
     failed = []
-    max_zip_batch_size = 8*1024**2
+    max_zip_batch_size = 128*1024**2
     zip_batch_files = [[]]
     zip_batch_object_names = [[]]
     zip_batch_sizes = [0]
@@ -815,6 +820,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
 
             print(f'Sending {file_count} files (total size: {folder_files_size/1024**2:.0f} MiB) in {folder} to S3 bucket {bucket_name}.')
+            print(f'Individual files objects names: {object_names}', flush=True)
             
             try:
                 for i,args in enumerate(zip(
@@ -907,14 +913,14 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     zip_batch_object_names.append([object_names[i]])
                     zip_batch_sizes.append(s)
                     size = s
-            print(f'Folder: {folder}')
-            print(f'Level: {folder.replace(local_dir, "").count(os.sep)}') # level of folder in local_dir
-            print(f'local_dir: {local_dir}')
-            print(f'zip_batches: {zip_batch_files}')
-            print(f'zip_batch_sizes: {zip_batch_sizes}')
-            print(f'zip batch object names: {zip_batch_object_names}')
-            print(f'lens: {len(zip_batch_files)} {len(zip_batch_sizes)}')
-            print(f'file batch lens: {[len(x) for x in zip_batch_files]} ')
+            # print(f'Folder: {folder}')
+            # print(f'Level: {folder.replace(local_dir, "").count(os.sep)}') # level of folder in local_dir
+            # print(f'local_dir: {local_dir}')
+            # print(f'zip_batches: {zip_batch_files}')
+            # print(f'zip_batch_sizes: {zip_batch_sizes}')
+            # print(f'zip batch object names: {zip_batch_object_names}')
+            # print(f'lens: {len(zip_batch_files)} {len(zip_batch_sizes)}')
+            # print(f'file batch lens: {[len(x) for x in zip_batch_files]} ')
             
             # Level n-1 collation
             # This is very tricky, but would be a nice addition
@@ -937,8 +943,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             # print(f'lens: {len(zip_batches)} {len(zip_batch_sizes)}')
 
             folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
-            parent_folder = os.path.abspath(os.path.join(folder, os.pardir))
-            print(f'parent_folder: {parent_folder}')
+            # parent_folder = os.path.abspath(os.path.join(folder, os.pardir))
+            # print(f'parent_folder: {parent_folder}')
             print(f'Number of zip files: {len(zip_batch_files)}')
             # possibly pass if parent_folder == local_dir or parent_folder contains '..'
             
@@ -979,10 +985,10 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     # collate folders
     if len(to_collate) > 0:
         # print(f'Collating {len([to_collate[parent_folder]["folders"] for parent_folder in to_collate.keys()])} folders into zip files.', flush=True) #{sum([len(x["zips"]) for x in to_collate.keys()])}
-        print('TO_COLLATE:')
-        for tc in to_collate:
-            print(tc['file_paths'])
-        print(len(to_collate))
+        # print('TO_COLLATE:')
+        # for tc in to_collate:
+        #     print(tc['file_paths'])
+        # print(len(to_collate))
         # call zip_folder in parallel
         print(f'Zipping {len(to_collate)} batches.', flush=True)
         # for i, zip_batch_dict in enumerate(to_collate):
@@ -1056,9 +1062,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         #         repeat(perform_checksum),
         #         )):
         #     # with annotate(parent_folder=parent_folder):
-        print(client.scheduler_info()['workers'])
         for i, d in enumerate(to_collate):
-            print(f'Submit {i} {d}')
             zul_futures.append(client.submit(
                 zip_and_upload,
                 s3_host,
@@ -1075,19 +1079,21 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 i,
                 mem_per_worker,
                 perform_checksum,
-                workers=['0','1','2','3']
+                # workers='01234'
             ))
+            # print(f'Submit {i} {d}')
     
     ########################
     # Monitor upload tasks #
     ########################
     # while len(upload_futures) +len(zul_futures) > 0:
-    
+    print('Monitoring zip tasks.', flush=True)
     for f in as_completed(zul_futures):
         upload_futures.append(f.result())
         print('Zip created and added to upload queue.')
 
     monitor_start = datetime.now()
+    print('Monitoring upload tasks.', flush=True)
     for f in as_completed(upload_futures):
         if datetime.now() - monitor_start > timedelta(seconds=5):
             print(f'Current queues: {len(upload_futures)} file upload(s); {len(zul_futures)} zip upload(s)', end='\r')
