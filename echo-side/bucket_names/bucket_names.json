@@ -1,3 +1,4 @@
+# Add buckets to be scanned for zip files uploaded by lsst-backup.py below.
 [
     {
         "name": "LSST-IR-FUSION-Butlers",
