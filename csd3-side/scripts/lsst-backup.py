@@ -947,28 +947,27 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             # print(f'parent_folder: {parent_folder}')
             print(f'Number of zip files: {len(zip_batch_files)}')
             # possibly pass if parent_folder == local_dir or parent_folder contains '..'
-            
-            
-            ###############################
-            # CHECK HERE FOR ZIP CONTENTS #
-            ###############################
-            # Re-write for bottom-up approach
-            for i, zip_batch in enumerate(zip_batch_object_names):
-                cmp = [x.replace(destination_dir+'/', '') for x in zip_batch]
-                if not current_objects.empty:
-                    if current_objects['METADATA'].isin([cmp]).any():
-                        existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
-                        if all([x in existing_zip_contents for x in cmp]):
-                            print(f'Zip file {destination_dir}/collated_{i+1}.zip already exists and file lists match - skipping.')
-                            zip_batch_object_names.pop(i)
-                            zip_batch_files.pop(i)
-                            continue
-                        else:
-                            print(f'Zip file {destination_dir}/collated_{i+1}.zip already exists but file lists do not match - reuploading.')
-
         print('', flush=True)
         
     if global_collate:
+        ###############################
+        # CHECK HERE FOR ZIP CONTENTS #
+        ###############################
+        # Re-write for bottom-up approach
+        for i, zip_batch in enumerate(zip_batch_object_names):
+            cmp = [x.replace(destination_dir+'/', '') for x in zip_batch]
+            if not current_objects.empty:
+                if current_objects['METADATA'].isin([cmp]).any():
+                    existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
+                    if all([x in existing_zip_contents for x in cmp]):
+                        print(f'Zip file {destination_dir}/collated_{i+1}.zip already exists and file lists match - skipping.')
+                        zip_batch_object_names.pop(i)
+                        zip_batch_files.pop(i)
+                        continue
+                    else:
+                        print(f'Zip file {destination_dir}/collated_{i+1}.zip already exists but file lists do not match - reuploading.')
+
+        # Create list of dicts for zip files
         for i, file_paths in enumerate(zip_batch_files):
             to_collate.append(
                 {'object_names':zip_batch_object_names[i],
