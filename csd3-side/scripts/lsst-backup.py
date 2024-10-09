@@ -954,7 +954,9 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             ###############################
             # Re-write for bottom-up approach
             for i, zip_batch in enumerate(zip_batch_object_names):
-                print(zip_batch)
+                print('zip_batch_object_names',zip_batch)
+                print('zip_batch_files',zip_batch_files[i])
+                # cmp = [x.replace(destination_dir+'/', '') for x in zip_batch]
                 exit()
                 if not current_objects.empty:
                     if current_objects['METADATA'].isin([these_zip_contents]).any():
