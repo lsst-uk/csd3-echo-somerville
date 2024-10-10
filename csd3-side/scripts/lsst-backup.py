@@ -1130,6 +1130,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 failed.append(f_tuple)
         elif 'finished' in f.status:
             del f
+        mem_check()
     # monitor_start = datetime.now()
     # print('Monitoring upload tasks.', flush=True)
     # for f in as_completed(upload_futures):
