@@ -1119,7 +1119,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     print('Monitoring zip tasks.', flush=True)
     for f in as_completed(zul_futures):
         upload_futures.append(f.result())
-        print('Zip created and added to upload queue.')
+        print('Zip created and added to upload queue.', flush=True)
 
     # fire_and_forget(upload_futures)
     for f in as_completed(upload_futures):
