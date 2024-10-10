@@ -96,7 +96,7 @@ def find_metadata(key: str, bucket) -> List[str]:
     else:
         return None
 
-def mem_check(futures):
+def mem_check():
     """
     Checks the memory usage of the Dask workers.
 
@@ -975,7 +975,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'Number of zip files: {len(zip_batch_files)}')
             # possibly pass if parent_folder == local_dir or parent_folder contains '..'
         print('', flush=True)
-        mem_check(upload_futures)
+        mem_check()
         
     if global_collate:
         ###############################
@@ -1109,7 +1109,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 perform_checksum,
                 # workers='01234'
             ))
-            mem_check(zul_futures)
+            mem_check()
             # print(f'Submit {i} {d}')
     
     ########################
@@ -1121,8 +1121,15 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         upload_futures.append(f.result())
         print('Zip created and added to upload queue.')
 
-    fire_and_forget(upload_futures)
-
+    # fire_and_forget(upload_futures)
+    for f in as_completed(upload_futures):
+        if 'exception' in f.status and f not in failed:
+            f_tuple = f.exception(), f.traceback()
+            del f
+            if f_tuple not in failed:
+                failed.append(f_tuple)
+        elif 'finished' in f.status:
+            del f
     # monitor_start = datetime.now()
     # print('Monitoring upload tasks.', flush=True)
     # for f in as_completed(upload_futures):
@@ -1139,9 +1146,9 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     #     elif 'finished' in f.status:
     #         del f
 
-    # if failed:
-    #     for i, failed_upload in enumerate(failed):
-    #         print(f'Error upload {i}:\nException: {failed_upload[0]}\nTraceback: {failed_upload[1]}')
+    if failed:
+        for i, failed_upload in enumerate(failed):
+            print(f'Error upload {i}:\nException: {failed_upload[0]}\nTraceback: {failed_upload[1]}')
 
 # # Go!
 if __name__ == '__main__':
