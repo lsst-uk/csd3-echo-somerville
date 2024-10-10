@@ -1109,7 +1109,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 perform_checksum,
                 # workers='01234'
             ))
-            mem_check()
+            mem_check(zul_futures)
             # print(f'Submit {i} {d}')
     
     ########################
