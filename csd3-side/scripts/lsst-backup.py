@@ -28,7 +28,7 @@ import yaml
 import io
 import zipfile
 import warnings
-from psutil import virtual_memory
+from psutil import virtual_memory as mem
 warnings.filterwarnings('ignore')
 from logging import ERROR
 
@@ -38,7 +38,7 @@ import hashlib
 import os
 import argparse
 
-from dask.distributed import Client, get_client, wait, as_completed, Future
+from dask.distributed import Client, get_client, wait, as_completed, Future, fire_and_forget
 import subprocess
 
 from typing import List
@@ -95,6 +95,33 @@ def find_metadata(key: str, bucket) -> List[str]:
             return None
     else:
         return None
+
+def mem_check(futures):
+    """
+    Checks the memory usage of the Dask workers.
+
+    Args:
+        futures (list): A list of Dask futures.
+
+    Returns:
+        None
+    """
+    client = get_client()
+    workers = client.scheduler_info()['workers']
+    system_perc = mem().percent
+    print(f'System memory usage: {system_perc:.0f}%.')
+    min_w_mem = None
+    high_mem_workers = []
+    for w in workers.items():
+        if min_w_mem is None or min_w_mem > w[1]['memory_limit']:
+            min_w_mem = w[1]['memory_limit']
+        used = w[1]['metrics']['managed_bytes'] + w[1]['metrics']['spilled_bytes']['memory']
+        used_perc = used / w[1]['memory_limit'] * 100
+        if used_perc > 80:
+            high_mem_workers.append(w[1]['id'])
+    if high_mem_workers:
+        print(f'High memory usage on workers: {high_mem_workers}.')
+        client.rebalance()
 
 
 def remove_duplicates(l: list[dict]) -> list[dict]:
@@ -948,6 +975,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'Number of zip files: {len(zip_batch_files)}')
             # possibly pass if parent_folder == local_dir or parent_folder contains '..'
         print('', flush=True)
+        mem_check(upload_futures)
         
     if global_collate:
         ###############################
@@ -1081,6 +1109,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 perform_checksum,
                 # workers='01234'
             ))
+            mem_check(zul_futures)
             # print(f'Submit {i} {d}')
     
     ########################
@@ -1092,25 +1121,27 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         upload_futures.append(f.result())
         print('Zip created and added to upload queue.')
 
-    monitor_start = datetime.now()
-    print('Monitoring upload tasks.', flush=True)
-    for f in as_completed(upload_futures):
-        if datetime.now() - monitor_start > timedelta(seconds=5):
-            print(f'Current queues: {len(upload_futures)} file upload(s); {len(zul_futures)} zip upload(s)', end='\r')
-            monitor_start = datetime.now()
+    fire_and_forget(upload_futures)
+
+    # monitor_start = datetime.now()
+    # print('Monitoring upload tasks.', flush=True)
+    # for f in as_completed(upload_futures):
+    #     if datetime.now() - monitor_start > timedelta(seconds=5):
+    #         print(f'Current queues: {len(upload_futures)} file upload(s); {len(zul_futures)} zip upload(s)', end='\r')
+    #         monitor_start = datetime.now()
 
 
-        if 'exception' in f.status and f not in failed:
-            f_tuple = f.exception(), f.traceback()
-            del f
-            if f_tuple not in failed:
-                failed.append(f_tuple)
-        elif 'finished' in f.status:
-            del f
+    #     if 'exception' in f.status and f not in failed:
+    #         f_tuple = f.exception(), f.traceback()
+    #         del f
+    #         if f_tuple not in failed:
+    #             failed.append(f_tuple)
+    #     elif 'finished' in f.status:
+    #         del f
 
-    if failed:
-        for i, failed_upload in enumerate(failed):
-            print(f'Error upload {i}:\nException: {failed_upload[0]}\nTraceback: {failed_upload[1]}')
+    # if failed:
+    #     for i, failed_upload in enumerate(failed):
+    #         print(f'Error upload {i}:\nException: {failed_upload[0]}\nTraceback: {failed_upload[1]}')
 
 # # Go!
 if __name__ == '__main__':
@@ -1323,9 +1354,9 @@ if __name__ == '__main__':
         ############################
         #        Dask Setup        #
         ############################
-        total_memory = virtual_memory().total
+        total_memory = mem().total
         n_workers = nprocs//threads_per_worker
-        mem_per_worker = virtual_memory().total//n_workers # e.g., 187 GiB / 48 * 2 = 7.8 GiB
+        mem_per_worker = mem().total//n_workers # e.g., 187 GiB / 48 * 2 = 7.8 GiB
         print(f'nprocs: {nprocs}, Threads per worker: {threads_per_worker}, Number of workers: {n_workers}, Total memory: {total_memory/1024**3:.2f} GiB, Memory per worker: {mem_per_worker/1024**3:.2f} GiB')
         # client = Client(n_workers=n_workers,threads_per_worker=threads_per_worker,memory_limit=mem_per_worker) #,silence_logs=ERROR
         # Process the files
@@ -1333,6 +1364,7 @@ if __name__ == '__main__':
         try:
             with Client(n_workers=n_workers,threads_per_worker=threads_per_worker,memory_limit=mem_per_worker) as client:
                 print(f'Dask Client: {client}', flush=True)
+                print(f'Dashboard: {client.dashboard_link}', flush=True)
                 print(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}')
                 print(f'Using {nprocs} processes.')
                 with warnings.catch_warnings():
