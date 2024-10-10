@@ -178,7 +178,7 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
             mem_per_worker
             )
         # del zip_data, namelist
-        return f
+        return f, zip_object_key
 
 def zip_folders(local_dir:str, file_paths:list[str], use_compression:bool, dryrun:bool, id:int, mem_per_worker:int) -> tuple[str, int, bytes]:
     """
@@ -1118,8 +1118,9 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     # while len(upload_futures) +len(zul_futures) > 0:
     print('Monitoring zip tasks.', flush=True)
     for f in as_completed(zul_futures):
-        upload_futures.append(f.result())
-        print('Zip created and added to upload queue.', flush=True)
+        result = f.result()
+        upload_futures.append(result[0])
+        print(f'Zip {result[1]} created and added to upload queue.', flush=True)
 
     # fire_and_forget(upload_futures)
     for f in as_completed(upload_futures):
