@@ -96,7 +96,7 @@ def find_metadata(key: str, bucket) -> List[str]:
     else:
         return None
 
-def mem_check():
+def mem_check(futures):
     """
     Checks the memory usage of the Dask workers.
 
@@ -121,7 +121,7 @@ def mem_check():
             high_mem_workers.append(w[1]['id'])
     if high_mem_workers:
         print(f'High memory usage on workers: {high_mem_workers}.')
-        client.rebalance()
+        wait(futures)
 
 
 def remove_duplicates(l: list[dict]) -> list[dict]:
@@ -975,7 +975,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'Number of zip files: {len(zip_batch_files)}')
             # possibly pass if parent_folder == local_dir or parent_folder contains '..'
         print('', flush=True)
-        mem_check()
+        # mem_check()
         
     if global_collate:
         ###############################
@@ -1130,7 +1130,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 failed.append(f_tuple)
         elif 'finished' in f.status:
             del f
-        mem_check()
+        # mem_check()
     # monitor_start = datetime.now()
     # print('Monitoring upload tasks.', flush=True)
     # for f in as_completed(upload_futures):
