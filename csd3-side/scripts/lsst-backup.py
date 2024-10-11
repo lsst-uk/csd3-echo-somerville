@@ -1168,6 +1168,7 @@ if __name__ == '__main__':
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument('--config-file', type=str, help='Path to the configuration YAML file.')
+    parser.add_argument('--collate-list-file', type=str, help='Path to the list of files and folders to collate. Previous output of --save-collate-list. NOT YET IMPLEMENTED')
     parser.add_argument('--bucket-name', type=str, help='Name of the S3 bucket.')
     parser.add_argument('--local-path', type=str, help='Absolute path to the folder to be uploaded.')
     parser.add_argument('--S3-prefix', type=str, help='Prefix to be used in S3 object keys.')
@@ -1180,6 +1181,7 @@ if __name__ == '__main__':
     parser.add_argument('--no-checksum', default=False, action='store_true', help='Do not perform checksum validation during upload.')
     parser.add_argument('--no-compression', default=False, action='store_true', help='Do not use compression when collating files.')
     parser.add_argument('--save-config', default=False, action='store_true', help='Save the configuration to the provided config file path and exit.')
+    parser.add_argument('--save-collate-list', default=False, action='store_true', help='Save the list of files and folders to collate. Use to skip folder scanning. NOT YET IMPLEMENTED')
     args = parser.parse_args()
 
     if not args.config_file and not (args.bucket_name and args.local_path and args.S3_prefix):
