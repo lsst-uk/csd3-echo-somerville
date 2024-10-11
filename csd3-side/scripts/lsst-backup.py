@@ -1141,6 +1141,14 @@ if __name__ == '__main__':
         save_collate_list = False
     else:
         save_collate_list = args.save_collate_list
+    if save_collate_list and not collate_list_file:
+        parser.error('A collate list file must be provided to save the collate list.')
+    if save_collate_list and not os.path.exists(collate_list_file):
+        print(f'Collate list will be generated and saved to {collate_list_file}.')
+    elif save_collate_list and os.path.exists(collate_list_file):
+        print(f'Collate list will be read from and re-saved to {collate_list_file}.')
+    if (save_collate_list or collate_list_file) and not global_collate:
+        parser.error('Collate list file provided but collation is turned off. Please enable collation to use the collate list file.')
     
     if args.exclude:
         exclude = pd.Series(args.exclude)
