@@ -1002,6 +1002,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 'file_paths':file_paths,
                 'zips':[{'zip_data':None, 'id':None, 'zip_object_name':''}], 
                 'size':zip_batch_sizes[i]}) # store folders to collate
+        del zip_batch_files, zip_batch_object_names, zip_batch_sizes
+        client.scatter(to_collate, broadcast=True)
     # print(f'TO_COLLATE: {to_collate}')
     # print(f'ZIP_BATCH_FILES: {zip_batch_files}')
     # parents = []
