@@ -15,6 +15,7 @@ Usage:
 Returns:
     None
 """
+import json
 import sys
 import os
 from itertools import repeat
@@ -663,7 +664,7 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, local_dir,
     return None
 
 ### KEY FUNCTION TO FIND ALL FILES AND ORGANISE UPLOADS ###
-def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, perform_checksum, dryrun, log, global_collate, use_compression, client, mem_per_worker) -> None:
+def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, perform_checksum, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_file) -> None:
     """
     Uploads files from a local directory to an S3 bucket in parallel.
 
@@ -682,6 +683,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         use_compression (bool): Flag indicating whether to use compression for the zip files.
         client (dask.Client): The Dask client object.
         mem_per_worker (int): The memory per worker in bytes.
+        collate_list_file (str): The path to the file containing a list of dicts describing files and folders to collate.
+        save_collate_file (bool): Save (possibly overwrite) the collate_list_file.
 
     Returns:
         None
@@ -892,206 +895,113 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
         elif len(folder_files) > 0 and global_collate: # small files in folder
             print('Collated upload.')
-            # Existing object removal
-            if not current_objects.empty:
-                for oni, on in enumerate(object_names):
-                    if current_objects['CURRENT_OBJECTS'].isin([on]).any() or current_objects['CURRENT_OBJECTS'].isin([f'{on}.symlink']).any():
-                        object_names.remove(on)
-                        del folder_files[oni]
+            if not os.path.exists(collate_list_file):
+                # Existing object removal
+                if not current_objects.empty:
+                    for oni, on in enumerate(object_names):
+                        if current_objects['CURRENT_OBJECTS'].isin([on]).any() or current_objects['CURRENT_OBJECTS'].isin([f'{on}.symlink']).any():
+                            object_names.remove(on)
+                            del folder_files[oni]
 
-            pre_linkcheck_file_count = len(object_names)
-            if init_len - pre_linkcheck_file_count > 0:
-                print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.')
+                pre_linkcheck_file_count = len(object_names)
+                if init_len - pre_linkcheck_file_count > 0:
+                    print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.')
 
-            symlink_targets = []
-            symlink_obj_names = []
-            for i in range(len(folder_files)):
-                if os.path.islink(folder_files[i]):
-                    #rename link in object_names
-                    symlink_obj_name = object_names[i]
-                    object_names[i] = '.'.join([object_names[i], 'symlink'])
-                    #add symlink target to symlink_targets list
-                    #using target dir as-is can cause permissions issues
-                    #replace /home path with /rds path uses as local_dir
-                    target = to_rds_path(os.path.realpath(folder_files[i]), local_dir)
-                    symlink_targets.append(target)
-                    #add real file to symlink_obj_names list
-                    symlink_obj_names.append(symlink_obj_name)
+                symlink_targets = []
+                symlink_obj_names = []
+                for i in range(len(folder_files)):
+                    if os.path.islink(folder_files[i]):
+                        #rename link in object_names
+                        symlink_obj_name = object_names[i]
+                        object_names[i] = '.'.join([object_names[i], 'symlink'])
+                        #add symlink target to symlink_targets list
+                        #using target dir as-is can cause permissions issues
+                        #replace /home path with /rds path uses as local_dir
+                        target = to_rds_path(os.path.realpath(folder_files[i]), local_dir)
+                        symlink_targets.append(target)
+                        #add real file to symlink_obj_names list
+                        symlink_obj_names.append(symlink_obj_name)
+                
+                # append symlink_targets and symlink_obj_names to folder_files and object_names
+                folder_files.extend(symlink_targets)
+                object_names.extend(symlink_obj_names)
+
+                file_count = len(object_names)
+                #always do this AFTER removing "current_objects" to avoid re-uploading
             
-            # append symlink_targets and symlink_obj_names to folder_files and object_names
-            folder_files.extend(symlink_targets)
-            object_names.extend(symlink_obj_names)
+                # Level n collation
+                size = zip_batch_sizes[-1]
+                print(f'Size: {size}')
+                for i, filename in enumerate(folder_files):
+                    s = os.lstat(filename).st_size
+                    size += s
+                    if size <= max_zip_batch_size:
+                        zip_batch_files[-1].append(filename)
+                        zip_batch_object_names[-1].append(object_names[i])
+                        zip_batch_sizes[-1] += size
+                    else:
+                        zip_batch_files.append([filename])
+                        zip_batch_object_names.append([object_names[i]])
+                        zip_batch_sizes.append(s)
+                        size = s
 
-            file_count = len(object_names)
-            #always do this AFTER removing "current_objects" to avoid re-uploading
-        
-            # Level n collation
-            size = zip_batch_sizes[-1]
-            print(f'Size: {size}')
-            for i, filename in enumerate(folder_files):
-                s = os.lstat(filename).st_size
-                size += s
-                if size <= max_zip_batch_size:
-                    zip_batch_files[-1].append(filename)
-                    zip_batch_object_names[-1].append(object_names[i])
-                    zip_batch_sizes[-1] += size
-                else:
-                    zip_batch_files.append([filename])
-                    zip_batch_object_names.append([object_names[i]])
-                    zip_batch_sizes.append(s)
-                    size = s
-            # print(f'Folder: {folder}')
-            # print(f'Level: {folder.replace(local_dir, "").count(os.sep)}') # level of folder in local_dir
-            # print(f'local_dir: {local_dir}')
-            # print(f'zip_batches: {zip_batch_files}')
-            # print(f'zip_batch_sizes: {zip_batch_sizes}')
-            # print(f'zip batch object names: {zip_batch_object_names}')
-            # print(f'lens: {len(zip_batch_files)} {len(zip_batch_sizes)}')
-            # print(f'file batch lens: {[len(x) for x in zip_batch_files]} ')
-            
-            # Level n-1 collation
-            # This is very tricky, but would be a nice addition
-            # i = 1
-            # if len(zip_batch_sizes) > 1:
-            #     while True:
-            #         print(i)
-            #         if zip_batch_sizes[-i] + zip_batch_sizes[-(i+1)] < max_zip_batch_size:
-            #             zip_batch_sizes[-(i+1)] += zip_batch_sizes.pop(-i)
-            #             zip_batches[-(i+1)].extend(zip_batches.pop(-i))
-            #         else:
-            #             if i == len(zip_batch_sizes) - 1:
-            #                 break
-            #             i+=1
-            # print(f'Folder: {folder}')
-            # print(f'Level: {folder.replace(local_dir, "").count(os.sep)}') # level of folder in local_dir
-            # print(f'local_dir: {local_dir}')
-            # print(f'zip_batches: {zip_batches}')
-            # print(f'zip_batch_sizes: {zip_batch_sizes}')
-            # print(f'lens: {len(zip_batches)} {len(zip_batch_sizes)}')
-
-            folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
-            # parent_folder = os.path.abspath(os.path.join(folder, os.pardir))
-            # print(f'parent_folder: {parent_folder}')
-            print(f'Number of zip files: {len(zip_batch_files)}')
-            # possibly pass if parent_folder == local_dir or parent_folder contains '..'
+                folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
+                print(f'Number of zip files: {len(zip_batch_files)}')
         print('', flush=True)
-        # mem_check()
         
     if global_collate:
         ###############################
         # CHECK HERE FOR ZIP CONTENTS #
         ###############################
-        # Re-write for bottom-up approach
-        for i, zip_batch in enumerate(zip_batch_object_names):
-            cmp = [x.replace(destination_dir+'/', '') for x in zip_batch]
-            if not current_objects.empty:
-                if current_objects['METADATA'].isin([cmp]).any():
-                    existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
-                    if all([x in existing_zip_contents for x in cmp]):
-                        print(f'Zip file {destination_dir}/collated_{i+1}.zip already exists and file lists match - skipping.')
-                        zip_batch_object_names.pop(i)
-                        zip_batch_files.pop(i)
-                        continue
-                    else:
-                        print(f'Zip file {destination_dir}/collated_{i+1}.zip already exists but file lists do not match - reuploading.')
+        if not os.path.exists(collate_list_file):
+            for i, zip_batch in enumerate(zip_batch_object_names):
+                cmp = [x.replace(destination_dir+'/', '') for x in zip_batch]
+                if not current_objects.empty:
+                    if current_objects['METADATA'].isin([cmp]).any():
+                        existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
+                        if all([x in existing_zip_contents for x in cmp]):
+                            print(f'Zip file {destination_dir}/collated_{i+1}.zip already exists and file lists match - skipping.')
+                            zip_batch_object_names.pop(i)
+                            zip_batch_files.pop(i)
+                            continue
+                        else:
+                            print(f'Zip file {destination_dir}/collated_{i+1}.zip already exists but file lists do not match - reuploading.')
 
-        # Create list of dicts for zip files
-        for i, file_paths in enumerate(zip_batch_files):
-            to_collate.append(
-                {'object_names':zip_batch_object_names[i],
-                'file_paths':file_paths,
-                'zips':[{'zip_data':None, 'id':None, 'zip_object_name':''}], 
-                'size':zip_batch_sizes[i]}) # store folders to collate
-        del zip_batch_files, zip_batch_object_names, zip_batch_sizes
+            # Create list of dicts for zip files
+            for i, file_paths in enumerate(zip_batch_files):
+                to_collate.append(
+                    {'object_names':zip_batch_object_names[i],
+                    'file_paths':file_paths,
+                    'zips':[{'zip_data':None, 'id':None, 'zip_object_name':''}], 
+                    'size':zip_batch_sizes[i]}) # store folders to collate
+            del zip_batch_files, zip_batch_object_names, zip_batch_sizes
+        else:
+            with open(collate_list_file, 'r') as f:
+                to_collate = json.load(f)
+            print(f'Loaded collate list from {collate_list_file}.')
+            if not current_objects.empty:
+                for i, d in enumerate(to_collate):
+                    cmp = [x.replace(destination_dir+'/', '') for x in d['object_names']]
+                    if current_objects['METADATA'].isin([cmp]).any():
+                        existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
+                        if all([x in existing_zip_contents for x in cmp]):
+                            print(f'Zip file {destination_dir}/collated_{i+1}.zip from {collate_list_file} already exists and file lists match - skipping.')
+                            to_collate.pop(i)
+                            continue
+                        else:
+                            print(f'Zip file {destination_dir}/collated_{i+1}.zip from {collate_list_file} already exists but file lists do not match - reuploading.')
+        if save_collate_file:
+            print(f'Saving collate list to {collate_list_file}.')
+            with open(collate_list_file, 'w') as f:
+                json.dump(to_collate, f)
+        else:
+            print(f'Collate list not saved.')
         client.scatter(to_collate, broadcast=True)
-    # print(f'TO_COLLATE: {to_collate}')
-    # print(f'ZIP_BATCH_FILES: {zip_batch_files}')
-    # parents = []
-    # for zbf in zip_batch_files:
-    #     for f in zbf:
-    #         parents.append(os.path.abspath(os.sep.join([f,os.path.pardir])).replace(local_dir,''))
-    # print(set(sorted(parents)))
-    # exit()
-    # collate folders
+
     if len(to_collate) > 0:
-        # print(f'Collating {len([to_collate[parent_folder]["folders"] for parent_folder in to_collate.keys()])} folders into zip files.', flush=True) #{sum([len(x["zips"]) for x in to_collate.keys()])}
-        # print('TO_COLLATE:')
-        # for tc in to_collate:
-        #     print(tc['file_paths'])
-        # print(len(to_collate))
         # call zip_folder in parallel
         print(f'Zipping {len(to_collate)} batches.', flush=True)
-        # for i, zip_batch_dict in enumerate(to_collate):
-
-            ########################
-            ## rewrite expanding list comprehension
-            #########################
-            
-            # max_filesize = 0
-            # # for ff in folder_files:
-            # for filename in ff:
-            #     try:
-            #         fs = os.lstat(filename).st_size
-            #     except PermissionError:
-            #         print(f'WARNING: Permission error reading {filename}. File will not be backed up.')
-            #         try:
-            #             folder_files.remove(filename)
-            #         except ValueError:
-            #             pass
-            #         if len(folder_files) == 0:
-            #             print(f'Skipping subfolder - no files - see permissions warning(s).')
-            #             continue
-
-            #     if fs > max_filesize:
-            #         max_filesize = fs
-            #     # except ValueError:
-            #     #     # no files in folder - likely removed from file list due to previous PermissionError - continue without message
-            #     #     continue
-                    
-            # max_files_per_zip = int(np.ceil(1024**3 / max_filesize)) # limit zips to 1 GiB - using available memory too inconsistent
-            # num_zips = int(np.ceil(num_files / max_files_per_zip))
-            
-            # chunk_subfolders = False
-            # if num_zips > len(folders):
-            #     chunk_subfolders = True
-
-            # if chunk_subfolders:
-            #     subchunks_files = []
-            #     subchunks = []
-            #     for j in range(len(folders)):
-            #         step = len(folder_files[j])//num_zips
-            #         if step == 0:
-            #             step = 1
-            #         for i in range(0, len(folder_files[j]), step):
-            #             subchunks_files.append(folder_files[j][i:i+step])
-            #             subchunks.append(folders[j])
-            #     chunks = subchunks
-            #     chunk_files = subchunks_files
-            # else:
-            #     chunks = folders
-            #     chunk_files = folder_files
-
-            # if len(chunks) != len(chunk_files):
-            #     print('Error: chunks and chunk_files are not the same length.')
-            #     sys.exit(1)
-            
-        # for i, args in enumerate(zip(
-        #         repeat(s3_host),
-        #         repeat(access_key),
-        #         repeat(secret_key),
-        #         repeat(bucket_name),
-        #         repeat(destination_dir),
-        #         repeat(local_dir),
-        #         zip_batch_dict['file_paths'],
-        #         repeat(total_size_uploaded),
-        #         repeat(total_files_uploaded),
-        #         repeat(use_compression),
-        #         repeat(dryrun),
-        #         [i for i in range(len(zip_batch_dict['file_paths']))],
-        #         repeat(mem_per_worker),
-        #         repeat(perform_checksum),
-        #         )):
-        #     # with annotate(parent_folder=parent_folder):
+        
         for i, d in enumerate(to_collate):
             zul_futures.append(client.submit(
                 zip_and_upload,
@@ -1109,15 +1019,13 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 i,
                 mem_per_worker,
                 perform_checksum,
-                # workers='01234'
             ))
             mem_check(zul_futures)
-            # print(f'Submit {i} {d}')
     
     ########################
     # Monitor upload tasks #
     ########################
-    # while len(upload_futures) +len(zul_futures) > 0:
+
     print('Monitoring zip tasks.', flush=True)
     for f in as_completed(zul_futures):
         result = f.result()
@@ -1133,22 +1041,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 failed.append(f_tuple)
         elif 'finished' in f.status:
             del f
-        # mem_check()
-    # monitor_start = datetime.now()
-    # print('Monitoring upload tasks.', flush=True)
-    # for f in as_completed(upload_futures):
-    #     if datetime.now() - monitor_start > timedelta(seconds=5):
-    #         print(f'Current queues: {len(upload_futures)} file upload(s); {len(zul_futures)} zip upload(s)', end='\r')
-    #         monitor_start = datetime.now()
-
-
-    #     if 'exception' in f.status and f not in failed:
-    #         f_tuple = f.exception(), f.traceback()
-    #         del f
-    #         if f_tuple not in failed:
-    #             failed.append(f_tuple)
-    #     elif 'finished' in f.status:
-    #         del f
 
     if failed:
         for i, failed_upload in enumerate(failed):
@@ -1168,7 +1060,7 @@ if __name__ == '__main__':
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument('--config-file', type=str, help='Path to the configuration YAML file.')
-    parser.add_argument('--collate-list-file', type=str, help='Path to the list of files and folders to collate. Previous output of --save-collate-list. NOT YET IMPLEMENTED')
+    parser.add_argument('--collate-list-file', type=str, help='The path to the file containing a list of dicts describing files and folders to collate.')
     parser.add_argument('--bucket-name', type=str, help='Name of the S3 bucket.')
     parser.add_argument('--local-path', type=str, help='Absolute path to the folder to be uploaded.')
     parser.add_argument('--S3-prefix', type=str, help='Prefix to be used in S3 object keys.')
@@ -1181,7 +1073,7 @@ if __name__ == '__main__':
     parser.add_argument('--no-checksum', default=False, action='store_true', help='Do not perform checksum validation during upload.')
     parser.add_argument('--no-compression', default=False, action='store_true', help='Do not use compression when collating files.')
     parser.add_argument('--save-config', default=False, action='store_true', help='Save the configuration to the provided config file path and exit.')
-    parser.add_argument('--save-collate-list', default=False, action='store_true', help='Save the list of files and folders to collate. Use to skip folder scanning. NOT YET IMPLEMENTED')
+    parser.add_argument('--save-collate-list', default=True, action='store_true', help='Save collate-list-file. Use to skip folder scanning.')
     args = parser.parse_args()
 
     if not args.config_file and not (args.bucket_name and args.local_path and args.S3_prefix):
@@ -1221,6 +1113,10 @@ if __name__ == '__main__':
                     args.no_checksum = config['no_checksum']
                 if 'no_compression' in config.keys() and not args.no_compression:
                     args.no_compression = config['no_compression']
+                if 'collate_list_file' in config.keys() and not args.collate_list_file:
+                    args.collate_list_file = config['collate_list_file']
+                if 'save_collate_list' in config.keys() and not args.save_collate_list:
+                    args.save_collate_list = config['save_collate_list']
     if args.save_config and not args.config_file:
         parser.error('A config file must be provided to save the configuration.')
 
@@ -1239,6 +1135,12 @@ if __name__ == '__main__':
     perform_checksum = not args.no_checksum # internally, flag turns *on* checksumming, but for user no-checksum  turns it off - makes flag more intuitive
     dryrun = args.dryrun
     use_compression = not args.no_compression # internally, flag turns *on* compression, but for user no-compression turns it off - makes flag more intuitive
+
+    collate_list_file = args.collate_list_file
+    if not collate_list_file:
+        save_collate_list = False
+    else:
+        save_collate_list = args.save_collate_list
     
     if args.exclude:
         exclude = pd.Series(args.exclude)
@@ -1382,7 +1284,7 @@ if __name__ == '__main__':
                 print(f'Using {nprocs} processes.')
                 with warnings.catch_warnings():
                     warnings.filterwarnings('ignore')
-                    process_files(s3_host,access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, perform_checksum, dryrun, log, global_collate, use_compression, client, mem_per_worker)
+                    process_files(s3_host,access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, perform_checksum, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_list)
             success = True
         except Exception as e:
             print(f'Restartings Dask client due to error: {e}')
