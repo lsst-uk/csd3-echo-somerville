@@ -811,6 +811,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 # print(object_names)
                 print(f'Skipping subfolder - all files exist.')
                 continue
+        
 
         if mean_filesize > max_zip_batch_size or not global_collate:
             print('Individual upload.')
@@ -1030,6 +1031,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     for f in as_completed(zul_futures):
         result = f.result()
         upload_futures.append(result[0])
+        to_collate.pop(result[1])
         print(f'Zip {result[1]} created and added to upload queue.', flush=True)
 
     # fire_and_forget(upload_futures)
@@ -1045,6 +1047,13 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     if failed:
         for i, failed_upload in enumerate(failed):
             print(f'Error upload {i}:\nException: {failed_upload[0]}\nTraceback: {failed_upload[1]}')
+
+    # Re-save collate list to reflect uploads
+    if save_collate_file:
+        with open(collate_list_file, 'w') as f:
+            json.dump(to_collate, f)
+    else:
+        print(f'Collate list not saved.')
 
 # # Go!
 if __name__ == '__main__':
