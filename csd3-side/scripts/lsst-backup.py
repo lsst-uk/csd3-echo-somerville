@@ -706,7 +706,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     folder_num = 0
     file_num = 0
     uploads = []
-    zip_uploads = []
+    # zip_uploads = []
     upload_futures = []
     zul_futures = []
     failed = []
@@ -714,200 +714,130 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     zip_batch_files = [[]]
     zip_batch_object_names = [[]]
     zip_batch_sizes = [0]
+    # if save_collate_file:
+    #     scanned_list = []
+    #     scanned_dicts = []
+    #     scanned_list_file = collate_list_file + '.scanned'
+    #     scanned_dicts_file = collate_list_file + '.scanned_dicts'
+
     print(f'Analysing local dataset {local_dir}.')
     for folder, sub_folders, files in os.walk(local_dir, topdown=True):
         total_all_folders += 1
         total_all_files += len(files)
         print(f'Folders: {total_all_folders}; Files: {total_all_files}.', flush=True, end='\r')
     print()
-
-    print(f'Preparing to upload {total_all_files} files in {total_all_folders} folders from {local_dir} to {bucket_name}/{destination_dir}.', flush=True)
-    for folder, sub_folders, files in os.walk(local_dir, topdown=False):
-        folder_num += 1
-        file_num += len(files)
-        print(f'Processing {folder_num}/{total_all_folders} folders; {file_num}/{total_all_files} files in {local_dir}.')
-        
-        # check if folder is in the exclude list
-        if len(files) == 0 and len(sub_folders) == 0:
-            print(f'Skipping subfolder - no files or subfolders.')
-            continue
-        elif len(files) == 0:
-            print(f'Skipping subfolder - no files.')
-            continue
-        if exclude.isin([folder]).any():
-            print(f'Skipping subfolder {folder} - excluded.')
-            continue
-        # remove subfolders in exclude list
-        if len(sub_folders) > 0:
-            len_pre_exclude = len(sub_folders)
-            sub_folders[:] = [sub_folder for sub_folder in sub_folders if not exclude.isin([sub_folder]).any()]
-            print(f'Skipping {len_pre_exclude - len(sub_folders)} subfolders in {folder} - excluded. {len(sub_folders)} subfolders remaining.')
-
-        folder_files = [os.sep.join([folder, filename]) for filename in files]
-
-        sizes = []
-        for f in zul_futures+upload_futures:
-            if isinstance(f, Future):
-                if f.status == 'finished':
-                    del f
-        for filename in folder_files:
-            if exclude.isin([os.path.relpath(filename, local_dir)]).any():
-                print(f'Skipping file {filename} - excluded.')
-                folder_files.remove(filename)
-                if len(folder_files) == 0:
-                    print(f'Skipping subfolder - no files - see exclusions.')
+    if not global_collate and not os.path.exists(collate_list_file):
+        print(f'Preparing to upload {total_all_files} files in {total_all_folders} folders from {local_dir} to {bucket_name}/{destination_dir}.', flush=True)
+        for folder, sub_folders, files in os.walk(local_dir, topdown=False):
+            folder_num += 1
+            file_num += len(files)
+            # if save_collate_file:
+            #     if folder in scanned_list:
+            #         continue
+            print(f'Processing {folder_num}/{total_all_folders} folders; {file_num}/{total_all_files} files in {local_dir}.')
+            
+            # check if folder is in the exclude list
+            if len(files) == 0 and len(sub_folders) == 0:
+                print(f'Skipping subfolder - no files or subfolders.')
                 continue
-            try:
-                sizes.append(os.stat(filename).st_size)
-            except PermissionError:
-                print(f'WARNING: Permission error reading {filename}. File will not be backed up.')
-                try:
+            elif len(files) == 0:
+                print(f'Skipping subfolder - no files.')
+                continue
+            if exclude.isin([folder]).any():
+                print(f'Skipping subfolder {folder} - excluded.')
+                continue
+            # remove subfolders in exclude list
+            if len(sub_folders) > 0:
+                len_pre_exclude = len(sub_folders)
+                sub_folders[:] = [sub_folder for sub_folder in sub_folders if not exclude.isin([sub_folder]).any()]
+                print(f'Skipping {len_pre_exclude - len(sub_folders)} subfolders in {folder} - excluded. {len(sub_folders)} subfolders remaining.')
+
+            folder_files = [os.sep.join([folder, filename]) for filename in files]
+
+            sizes = []
+            for f in zul_futures+upload_futures:
+                if isinstance(f, Future):
+                    if f.status == 'finished':
+                        del f
+            for filename in folder_files:
+                if exclude.isin([os.path.relpath(filename, local_dir)]).any():
+                    print(f'Skipping file {filename} - excluded.')
                     folder_files.remove(filename)
-                except ValueError:
-                    pass
-                if len(folder_files) == 0:
-                    print(f'Skipping subfolder - no files - see permissions warning(s).')
+                    if len(folder_files) == 0:
+                        print(f'Skipping subfolder - no files - see exclusions.')
                     continue
-        total_filesize = sum(sizes)
-        if total_filesize > 0:
-            mean_filesize = total_filesize / len(files)
-        else:
-            mean_filesize = 0
-        
-        # check if any subfolders contain no subfolders and < 4 files
-        if len(sub_folders) > 0:
-            for sub_folder in sub_folders:
-                sub_folder_path = os.path.join(folder, sub_folder)
-                _, sub_sub_folders, sub_files = next(os.walk(sub_folder_path), ([], [], []))
-                subfolder_files = [os.sep.join([sub_folder_path, filename]) for filename in sub_files]
-                subfiles_sizes = []
-                for filename in subfolder_files:
+                try:
+                    sizes.append(os.stat(filename).st_size)
+                except PermissionError:
+                    print(f'WARNING: Permission error reading {filename}. File will not be backed up.')
                     try:
-                        subfiles_sizes.append(os.stat(filename).st_size)
-                    except PermissionError:
-                        print(f'WARNING: Permission error reading {filename}. File will not be backed up.')
-                        subfolder_files.remove(filename)
-                        if len(subfolder_files) == 0:
-                            print(f'Skipping subfolder - no files - see permissions warning(s).')
-                            continue
-                total_subfilesize = sum(subfiles_sizes)
-                if not sub_sub_folders and len(sub_files) < 4 and total_subfilesize < 96*1024**2:
-                    sub_folders.remove(sub_folder) # not sure what the effect of this is
-                    # upload files in subfolder "as is" i.e., no zipping
+                        folder_files.remove(filename)
+                    except ValueError:
+                        pass
+                    if len(folder_files) == 0:
+                        print(f'Skipping subfolder - no files - see permissions warning(s).')
+                        continue
+            total_filesize = sum(sizes)
+            if total_filesize > 0:
+                mean_filesize = total_filesize / len(files)
+            else:
+                mean_filesize = 0
+            
+            # check if any subfolders contain no subfolders and < 4 files
+            if len(sub_folders) > 0:
+                for sub_folder in sub_folders:
+                    sub_folder_path = os.path.join(folder, sub_folder)
+                    _, sub_sub_folders, sub_files = next(os.walk(sub_folder_path), ([], [], []))
+                    subfolder_files = [os.sep.join([sub_folder_path, filename]) for filename in sub_files]
+                    subfiles_sizes = []
+                    for filename in subfolder_files:
+                        try:
+                            subfiles_sizes.append(os.stat(filename).st_size)
+                        except PermissionError:
+                            print(f'WARNING: Permission error reading {filename}. File will not be backed up.')
+                            subfolder_files.remove(filename)
+                            if len(subfolder_files) == 0:
+                                print(f'Skipping subfolder - no files - see permissions warning(s).')
+                                continue
+                    total_subfilesize = sum(subfiles_sizes)
+                    if not sub_sub_folders and len(sub_files) < 4 and total_subfilesize < 96*1024**2:
+                        sub_folders.remove(sub_folder) # not sure what the effect of this is
+                        # upload files in subfolder "as is" i.e., no zipping
 
-        # check folder isn't empty
-        print(f'Processing {len(folder_files)} files (total size: {total_filesize/1024**2:.0f} MiB) in {folder} with {len(sub_folders)} subfolders.')
+            # check folder isn't empty
+            print(f'Processing {len(folder_files)} files (total size: {total_filesize/1024**2:.0f} MiB) in {folder} with {len(sub_folders)} subfolders.')
 
-        # keys to files on s3
-        object_names = [os.sep.join([destination_dir, os.path.relpath(filename, local_dir)]) for filename in folder_files]
-        init_len = len(object_names)
-        # remove current objects - avoids reuploading
-        # could provide overwrite flag if this is desirable
-        # print(f'current_objects: {current_objects}')
-        if not current_objects.empty:
-            if set(object_names).issubset(current_objects['CURRENT_OBJECTS']):
-                #all files in this subfolder already in bucket
-                # print(current_objects['CURRENT_OBJECTS'])
-                # print(object_names)
-                print(f'Skipping subfolder - all files exist.')
-                continue
-        
+            # keys to files on s3
+            object_names = [os.sep.join([destination_dir, os.path.relpath(filename, local_dir)]) for filename in folder_files]
+            init_len = len(object_names)
 
-        if mean_filesize > max_zip_batch_size or not global_collate:
-            print('Individual upload.')
-            # all files within folder
-            # if uploading file individually, remove existing files from object_names
+            # scanned_list.append(folder)
+            # scanned_dicts.append({'folder':folder, 'object_names':object_names})
+            # remove current objects - avoids reuploading
+            # could provide overwrite flag if this is desirable
+            # print(f'current_objects: {current_objects}')
             if not current_objects.empty:
-                for oni, on in enumerate(object_names):
-                    if current_objects['CURRENT_OBJECTS'].isin([on]).any() or current_objects['CURRENT_OBJECTS'].isin([f'{on}.symlink']).any():
-                        object_names.remove(on)
-                        del folder_files[oni]
-            pre_linkcheck_file_count = len(object_names)
-            if init_len - pre_linkcheck_file_count > 0:
-                print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.')
-            #always do this AFTER removing "current_objects" to avoid re-uploading
-            symlink_targets = []
-            symlink_obj_names = []
-            for i in range(len(folder_files)):
-                if os.path.islink(folder_files[i]):
-                    #rename link in object_names
-                    symlink_obj_name = object_names[i]
-                    object_names[i] = '.'.join([object_names[i], 'symlink'])
-                    #add symlink target to symlink_targets list
-                    #using target dir as-is can cause permissions issues
-                    #replace /home path with /rds path uses as local_dir
-                    target = to_rds_path(os.path.realpath(folder_files[i]), local_dir)
-                    symlink_targets.append(target)
-                    #add real file to symlink_obj_names list
-                    symlink_obj_names.append(symlink_obj_name)
-
-            folder_files.extend(symlink_targets)
-            object_names.extend(symlink_obj_names)
-
-            file_count = len(object_names)
-            folder_files_size = np.sum(np.array([os.stat(filename).st_size for filename in folder_files]))
-            total_size_uploaded += folder_files_size
-            total_files_uploaded += file_count
-            print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
-
-            print(f'Sending {file_count} files (total size: {folder_files_size/1024**2:.0f} MiB) in {folder} to S3 bucket {bucket_name}.')
-            print(f'Individual files objects names: {object_names}', flush=True)
+                if set(object_names).issubset(current_objects['CURRENT_OBJECTS']):
+                    #all files in this subfolder already in bucket
+                    # print(current_objects['CURRENT_OBJECTS'])
+                    # print(object_names)
+                    print(f'Skipping subfolder - all files exist.')
+                    continue
             
-            try:
-                for i,args in enumerate(zip(
-                        repeat(s3_host), 
-                        repeat(access_key), 
-                        repeat(secret_key), 
-                        repeat(bucket_name),
-                        repeat(local_dir),
-                        repeat(folder), 
-                        folder_files,
-                        repeat(None),
-                        object_names, 
-                        repeat(perform_checksum), 
-                        repeat(dryrun), 
-                        repeat(processing_start),
-                        repeat(file_count),
-                        repeat(folder_files_size),
-                        repeat(total_size_uploaded),
-                        repeat(total_files_uploaded),
-                        repeat(False),
-                        repeat(mem_per_worker),
-                    )):
-                    # with annotate(folder=folder):
-                    upload_futures.append(client.submit(upload_and_callback, *args))
-                    uploads.append({'folder':args[4],'folder_size':args[12],'file_size':os.lstat(folder_files[i]).st_size,'file':args[5],'object':args[7],'uploaded':False})
-            except BrokenPipeError as e:
-                print(f'Caught BrokenPipeError: {e}')
-                # Record the failure
-                with open('error_log.err', 'a') as f:
-                    f.write(f'BrokenPipeError: {e}\n')
-                # Exit gracefully
-                sys.exit(1)
-            except Exception as e:
-                print(f'An unexpected error occurred: {e}')
-                # Record the failure
-                with open('error_log.err', 'a') as f:
-                    f.write(f'Unexpected error: {e}\n')
-                # Exit gracefully
-                sys.exit(1)    
-            
-            # release block of files if the list for results is greater than 4 times the number of processes
 
-        elif len(folder_files) > 0 and global_collate: # small files in folder
-            print('Collated upload.')
-            if not os.path.exists(collate_list_file):
-                # Existing object removal
+            if mean_filesize > max_zip_batch_size or not global_collate:
+                print('Individual upload.')
+                # all files within folder
+                # if uploading file individually, remove existing files from object_names
                 if not current_objects.empty:
                     for oni, on in enumerate(object_names):
                         if current_objects['CURRENT_OBJECTS'].isin([on]).any() or current_objects['CURRENT_OBJECTS'].isin([f'{on}.symlink']).any():
                             object_names.remove(on)
                             del folder_files[oni]
-
                 pre_linkcheck_file_count = len(object_names)
                 if init_len - pre_linkcheck_file_count > 0:
                     print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.')
-
+                #always do this AFTER removing "current_objects" to avoid re-uploading
                 symlink_targets = []
                 symlink_obj_names = []
                 for i in range(len(folder_files)):
@@ -922,33 +852,115 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         symlink_targets.append(target)
                         #add real file to symlink_obj_names list
                         symlink_obj_names.append(symlink_obj_name)
-                
-                # append symlink_targets and symlink_obj_names to folder_files and object_names
+
                 folder_files.extend(symlink_targets)
                 object_names.extend(symlink_obj_names)
 
                 file_count = len(object_names)
-                #always do this AFTER removing "current_objects" to avoid re-uploading
-            
-                # Level n collation
-                size = zip_batch_sizes[-1]
-                print(f'Size: {size}')
-                for i, filename in enumerate(folder_files):
-                    s = os.lstat(filename).st_size
-                    size += s
-                    if size <= max_zip_batch_size:
-                        zip_batch_files[-1].append(filename)
-                        zip_batch_object_names[-1].append(object_names[i])
-                        zip_batch_sizes[-1] += size
-                    else:
-                        zip_batch_files.append([filename])
-                        zip_batch_object_names.append([object_names[i]])
-                        zip_batch_sizes.append(s)
-                        size = s
+                folder_files_size = np.sum(np.array([os.stat(filename).st_size for filename in folder_files]))
+                total_size_uploaded += folder_files_size
+                total_files_uploaded += file_count
+                print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
 
-                folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
-                print(f'Number of zip files: {len(zip_batch_files)}')
-        print('', flush=True)
+                print(f'Sending {file_count} files (total size: {folder_files_size/1024**2:.0f} MiB) in {folder} to S3 bucket {bucket_name}.')
+                print(f'Individual files objects names: {object_names}', flush=True)
+                
+                try:
+                    for i,args in enumerate(zip(
+                            repeat(s3_host), 
+                            repeat(access_key), 
+                            repeat(secret_key), 
+                            repeat(bucket_name),
+                            repeat(local_dir),
+                            repeat(folder), 
+                            folder_files,
+                            repeat(None),
+                            object_names, 
+                            repeat(perform_checksum), 
+                            repeat(dryrun), 
+                            repeat(processing_start),
+                            repeat(file_count),
+                            repeat(folder_files_size),
+                            repeat(total_size_uploaded),
+                            repeat(total_files_uploaded),
+                            repeat(False),
+                            repeat(mem_per_worker),
+                        )):
+                        # with annotate(folder=folder):
+                        upload_futures.append(client.submit(upload_and_callback, *args))
+                        uploads.append({'folder':args[4],'folder_size':args[12],'file_size':os.lstat(folder_files[i]).st_size,'file':args[5],'object':args[7],'uploaded':False})
+                except BrokenPipeError as e:
+                    print(f'Caught BrokenPipeError: {e}')
+                    # Record the failure
+                    with open('error_log.err', 'a') as f:
+                        f.write(f'BrokenPipeError: {e}\n')
+                    # Exit gracefully
+                    sys.exit(1)
+                except Exception as e:
+                    print(f'An unexpected error occurred: {e}')
+                    # Record the failure
+                    with open('error_log.err', 'a') as f:
+                        f.write(f'Unexpected error: {e}\n')
+                    # Exit gracefully
+                    sys.exit(1)    
+                
+                # release block of files if the list for results is greater than 4 times the number of processes
+
+            elif len(folder_files) > 0 and global_collate: # small files in folder
+                print('Collated upload.')
+                if not os.path.exists(collate_list_file):
+                    # Existing object removal
+                    if not current_objects.empty:
+                        for oni, on in enumerate(object_names):
+                            if current_objects['CURRENT_OBJECTS'].isin([on]).any() or current_objects['CURRENT_OBJECTS'].isin([f'{on}.symlink']).any():
+                                object_names.remove(on)
+                                del folder_files[oni]
+
+                    pre_linkcheck_file_count = len(object_names)
+                    if init_len - pre_linkcheck_file_count > 0:
+                        print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.')
+
+                    symlink_targets = []
+                    symlink_obj_names = []
+                    for i in range(len(folder_files)):
+                        if os.path.islink(folder_files[i]):
+                            #rename link in object_names
+                            symlink_obj_name = object_names[i]
+                            object_names[i] = '.'.join([object_names[i], 'symlink'])
+                            #add symlink target to symlink_targets list
+                            #using target dir as-is can cause permissions issues
+                            #replace /home path with /rds path uses as local_dir
+                            target = to_rds_path(os.path.realpath(folder_files[i]), local_dir)
+                            symlink_targets.append(target)
+                            #add real file to symlink_obj_names list
+                            symlink_obj_names.append(symlink_obj_name)
+                    
+                    # append symlink_targets and symlink_obj_names to folder_files and object_names
+                    folder_files.extend(symlink_targets)
+                    object_names.extend(symlink_obj_names)
+
+                    file_count = len(object_names)
+                    #always do this AFTER removing "current_objects" to avoid re-uploading
+                
+                    # Level n collation
+                    size = zip_batch_sizes[-1]
+                    print(f'Size: {size}')
+                    for i, filename in enumerate(folder_files):
+                        s = os.lstat(filename).st_size
+                        size += s
+                        if size <= max_zip_batch_size:
+                            zip_batch_files[-1].append(filename)
+                            zip_batch_object_names[-1].append(object_names[i])
+                            zip_batch_sizes[-1] += size
+                        else:
+                            zip_batch_files.append([filename])
+                            zip_batch_object_names.append([object_names[i]])
+                            zip_batch_sizes.append(s)
+                            size = s
+
+                    folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
+                    print(f'Number of zip files: {len(zip_batch_files)}')
+            print('', flush=True)
         
     if global_collate:
         ###############################
