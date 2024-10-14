@@ -978,7 +978,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         else:
             with open(collate_list_file, 'r') as f:
                 to_collate = json.load(f)
-            print(f'Loaded collate list from {collate_list_file}.')
+            print(f'Loaded collate list from {collate_list_file}, len={len(to_collate)}.')
             if not current_objects.empty:
                 for i, d in enumerate(to_collate):
                     cmp = [x.replace(destination_dir+'/', '') for x in d['object_names']]
@@ -991,7 +991,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         else:
                             print(f'Zip file {destination_dir}/collated_{i+1}.zip from {collate_list_file} already exists but file lists do not match - reuploading.')
         if save_collate_file:
-            print(f'Saving collate list to {collate_list_file}.')
+            print(f'Saving collate list to {collate_list_file}, len={len(to_collate)}.')
             with open(collate_list_file, 'w') as f:
                 json.dump(to_collate, f)
         else:
@@ -1164,13 +1164,15 @@ if __name__ == '__main__':
                 'local_path': local_dir,
                 'S3_prefix': prefix,
                 'S3_folder': sub_dirs,
-                'exclude': exclude.to_list(),
                 'nprocs': nprocs,
                 'threads_per_process': threads_per_worker,
                 'no_collate': not global_collate,
                 'dryrun': dryrun,
                 'no_checksum': not perform_checksum,
                 'no_compression': not use_compression,
+                'collate_list_file': collate_list_file,
+                'save_collate_list': save_collate_list,
+                'exclude': exclude.to_list(),
                 }, f)
         sys.exit(0)
 
