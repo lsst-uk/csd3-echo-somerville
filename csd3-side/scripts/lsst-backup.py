@@ -996,7 +996,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 json.dump(to_collate, f)
         else:
             print(f'Collate list not saved.')
-        client.scatter(to_collate, broadcast=True)
+        client.scatter(to_collate)
 
     if len(to_collate) > 0:
         # call zip_folder in parallel
