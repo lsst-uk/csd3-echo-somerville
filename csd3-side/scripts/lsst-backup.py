@@ -703,6 +703,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
     #recursive loop over local folder
     # to_collate = {'id':[],'object_names':[],'file_paths':[],'size':[]} # to be used for storing file lists to be collated
+    to_collate_list = [] # to be used for storing file lists to be collated as list of dicts
     total_all_folders = 0
     total_all_files = 0
     folder_num = 0
@@ -983,17 +984,18 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                             print(f'Zip file {destination_dir}/collated_{i+1}.zip already exists but file lists do not match - reuploading.')
 
             # Create dict for zip files
-            # for i, file_paths in enumerate(zip_batch_files):
-            #     to_collate['id'].append(i)
-            #     to_collate['object_names'].append(zip_batch_object_names[i])
-            #     to_collate['file_paths'].append(file_paths)
-            #     to_collate['size'].append(zip_batch_sizes[i])
-            print(f'zip_batch_files: {zip_batch_files}, {len(zip_batch_files)}')
-            print(f'zip_batch_object_names: {zip_batch_object_names}, {len(zip_batch_object_names)}')
-            print(f'zip_batch_sizes: {zip_batch_sizes}, {len(zip_batch_sizes)}')
-            print(f'id: {[i for i in range(len(zip_batch_files))]}')
+            for i in range(len(zip_batch_files)):
+                to_collate_list.append({'id':i, 'object_names':zip_batch_object_names[i], 'file_paths':zip_batch_files[i], 'size':zip_batch_sizes[i]})
+                # to_collate['id'].append(i)
+                # to_collate['object_names'].append(zip_batch_object_names[i])
+                # to_collate['file_paths'].append(file_paths)
+                # to_collate['size'].append(zip_batch_sizes[i])
+            # print(f'zip_batch_files: {zip_batch_files}, {len(zip_batch_files)}')
+            # print(f'zip_batch_object_names: {zip_batch_object_names}, {len(zip_batch_object_names)}')
+            # print(f'zip_batch_sizes: {zip_batch_sizes}, {len(zip_batch_sizes)}')
+            # print(f'id: {[i for i in range(len(zip_batch_files))]}')
 
-            to_collate = pd.DataFrame(np.ndarray([[i for i in range(len(zip_batch_files))], ['|'.join(l) for l in zip_batch_object_names], ['|'.join(l) for l in zip_batch_files], zip_batch_sizes], dtype=object).transpose(), columns=['id', 'object_names', 'file_paths', 'size'], index='id')
+            to_collate = pd.DataFrame.from_dict(to_collate_list, index='id')
             print(to_collate)
             exit()
             client.scatter(to_collate) 
