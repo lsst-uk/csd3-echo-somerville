@@ -988,10 +988,10 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             #     to_collate['object_names'].append(zip_batch_object_names[i])
             #     to_collate['file_paths'].append(file_paths)
             #     to_collate['size'].append(zip_batch_sizes[i])
-            print(f'zip_batch_files: {zip_batch_files}')
-            print(f'zip_batch_object_names: {zip_batch_object_names}')
-            print(f'zip_batch_sizes: {zip_batch_sizes}')
-            
+            print(f'zip_batch_files: {zip_batch_files}, {len(zip_batch_files)}')
+            print(f'zip_batch_object_names: {zip_batch_object_names}, {len(zip_batch_object_names)}')
+            print(f'zip_batch_sizes: {zip_batch_sizes}, {len(zip_batch_sizes)}')
+
             to_collate = pd.DataFrame([[i for i in range(len(zip_batch_files))], zip_batch_object_names, zip_batch_files, zip_batch_sizes], columns=['id', 'object_names', 'file_paths', 'size'], index='id')
             client.scatter(to_collate) 
             del zip_batch_files, zip_batch_object_names, zip_batch_sizes
