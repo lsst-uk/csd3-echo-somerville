@@ -134,7 +134,7 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
     #  zip part #
     #############
     client = get_client()
-    print(file_paths, flush=True)
+    print(f'TYPE: {type(file_paths)}', flush=True)
     # with annotate(parent_folder=parent_folder):
     zip_data, namelist = client.submit(zip_folders,
         local_dir, 
