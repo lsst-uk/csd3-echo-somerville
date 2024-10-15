@@ -1086,7 +1086,7 @@ if __name__ == '__main__':
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument('--config-file', type=str, help='Path to the configuration YAML file.')
-    parser.add_argument('--collate-list-file', type=str, help='The path to the file containing a list of dicts describing files and folders to collate.')
+    parser.add_argument('--collate-list-file', type=str, help='The path to a CSV file containing a list of dicts describing files and folders to collate.')
     parser.add_argument('--bucket-name', type=str, help='Name of the S3 bucket.')
     parser.add_argument('--local-path', type=str, help='Absolute path to the folder to be uploaded.')
     parser.add_argument('--S3-prefix', type=str, help='Prefix to be used in S3 object keys.')
