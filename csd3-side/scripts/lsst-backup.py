@@ -1020,8 +1020,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         # call zip_folder in parallel
         print(f'Zipping {len(to_collate)} batches.', flush=True)
         print(to_collate)
-        print(to_collate[0])
-        print(to_collate[0]['file_paths'])
+        print(to_collate['id'][0])
+        print(to_collate.iloc[0]['file_paths'])
         # exit()
         for i in range(len(to_collate)):
             zul_futures.append(client.submit(
