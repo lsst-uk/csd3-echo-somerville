@@ -1020,7 +1020,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         # call zip_folder in parallel
         print(f'Zipping {len(to_collate)} batches.', flush=True)
         print(to_collate)
-        print(to_collate['id'][0])
         print(to_collate.iloc[0]['file_paths'])
         # exit()
         for i in range(len(to_collate)):
@@ -1032,7 +1031,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 bucket_name,
                 destination_dir,
                 local_dir,
-                to_collate[f'zip_{i}']['file_paths'],
+                to_collate.iloc[i]['file_paths'],
                 total_size_uploaded,
                 total_files_uploaded,
                 use_compression,
