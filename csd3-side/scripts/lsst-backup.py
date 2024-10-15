@@ -212,7 +212,6 @@ def zip_folders(local_dir:str, file_paths:list[str], use_compression:bool, dryru
                 compression = zipfile.ZIP_DEFLATED  # zipfile.ZIP_DEFLATED = standard compression
             else:
                 compression = zipfile.ZIP_STORED  # zipfile.ZIP_STORED = no compression
-            print(file_paths, flush=True)
             with zipfile.ZipFile(zip_buffer, "a", compression, True) as zip_file:
                 for file in file_paths:
                     # print(file, flush=True)
