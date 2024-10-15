@@ -215,7 +215,7 @@ def zip_folders(local_dir:str, file_paths:list[str], use_compression:bool, dryru
                     if file.startswith('/'):
                         file_path = file
                     else:
-                        exit('Path is wrong')
+                        exit(f'Path is wrong: {file}')
                     arc_name = os.path.relpath(file_path, local_dir)
                     # print(f'arc_name {arc_name}', flush=True)
                     try:
