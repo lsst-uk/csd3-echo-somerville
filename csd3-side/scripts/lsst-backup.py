@@ -1005,8 +1005,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'Loaded collate list from {collate_list_file}, len={len(to_collate)}.', flush=True)
             if not current_objects.empty:
                 # now using pandas for both current_objects and to_collate - this could be re-written to using vectorised operations
-                for zip_object_names in to_collate['object_names']:
-                    print(zip_object_names)
+                for i in range(len(to_collate['object_names'])):
+                    # print(zip_object_names)
                     cmp = [x.replace(destination_dir+'/', '') for x in to_collate.iloc[i]['object_names']]
                     print(cmp)
                     print(current_objects['METADATA'])
