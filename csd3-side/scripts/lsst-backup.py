@@ -987,7 +987,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     'file_paths':file_paths,
                     'zips':[{'zip_data':None, 'id':None, 'zip_object_name':''}], 
                     'size':zip_batch_sizes[i]}) # store folders to collate
-                to_collate = dd.from_pandas(to_collate, npartitions=1).compute()
+                to_collate = dd.from_dict(to_collate).compute()
+                client.scatter(to_collate) 
             del zip_batch_files, zip_batch_object_names, zip_batch_sizes
         else:
             # with open(collate_list_file, 'r') as f:
@@ -1011,7 +1012,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             to_collate.to_json(collate_list_file)
         else:
             print(f'Collate list not saved.')
-        client.scatter(to_collate)
+        # client.scatter(to_collate)
 
     if len(to_collate) > 0:
         # call zip_folder in parallel
