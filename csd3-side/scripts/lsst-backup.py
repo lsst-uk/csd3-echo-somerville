@@ -135,7 +135,6 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
     #  zip part #
     #############
     client = get_client()
-    print(f'TYPE: {type(file_paths)}', flush=True)
     # with annotate(parent_folder=parent_folder):
     zip_data, namelist = client.submit(zip_folders,
         local_dir, 
@@ -1053,9 +1052,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 mem_per_worker,
                 perform_checksum,
             ))
-            # exit()
             # mem_check(zul_futures)
-            print(f'Zip upload seems happy. {i}', flush=True)
     
     ########################
     # Monitor upload tasks #
@@ -1065,7 +1062,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     for f in as_completed(zul_futures):
         result = f.result()
         upload_futures.append(result[0])
-        to_collate.pop(result[1])
+        to_collate = to_collate[to_collate.object_names != result[1]]
         print(f'Zip {result[1]} created and added to upload queue.', flush=True)
 
     # fire_and_forget(upload_futures)
