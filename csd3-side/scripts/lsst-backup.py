@@ -134,6 +134,7 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
     #  zip part #
     #############
     client = get_client()
+    print(file_paths, flush=True)
     # with annotate(parent_folder=parent_folder):
     zip_data, namelist = client.submit(zip_folders,
         local_dir, 
@@ -987,7 +988,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             #     to_collate['object_names'].append(zip_batch_object_names[i])
             #     to_collate['file_paths'].append(file_paths)
             #     to_collate['size'].append(zip_batch_sizes[i])
-            to_collate = pd.DataFrame([[i for i in range(len(zip_batch_files))],zip_batch_object_names, zip_batch_files, zip_batch_sizes], columns=['id', 'object_names', 'file_paths', 'size'], index='id')
+            to_collate = pd.DataFrame([[i for i in range(len(zip_batch_files))], zip_batch_object_names, zip_batch_files, zip_batch_sizes], columns=['id', 'object_names', 'file_paths', 'size'], index='id')
             client.scatter(to_collate) 
             del zip_batch_files, zip_batch_object_names, zip_batch_sizes
         else:
