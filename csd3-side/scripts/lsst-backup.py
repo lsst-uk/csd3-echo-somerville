@@ -24,6 +24,7 @@ from datetime import datetime, timedelta
 import hashlib
 import base64
 import pandas as pd
+from ast import literal_eval
 import numpy as np
 import yaml
 import io
@@ -1001,6 +1002,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         else:
             # with open(collate_list_file, 'r') as f:
             to_collate = pd.read_csv(collate_list_file)
+            to_collate.object_names = to_collate.object_names.apply(literal_eval)
+            to_collate.file_paths = to_collate.file_paths.apply(literal_eval)
             client.scatter(to_collate)
             print(f'Loaded collate list from {collate_list_file}, len={len(to_collate)}.', flush=True)
             if not current_objects.empty:
@@ -1029,7 +1032,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     if len(to_collate) > 0:
         # call zip_folder in parallel
         print(f'Zipping {len(to_collate)} batches.', flush=True)
-        print(to_collate)
+        # print(to_collate)
         print(type(to_collate.iloc[0]['file_paths']))
         # exit()
         for i in range(len(to_collate)):
