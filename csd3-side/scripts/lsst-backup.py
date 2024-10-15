@@ -181,6 +181,7 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
             mem_per_worker
             )
         # del zip_data, namelist
+        print('submitted zip upload', flush=True)   
         return f, zip_object_key
 
 def zip_folders(local_dir:str, file_paths:list[str], use_compression:bool, dryrun:bool, id:int, mem_per_worker:int) -> tuple[str, int, bytes]:
@@ -1033,7 +1034,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         # call zip_folder in parallel
         print(f'Zipping {len(to_collate)} batches.', flush=True)
         # print(to_collate)
-        print(type(to_collate.iloc[0]['file_paths']))
+        # print(type(to_collate.iloc[0]['file_paths']))
         # exit()
         for i in range(len(to_collate)):
             zul_futures.append(client.submit(
