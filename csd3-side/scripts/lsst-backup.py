@@ -15,7 +15,7 @@ Usage:
 Returns:
     None
 """
-import json
+# import json
 import sys
 import os
 from itertools import repeat
@@ -38,7 +38,7 @@ import bucket_manager.bucket_manager as bm
 import hashlib
 import os
 import argparse
-
+from dask import dataframe as dd
 from dask.distributed import Client, get_client, wait, as_completed, Future, fire_and_forget
 import subprocess
 
@@ -993,8 +993,9 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     'size':zip_batch_sizes[i]}) # store folders to collate
             del zip_batch_files, zip_batch_object_names, zip_batch_sizes
         else:
-            with open(collate_list_file, 'r') as f:
-                to_collate = json.load(f)
+            # with open(collate_list_file, 'r') as f:
+            to_collate = dd.read_json(collate_list_file).compute()
+            client.scatter(to_collate)
             print(f'Loaded collate list from {collate_list_file}, len={len(to_collate)}.')
             if not current_objects.empty:
                 for i, d in enumerate(to_collate):
@@ -1009,8 +1010,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                             print(f'Zip file {destination_dir}/collated_{i+1}.zip from {collate_list_file} already exists but file lists do not match - reuploading.')
         if save_collate_file:
             print(f'Saving collate list to {collate_list_file}, len={len(to_collate)}.')
-            with open(collate_list_file, 'w') as f:
-                json.dump(to_collate, f)
+            # with open(collate_list_file, 'w') as f:
+            to_collate.to_json(collate_list_file)
         else:
             print(f'Collate list not saved.')
         client.scatter(to_collate)
@@ -1066,8 +1067,9 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
     # Re-save collate list to reflect uploads
     if save_collate_file:
-        with open(collate_list_file, 'w') as f:
-            json.dump(to_collate, f)
+        to_collate.to_json(collate_list_file)
+        # with open(collate_list_file, 'w') as f:
+        #     json.dump(to_collate, f)
     else:
         print(f'Collate list not saved.')
 
