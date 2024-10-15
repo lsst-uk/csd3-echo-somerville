@@ -986,8 +986,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 to_collate['object_names'].append(zip_batch_object_names[i])
                 to_collate['file_paths'].append(file_paths)
                 to_collate['size'].append(zip_batch_sizes[i])
-                to_collate = pd.DataFrame.from_dict(to_collate)
-                client.scatter(to_collate) 
+            to_collate = pd.DataFrame.from_dict(to_collate)
+            client.scatter(to_collate) 
             del zip_batch_files, zip_batch_object_names, zip_batch_sizes
         else:
             # with open(collate_list_file, 'r') as f:
