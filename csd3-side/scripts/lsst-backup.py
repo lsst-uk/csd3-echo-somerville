@@ -991,7 +991,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             del zip_batch_files, zip_batch_object_names, zip_batch_sizes
         else:
             # with open(collate_list_file, 'r') as f:
-            to_collate = dd.read_csv(collate_list_file).compute()
+            to_collate = pd.read_csv(collate_list_file)
             client.scatter(to_collate)
             print(f'Loaded collate list from {collate_list_file}, len={len(to_collate)}.')
             if not current_objects.empty:
