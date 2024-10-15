@@ -179,8 +179,6 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
             True,
             mem_per_worker
             )
-        # del zip_data, namelist
-        print('submitted zip upload', flush=True)   
         return f, zip_object_key
 
 def zip_folders(local_dir:str, file_paths:list[str], use_compression:bool, dryrun:bool, id:int, mem_per_worker:int) -> tuple[str, int, bytes]:
@@ -1009,7 +1007,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 # now using pandas for both current_objects and to_collate - this could be re-written to using vectorised operations
                 for zip_object_names in to_collate['object_names']:
                     print(zip_object_names)
-                    cmp = [x.replace(destination_dir+'/', '') for x in to_collate.iloc[i]['object_names'].values[0]]
+                    cmp = [x.replace(destination_dir+'/', '') for x in to_collate.iloc[i]['object_names']]
                     print(cmp)
                     exit()
                     if current_objects['METADATA'].isin([cmp]).any():
