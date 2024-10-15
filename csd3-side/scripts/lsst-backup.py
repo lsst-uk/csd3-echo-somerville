@@ -996,7 +996,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             # print(f'id: {[i for i in range(len(zip_batch_files))]}')
 
             to_collate = pd.DataFrame.from_dict(to_collate_list)
-            print(to_collate)
             client.scatter(to_collate) 
             del zip_batch_files, zip_batch_object_names, zip_batch_sizes
         else:
@@ -1006,7 +1005,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'Loaded collate list from {collate_list_file}, len={len(to_collate)}.')
             if not current_objects.empty:
                 # now using pandas for both current_objects and to_collate - this could be re-written to using vectorised operations
-                for i in range(len(to_collate)):
+                for zip_object_names in to_collate['object_names']:
+                    print(zip_object_names)
                     cmp = [x.replace(destination_dir+'/', '') for x in to_collate.iloc[i]['object_names'].values[0]]
                     print(cmp)
                     exit()
@@ -1022,9 +1022,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'Saving collate list to {collate_list_file}, len={len(to_collate)}.')
             # with open(collate_list_file, 'w') as f:
             to_collate.to_csv(collate_list_file, index=False)
-            test_tc = pd.read_csv(collate_list_file)
-            print(test_tc)
-            exit()
         else:
             print(f'Collate list not saved.')
         # client.scatter(to_collate)
