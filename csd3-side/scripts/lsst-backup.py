@@ -992,7 +992,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'zip_batch_object_names: {zip_batch_object_names}, {len(zip_batch_object_names)}')
             print(f'zip_batch_sizes: {zip_batch_sizes}, {len(zip_batch_sizes)}')
 
-            to_collate = pd.DataFrame(np.ndarray([[i for i in range(len(zip_batch_files))], [zip_batch_object_names], [zip_batch_files], [zip_batch_sizes]], dtype=object).transpose(), columns=['id', 'object_names', 'file_paths', 'size'], index='id')
+            to_collate = pd.DataFrame(np.ndarray([[i for i in range(len(zip_batch_files))], zip_batch_object_names, zip_batch_files, zip_batch_sizes], dtype=object).transpose(), columns=['id', 'object_names', 'file_paths', 'size'], index='id')
             client.scatter(to_collate) 
             del zip_batch_files, zip_batch_object_names, zip_batch_sizes
         else:
