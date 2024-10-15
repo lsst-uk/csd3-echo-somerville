@@ -722,8 +722,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
     print(f'Analysing local dataset {local_dir}.')
     for folder, sub_folders, files in os.walk(local_dir, topdown=True):
-        if total_all_files > 1000: #########################################
-            break ##################################
         total_all_folders += 1
         total_all_files += len(files)
         print(f'Folders: {total_all_folders}; Files: {total_all_files}.', flush=True, end='\r')
@@ -731,8 +729,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     if not os.path.exists(collate_list_file):
         print(f'Preparing to upload {total_all_files} files in {total_all_folders} folders from {local_dir} to {bucket_name}/{destination_dir}.', flush=True)
         for folder, sub_folders, files in os.walk(local_dir, topdown=False):
-            if len(zip_batch_files) > 100: #########################################
-                break ##################################
             folder_num += 1
             file_num += len(files)
             # if save_collate_file:
