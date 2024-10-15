@@ -700,7 +700,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         exit(1)
 
     #recursive loop over local folder
-    to_collate = {}
+    to_collate = {'id':[],'object_names':[],'file_paths':[],'size':[]} # to be used for storing file lists to be collated
     total_all_folders = 0
     total_all_files = 0
     folder_num = 0
@@ -980,13 +980,12 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         else:
                             print(f'Zip file {destination_dir}/collated_{i+1}.zip already exists but file lists do not match - reuploading.')
 
-            # Create list of dicts for zip files
+            # Create dict for zip files
             for i, file_paths in enumerate(zip_batch_files):
-                to_collate.append({'id':i,
-                    'object_names':zip_batch_object_names[i],
-                    'file_paths':file_paths,
-                    # 'zips':[{'zip_data':None, 'id':None, 'zip_object_name':''}], 
-                    'size':zip_batch_sizes[i]}) # store folders to collate
+                to_collate['id'].append(i)
+                to_collate['object_names'].append(zip_batch_object_names[i])
+                to_collate['file_paths'].append(file_paths)
+                to_collate['size'].append(zip_batch_sizes[i])
                 to_collate = pd.DataFrame.from_dict(to_collate)
                 client.scatter(to_collate) 
             del zip_batch_files, zip_batch_object_names, zip_batch_sizes
