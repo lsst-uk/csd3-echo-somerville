@@ -995,8 +995,11 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             client.scatter(to_collate)
             print(f'Loaded collate list from {collate_list_file}, len={len(to_collate)}.')
             if not current_objects.empty:
-                for i, d in enumerate(to_collate):
-                    cmp = [x.replace(destination_dir+'/', '') for x in d['object_names']]
+                # now using pandas for both current_objects and to_collate - this could be re-written to using vectorised operations
+                for i in range(len(to_collate)):
+                    cmp = [x.replace(destination_dir+'/', '') for x in to_collate.iloc[i]['object_names'].values[0]]
+                    print(cmp)
+                    exit()
                     if current_objects['METADATA'].isin([cmp]).any():
                         existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
                         if all([x in existing_zip_contents for x in cmp]):
@@ -1008,7 +1011,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         if save_collate_file:
             print(f'Saving collate list to {collate_list_file}, len={len(to_collate)}.')
             # with open(collate_list_file, 'w') as f:
-            to_collate.to_csv(collate_list_file)
+            to_collate.to_csv(collate_list_file, index=False)
         else:
             print(f'Collate list not saved.')
         # client.scatter(to_collate)
@@ -1018,7 +1021,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         print(f'Zipping {len(to_collate)} batches.', flush=True)
         print(to_collate)
         print(to_collate['zip_0'])
-        exit()
+        # exit()
         for i in range(len(to_collate)):
             zul_futures.append(client.submit(
                 zip_and_upload,
@@ -1067,7 +1070,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
     # Re-save collate list to reflect uploads
     if save_collate_file:
-        to_collate.to_csv(collate_list_file)
+        to_collate.to_csv(collate_list_file, index=False)
         # with open(collate_list_file, 'w') as f:
         #     json.dump(to_collate, f)
     else:
