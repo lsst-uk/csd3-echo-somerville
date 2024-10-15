@@ -1018,6 +1018,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         print(f'Zipping {len(to_collate)} batches.', flush=True)
         print(to_collate)
         print(to_collate['zip_0'])
+        exit()
         for i in range(len(to_collate)):
             zul_futures.append(client.submit(
                 zip_and_upload,
@@ -1036,7 +1037,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 mem_per_worker,
                 perform_checksum,
             ))
-            exit()
+            # exit()
             # mem_check(zul_futures)
     
     ########################
