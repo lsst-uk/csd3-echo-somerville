@@ -1009,6 +1009,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     print(zip_object_names)
                     cmp = [x.replace(destination_dir+'/', '') for x in to_collate.iloc[i]['object_names']]
                     print(cmp)
+                    print(current_objects['METADATA'])
                     exit()
                     if current_objects['METADATA'].isin([cmp]).any():
                         existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
