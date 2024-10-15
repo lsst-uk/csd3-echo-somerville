@@ -1056,7 +1056,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             ))
             # exit()
             # mem_check(zul_futures)
-        print('Zip upload seems happy.', flush=True)
+            print(f'Zip upload seems happy. {i}', flush=True)
     
     ########################
     # Monitor upload tasks #
