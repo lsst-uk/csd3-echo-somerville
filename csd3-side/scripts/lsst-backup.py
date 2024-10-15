@@ -986,7 +986,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 to_collate['object_names'].append(zip_batch_object_names[i])
                 to_collate['file_paths'].append(file_paths)
                 to_collate['size'].append(zip_batch_sizes[i])
-            to_collate = pd.DataFrame.from_dict(to_collate)
+            to_collate = pd.DataFrame.from_dict(to_collate, columns=['id', 'object_names', 'file_paths', 'size'], index='id')
             client.scatter(to_collate) 
             del zip_batch_files, zip_batch_object_names, zip_batch_sizes
         else:
@@ -1020,7 +1020,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         # call zip_folder in parallel
         print(f'Zipping {len(to_collate)} batches.', flush=True)
         print(to_collate)
-        print(to_collate['zip_0'])
+        print(to_collate[0])
+        print(to_collate[0]['file_paths'])
         # exit()
         for i in range(len(to_collate)):
             zul_futures.append(client.submit(
