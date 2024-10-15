@@ -991,7 +991,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             del zip_batch_files, zip_batch_object_names, zip_batch_sizes
         else:
             # with open(collate_list_file, 'r') as f:
-            to_collate = dd.read_json(collate_list_file).compute()
+            to_collate = dd.read_csv(collate_list_file).compute()
             client.scatter(to_collate)
             print(f'Loaded collate list from {collate_list_file}, len={len(to_collate)}.')
             if not current_objects.empty:
@@ -1008,7 +1008,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         if save_collate_file:
             print(f'Saving collate list to {collate_list_file}, len={len(to_collate)}.')
             # with open(collate_list_file, 'w') as f:
-            to_collate.to_json(collate_list_file)
+            to_collate.to_csv(collate_list_file)
         else:
             print(f'Collate list not saved.')
         # client.scatter(to_collate)
@@ -1016,7 +1016,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     if len(to_collate) > 0:
         # call zip_folder in parallel
         print(f'Zipping {len(to_collate)} batches.', flush=True)
-        
+        print(to_collate)
         for i, d in enumerate(to_collate):
             print(d)
             exit()
@@ -1066,7 +1066,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
     # Re-save collate list to reflect uploads
     if save_collate_file:
-        to_collate.to_json(collate_list_file)
+        to_collate.to_csv(collate_list_file)
         # with open(collate_list_file, 'w') as f:
         #     json.dump(to_collate, f)
     else:
