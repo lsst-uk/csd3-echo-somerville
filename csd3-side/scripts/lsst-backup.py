@@ -996,8 +996,6 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             # print(f'id: {[i for i in range(len(zip_batch_files))]}')
 
             to_collate = pd.DataFrame.from_dict(to_collate_list)
-            print(to_collate)
-            exit()
             client.scatter(to_collate) 
             del zip_batch_files, zip_batch_object_names, zip_batch_sizes
         else:
@@ -1023,6 +1021,9 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             print(f'Saving collate list to {collate_list_file}, len={len(to_collate)}.')
             # with open(collate_list_file, 'w') as f:
             to_collate.to_csv(collate_list_file, index=False)
+            test_tc = pd.read_csv(collate_list_file)
+            print(test_tc)
+            exit()
         else:
             print(f'Collate list not saved.')
         # client.scatter(to_collate)
