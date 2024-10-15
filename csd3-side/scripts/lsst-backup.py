@@ -982,7 +982,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
             # Create list of dicts for zip files
             for i, file_paths in enumerate(zip_batch_files):
-                to_collate[i] = {'object_names':zip_batch_object_names[i],
+                to_collate[f'zip_{i}'] = {'object_names':zip_batch_object_names[i],
                     'file_paths':file_paths,
                     'zips':[{'zip_data':None, 'id':None, 'zip_object_name':''}], 
                     'size':zip_batch_sizes[i]} # store folders to collate
@@ -1017,9 +1017,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         # call zip_folder in parallel
         print(f'Zipping {len(to_collate)} batches.', flush=True)
         print(to_collate)
-        for i, d in enumerate(to_collate):
-            print(d)
-            exit()
+        print(to_collate['zip_0'])
+        for i in range(len(to_collate)):
             zul_futures.append(client.submit(
                 zip_and_upload,
                 s3_host,
@@ -1028,7 +1027,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 bucket_name,
                 destination_dir,
                 local_dir,
-                d['file_paths'],
+                to_collate[f'zip_{i}']['file_paths'],
                 total_size_uploaded,
                 total_files_uploaded,
                 use_compression,
@@ -1037,7 +1036,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 mem_per_worker,
                 perform_checksum,
             ))
-            mem_check(zul_futures)
+            exit()
+            # mem_check(zul_futures)
     
     ########################
     # Monitor upload tasks #
