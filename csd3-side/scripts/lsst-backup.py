@@ -1311,19 +1311,19 @@ if __name__ == '__main__':
     # client = Client(n_workers=n_workers,threads_per_worker=threads_per_worker,memory_limit=mem_per_worker) #,silence_logs=ERROR
     # Process the files
 
-    try:
-        with Client(n_workers=n_workers,threads_per_worker=threads_per_worker,memory_limit=mem_per_worker) as client:
-            print(f'Dask Client: {client}', flush=True)
-            print(f'Dashboard: {client.dashboard_link}', flush=True)
-            print(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}')
-            print(f'Using {nprocs} processes.')
-            with warnings.catch_warnings():
-                warnings.filterwarnings('ignore')
-                process_files(s3_host,access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, perform_checksum, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_list)
+    # try:
+    with Client(n_workers=n_workers,threads_per_worker=threads_per_worker,memory_limit=mem_per_worker) as client:
+        print(f'Dask Client: {client}', flush=True)
+        print(f'Dashboard: {client.dashboard_link}', flush=True)
+        print(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}')
+        print(f'Using {nprocs} processes.')
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore')
+            process_files(s3_host,access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, perform_checksum, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_list)
         # success = True
-    except Exception as e:
-        print(e)
-        sys.exit(1)
+    # except Exception as e:
+    #     print(e)
+    #     sys.exit(1)
         # print(f'Restartings Dask client due to error: {e}')
         # print(f'Current objects will be repopulated.')
         # continue
