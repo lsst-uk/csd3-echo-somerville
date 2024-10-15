@@ -700,7 +700,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         exit(1)
 
     #recursive loop over local folder
-    to_collate = []
+    to_collate = {}
     total_all_folders = 0
     total_all_files = 0
     folder_num = 0
@@ -982,11 +982,10 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
             # Create list of dicts for zip files
             for i, file_paths in enumerate(zip_batch_files):
-                to_collate.append(
-                    {'object_names':zip_batch_object_names[i],
+                to_collate[i] = {'object_names':zip_batch_object_names[i],
                     'file_paths':file_paths,
                     'zips':[{'zip_data':None, 'id':None, 'zip_object_name':''}], 
-                    'size':zip_batch_sizes[i]}) # store folders to collate
+                    'size':zip_batch_sizes[i]} # store folders to collate
                 to_collate = dd.from_dict(to_collate,npartitions=1).compute()
                 client.scatter(to_collate) 
             del zip_batch_files, zip_batch_object_names, zip_batch_sizes
