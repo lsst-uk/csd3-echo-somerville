@@ -303,11 +303,9 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, local_dir, fo
 
     file_size = os.path.getsize(filename)
     use_future = False
-    print('t1', flush=True)
+    
     if file_size > 10 * 1024**3:
-        print('t2', flush=True)
         if not dryrun:
-            print('t3', flush=True)
             print(f'WARNING: File size of {file_size} bytes exceeds memory per worker of {mem_per_worker} bytes.', flush=True)
             print('Running upload_object.py.', flush=True)
             print('This upload WILL NOT be checksummed or tracked!', flush=True)
