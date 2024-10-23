@@ -751,7 +751,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             if len(sub_folders) > 0:
                 len_pre_exclude = len(sub_folders)
                 sub_folders[:] = [sub_folder for sub_folder in sub_folders if not exclude.isin([sub_folder]).any()]
-                print(f'Skipping {len_pre_exclude - len(sub_folders)} subfolders in {folder} - excluded. {len(sub_folders)} subfolders remaining.'), flush=True
+                print(f'Skipping {len_pre_exclude - len(sub_folders)} subfolders in {folder} - excluded. {len(sub_folders)} subfolders remaining.', flush=True)
 
             folder_files = [os.sep.join([folder, filename]) for filename in files]
 
