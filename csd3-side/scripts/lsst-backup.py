@@ -735,23 +735,23 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             # if save_collate_file:
             #     if folder in scanned_list:
             #         continue
-            print(f'Processing {folder_num}/{total_all_folders} folders; {file_num}/{total_all_files} files in {local_dir}.')
+            print(f'Processing {folder_num}/{total_all_folders} folders; {file_num}/{total_all_files} files in {local_dir}.', flush=True)
             
             # check if folder is in the exclude list
             if len(files) == 0 and len(sub_folders) == 0:
-                print(f'Skipping subfolder - no files or subfolders.')
+                print(f'Skipping subfolder - no files or subfolders.', flush=True)
                 continue
             elif len(files) == 0:
-                print(f'Skipping subfolder - no files.')
+                print(f'Skipping subfolder - no files.', flush=True)
                 continue
             if exclude.isin([folder]).any():
-                print(f'Skipping subfolder {folder} - excluded.')
+                print(f'Skipping subfolder {folder} - excluded.', flush=True)
                 continue
             # remove subfolders in exclude list
             if len(sub_folders) > 0:
                 len_pre_exclude = len(sub_folders)
                 sub_folders[:] = [sub_folder for sub_folder in sub_folders if not exclude.isin([sub_folder]).any()]
-                print(f'Skipping {len_pre_exclude - len(sub_folders)} subfolders in {folder} - excluded. {len(sub_folders)} subfolders remaining.')
+                print(f'Skipping {len_pre_exclude - len(sub_folders)} subfolders in {folder} - excluded. {len(sub_folders)} subfolders remaining.'), flush=True
 
             folder_files = [os.sep.join([folder, filename]) for filename in files]
 
@@ -762,21 +762,21 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         del f
             for filename in folder_files:
                 if exclude.isin([os.path.relpath(filename, local_dir)]).any():
-                    print(f'Skipping file {filename} - excluded.')
+                    print(f'Skipping file {filename} - excluded.', flush=True)
                     folder_files.remove(filename)
                     if len(folder_files) == 0:
-                        print(f'Skipping subfolder - no files - see exclusions.')
+                        print(f'Skipping subfolder - no files - see exclusions.', flush=True)
                     continue
                 try:
                     sizes.append(os.stat(filename).st_size)
                 except PermissionError:
-                    print(f'WARNING: Permission error reading {filename}. File will not be backed up.')
+                    print(f'WARNING: Permission error reading {filename}. File will not be backed up.', flush=True)
                     try:
                         folder_files.remove(filename)
                     except ValueError:
                         pass
                     if len(folder_files) == 0:
-                        print(f'Skipping subfolder - no files - see permissions warning(s).')
+                        print(f'Skipping subfolder - no files - see permissions warning(s).', flush=True)
                         continue
             total_filesize = sum(sizes)
             if total_filesize > 0:
@@ -795,10 +795,10 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         try:
                             subfiles_sizes.append(os.stat(filename).st_size)
                         except PermissionError:
-                            print(f'WARNING: Permission error reading {filename}. File will not be backed up.')
+                            print(f'WARNING: Permission error reading {filename}. File will not be backed up.', flush=True)
                             subfolder_files.remove(filename)
                             if len(subfolder_files) == 0:
-                                print(f'Skipping subfolder - no files - see permissions warning(s).')
+                                print(f'Skipping subfolder - no files - see permissions warning(s).', flush=True)
                                 continue
                     total_subfilesize = sum(subfiles_sizes)
                     if not sub_sub_folders and len(sub_files) < 4 and total_subfilesize < 96*1024**2:
@@ -806,7 +806,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                         # upload files in subfolder "as is" i.e., no zipping
 
             # check folder isn't empty
-            print(f'Processing {len(folder_files)} files (total size: {total_filesize/1024**2:.0f} MiB) in {folder} with {len(sub_folders)} subfolders.')
+            print(f'Processing {len(folder_files)} files (total size: {total_filesize/1024**2:.0f} MiB) in {folder} with {len(sub_folders)} subfolders.', flush=True)
 
             # keys to files on s3
             object_names = [os.sep.join([destination_dir, os.path.relpath(filename, local_dir)]) for filename in folder_files]
@@ -822,12 +822,12 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     #all files in this subfolder already in bucket
                     # print(current_objects['CURRENT_OBJECTS'])
                     # print(object_names)
-                    print(f'Skipping subfolder - all files exist.')
+                    print(f'Skipping subfolder - all files exist.', flush=True)
                     continue
             
 
             if mean_filesize > max_zip_batch_size or not global_collate:
-                print('Individual upload.')
+                print('Individual upload.', flush=True)
                 # all files within folder
                 # if uploading file individually, remove existing files from object_names
                 if not current_objects.empty:
@@ -837,7 +837,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                             del folder_files[oni]
                 pre_linkcheck_file_count = len(object_names)
                 if init_len - pre_linkcheck_file_count > 0:
-                    print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.')
+                    print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.', flush=True)
                 #always do this AFTER removing "current_objects" to avoid re-uploading
                 symlink_targets = []
                 symlink_obj_names = []
@@ -861,9 +861,9 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 folder_files_size = np.sum(np.array([os.stat(filename).st_size for filename in folder_files]))
                 total_size_uploaded += folder_files_size
                 total_files_uploaded += file_count
-                print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink')
+                print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink', flush=True)
 
-                print(f'Sending {file_count} files (total size: {folder_files_size/1024**2:.0f} MiB) in {folder} to S3 bucket {bucket_name}.')
+                print(f'Sending {file_count} files (total size: {folder_files_size/1024**2:.0f} MiB) in {folder} to S3 bucket {bucket_name}.', flush=True)
                 print(f'Individual files objects names: {object_names}', flush=True)
                 
                 try:
@@ -908,7 +908,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 # release block of files if the list for results is greater than 4 times the number of processes
 
             elif len(folder_files) > 0 and global_collate: # small files in folder
-                print('Collated upload.')
+                print('Collated upload.', flush=True)
                 if not os.path.exists(collate_list_file):
                     # Existing object removal
                     if not current_objects.empty:
@@ -919,7 +919,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
                     pre_linkcheck_file_count = len(object_names)
                     if init_len - pre_linkcheck_file_count > 0:
-                        print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.')
+                        print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.', flush=True)
 
                     symlink_targets = []
                     symlink_obj_names = []
@@ -960,7 +960,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                             size = s
 
                     folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
-                    print(f'Number of zip files: {len(zip_batch_files)}')
+                    print(f'Number of zip files: {len(zip_batch_files)}', flush=True)
             print('', flush=True)
         
     if global_collate:
@@ -974,12 +974,12 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     if current_objects['METADATA'].isin([cmp]).any():
                         existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
                         if all([x in existing_zip_contents for x in cmp]):
-                            print(f'Zip file {destination_dir}/collated_{i+1}.zip already exists and file lists match - skipping.')
+                            print(f'Zip file {destination_dir}/collated_{i+1}.zip already exists and file lists match - skipping.', flush=True)
                             zip_batch_object_names.pop(i)
                             zip_batch_files.pop(i)
                             continue
                         else:
-                            print(f'Zip file {destination_dir}/collated_{i+1}.zip already exists but file lists do not match - reuploading.')
+                            print(f'Zip file {destination_dir}/collated_{i+1}.zip already exists but file lists do not match - reuploading.', flush=True)
 
             # Create dict for zip files
             for i in range(len(zip_batch_files)):
@@ -1012,17 +1012,17 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                     if current_objects['METADATA'].isin([cmp]).any():
                         existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
                         if all([x in existing_zip_contents for x in cmp]):
-                            print(f'Zip file {destination_dir}/collated_{i+1}.zip from {collate_list_file} already exists and file lists match - skipping.')
+                            print(f'Zip file {destination_dir}/collated_{i+1}.zip from {collate_list_file} already exists and file lists match - skipping.', flush=True)
                             droplist.append(i)
                         else:
-                            print(f'Zip file {destination_dir}/collated_{i+1}.zip from {collate_list_file} already exists but file lists do not match - reuploading.')
+                            print(f'Zip file {destination_dir}/collated_{i+1}.zip from {collate_list_file} already exists but file lists do not match - reuploading.', flush=True)
                 to_collate.drop(droplist, inplace=True)
         if save_collate_file:
-            print(f'Saving collate list to {collate_list_file}, len={len(to_collate)}.')
+            print(f'Saving collate list to {collate_list_file}, len={len(to_collate)}.', flush=True)
             # with open(collate_list_file, 'w') as f:
             to_collate.to_csv(collate_list_file, index=False)
         else:
-            print(f'Collate list not saved.')
+            print(f'Collate list not saved.', flush=True)
         # client.scatter(to_collate)
 
     if len(to_collate) > 0:
