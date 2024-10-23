@@ -1009,15 +1009,11 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 for i in range(len(to_collate['object_names'])):
                     # print(zip_object_names)
                     cmp = [x.replace(destination_dir+'/', '') for x in to_collate.iloc[i]['object_names']]
-                    print(cmp)
-                    print(current_objects['METADATA'])
                     if current_objects['METADATA'].isin([cmp]).any():
-                        print('in if')
                         existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
                         if all([x in existing_zip_contents for x in cmp]):
                             print(f'Zip file {destination_dir}/collated_{i+1}.zip from {collate_list_file} already exists and file lists match - skipping.')
                             droplist.append(i)
-                            continue
                         else:
                             print(f'Zip file {destination_dir}/collated_{i+1}.zip from {collate_list_file} already exists but file lists do not match - reuploading.')
                 to_collate.drop(droplist, inplace=True)
