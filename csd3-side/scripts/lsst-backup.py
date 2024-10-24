@@ -153,7 +153,6 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
     # zips now placed at top level of backup == local_dir
     zip_object_key = os.sep.join([destination_dir, os.path.relpath(f'{local_dir}/collated_{id}.zip', local_dir)])
     print(f'zip_object_key: {zip_object_key}', flush=True)
-    print(namelist, flush=True)
     if namelist == []:
         print(f'No files to upload in zip file.')
         return None, zip_object_key #+' nothing to upload'
