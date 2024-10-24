@@ -156,7 +156,7 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
     print(namelist, flush=True)
     if namelist == []:
         print(f'No files to upload in zip file.')
-        return zip_object_key+' nothing to upload'
+        return None, zip_object_key #+' nothing to upload'
     else:
         print(f'Uploading zip file containing {len(file_paths)} files to S3 bucket {bucket_name} to key {zip_object_key}.', flush=True)
         # with annotate(parent_folder=parent_folder):
@@ -1057,9 +1057,14 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     print('Monitoring zip tasks.', flush=True)
     for f in as_completed(zul_futures):
         result = f.result()
-        upload_futures.append(result[0])
-        to_collate = to_collate[to_collate.object_names != result[1]]
-        print(f'Zip {result[1]} created and added to upload queue.', flush=True)
+        if result[0] is not None:
+            upload_futures.append(result[0])
+            to_collate = to_collate[to_collate.object_names != result[1]]
+            print(f'Zip {result[1]} created and added to upload queue.', flush=True)
+            del f
+        else:
+            print(f'No files to zip as {result[1]}. Skipping upload.', flush=True)
+            del f
 
     # fire_and_forget(upload_futures)
     for f in as_completed(upload_futures):
