@@ -21,3 +21,4 @@ with tqdm.tqdm(total=total) as pbar:
                     if prog > progress:
                         progress = prog
                         pbar.update(progress)
+                        break
