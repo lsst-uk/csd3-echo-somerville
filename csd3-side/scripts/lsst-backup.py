@@ -728,7 +728,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     if file_count_stop:
         total_non_collate_zip = len(current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_') == False])
         if total_non_collate_zip == total_all_files:
-            print(f'Number of existing objects equal to number of local files given the same prefix ({total_all_files}).')
+            print(f'Number of existing objects (excluding collated zips) equal to number of local files given the same prefix ({total_all_files}).')
             print('This is a soft verification that the entire local dataset has been uploaded previously.')
             print('Exiting. To prevent this behavior set `--no-file-count-stop` to True.', flush=True)
             sys.exit()
