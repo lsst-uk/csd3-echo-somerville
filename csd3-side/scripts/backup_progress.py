@@ -19,6 +19,7 @@ with tqdm.tqdm(total=total) as pbar:
                 if 'Folders: ' in line and '; Files: ' in line:
                     prog = float(line.split()[1].strip().translate(str.maketrans('', '', string.punctuation)))
                     if prog > progress:
+                        
+                        pbar.update(prog - progress)
                         progress = prog
-                        pbar.update(progress)
                         break
