@@ -730,7 +730,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         if total_non_collate_zip == total_all_files:
             print(f'Number of existing objects (excluding collated zips) equal to number of local files given the same prefix ({total_all_files}).')
             print('This is a soft verification that the entire local dataset has been uploaded previously.')
-            print('Exiting. To prevent this behavior set `--no-file-count-stop` to True.', flush=True)
+            print('Exiting. To prevent this behavior and force per-file verification, set `--no-file-count-stop` to True.', flush=True)
             sys.exit()
     if not os.path.exists(collate_list_file):
         print(f'Preparing to upload {total_all_files} files in {total_all_folders} folders from {local_dir} to {bucket_name}/{destination_dir}.', flush=True)
@@ -1307,6 +1307,7 @@ if __name__ == '__main__':
     current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
     
     print(f'Current objects (with matching prefix): {len(current_objects)}', flush=True)
+    print(f'Current objects (with matching prefix; excluding collated zips): {len(current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_') == False])}', flush=True)
     if not current_objects.empty:
         print('Obtaining current object metadata.')
         current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, bucket=bucket)
