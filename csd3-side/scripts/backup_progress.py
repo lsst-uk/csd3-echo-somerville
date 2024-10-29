@@ -13,7 +13,7 @@ with open(logp, 'r') as logf:
         if 'Folders: ' in line and ' Files: ' in line:
             total = int(line.split()[3].strip())
             break
-with tqdm.tqdm(total=total) as pbar:
+with tqdm.tqdm(total=total, desc='Upload Progress (file count)') as pbar:
     progress = 0
     prev_len = 0
     while True:
