@@ -719,10 +719,12 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     #     scanned_list_file = collate_list_file + '.scanned'
     #     scanned_dicts_file = collate_list_file + '.scanned_dicts'
 
-    print(f'Analysing local dataset {local_dir}.')
+    print(f'Analysing local dataset {local_dir}.', flush=True)
     for folder, sub_folders, files in os.walk(local_dir, topdown=True):
         total_all_folders += 1
         total_all_files += len(files)
+        print('.', end='', flush=True)
+    print()
     print(f'Folders: {total_all_folders} Files: {total_all_files}', flush=True)
     if file_count_stop:
         total_non_collate_zip = len(current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_') == False])
