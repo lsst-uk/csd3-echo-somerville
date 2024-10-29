@@ -27,8 +27,11 @@ with tqdm.tqdm(total=total) as pbar:
             for line in logc:
                 if 'collated_' in line:
                     prog = len(line.split('"')[-2].split(','))
+                    print(prog)
                 else:
                     prog = 1
+                    print(prog)
                 pbar.update(prog - progress)
                 progress = prog
+                print(progress)
                 
