@@ -30,8 +30,8 @@ with tqdm.tqdm(total=total, desc='Upload Progress (file count)') as pbar:
                     prog += len(line.split('"')[-2].split(','))
                 elif 'LOCAL_FOLDER' not in line:
                     prog += 1
-                print(prog)
+                # print(prog)
             pbar.update(prog - progress)
             progress = prog
-            print(progress)
+            # print(progress)
                 
