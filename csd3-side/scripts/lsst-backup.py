@@ -723,7 +723,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     for folder, sub_folders, files in os.walk(local_dir, topdown=True):
         total_all_folders += 1
         total_all_files += len(files)
-        print('.', end='', flush=True)
+        if total_all_folders % 1000 == 0:
+            print('.', end='', flush=True)
     print()
     print(f'Folders: {total_all_folders} Files: {total_all_files}', flush=True)
     if file_count_stop and len(current_objects) > 0:
