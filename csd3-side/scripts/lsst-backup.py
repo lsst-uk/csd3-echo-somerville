@@ -726,7 +726,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         print('.', end='', flush=True)
     print()
     print(f'Folders: {total_all_folders} Files: {total_all_files}', flush=True)
-    if file_count_stop:
+    if file_count_stop and len(current_objects) > 0:
         total_non_collate_zip = len(current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_') == False])
         if total_non_collate_zip == total_all_files:
             print(f'Number of existing objects (excluding collated zips) equal to number of local files given the same prefix ({total_all_files}).')
