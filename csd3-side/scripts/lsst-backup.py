@@ -723,8 +723,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     for folder, sub_folders, files in os.walk(local_dir, topdown=True):
         total_all_folders += 1
         total_all_files += len(files)
-        print(f'Folders: {total_all_folders}; Files: {total_all_files}.', flush=True, end='\r')
-    print()
+        print(f'F{"f"*total_all_files}', flush=True, end='')
+    print(f'Folders: {total_all_folders} Files: {total_all_files}', flush=True)
     if file_count_stop:
         total_non_collate_zip = len(current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_') == False])
         if total_non_collate_zip == total_all_files:
