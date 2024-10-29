@@ -18,20 +18,20 @@ with tqdm.tqdm(total=total) as pbar:
     prev_len = 0
     while True:
         with open(logcsv, 'r') as logc:
-            if len(logc.readlines()) > prev_len:
+            if len(logc.readlines()) - 1 > prev_len:
                 logc.seek(0)
-                prev_len = len(logc.readlines())
+                prev_len = len(logc.readlines()) - 1
                 logc.seek(0)
             else:
                 continue
+            prog = 0
             for line in logc:
                 if 'collated_' in line:
-                    prog = len(line.split('"')[-2].split(','))
-                    print(prog)
-                else:
-                    prog = 1
-                    print(prog)
-                pbar.update(prog - progress)
-                progress = prog
-                print(progress)
+                    prog += len(line.split('"')[-2].split(','))
+                elif 'LOCAL_FOLDER' not in line:
+                    prog += 1
+                print(prog)
+            pbar.update(prog - progress)
+            progress = prog
+            print(progress)
                 
