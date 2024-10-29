@@ -709,7 +709,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     upload_futures = []
     zul_futures = []
     failed = []
-    max_zip_batch_size = 1024*1024**2
+    max_zip_batch_size = 512*1024**2
     zip_batch_files = [[]]
     zip_batch_object_names = [[]]
     zip_batch_sizes = [0]
