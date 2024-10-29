@@ -11,7 +11,7 @@ total = 0
 with open(logp, 'r') as logf:
     for line in logf:
         if 'Folders: ' in line and ' Files: ' in line:
-            total = float(line.split()[3].strip())
+            total = int(line.split()[3].strip())
             break
 with tqdm.tqdm(total=total) as pbar:
     progress = 0
