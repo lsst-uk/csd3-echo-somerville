@@ -1308,9 +1308,10 @@ if __name__ == '__main__':
     current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
     
     print(f'Current objects (with matching prefix): {len(current_objects)}', flush=True)
-    print(f"Current objects (with matching prefix; excluding collated zips): {len(current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_') == False])}", flush=True)
+    
     if not current_objects.empty:
-        print('Obtaining current object metadata.')
+        print(f"Current objects (with matching prefix; excluding collated zips): {len(current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_') == False])}", flush=True)
+        print('Obtaining current object metadata.', flush=True)
         current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, bucket=bucket)
         print()
     else:
