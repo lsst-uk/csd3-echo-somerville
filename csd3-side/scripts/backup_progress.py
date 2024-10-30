@@ -5,9 +5,7 @@ import os
 
 logp = sys.argv[1]
 logcsv = sys.argv[2]
-
 total = 0
-
 with open(logp, 'r') as logf:
     for line in logf:
         if 'Folders: ' in line and ' Files: ' in line:
@@ -30,8 +28,5 @@ with tqdm.tqdm(total=total, desc='Upload Progress (file count)') as pbar:
                     prog += len(line.split('"')[-2].split(','))
                 elif 'LOCAL_FOLDER' not in line:
                     prog += 1
-                # print(prog)
             pbar.update(prog - progress)
             progress = prog
-            # print(progress)
-                
