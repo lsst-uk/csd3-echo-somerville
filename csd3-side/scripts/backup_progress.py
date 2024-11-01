@@ -37,6 +37,7 @@ while True:
             total_size += int(line.split(',')[2])
         if total_size > prev_total_size:
             prev_total_size = total_size
+            print(prev_total_size)
         if started:
             pbar_count.update(prog - progress)
             pbar_size.update(total_size - prev_total_size)
