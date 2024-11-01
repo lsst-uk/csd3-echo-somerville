@@ -39,6 +39,6 @@ while True:
             prev_total_size = total_size
         if started:
             pbar_count.update(prog - progress)
-            pbar_size.update((total_size - prev_total_size) / (1024 * 1024))
+            pbar_size.update(total_size - prev_total_size)
             progress = prog
             prev_total_size = total_size
