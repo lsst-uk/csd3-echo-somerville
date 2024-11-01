@@ -31,13 +31,10 @@ while True:
             continue
         prog = 0
         total_size = 0
-        for line in logc:
+        for line in logc.readlines()[1:]:
             if 'collated_' in line:
                 prog += len(line.split('"')[-2].split(','))
-            elif not 'LOCAL_FOLDER' in line:
-                prog += 1
-            if not 'LOCAL_FOLDER' in line:
-                total_size += int(line.split(',')[2])
+            total_size += int(line.split(',')[2])
         if total_size > prev_total_size:
             prev_total_size = total_size
         if started:
