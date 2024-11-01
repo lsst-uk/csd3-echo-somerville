@@ -19,8 +19,8 @@ started = False
 
 while True:
     if prev_len > 0 and prev_total_size > 0 and not started:
-        pbar_count = tqdm.tqdm(total=total, desc='Upload Progress (file count)', position=tqdm._get_free_pos())
-        pbar_size = tqdm.tqdm(total=0, desc='Upload Progress (file size / MiB)', position=tqdm._get_free_pos())
+        pbar_count = tqdm.tqdm(total=total, desc='Upload Progress (file count)', position=0)
+        pbar_size = tqdm.tqdm(total=0, desc='Upload Progress (file size / MiB)', position=1)
         started = True
     with open(logcsv, 'r') as logc:
         if len(logc.readlines()) - 1 > prev_len:
