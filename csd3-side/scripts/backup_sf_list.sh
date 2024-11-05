@@ -9,4 +9,5 @@ do
         date >> ${sf}_timings.log
         python ../../../scripts/lsst-backup.py --config-file $sf.yaml > $sf.log 2> $sf.err
         date >> ${sf}_timings.log
+        cd ..
 done
