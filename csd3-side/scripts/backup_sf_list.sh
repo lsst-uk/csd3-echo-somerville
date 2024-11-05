@@ -1,5 +1,5 @@
 #!/bin/bash
-sf_listi_path=$1
+sf_list_path=$1
 template_path=$2
 for sf in $(cat $sf_list_path);
 do
