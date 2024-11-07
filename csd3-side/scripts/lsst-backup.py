@@ -129,13 +129,20 @@ def mem_check(futures):
 def remove_duplicates(l: list[dict]) -> list[dict]:
     return pd.DataFrame(l).drop_duplicates().to_dict(orient='records')
 
-def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir, local_dir, file_paths, total_size_uploaded, total_files_uploaded, use_compression, dryrun, id, mem_per_worker, perform_checksum) -> tuple[str, int, bytes]:
+def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir, local_dir, file_paths, total_size_uploaded, total_files_uploaded, use_compression, dryrun, id, mem_per_worker, perform_checksum, len_zul_futures) -> tuple[str, int, bytes]:
     # print('in zip_and_upload', flush=True)
     #############
     #  zip part #
     #############
     client = get_client()
     # with annotate(parent_folder=parent_folder):
+    mem_half_full = len_zul_futures*len(zip_data) > len(client.scheduler_info()['workers'])*mem_per_worker / 2
+    if mem_half_full:
+        print('Waiting for memory to clear', flush=True)
+        wait_time = datetime.now()
+    while mem_half_full:
+        print(f'Waiting: {(datetime.now() - wait_time).seconds}', flush=True)
+        pass
     zip_data, namelist = client.submit(zip_folders,
         local_dir, 
         file_paths, 
@@ -1055,6 +1062,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 i,
                 mem_per_worker,
                 perform_checksum,
+                len(zul_futures)
             ))
             # mem_check(zul_futures)
     
