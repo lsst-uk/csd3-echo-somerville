@@ -135,17 +135,14 @@ def mem_check(futures):
 def remove_duplicates(l: list[dict]) -> list[dict]:
     return pd.DataFrame(l).drop_duplicates().to_dict(orient='records')
 
-def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir, local_dir, file_paths, total_size_uploaded, total_files_uploaded, use_compression, dryrun, id, mem_per_worker, perform_checksum, len_zul_futures) -> tuple[str, int, bytes]:
+def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir, local_dir, file_paths, total_size_uploaded, total_files_uploaded, use_compression, dryrun, id, mem_per_worker, perform_checksum) -> tuple[str, int, bytes]:
     # print('in zip_and_upload', flush=True)
     #############
     #  zip part #
     #############
     client = get_client()
     # with annotate(parent_folder=parent_folder):
-    mem_half_full = len_zul_futures*np.sum(np.array([os.stat(fp).st_size for fp in file_paths])) > len(client.scheduler_info()['workers'])*mem_per_worker / 2
-    if mem_half_full:
-        print('Waiting for memory to clear', flush=True)
-        client.run(trim_memory)
+    
     zip_data, namelist = client.submit(zip_folders,
         local_dir, 
         file_paths, 
@@ -1048,7 +1045,15 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         # print(to_collate)
         # print(type(to_collate.iloc[0]['file_paths']))
         # exit()
+
+
         for i in range(len(to_collate)):
+            mem_half_full = len(zul_futures)*np.sum(np.array([os.stat(fp).st_size for fp in to_collate.iloc[i]['file_paths']])) > len(client.scheduler_info()['workers'])*mem_per_worker / 2
+            if mem_half_full:
+                print('Trimming memory', flush=True)
+                client.run(trim_memory)
+
+
             zul_futures.append(client.submit(
                 zip_and_upload,
                 s3_host,
@@ -1064,8 +1069,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
                 dryrun,
                 i,
                 mem_per_worker,
-                perform_checksum,
-                len(zul_futures)
+                perform_checksum
             ))
             # mem_check(zul_futures)
     
