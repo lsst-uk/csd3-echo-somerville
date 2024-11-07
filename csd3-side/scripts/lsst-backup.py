@@ -136,7 +136,7 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
     #############
     client = get_client()
     # with annotate(parent_folder=parent_folder):
-    mem_half_full = len_zul_futures*len(zip_data) > len(client.scheduler_info()['workers'])*mem_per_worker / 2
+    mem_half_full = len_zul_futures*np.sum(np.array([os.stat(fp).st_size for fp in file_paths])) > len(client.scheduler_info()['workers'])*mem_per_worker / 2
     if mem_half_full:
         print('Waiting for memory to clear', flush=True)
         wait_time = datetime.now()
