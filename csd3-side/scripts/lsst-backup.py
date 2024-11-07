@@ -45,6 +45,12 @@ import subprocess
 
 from typing import List
 
+import ctypes
+
+def trim_memory() -> int:
+    libc = ctypes.CDLL("libc.so.6")
+    return libc.malloc_trim(0)
+
 
 def to_rds_path(home_path: str, local_dir: str) -> str:
     # get base folder for rds- folders
@@ -139,10 +145,7 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
     mem_half_full = len_zul_futures*np.sum(np.array([os.stat(fp).st_size for fp in file_paths])) > len(client.scheduler_info()['workers'])*mem_per_worker / 2
     if mem_half_full:
         print('Waiting for memory to clear', flush=True)
-        wait_time = datetime.now()
-    while mem_half_full:
-        print(f'Waiting: {(datetime.now() - wait_time).seconds}', flush=True)
-        pass
+        client.run(trim_memory)
     zip_data, namelist = client.submit(zip_folders,
         local_dir, 
         file_paths, 
