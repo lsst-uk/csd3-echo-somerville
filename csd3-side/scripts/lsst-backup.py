@@ -45,11 +45,11 @@ import subprocess
 
 from typing import List
 
-import ctypes
+# import ctypes
 
-def trim_memory() -> int:
-    libc = ctypes.CDLL("libc.so.6")
-    return libc.malloc_trim(0)
+# def trim_memory() -> int:
+#     libc = ctypes.CDLL("libc.so.6")
+#     return libc.malloc_trim(0)
 
 
 def to_rds_path(home_path: str, local_dir: str) -> str:
