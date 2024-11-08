@@ -130,6 +130,7 @@ def mem_check(futures):
             high_mem_workers.append(w[1]['id'])
     if high_mem_workers:
         print(f'High memory usage on workers: {high_mem_workers}.')
+        client.rebalance()
         wait(futures)
 
 
@@ -1089,7 +1090,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
             #     print('Rebalancing memory.', flush=True)
             #     client.rebalance()
 
-            mem_check(zul_futures)
+            mem_check(zul_futures+upload_futures)
             zul_futures.append(client.submit(
                 zip_and_upload,
                 s3_host,
