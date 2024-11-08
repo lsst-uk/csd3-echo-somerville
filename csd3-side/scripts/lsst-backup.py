@@ -1050,8 +1050,27 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         for i in range(len(to_collate)):
             mem_half_full = len(zul_futures)*np.sum(np.array([os.stat(fp).st_size for fp in to_collate.iloc[i]['file_paths']])) > len(client.scheduler_info()['workers'])*mem_per_worker / 2
             if mem_half_full:
-                print('Trimming memory', flush=True)
-                client.run(trim_memory)
+                # clear up finished futures, but don't block
+                for f in zul_futures:
+                    result = f.result()
+                    if result[0] is not None:
+                        upload_futures.append(result[0])
+                        to_collate = to_collate[to_collate.object_names != result[1]]
+                        print(f'Zip {result[1]} created and added to upload queue.', flush=True)
+                        del f
+                    else:
+                        print(f'No files to zip as {result[1]}. Skipping upload.', flush=True)
+                        del f
+                if len(upload_futures) > 0:
+                    if sum([f.status == 'finished' for f in upload_futures]) > 0:
+                        for f in upload_futures:
+                            if 'exception' in f.status and f not in failed:
+                                f_tuple = f.exception(), f.traceback()
+                                del f
+                                if f_tuple not in failed:
+                                    failed.append(f_tuple)
+                            elif 'finished' in f.status:
+                                del f
 
 
             zul_futures.append(client.submit(
