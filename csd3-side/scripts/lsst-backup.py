@@ -1050,7 +1050,8 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         for i in range(len(to_collate)):
             mem_half_full = len(zul_futures)*np.sum(np.array([os.stat(fp).st_size for fp in to_collate.iloc[i]['file_paths']])) > len(client.scheduler_info()['workers'])*mem_per_worker / 2
             if mem_half_full:
-                # clear up finished futures, but don't block
+                # clean up finished futures, but don't block
+                print(f'Memory is half full. Cleaning up finished futures.', flush=True)
                 for f in zul_futures:
                     result = f.result()
                     if result[0] is not None:
