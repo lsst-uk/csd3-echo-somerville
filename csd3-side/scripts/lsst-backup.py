@@ -19,6 +19,7 @@ Returns:
 import sys
 import os
 from itertools import repeat
+from time import sleep
 import warnings
 from datetime import datetime, timedelta
 import hashlib
@@ -142,15 +143,28 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
     #############
     client = get_client()
     # with annotate(parent_folder=parent_folder):
-    
-    zip_data, namelist = client.submit(zip_folders,
+    zip_future = client.submit(zip_folders,
         local_dir, 
         file_paths, 
         use_compression, 
         dryrun, 
         id, 
         mem_per_worker
-        ).result()
+        )
+    def get_zip_future(future):
+        return future.result()
+    tries = 0
+    zip_data = None
+    namelist = None
+    while tries < 5:
+        try:
+            zip_data, namelist = get_zip_future(zip_future)
+            tries += 1
+        except Exception as e:
+            sleep(5)
+            print(f'Zip future timed out {tries}/5')
+    if zip_data is None and namelist is None:
+        raise Exception('Zip future timed out 5 times.')
     # if len(zip_data) > mem_per_worker/2:
     # print('Scattering zip data.')
     # scattered_zip_data = client.scatter(zip_data)
