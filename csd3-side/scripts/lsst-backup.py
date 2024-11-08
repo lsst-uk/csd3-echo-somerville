@@ -1128,11 +1128,10 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
 
     # fire_and_forget(upload_futures)
     for f in as_completed(upload_futures):
-        if 'exception' in f.status and f not in failed:
+        if 'exception' in f.status or 'error' in f.status:
             f_tuple = f.exception(), f.traceback()
+            failed.append(f_tuple)
             del f
-            if f_tuple not in failed:
-                failed.append(f_tuple)
         elif 'finished' in f.status:
             del f
 
