@@ -1269,7 +1269,7 @@ if __name__ == '__main__':
     save_config = args.save_config
     api = args.api.lower()
     if api not in ['s3', 'swift']:
-        parser.error('API must be "s3" or "swift". Case insensitive.')
+        parser.error('API must be "S3" or "Swift" (case insensitive).')
     bucket_name = args.bucket_name
     local_dir = args.local_path
     if not os.path.exists(local_dir):
@@ -1375,7 +1375,7 @@ if __name__ == '__main__':
         s3_host = 'echo.stfc.ac.uk'
     elif api == 'swift':
         s3_host = 'https://s3.echo.stfc.ac.uk/auth/1.0'
-    print(f'Using {api} API with host {s3_host}')
+    print(f'Using {api.capitalize()} API with host {s3_host}')
     try:
         keys = bm.get_keys(api)
     except KeyError as e:
