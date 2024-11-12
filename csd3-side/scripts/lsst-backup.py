@@ -1196,7 +1196,7 @@ if __name__ == '__main__':
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument('--config-file', type=str, help='Path to the configuration YAML file.')
-    parser.add_argument('--api', default='s3', type=str, help='API to use; "S3" or "Swift". Case insensitive.')
+    parser.add_argument('--api', type=str, help='API to use; "S3" or "Swift". Case insensitive.')
     parser.add_argument('--collate-list-file', type=str, help='The path to a CSV file containing a list of dicts describing files and folders to collate.')
     parser.add_argument('--bucket-name', type=str, help='Name of the S3 bucket.')
     parser.add_argument('--local-path', type=str, help='Absolute path to the folder to be uploaded.')
@@ -1260,6 +1260,8 @@ if __name__ == '__main__':
                     args.no_file_count_stop = config['no_file_count_stop']
                 if 'api' in config.keys() and not args.api:
                     args.api = config['api']
+                if 'api' not in config.keys() and not args.api:
+                    args.api = 's3'
 
     if args.save_config and not args.config_file:
         parser.error('A config file must be provided to save the configuration.')
