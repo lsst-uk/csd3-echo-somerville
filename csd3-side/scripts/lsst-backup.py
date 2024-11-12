@@ -1438,7 +1438,7 @@ if __name__ == '__main__':
         if api == 's3':
             current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, bucket=bucket)
         elif api == 'swift':
-            current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata_swift, s3=s3, bucket_name=bucket_name)
+            current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata_swift, conn=s3, container_name=bucket_name)
         print()
     else:
         current_objects['METADATA'] = None
