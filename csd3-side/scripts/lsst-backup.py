@@ -1161,6 +1161,7 @@ if __name__ == '__main__':
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument('--config-file', type=str, help='Path to the configuration YAML file.')
+    parser.add_argument('--api', default='s3', type=str, help='API to use; "S3" or "Swift". Case insensitive.')
     parser.add_argument('--collate-list-file', type=str, help='The path to a CSV file containing a list of dicts describing files and folders to collate.')
     parser.add_argument('--bucket-name', type=str, help='Name of the S3 bucket.')
     parser.add_argument('--local-path', type=str, help='Absolute path to the folder to be uploaded.')
@@ -1180,7 +1181,7 @@ if __name__ == '__main__':
 
     if not args.config_file and not (args.bucket_name and args.local_path and args.S3_prefix):
         parser.error('If a config file is not provided, the bucket name, local path, and S3 prefix must be provided.')
-    if args.config_file and (args.bucket_name or args.local_path or args.S3_prefix or args.S3_folder or args.exclude or args.nprocs or args.threads_per_worker or args.no_collate or args.dryrun or args.no_checksum or args.no_compression):
+    if args.config_file and (args.api or args.bucket_name or args.local_path or args.S3_prefix or args.S3_folder or args.exclude or args.nprocs or args.threads_per_worker or args.no_collate or args.dryrun or args.no_checksum or args.no_compression or args.save_config or args.no_save_collate_list or args.no_file_count_stop):
         print(f'WARNING: Options provide on command line override options in {args.config_file}.')
     if args.config_file:
         config_file = args.config_file
@@ -1221,10 +1222,16 @@ if __name__ == '__main__':
                     args.no_save_collate_list = config['no_save_collate_list']
                 if 'no_file_count_stop' in config.keys() and not args.no_file_count_stop:
                     args.no_file_count_stop = config['no_file_count_stop']
+                if 'api' in config.keys() and not args.api:
+                    args.api = config['api']
+
     if args.save_config and not args.config_file:
         parser.error('A config file must be provided to save the configuration.')
 
     save_config = args.save_config
+    api = args.api.lower()
+    if api not in ['s3', 'swift']:
+        parser.error('API must be "s3" or "swift". Case insensitive.')
     bucket_name = args.bucket_name
     local_dir = args.local_path
     if not os.path.exists(local_dir):
@@ -1267,6 +1274,7 @@ if __name__ == '__main__':
         with open(config_file, 'w') as f:
             yaml.dump({
                 'bucket_name': bucket_name,
+                'api': api,
                 'local_path': local_dir,
                 'S3_prefix': prefix,
                 'S3_folder': sub_dirs,
@@ -1325,9 +1333,12 @@ if __name__ == '__main__':
                 logfile.write('LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS\n')
     
     # Setup bucket
-    s3_host = 'echo.stfc.ac.uk'
+    if api == 's3':
+        s3_host = 'echo.stfc.ac.uk'
+    elif api == 'swift':
+        s3_host = 's3.echo.stfc.ac.uk/auth/1.0'
     try:
-        keys = bm.get_keys()
+        keys = bm.get_keys(api)
     except KeyError as e:
         print(f'KeyError {e}', file=sys.stderr)
         sys.exit()
