@@ -1433,7 +1433,10 @@ if __name__ == '__main__':
 
     # try:
     with Client(n_workers=n_workers,threads_per_worker=threads_per_worker,memory_limit=mem_per_worker) as client:
-
+        print(f'Dask Client: {client}', flush=True)
+        print(f'Dashboard: {client.dashboard_link}', flush=True)
+        print(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}')
+        print(f'Using {nprocs} processes.')
 
         # while not success:
         print(f'Getting current object list for {bucket_name}. This may take some time.\nStarting at {datetime.now()}, elapsed time = {datetime.now() - start}', flush=True)
@@ -1481,10 +1484,6 @@ if __name__ == '__main__':
         while local_dir[-1] == '/':
             local_dir = local_dir[:-1]
     
-        print(f'Dask Client: {client}', flush=True)
-        print(f'Dashboard: {client.dashboard_link}', flush=True)
-        print(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}')
-        print(f'Using {nprocs} processes.')
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore')
             process_files(s3_host,access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, perform_checksum, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_list, file_count_stop)
