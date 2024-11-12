@@ -21,7 +21,7 @@ def print_buckets(resource) -> None:
     for b in resource.buckets.all():
         print(b.name)
     
-def get_keys(api: str ='S3') -> None:
+def get_keys(api: str ='s3') -> None:
     """
     Retrieves the access key and secret key for the specified API.
 
@@ -32,14 +32,14 @@ def get_keys(api: str ='S3') -> None:
     For S3 API: a dictionary containing the access key and secret key.
     For Swift API: a dictionary containing the user and secret key.
     """
-    if api == 'S3':
+    if api == 's3':
         try:
             access_key = os.environ['ECHO_S3_ACCESS_KEY']
             secret_key = os.environ['ECHO_S3_SECRET_KEY']
         except KeyError:
             raise KeyError('Set ECHO_S3_ACCESS_KEY and ECHO_S3_SECRET_KEY environment variables.')
         return {'access_key': access_key, 'secret_key': secret_key}
-    elif api == 'Swift':
+    elif api == 'swift':
         try:
             user = os.environ['ECHO_SWIFT_USER']
             secret_key = os.environ['ECHO_SWIFT_SECRET_KEY']
@@ -105,6 +105,18 @@ def bucket_list(resource) -> list[str]:
     """
     return [ b.name for b in resource.buckets.all() ]
 
+def bucket_list_swift(conn: swiftclient.Connection) -> list[str]:
+    """
+    Returns a list of container names in the Swift S3 endpoint.
+
+    Parameters:
+    - conn: swiftclient.client.Connection object.
+
+    Returns:
+    A list of container names.
+    """
+    return [ c.name for c in conn.get_account()[1] ]
+
 def create_bucket(resource, bucket_name: str) -> bool:
     """
     Creates a new bucket in the S3 endpoint.
@@ -155,6 +167,18 @@ def object_list(bucket, prefix='', count=False) -> list[str]:
                 print(f'Existing objects: {o}', end='\r', flush=True)
     return keys
 
+def object_list_swift(conn: swiftclient.Connection, container_name: str) -> list[str]:
+    """
+    Returns a list of keys of all objects in the specified bucket.
+
+    Parameters:
+    - conn: swiftlient.Connection object.
+    - container_name: The name of the Swift container.
+
+    Returns:
+    A list of object keys.
+    """
+    return [ k.name for k in conn.get_container(container_name)[1] ]
 
 def print_containers_swift(conn: swiftclient.Connection) -> None:
     """

@@ -1342,16 +1342,30 @@ if __name__ == '__main__':
     except KeyError as e:
         print(f'KeyError {e}', file=sys.stderr)
         sys.exit()
-    access_key = keys['access_key']
-    secret_key = keys['secret_key']
+    except ValueError as e:
+        print(f'ValueError {e}', file=sys.stderr)
+        sys.exit()
+    if api == 's3':
+        access_key = keys['access_key']
+        secret_key = keys['secret_key']
+    elif api == 'swift':
+        access_key = keys['user']
+        secret_key = keys['secret_key']
     
-    s3 = bm.get_resource(access_key, secret_key, s3_host)
-    bucket_list = bm.bucket_list(s3)
+    if api == 's3':
+        s3 = bm.get_resource(access_key, secret_key, s3_host)
+        bucket_list = bm.bucket_list(s3)
+    elif api == 'swift':
+        s3 = bm.get_conn_swift(access_key, secret_key, s3_host)
+        bucket_list = bm.bucket_list_swift(s3)
     
     if bucket_name not in bucket_list:
         if not dryrun:
+            if api == 's3':
                 s3.create_bucket(Bucket=bucket_name)
-                print(f'Added bucket: {bucket_name}')
+            elif api == 'swift':
+                s3.put_container(bucket_name)
+            print(f'Added bucket: {bucket_name}')
     else:
         if not dryrun:
             print(f'Bucket exists: {bucket_name}')
@@ -1360,7 +1374,11 @@ if __name__ == '__main__':
             print(f'Bucket exists: {bucket_name}')
             print('dryrun == True, so continuing.')
     
-    bucket = s3.Bucket(bucket_name)
+    if api == 's3':
+        bucket = s3.Bucket(bucket_name)
+    elif api == 'swift':
+        bucket = s3.get_container(bucket_name)
+
     success = False
     # while not success:
     print(f'Getting current object list for {bucket_name}. This may take some time.\nStarting at {datetime.now()}, elapsed time = {datetime.now() - start}', flush=True)
