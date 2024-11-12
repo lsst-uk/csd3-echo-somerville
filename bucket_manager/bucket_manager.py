@@ -115,7 +115,7 @@ def bucket_list_swift(conn: swiftclient.Connection) -> list[str]:
     Returns:
     A list of container names.
     """
-    return [ c.name for c in conn.get_account()[1] ]
+    return [ c['name'] for c in conn.get_account()[1] ]
 
 def create_bucket(resource, bucket_name: str) -> bool:
     """
@@ -167,7 +167,7 @@ def object_list(bucket, prefix='', count=False) -> list[str]:
                 print(f'Existing objects: {o}', end='\r', flush=True)
     return keys
 
-def object_list_swift(conn: swiftclient.Connection, container_name: str, prefix : str = '', count: bool = False) -> list[str]:
+def object_list_swift(conn: swiftclient.Connection, container_name: str, prefix : str = '', full_listing: bool = True, count: bool = False) -> list[str]:
     """
     Returns a list of keys of all objects in the specified bucket.
 
@@ -181,7 +181,7 @@ def object_list_swift(conn: swiftclient.Connection, container_name: str, prefix 
     keys = []
     if count:
         o = 0
-    for obj in conn.get_container(container_name,prefix=prefix)[1]:
+    for obj in conn.get_container(container_name,prefix=prefix,full_listing=full_listing)[1]:
         keys.append(obj['name'])
         if count:
             o += 1
@@ -232,3 +232,32 @@ def get_conn_swift(user: str, access_key: str, host: str) -> swiftclient.Connect
         key=access_key,
         authurl=host
     )
+
+def get_bucket_contents_swift(conn: swiftclient.Connection, container_name: str, full_listing: bool = True) -> list[dict]:
+    """
+    Returns a list of object names in the specified container.
+
+    Parameters:
+    - conn: The Swift connection object.
+    - container_name: The name of the Swift container.
+
+    Returns:
+    A list of object dicts.
+    """
+    return conn.get_container(container_name,full_listing=full_listing)[1]
+
+def download_file_swift(conn: swiftclient.Connection, container_name: str, object_name: str, local_path: str) -> None:
+    """
+    Downloads a file from the specified container.
+
+    Parameters:
+    - conn: The Swift connection object.
+    - container_name: The name of the Swift container.
+    - object_name: The name of the object to download.
+    - local_path: The local path to save the downloaded file.
+
+    Returns:
+    None
+    """
+    with open(local_path, 'wb') as f:
+        f.write(conn.get_object(container_name, object_name)[1])

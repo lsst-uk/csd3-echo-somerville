@@ -99,6 +99,41 @@ def find_metadata(key: str, bucket) -> List[str]:
                 except Exception as e:
                     return None
             if existing_zip_contents:
+                if len(existing_zip_contents) == 1:
+                        existing_zip_contents = existing_zip_contents[0].split(',') # revert to comma if no | found
+                return existing_zip_contents
+        else:
+            return None
+    else:
+        return None
+
+def find_metadata_swift(key: str, conn, container_name: str) -> List[str]:
+    """
+    Finds the metadata for a given key in an S3 bucket.
+
+    Args:
+        key (dd.core.Scalar or str): The key to search for metadata.
+        s3: The S3 object.
+
+    Returns:
+        list[str]: A list of existing metadata contents if found, otherwise empty list.
+    """
+    if type(key) == str:
+        existing_zip_contents = None
+        if key.endswith('.zip'):
+            print('.', end='', flush=True)
+            try:
+                existing_zip_contents = str(s3.get_object(bucket_name,''.join([key,'.metadata']))[1].decode('UTF-8')).split('|') # use | as separator
+            except Exception as e:
+                try:
+                    existing_zip_contents = s3.head_object(bucket_name,key)['x-object-meta-zip-contents'].split('|') # use | as separator
+                except KeyError:
+                    return None
+                except Exception as e:
+                    return None
+            if existing_zip_contents:
+                if len(existing_zip_contents) == 1:
+                        existing_zip_contents = existing_zip_contents[0].split(',') # revert to comma if no | found
                 return existing_zip_contents
         else:
             return None
@@ -1336,7 +1371,7 @@ if __name__ == '__main__':
     if api == 's3':
         s3_host = 'echo.stfc.ac.uk'
     elif api == 'swift':
-        s3_host = 's3.echo.stfc.ac.uk/auth/1.0'
+        s3_host = 'https://s3.echo.stfc.ac.uk/auth/1.0'
     try:
         keys = bm.get_keys(api)
     except KeyError as e:
@@ -1396,7 +1431,10 @@ if __name__ == '__main__':
     if not current_objects.empty:
         print(f"Current objects (with matching prefix; excluding collated zips): {len(current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_') == False])}", flush=True)
         print('Obtaining current object metadata.', flush=True)
-        current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, bucket=bucket)
+        if api == 's3':
+            current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, bucket=bucket)
+        elif api == 'swift':
+            current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata_swift, s3=s3, bucket_name=bucket_name)
         print()
     else:
         current_objects['METADATA'] = None
@@ -1408,11 +1446,17 @@ if __name__ == '__main__':
     # TODO: integrate this with local check for log file
     if current_objects['CURRENT_OBJECTS'].isin([log]).any():
         print(f'Log file {log} already exists in bucket. Downloading.')
-        bucket.download_file(log, log)
+        if api == 's3':
+            bucket.download_file(log, log)
+        elif api == 'swift':
+            bm.download_file_swift(s3, bucket_name, log, log)
     elif current_objects['CURRENT_OBJECTS'].isin([previous_log]).any():
         print(f'Previous log file {previous_log} already exists in bucket. Downloading.')
-        bucket.download_file(previous_log, log)
-
+        if api == 's3':
+            bucket.download_file(previous_log, log)
+        elif api == 'swift':
+            bm.download_file_swift(s3, bucket_name, previous_log, log)
+    exit()
     # check local_dir formatting
     while local_dir[-1] == '/':
         local_dir = local_dir[:-1]
