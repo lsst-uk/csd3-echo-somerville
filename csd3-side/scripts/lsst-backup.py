@@ -1225,6 +1225,7 @@ if __name__ == '__main__':
         if os.path.exists(config_file):
             with open(config_file, 'r') as f:
                 config = yaml.safe_load(f)
+                print(config)
                 if 'bucket_name' in config.keys() and not args.bucket_name:
                     args.bucket_name = config['bucket_name']
                 if 'local_path' in config.keys() and not args.local_path:
