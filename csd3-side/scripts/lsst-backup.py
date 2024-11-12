@@ -1436,9 +1436,9 @@ if __name__ == '__main__':
         print(f"Current objects (with matching prefix; excluding collated zips): {len(current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_') == False])}", flush=True)
         print('Obtaining current object metadata.', flush=True)
         if api == 's3':
-            current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, bucket=bucket)
+            current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, bucket=bucket) # can't Daskify this without passing all bucket objects
         elif api == 'swift':
-            current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata_swift, conn=s3, container_name=bucket_name)
+            current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata_swift, conn=s3, container_name=bucket_name) # can Daskify this in future
         print()
     else:
         current_objects['METADATA'] = None
