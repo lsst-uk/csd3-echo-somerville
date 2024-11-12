@@ -167,7 +167,7 @@ def object_list(bucket, prefix='', count=False) -> list[str]:
                 print(f'Existing objects: {o}', end='\r', flush=True)
     return keys
 
-def object_list_swift(conn: swiftclient.Connection, container_name: str) -> list[str]:
+def object_list_swift(conn: swiftclient.Connection, container_name: str, prefix : str = '', count: bool = False) -> list[str]:
     """
     Returns a list of keys of all objects in the specified bucket.
 
@@ -178,7 +178,16 @@ def object_list_swift(conn: swiftclient.Connection, container_name: str) -> list
     Returns:
     A list of object keys.
     """
-    return [ k.name for k in conn.get_container(container_name)[1] ]
+    keys = []
+    if count:
+        o = 0
+    for obj in conn.get_container(container_name,prefix=prefix)[1]:
+        keys.append(obj['name'])
+        if count:
+            o += 1
+            if o % 10000 == 0:
+                print(f'Existing objects: {o}', end='\r', flush=True)
+    return keys
 
 def print_containers_swift(conn: swiftclient.Connection) -> None:
     """

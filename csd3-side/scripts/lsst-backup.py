@@ -1377,12 +1377,15 @@ if __name__ == '__main__':
     if api == 's3':
         bucket = s3.Bucket(bucket_name)
     elif api == 'swift':
-        bucket = s3.get_container(bucket_name)
+        bucket = None
 
     success = False
     # while not success:
     print(f'Getting current object list for {bucket_name}. This may take some time.\nStarting at {datetime.now()}, elapsed time = {datetime.now() - start}', flush=True)
-    current_objects = bm.object_list(bucket, prefix=destination_dir, count=True)
+    if api == 's3':
+        current_objects = bm.object_list(bucket, prefix=destination_dir, count=True)
+    elif api == 'swift':
+        current_objects = bm.object_list_swift(s3, bucket_name, prefix=destination_dir, count=True)
     print()
     print(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', flush=True)
     
