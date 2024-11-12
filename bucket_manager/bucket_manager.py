@@ -233,19 +233,6 @@ def get_conn_swift(user: str, access_key: str, host: str) -> swiftclient.Connect
         authurl=host
     )
 
-def get_bucket_contents_swift(conn: swiftclient.Connection, container_name: str, full_listing: bool = True) -> list[dict]:
-    """
-    Returns a list of object names in the specified container.
-
-    Parameters:
-    - conn: The Swift connection object.
-    - container_name: The name of the Swift container.
-
-    Returns:
-    A list of object dicts.
-    """
-    return conn.get_container(container_name,full_listing=full_listing)[1]
-
 def download_file_swift(conn: swiftclient.Connection, container_name: str, object_name: str, local_path: str) -> None:
     """
     Downloads a file from the specified container.
@@ -256,8 +243,11 @@ def download_file_swift(conn: swiftclient.Connection, container_name: str, objec
     - object_name: The name of the object to download.
     - local_path: The local path to save the downloaded file.
 
+    WARNING: This function will overwrite the file at local_path if it already exists.
+
     Returns:
     None
     """
+    os.makedirs(os.path.dirname(local_path), exist_ok=True)
     with open(local_path, 'wb') as f:
         f.write(conn.get_object(container_name, object_name)[1])
