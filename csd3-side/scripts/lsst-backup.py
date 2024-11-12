@@ -1372,6 +1372,7 @@ if __name__ == '__main__':
         s3_host = 'echo.stfc.ac.uk'
     elif api == 'swift':
         s3_host = 'https://s3.echo.stfc.ac.uk/auth/1.0'
+    print(f'Using {api} API with host {s3_host}')
     try:
         keys = bm.get_keys(api)
     except KeyError as e:
