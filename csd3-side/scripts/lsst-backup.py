@@ -1419,51 +1419,7 @@ if __name__ == '__main__':
         bucket = None
 
     success = False
-    # while not success:
-    print(f'Getting current object list for {bucket_name}. This may take some time.\nStarting at {datetime.now()}, elapsed time = {datetime.now() - start}', flush=True)
-    if api == 's3':
-        current_objects = bm.object_list(bucket, prefix=destination_dir, count=True)
-    elif api == 'swift':
-        current_objects = bm.object_list_swift(s3, bucket_name, prefix=destination_dir, count=True)
-    print()
-    print(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', flush=True)
-    
-    current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
-    
-    print(f'Current objects (with matching prefix): {len(current_objects)}', flush=True)
-    
-    if not current_objects.empty:
-        print(f"Current objects (with matching prefix; excluding collated zips): {len(current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_') == False])}", flush=True)
-        print('Obtaining current object metadata.', flush=True)
-        if api == 's3':
-            current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, bucket=bucket) # can't Daskify this without passing all bucket objects
-        elif api == 'swift':
-            current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata_swift, conn=s3, container_name=bucket_name) # can Daskify this in future
-        print()
-    else:
-        current_objects['METADATA'] = None
 
-    # current_objects.to_csv('current_objects.csv', index=False)
-    # exit()
-    
-    ## check if log exists in the bucket, and download it and append top it if it does
-    # TODO: integrate this with local check for log file
-    if current_objects['CURRENT_OBJECTS'].isin([log]).any():
-        print(f'Log file {log} already exists in bucket. Downloading.')
-        if api == 's3':
-            bucket.download_file(log, log)
-        elif api == 'swift':
-            bm.download_file_swift(s3, bucket_name, log, log)
-    elif current_objects['CURRENT_OBJECTS'].isin([previous_log]).any():
-        print(f'Previous log file {previous_log} already exists in bucket. Downloading.')
-        if api == 's3':
-            bucket.download_file(previous_log, log)
-        elif api == 'swift':
-            bm.download_file_swift(s3, bucket_name, previous_log, log)
-    exit()
-    # check local_dir formatting
-    while local_dir[-1] == '/':
-        local_dir = local_dir[:-1]
 
     ############################
     #        Dask Setup        #
@@ -1477,6 +1433,54 @@ if __name__ == '__main__':
 
     # try:
     with Client(n_workers=n_workers,threads_per_worker=threads_per_worker,memory_limit=mem_per_worker) as client:
+
+
+        # while not success:
+        print(f'Getting current object list for {bucket_name}. This may take some time.\nStarting at {datetime.now()}, elapsed time = {datetime.now() - start}', flush=True)
+        if api == 's3':
+            current_objects = bm.object_list(bucket, prefix=destination_dir, count=True)
+        elif api == 'swift':
+            current_objects = bm.object_list_swift(s3, bucket_name, prefix=destination_dir, count=True)
+        print()
+        print(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', flush=True)
+        
+        current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
+        
+        print(f'Current objects (with matching prefix): {len(current_objects)}', flush=True)
+        
+        if not current_objects.empty:
+            print(f"Current objects (with matching prefix; excluding collated zips): {len(current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_') == False])}", flush=True)
+            print('Obtaining current object metadata.', flush=True)
+            if api == 's3':
+                current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, bucket=bucket) # can't Daskify this without passing all bucket objects
+            elif api == 'swift':
+                current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata_swift, conn=s3, container_name=bucket_name) # can Daskify this in future
+            print()
+        else:
+            current_objects['METADATA'] = None
+
+        # current_objects.to_csv('current_objects.csv', index=False)
+        # exit()
+        
+        ## check if log exists in the bucket, and download it and append top it if it does
+        # TODO: integrate this with local check for log file
+        if current_objects['CURRENT_OBJECTS'].isin([log]).any():
+            print(f'Log file {log} already exists in bucket. Downloading.')
+            if api == 's3':
+                bucket.download_file(log, log)
+            elif api == 'swift':
+                bm.download_file_swift(s3, bucket_name, log, log)
+        elif current_objects['CURRENT_OBJECTS'].isin([previous_log]).any():
+            print(f'Previous log file {previous_log} already exists in bucket. Downloading.')
+            if api == 's3':
+                bucket.download_file(previous_log, log)
+            elif api == 'swift':
+                bm.download_file_swift(s3, bucket_name, previous_log, log)
+        exit()
+        # check local_dir formatting
+        while local_dir[-1] == '/':
+            local_dir = local_dir[:-1]
+    
         print(f'Dask Client: {client}', flush=True)
         print(f'Dashboard: {client.dashboard_link}', flush=True)
         print(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}')
