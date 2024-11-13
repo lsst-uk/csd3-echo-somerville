@@ -37,6 +37,8 @@ from logging import ERROR
 
 import bucket_manager.bucket_manager as bm
 
+import swiftclient
+
 import hashlib
 import os
 import argparse
@@ -719,7 +721,7 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, local_dir,
     return None
 
 ### KEY FUNCTION TO FIND ALL FILES AND ORGANISE UPLOADS ###
-def process_files(s3_host, access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, perform_checksum, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_file, file_count_stop) -> None:
+def process_files(s3_host, access_key, secret_key, bucket_name, api, current_objects, exclude, local_dir, destination_dir, perform_checksum, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_file, file_count_stop) -> None:
     """
     Uploads files from a local directory to an S3 bucket in parallel.
 
@@ -728,6 +730,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
         access_key (str): The access key for the S3 server.
         secret_key (str): The secret key for the S3 server.
         bucket_name (str): The name of the S3 bucket.
+        api (str): The API to use for the S3 connection.
         current_objects (ps.Dataframe): A list of object names already present in the S3 bucket.
         local_dir (str): The local directory containing the files to upload.
         destination_dir (str): The destination directory in the S3 bucket.
@@ -744,15 +747,20 @@ def process_files(s3_host, access_key, secret_key, bucket_name, current_objects,
     Returns:
         None
     """
+    if api == 's3':
+        assert access_key is not None
+        assert secret_key is not None
+        s3 = None
+    elif api == 'swift':
+        s3 = s3_host
+        assert type(s3) is swiftclient.Connection
+        assert access_key is None
+        assert secret_key is None
+    exit()
     processing_start = datetime.now()
     total_size_uploaded = 0
     total_files_uploaded = 0
     i = 0
-    try:
-        client.scatter([s3_host, access_key, secret_key, bucket_name, perform_checksum, dryrun, current_objects], broadcast=True)
-    except TypeError as e:
-        print(f'Error scattering {filename}: {e}')
-        exit(1)
 
     #recursive loop over local folder
     # to_collate = {'id':[],'object_names':[],'file_paths':[],'size':[]} # to be used for storing file lists to be collated
@@ -1495,9 +1503,9 @@ if __name__ == '__main__':
             warnings.filterwarnings('ignore')
             print(f'Processing files in {local_dir}, elapsed time = {datetime.now() - start}', flush=True)
             if api == 's3':
-                process_files(s3_host,access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, perform_checksum, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_list, file_count_stop)
+                process_files(s3_host,access_key, secret_key, bucket_name, api, current_objects, exclude, local_dir, destination_dir, perform_checksum, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_list, file_count_stop)
             elif api == 'swift':
-                process_files(s3, None, None, bucket_name, current_objects, exclude, local_dir, destination_dir, perform_checksum, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_list, file_count_stop)
+                process_files(s3, None, None, bucket_name, api, current_objects, exclude, local_dir, destination_dir, perform_checksum, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_list, file_count_stop)
         # success = True
     # except Exception as e:
     #     print(e)
