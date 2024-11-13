@@ -1453,20 +1453,22 @@ if __name__ == '__main__':
         
         if not current_objects.empty:
             print(f"Current objects (with matching prefix; excluding collated zips): {len(current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_') == False])}", flush=True)
-            print('Obtaining current object metadata.', flush=True)
+            print(f'Obtaining current object metadata, elapsed time = {datetime.now() - start}', flush=True)
             if api == 's3':
                 current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, bucket=bucket) # can't Daskify this without passing all bucket objects
             elif api == 'swift':
                 current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata_swift, conn=s3, container_name=bucket_name) # can Daskify this in future
-            print()
+            print(flush=True)
         else:
             current_objects['METADATA'] = None
+        print(f'Done, elapsed time = {datetime.now() - start}', flush=True)
 
         # current_objects.to_csv('current_objects.csv', index=False)
         # exit()
         
         ## check if log exists in the bucket, and download it and append top it if it does
         # TODO: integrate this with local check for log file
+        print(f'Checking for existing log files in bucket {bucket_name}, elapsed time = {datetime.now() - start}', flush=True)
         if current_objects['CURRENT_OBJECTS'].isin([log]).any():
             print(f'Log file {log} already exists in bucket. Downloading.')
             if api == 's3':
@@ -1479,6 +1481,7 @@ if __name__ == '__main__':
                 bucket.download_file(previous_log, log)
             elif api == 'swift':
                 bm.download_file_swift(s3, bucket_name, previous_log, log)
+        print(f'Done, elapsed time = {datetime.now() - start}', flush=True)
         exit()
         # check local_dir formatting
         while local_dir[-1] == '/':
@@ -1486,6 +1489,7 @@ if __name__ == '__main__':
     
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore')
+            print(f'Processing files in {local_dir}, elapsed time = {datetime.now() - start}', flush=True)
             process_files(s3_host,access_key, secret_key, bucket_name, current_objects, exclude, local_dir, destination_dir, perform_checksum, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_list, file_count_stop)
         # success = True
     # except Exception as e:
