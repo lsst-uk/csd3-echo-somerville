@@ -756,6 +756,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, api, current_obj
         assert type(s3) is swiftclient.Connection
         assert access_key is None
         assert secret_key is None
+    print('api understood', flush=True) 
     exit()
     processing_start = datetime.now()
     total_size_uploaded = 0
