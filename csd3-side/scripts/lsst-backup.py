@@ -1472,7 +1472,6 @@ if __name__ == '__main__':
         else:
             current_objects['METADATA'] = None
         print(f'Done, elapsed time = {datetime.now() - start}', flush=True)
-        exit()
         # current_objects.to_csv('current_objects.csv', index=False)
         # exit()
         
