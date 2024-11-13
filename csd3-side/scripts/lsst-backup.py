@@ -756,7 +756,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, api, current_obj
         assert type(s3) is swiftclient.Connection
         assert access_key is None
         assert secret_key is None
-        current_objects = dd.from_pandas(pd.DataFrame(current_objects), npartitions=len(client.scheduler_info()['workers']))
+        current_objects = dd.from_pandas(pd.DataFrame(current_objects), npartitions=len(client.scheduler_info()['workers'])*100)
     processing_start = datetime.now()
     total_size_uploaded = 0
     total_files_uploaded = 0
@@ -1465,7 +1465,7 @@ if __name__ == '__main__':
             if api == 's3':
                 current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, bucket=bucket) # can't Daskify this without passing all bucket objects
             elif api == 'swift':
-                current_objects = dd.from_pandas(current_objects, npartitions=len(client.scheduler_info()['workers'])*10)
+                current_objects = dd.from_pandas(current_objects, npartitions=len(client.scheduler_info()['workers'])*100)
                 current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata_swift, conn=s3, container_name=bucket_name)
                 current_objects = current_objects.compute()
             print(flush=True)
