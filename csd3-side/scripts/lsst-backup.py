@@ -322,7 +322,7 @@ def part_uploader(s3_host, access_key, secret_key, bucket_name, object_key, part
                           PartNumber=part_number,
                           UploadId=upload_id)["ETag"]}
     
-def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, local_dir, folder, filename, object_key, perform_checksum, dryrun, mem_per_worker) -> str:
+def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, api, local_dir, folder, filename, object_key, perform_checksum, dryrun, mem_per_worker) -> str:
     """
     Uploads a file to an S3 bucket.
     Optionally calculates a checksum for the file
@@ -333,6 +333,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, local_dir, fo
         access_key (str): The access key for the S3 bucket.
         secret_key (str): The secret key for the S3 bucket.
         bucket_name (str): The name of the S3 bucket.
+        api (str): The API to use for the S3 connection, 's3' or 'swift'.
         folder (str): The local folder containing the file to upload.
         filename (str): The name of the file to upload.
         object_key (str): The key to assign to the uploaded file in the S3 bucket.
@@ -521,7 +522,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, local_dir, fo
     return_string += ',n/a'
     return return_string
 
-def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, folder, file_data, zip_contents, object_key, perform_checksum, dryrun, mem_per_worker) -> str:
+def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, api, folder, file_data, zip_contents, object_key, perform_checksum, dryrun, mem_per_worker) -> str:
     """
     Uploads a file to an S3 bucket.
     Optionally calculates a checksum for the file
@@ -532,6 +533,7 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
         access_key (str): The access key for the S3 bucket.
         secret_key (str): The secret key for the S3 bucket.
         bucket_name (str): The name of the S3 bucket.
+        api (str): The API to use for the S3 connection, 's3' or 'swift'.
         folder (str): The local folder containing the file to upload.
         file_data (bytes): The file data to upload (zipped).
         zip_contents (list): A list of files included in the zip file (file_data).
@@ -544,115 +546,230 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, fold
             The format is: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY
             Where: CHECKSUM, CHECKSUM_SIZE are n/a if checksum was not performed.
     """
-    s3 = bm.get_resource(access_key, secret_key, s3_host)
-    s3_client = bm.get_client(access_key, secret_key, s3_host)
-    bucket = s3.Bucket(bucket_name)
+    if api == 's3':
+        assert access_key is not None
+        assert secret_key is not None
+        s3 = bm.get_resource(access_key, secret_key, s3_host)
+        s3_client = bm.get_client(access_key, secret_key, s3_host)
+        bucket = s3.Bucket(bucket_name)
 
-    filename = object_key.split('/')[-1]
-    file_data_size = len(file_data)
-    
-    print(f'Uploading zip file "{filename}" for {folder} to {bucket_name}/{object_key}, {file_data_size} bytes, checksum = {perform_checksum}, dryrun = {dryrun}', flush=True)
-    """
-    - Upload the file to the bucket
-    """
-    if not dryrun:
-        if perform_checksum:
-            """
-            - Create checksum object
-            """
-            checksum_hash = hashlib.md5(file_data)
-            checksum_string = checksum_hash.hexdigest()
-            checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
+        filename = object_key.split('/')[-1]
+        file_data_size = len(file_data)
+        
+        print(f'Uploading zip file "{filename}" for {folder} to {bucket_name}/{object_key}, {file_data_size} bytes, checksum = {perform_checksum}, dryrun = {dryrun}', flush=True)
+        """
+        - Upload the file to the bucket
+        """
+        if not dryrun:
+            if perform_checksum:
+                """
+                - Create checksum object
+                """
+                checksum_hash = hashlib.md5(file_data)
+                checksum_string = checksum_hash.hexdigest()
+                checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
 
-            try:
-                if file_data_size > 5 * 1024**3:  # Check if file size is larger than 5GiB
-                    """
-                    - Use multipart upload for large files
-                    """
-                    # Do metadata first so its URI can be added to up_upload on initiation
-                    metadata_value = '\0'.join(zip_contents) # use null byte as separator
-                    metadata_object_key = object_key + '.metadata'
-                    bucket.put_object(Body=metadata_value, Key=metadata_object_key, Metadata={'corresponding-zip': object_key})
-                    metadata = {'zip-contents-object': metadata_object_key}
-                    
-                    obj = bucket.Object(object_key)
-                    mp_upload = obj.initiate_multipart_upload(Metadata=metadata)
-                    chunk_size = 512 * 1024**2  # 512 MiB
-                    chunk_count = int(np.ceil(file_data_size / chunk_size))
-                    print(f'Uploading "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key} in {chunk_count} parts.', flush=True)
-
-                    parts = []
-                    part_futures = []
-                    for i in range(chunk_count):
-                        start = i * chunk_size
-                        end = min(start + chunk_size, file_data_size)
-                        part_number = i + 1
-                        # chunk_data = file_data[start:end]
-                        part_futures.append(get_client().submit(
-                            part_uploader,
-                            s3_host,
-                            access_key,
-                            secret_key,
-                            bucket_name,
-                            object_key,
-                            part_number,
-                            file_data[start:end],
-                            mp_upload.id
-                        ))
-                    for future in as_completed(part_futures):
-                        parts.append(future.result())
-                        del future
-                    s3_client.complete_multipart_upload(
-                        Bucket=bucket_name,
-                        Key=object_key,
-                        UploadId=mp_upload.id,
-                        MultipartUpload={"Parts": parts}
-                    )
-                    
-                else:
-                    """
-                    - Upload the file to the bucket
-                    """
-                    print(f'Uploading zip file "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key}')
-                    metadata_value = '|'.join(zip_contents) # use | as separator
-                    metadata_size = len(metadata_value.encode('utf-8'))
-
-                    if metadata_size > 1024:
+                try:
+                    if file_data_size > 5 * 1024**3:  # Check if file size is larger than 5GiB
+                        """
+                        - Use multipart upload for large files
+                        """
+                        # Do metadata first so its URI can be added to up_upload on initiation
+                        metadata_value = '\0'.join(zip_contents) # use null byte as separator
                         metadata_object_key = object_key + '.metadata'
-                        print(f'Metadata size exceeds the size limit. Writing to {metadata_object_key}.', flush=True)
                         bucket.put_object(Body=metadata_value, Key=metadata_object_key, Metadata={'corresponding-zip': object_key})
                         metadata = {'zip-contents-object': metadata_object_key}
+                        
+                        obj = bucket.Object(object_key)
+                        mp_upload = obj.initiate_multipart_upload(Metadata=metadata)
+                        chunk_size = 512 * 1024**2  # 512 MiB
+                        chunk_count = int(np.ceil(file_data_size / chunk_size))
+                        print(f'Uploading "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key} in {chunk_count} parts.', flush=True)
+
+                        parts = []
+                        part_futures = []
+                        for i in range(chunk_count):
+                            start = i * chunk_size
+                            end = min(start + chunk_size, file_data_size)
+                            part_number = i + 1
+                            # chunk_data = file_data[start:end]
+                            part_futures.append(get_client().submit(
+                                part_uploader,
+                                s3_host,
+                                access_key,
+                                secret_key,
+                                bucket_name,
+                                object_key,
+                                part_number,
+                                file_data[start:end],
+                                mp_upload.id
+                            ))
+                        for future in as_completed(part_futures):
+                            parts.append(future.result())
+                            del future
+                        s3_client.complete_multipart_upload(
+                            Bucket=bucket_name,
+                            Key=object_key,
+                            UploadId=mp_upload.id,
+                            MultipartUpload={"Parts": parts}
+                        )
+                        
                     else:
-                        metadata = {'zip-contents': metadata_value}
+                        """
+                        - Upload the file to the bucket
+                        """
+                        print(f'Uploading zip file "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key}')
+                        metadata_value = '|'.join(zip_contents) # use | as separator
+                        metadata_size = len(metadata_value.encode('utf-8'))
 
-                    bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64, Metadata=metadata)
-            except Exception as e:
-                print(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
-                exit(1)
+                        if metadata_size > 1024:
+                            metadata_object_key = object_key + '.metadata'
+                            print(f'Metadata size exceeds the size limit. Writing to {metadata_object_key}.', flush=True)
+                            bucket.put_object(Body=metadata_value, Key=metadata_object_key, Metadata={'corresponding-zip': object_key})
+                            metadata = {'zip-contents-object': metadata_object_key}
+                        else:
+                            metadata = {'zip-contents': metadata_value}
+
+                        bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64, Metadata=metadata)
+                except Exception as e:
+                    print(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
+                    exit(1)
+            else:
+                try:
+                    bucket.put_object(Body=file_data, Key=object_key, Metadata={'zip-contents': '|'.join(zip_contents)}) # use | as separator
+                except Exception as e:
+                    print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
+                    exit(1)
         else:
-            try:
-                bucket.put_object(Body=file_data, Key=object_key, Metadata={'zip-contents': '|'.join(zip_contents)}) # use | as separator
-            except Exception as e:
-                print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
-                exit(1)
-    else:
-        checksum_string = "DRYRUN"
+            checksum_string = "DRYRUN"
 
-    # del file_data # Delete the file data to free up memory
+        # del file_data # Delete the file data to free up memory
 
-    """
-        report actions
-        CSV formatted
-        header: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS
-    """
-    return_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}"'
-    if perform_checksum:
-        return_string += f',{checksum_string}'
-    else:
-        return_string += ',n/a'
-    return_string += f',"{",".join(zip_contents)}"'
+        """
+            report actions
+            CSV formatted
+            header: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS
+        """
+        return_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}"'
+        if perform_checksum:
+            return_string += f',{checksum_string}'
+        else:
+            return_string += ',n/a'
+        return_string += f',"{",".join(zip_contents)}"'
+        
+        return return_string
     
-    return return_string
+    elif api == 'swift':
+        s3 = s3_host
+        assert type(s3) is swiftclient.Connection
+        assert access_key is None
+        assert secret_key is None
+
+        filename = object_key.split('/')[-1]
+        file_data_size = len(file_data)
+        
+        print(f'Uploading zip file "{filename}" for {folder} to {bucket_name}/{object_key}, {file_data_size} bytes, checksum = {perform_checksum}, dryrun = {dryrun}', flush=True)
+        """
+        - Upload the file to the bucket
+        """
+        if not dryrun:
+            if perform_checksum:
+                """
+                - Create checksum object
+                """
+                checksum_hash = hashlib.md5(file_data)
+                checksum_string = checksum_hash.hexdigest()
+                checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
+
+                try:
+                    if file_data_size > 5 * 1024**3:  # Check if file size is larger than 5GiB
+                        """
+                        - Use multipart upload for large files
+                        """
+                        # Do metadata first so its URI can be added to up_upload on initiation
+                        metadata_value = '\0'.join(zip_contents) # use null byte as separator
+                        metadata_object_key = object_key + '.metadata'
+                        s3.put_object(bucket_name, Body=metadata_value, Key=metadata_object_key, Metadata={'corresponding-zip': object_key})
+                        metadata = {'zip-contents-object': metadata_object_key}
+                        
+                        obj = bucket.Object(object_key)
+                        mp_upload = obj.initiate_multipart_upload(Metadata=metadata)
+                        chunk_size = 512 * 1024**2  # 512 MiB
+                        chunk_count = int(np.ceil(file_data_size / chunk_size))
+                        print(f'Uploading "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key} in {chunk_count} parts.', flush=True)
+
+                        parts = []
+                        part_futures = []
+                        for i in range(chunk_count):
+                            start = i * chunk_size
+                            end = min(start + chunk_size, file_data_size)
+                            part_number = i + 1
+                            # chunk_data = file_data[start:end]
+                            part_futures.append(get_client().submit(
+                                part_uploader,
+                                s3_host,
+                                access_key,
+                                secret_key,
+                                bucket_name,
+                                object_key,
+                                part_number,
+                                file_data[start:end],
+                                mp_upload.id
+                            ))
+                        for future in as_completed(part_futures):
+                            parts.append(future.result())
+                            del future
+                        s3_client.complete_multipart_upload(
+                            Bucket=bucket_name,
+                            Key=object_key,
+                            UploadId=mp_upload.id,
+                            MultipartUpload={"Parts": parts}
+                        )
+                        
+                    else:
+                        """
+                        - Upload the file to the bucket
+                        """
+                        print(f'Uploading zip file "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key}')
+                        metadata_value = '|'.join(zip_contents) # use | as separator
+                        metadata_size = len(metadata_value.encode('utf-8'))
+
+                        if metadata_size > 1024:
+                            metadata_object_key = object_key + '.metadata'
+                            print(f'Metadata size exceeds the size limit. Writing to {metadata_object_key}.', flush=True)
+                            bucket.put_object(Body=metadata_value, Key=metadata_object_key, Metadata={'corresponding-zip': object_key})
+                            metadata = {'zip-contents-object': metadata_object_key}
+                        else:
+                            metadata = {'zip-contents': metadata_value}
+
+                        bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64, Metadata=metadata)
+                except Exception as e:
+                    print(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
+                    exit(1)
+            else:
+                try:
+                    bucket.put_object(Body=file_data, Key=object_key, Metadata={'zip-contents': '|'.join(zip_contents)}) # use | as separator
+                except Exception as e:
+                    print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
+                    exit(1)
+        else:
+            checksum_string = "DRYRUN"
+
+        # del file_data # Delete the file data to free up memory
+
+        """
+            report actions
+            CSV formatted
+            header: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS
+        """
+        return_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}"'
+        if perform_checksum:
+            return_string += f',{checksum_string}'
+        else:
+            return_string += ',n/a'
+        return_string += f',"{",".join(zip_contents)}"'
+        
+        return return_string
 
 def print_stats(file_name_or_data, file_count, total_size, file_start, file_end, processing_start, total_size_uploaded, total_files_uploaded, collated) -> None:
     """
@@ -696,20 +813,20 @@ def print_stats(file_name_or_data, file_count, total_size, file_start, file_end,
         pass
     # del file_name_or_data
 
-def upload_and_callback(s3_host, access_key, secret_key, bucket_name, local_dir, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded, collated, mem_per_worker) -> None:
+def upload_and_callback(s3_host, access_key, secret_key, bucket_name, api, local_dir, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded, collated, mem_per_worker) -> None:
     # upload files in parallel and log output
     file_start = datetime.now()
     print(f'collated = {collated}', flush=True)
     if collated:
         try:
             print(f'Uploading zip containing {file_count} subfolders from {folder}.')
-            result = upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, mem_per_worker)
+            result = upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, api, folder, file_name_or_data, zip_contents, object_key, perform_checksum, dryrun, mem_per_worker)
         except Exception as e:
             print(f'Error uploading {folder} to {bucket_name}/{object_key}: {e}')
             sys.exit(1)
     else:
         print(f'Uploading {file_count} files from {folder}.')
-        result = upload_to_bucket(s3_host, access_key, secret_key, bucket_name, local_dir, folder, file_name_or_data, object_key, perform_checksum, dryrun, mem_per_worker)
+        result = upload_to_bucket(s3_host, access_key, secret_key, bucket_name, api, local_dir, folder, file_name_or_data, object_key, perform_checksum, dryrun, mem_per_worker)
     
     file_end = datetime.now()
     print_stats(file_name_or_data, file_count, folder_files_size, file_start, file_end, processing_start, total_size_uploaded, total_files_uploaded, collated)
@@ -726,11 +843,11 @@ def process_files(s3_host, access_key, secret_key, bucket_name, api, current_obj
     Uploads files from a local directory to an S3 bucket in parallel.
 
     Args:
-        s3_host (str): The hostname of the S3 server.
-        access_key (str): The access key for the S3 server.
-        secret_key (str): The secret key for the S3 server.
+        s3_host (str or swiftclient.Connection): The hostname of the S3 server or swiftclient.Connection.
+        access_key (str or None): The access key for the S3 server or None.
+        secret_key (str or None): The secret key for the S3 server or None.
         bucket_name (str): The name of the S3 bucket.
-        api (str): The API to use for the S3 connection.
+        api (str): The API to use for the S3 connection, 's3' or 'swift'.
         current_objects (ps.Dataframe): A list of object names already present in the S3 bucket.
         local_dir (str): The local directory containing the files to upload.
         destination_dir (str): The destination directory in the S3 bucket.
@@ -756,7 +873,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, api, current_obj
         assert type(s3) is swiftclient.Connection
         assert access_key is None
         assert secret_key is None
-        current_objects = dd.from_pandas(pd.DataFrame(current_objects), npartitions=len(client.scheduler_info()['workers'])*100)
+        # current_objects_dd = dd.from_pandas(pd.DataFrame(current_objects), npartitions=len(client.scheduler_info()['workers'])*10)
     processing_start = datetime.now()
     total_size_uploaded = 0
     total_files_uploaded = 0
@@ -943,6 +1060,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, api, current_obj
                             repeat(s3_host), 
                             repeat(access_key), 
                             repeat(secret_key), 
+                            repeat(api),
                             repeat(bucket_name),
                             repeat(local_dir),
                             repeat(folder), 
@@ -1465,7 +1583,7 @@ if __name__ == '__main__':
             if api == 's3':
                 current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, bucket=bucket) # can't Daskify this without passing all bucket objects
             elif api == 'swift':
-                current_objects = dd.from_pandas(current_objects, npartitions=len(client.scheduler_info()['workers'])*100)
+                current_objects = dd.from_pandas(current_objects, npartitions=len(client.scheduler_info()['workers'])*10)
                 current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata_swift, conn=s3, container_name=bucket_name)
                 current_objects = current_objects.compute()
             print(flush=True)
@@ -1491,7 +1609,7 @@ if __name__ == '__main__':
             elif api == 'swift':
                 bm.download_file_swift(s3, bucket_name, previous_log, log)
         print(f'Done, elapsed time = {datetime.now() - start}', flush=True)
-        exit()
+
         # check local_dir formatting
         while local_dir[-1] == '/':
             local_dir = local_dir[:-1]
