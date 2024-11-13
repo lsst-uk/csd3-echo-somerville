@@ -1457,7 +1457,7 @@ if __name__ == '__main__':
             if api == 's3':
                 current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata, bucket=bucket) # can't Daskify this without passing all bucket objects
             elif api == 'swift':
-                current_objects = dd.from_pandas(current_objects)
+                current_objects = dd.from_pandas(current_objects, npartitions=48)
                 current_objects['CURRENT_OBJECTS'] = current_objects['CURRENT_OBJECTS'].apply(find_metadata_swift, conn=s3, container_name=bucket_name)
                 current_objects = current_objects.compute()
             print(flush=True)
