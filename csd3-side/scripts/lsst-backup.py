@@ -1491,7 +1491,7 @@ if __name__ == '__main__':
             elif api == 'swift':
                 bm.download_file_swift(s3, bucket_name, previous_log, log)
         print(f'Done, elapsed time = {datetime.now() - start}', flush=True)
-
+        exit()
         # check local_dir formatting
         while local_dir[-1] == '/':
             local_dir = local_dir[:-1]
