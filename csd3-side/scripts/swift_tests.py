@@ -80,18 +80,17 @@ with open(large_file_path, 'rb') as lf:
         segment_objects = [ bm.get_SwiftUploadObject(bucket_name, f'{large_file_path}_segmented_{segment_number}', options={'contents':segment, 'content_type':'bytes'}) for segment_number, segment in enumerate(segments) ]
         print(segment_objects)
 
-    # swift_service.upload(bucket_name, segment_objects, options={
-    #             'meta': [],
-    #             'header': [],
-    #             'segment_size': segment_size,
-    #             'use_slo': True,
-    #             'segment_container': bucket_name,
-    #             'leave_segments': False,
-    #             'changed': None,
-    #             'skip_identical': False,
-    #             'skip_container_put': False,
-    #             'fail_fast': True,
-    #             'dir_marker': False  # Only for None sources
-    # })
-    #put_object(bucket_name, 'large-file', contents=lf, content_type='bytes')
+    swift_service.upload(bucket_name, segment_objects, options={
+                'meta': [],
+                'header': [],
+                'segment_size': segment_size,
+                'use_slo': True,
+                'segment_container': bucket_name,
+                'leave_segments': False,
+                'changed': None,
+                'skip_identical': False,
+                'skip_container_put': False,
+                'fail_fast': True,
+                'dir_marker': False  # Only for None sources
+    })
 
