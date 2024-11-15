@@ -14,6 +14,10 @@ with open(os.path.expanduser('~/lsst-swift-credentials.json'), 'r') as kf:
 user = keys['user']
 secret_key = keys['secret_key']
 
+os.environ['ST_AUTH'] = s3_host
+os.environ['ST_USER'] = user
+os.environ['ST_KEY'] = secret_key
+
 swift = bm.get_conn_swift(user, secret_key, s3_host)
 print(swift)
 

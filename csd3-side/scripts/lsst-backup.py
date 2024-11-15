@@ -1499,7 +1499,7 @@ if __name__ == '__main__':
     
     # Setup bucket
     if api == 's3':
-        s3_host = 'echo.stfc.ac.uk'
+        s3_host = 'https://echo.stfc.ac.uk'
     elif api == 'swift':
         s3_host = 'https://s3.echo.stfc.ac.uk/auth/1.0'
     print(f'Using {api.capitalize()} API with host {s3_host}')

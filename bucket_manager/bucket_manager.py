@@ -68,7 +68,7 @@ def get_resource(access_key: str, secret_key: str, s3_host: str):
     )
     return session.resource(
         service_name='s3',
-        endpoint_url=f'https://{s3_host}',
+        endpoint_url=s3_host',
         verify=False  # Disable SSL verification for non-AWS S3 endpoints
     )
 
@@ -90,7 +90,7 @@ def get_client(access_key: str, secret_key: str, s3_host:str):
     )
     return session.client(
         service_name='s3',
-        endpoint_url=f'https://{s3_host}',
+        endpoint_url=s3_host,
         verify=False  # Disable SSL verification for non-AWS S3 endpoints
     )
 
