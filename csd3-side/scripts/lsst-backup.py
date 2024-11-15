@@ -346,6 +346,7 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, api, local_di
             The format is: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY
             Where: CHECKSUM, CHECKSUM_SIZE are n/a if checksum was not performed.
     """
+    
     s3 = bm.get_resource(access_key, secret_key, s3_host)
     s3_client = bm.get_client(access_key, secret_key, s3_host)
     bucket = s3.Bucket(bucket_name)

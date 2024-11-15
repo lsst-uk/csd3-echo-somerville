@@ -7,6 +7,7 @@ import boto3
 import os
 from botocore.exceptions import ClientError
 import swiftclient
+import swiftclient.service
 
 def print_buckets(resource) -> None:
     """
@@ -231,6 +232,30 @@ def get_conn_swift(user: str, access_key: str, host: str) -> swiftclient.Connect
         user=user,
         key=access_key,
         authurl=host
+    )
+
+def get_service_swift(user: str, secret_key: str, host: str) -> swiftclient.service.SwiftService:
+    """
+    Creates and returns a Swift service object for the specified Swift endpoint.
+
+    Parameters:
+    - user: The Swift user.
+    - secret_key: The Swift secret key.
+    - host: The Swift authentication URL.
+
+    Returns:
+    A Swift service object.
+    """
+    return swiftclient.service.SwiftService(
+        {
+            'auth_version': '3',
+            'os_auth_url': host,
+            'os_username': user.split(':')[1],
+            'os_password': secret_key,
+            'os_project_name': user.split(':')[0],
+            'os_user_domain_name': 'default',
+            'os_project_domain_name': 'default'
+        }
     )
 
 def download_file_swift(conn: swiftclient.Connection, container_name: str, object_name: str, local_path: str) -> None:
