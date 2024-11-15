@@ -60,42 +60,43 @@ container = 'new-container'
         )
 ```
 '''
-# segment_size = 2*1024**3 # 2GiB
+segment_size = 2*1024**3 # 2GiB
+prefix = 'test'
+remote_path = f'{prefix}/{os.path.basename(large_file_path)}'
+segments = [remote_path]
+with open(large_file_path, 'rb') as lf:
+    file_size = len(lf.read())
+    n_segments = int(np.ceil(file_size / segment_size))
+    print(n_segments)
+    print(file_size)
+    lf.seek(0)
+    for i in range(n_segments):
+        start = i * segment_size
+        end = min(start + segment_size, file_size)
+        print(start, end)
+        segment_number = i + 1
+        print(segment_number)
+        segments.append(lf.read()[start:end])
+        print(len(segments))
+        segment_objects = [ bm.get_SwiftUploadObject(bucket_name, f'{large_file_path}_segmented_{segment_number}', options={'contents':segment, 'content_type':'bytes'}) for segment_number, segment in enumerate(segments) ]
+        print(segment_objects)
 
-# with open(large_file_path, 'rb') as lf:
-#     file_size = len(lf.read())
-#     n_segments = int(np.ceil(file_size / segment_size))
-#     print(n_segments)
-#     print(file_size)
-#     lf.seek(0)
-#     segments = []
-#     for i in range(n_segments):
-#         start = i * segment_size
-#         end = min(start + segment_size, file_size)
-#         print(start, end)
-#         segment_number = i + 1
-#         print(segment_number)
-#         segments.append(lf.read()[start:end])
-#         print(len(segments))
-#         segment_objects = [ bm.get_SwiftUploadObject(bucket_name, f'{large_file_path}_segmented_{segment_number}', options={'contents':segment, 'content_type':'bytes'}) for segment_number, segment in enumerate(segments) ]
-#         print(segment_objects)
-
-# print('Uploading large file in segments.')
-# swift_service.upload(
-#     bucket_name,
-#     segment_objects,
-#     options={
-#             'meta': [],
-#             'header': [],
-#             'segment_size': segment_size,
-#             'use_slo': True,
-#             'segment_container': bucket_name,
-#             'leave_segments': False,
-#             'changed': None,
-#             'skip_identical': False,
-#             'skip_container_put': False,
-#             'fail_fast': True,
-#             'dir_marker': False  # Only for None sources
-#         }
-#     )
-
+print('Uploading large file in segments.')
+results = swift_service.upload(
+    bucket_name,
+    segment_objects,
+    options={
+            'meta': [],
+            'header': [],
+            'segment_size': segment_size,
+            'use_slo': True,
+            'segment_container': bucket_name,
+            'leave_segments': False,
+            'changed': None,
+            'skip_identical': False,
+            'skip_container_put': False,
+            'fail_fast': True,
+            'dir_marker': False  # Only for None sources
+        }
+    )
+print(results)
