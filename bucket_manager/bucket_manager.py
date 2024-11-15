@@ -248,7 +248,7 @@ def get_service_swift(user: str, secret_key: str, host: str) -> swiftclient.serv
     """
     return swiftclient.service.SwiftService(
         {
-            'auth_version': '3',
+            'auth_version': '1',
             'os_auth_url': host,
             'os_username': user.split(':')[1],
             'os_password': secret_key,
