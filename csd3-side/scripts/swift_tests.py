@@ -29,6 +29,8 @@ bucket_name = 'test-large-file'
 large_file_path = sys.argv[1]
 if large_file_path.startswith('~'):
     large_file_path = os.path.expanduser(large_file_path)
+elif not os.path.isabs(large_file_path):
+    large_file_path = os.path.abspath(large_file_path)
 
 try:
     current_objects = bm.object_list_swift(swift, bucket_name, full_listing=False)
