@@ -40,6 +40,7 @@ def get_keys(api: str ='s3') -> None:
         except KeyError:
             raise KeyError('Set ECHO_S3_ACCESS_KEY and ECHO_S3_SECRET_KEY environment variables.')
         return {'access_key': access_key, 'secret_key': secret_key}
+    
     elif api == 'swift':
         try:
             user = os.environ['ECHO_SWIFT_USER']
