@@ -45,7 +45,7 @@ except Exception as e:
     print(f'Error: {e}')
 
 
-print(f'len(current_objects) = {len(current_objects)}')
+print(f'len(current_objects): {len(current_objects)}')
 
 '''
 ```python
@@ -75,7 +75,8 @@ with open(large_file_path, 'rb') as lf:
         print(start, end)
         segment_number = i + 1
         print(segment_number)
-        # segments.append(lf.read()[start:end])
+        segments.append(lf.read()[start:end])
+        print(len(segments))
         # segment_objects = [ swift_service.SwiftUploadObject(bucket_name, f'{large_file_path}_segmented_{segment_number}', contents=segment, content_type='bytes') for segment_number, segment in enumerate(segments) ]
 
     # swift_service.upload(bucket_name, segment_objects, options={
