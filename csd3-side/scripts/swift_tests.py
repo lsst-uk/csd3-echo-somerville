@@ -80,6 +80,7 @@ with open(large_file_path, 'rb') as lf:
         segment_objects = [ bm.get_SwiftUploadObject(bucket_name, f'{large_file_path}_segmented_{segment_number}', options={'contents':segment, 'content_type':'bytes'}) for segment_number, segment in enumerate(segments) ]
         print(segment_objects)
 
+print('Uploading large file in segments.')
 swift_service.upload(
     bucket_name,
     segment_objects,
