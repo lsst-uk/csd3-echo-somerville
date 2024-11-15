@@ -18,7 +18,7 @@ jobs:
     - name: set bm version
       run: |
         bm_version=$(grep "version" setup.py | awk -F\' '{print $2}')
-        if [ $bm_version == *dev* ]; then
+        if [[ $bm_version == *"dev"* ]]; then
           new_bm_version=$(echo $bm_version | awk -Fv '{print $1"v"$2+1}')
         else
           new_bm_version=${bm_version}.dev1
