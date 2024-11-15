@@ -9,7 +9,7 @@ import json
 s3_host = 'https://s3.echo.stfc.ac.uk/auth/1.0'
 
 # keys = bm.get_keys(api)
-with open(os.path.expanduser('~/keys/lsst-swift-credentials.json'), 'r') as kf:
+with open(os.path.expanduser('~/lsst-swift-credentials.json'), 'r') as kf:
     keys = json.load(kf)
 user = keys['user']
 secret_key = keys['secret_key']
