@@ -3,7 +3,7 @@ name: bm version CI
 on:
   push:
     branches:
-      - '**'
+      - "**"
     paths:
       - bucket_manager/**
 
