@@ -99,4 +99,4 @@ results = swift_service.upload(
             'dir_marker': False  # Only for None sources
         }
     )
-print(results)
+print([result for result in results])
