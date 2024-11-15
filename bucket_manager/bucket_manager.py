@@ -258,6 +258,9 @@ def get_service_swift(user: str, secret_key: str, host: str) -> swiftclient.serv
         }
     )
 
+def get_SwiftUploadObject(source, object_name=None, options=None) -> swiftclient.service.SwiftUploadObject:
+    return swiftclient.service.SwiftUploadObject(source, object_name, options)
+
 def download_file_swift(conn: swiftclient.Connection, container_name: str, object_name: str, local_path: str) -> None:
     """
     Downloads a file from the specified container.
