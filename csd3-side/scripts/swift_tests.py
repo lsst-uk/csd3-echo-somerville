@@ -109,4 +109,6 @@ results = swift_service.upload(
         'dir_marker': False  # Only for None sources
         }
     )
-print([result for result in results])
+
+for result in results:
+    print(result) if 'upload_object' in result
