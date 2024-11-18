@@ -71,6 +71,7 @@ container = 'new-container'
 segment_size = 2*1024**3 # 2GiB
 prefix = 'test'
 remote_path = f'{prefix}/{os.path.basename(large_file_path)}'
+print(f'remote_path {remote_path}')
 segments = []
 segmented_upload = [large_file_path]
 with open(large_file_path, 'rb') as lf:
