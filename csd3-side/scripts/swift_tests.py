@@ -36,6 +36,7 @@ if large_file_path.startswith('~'):
 elif not os.path.isabs(large_file_path):
     large_file_path = os.path.abspath(large_file_path)
 
+current_objects = None
 try:
     current_objects = bm.object_list_swift(swift, bucket_name, full_listing=False)
 except Exception as e:
@@ -43,13 +44,15 @@ except Exception as e:
 
 print(current_objects)
 
-try:
-    swift.put_container(bucket_name)
-except Exception as e:
-    print(f'Error: {e}')
+if not current_objects:
+    try:
+        swift.put_container(bucket_name)
+    except Exception as e:
+        print(f'Error: {e}')
 
 
 print(f'len(current_objects): {len(current_objects)}')
+exit()
 
 '''
 ```python
