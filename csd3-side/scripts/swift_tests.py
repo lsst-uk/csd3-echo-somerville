@@ -111,4 +111,5 @@ results = swift_service.upload(
     )
 
 for result in results:
-    print(result)
+    if result['action'] == 'upload_object':
+        print(result)
