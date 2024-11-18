@@ -96,14 +96,14 @@ for so in segment_objects:
 
 print(f'Uploading large file in {len(segment_objects)} segments.')
 results = swift_service.upload(
-    bucket_name + '_segments',
+    bucket_name,
     segmented_upload,
     options={
         'meta': [],
         'header': [],
         'segment_size': segment_size,
         'use_slo': True,
-        'segment_container': bucket_name,
+        'segment_container': bucket_name+'-segments',
         'leave_segments': False,
         'changed': None,
         'skip_identical': False,
