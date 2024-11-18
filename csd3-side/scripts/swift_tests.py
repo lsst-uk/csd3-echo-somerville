@@ -73,7 +73,7 @@ prefix = 'test'
 remote_path = f'{prefix}/{os.path.basename(large_file_path)}'
 print(f'remote_path {remote_path}')
 segments = []
-segmented_upload = [large_file_path]
+
 with open(large_file_path, 'rb') as lf:
     file_size = len(lf.read())
     n_segments = int(np.ceil(file_size / segment_size))
@@ -90,6 +90,7 @@ with open(large_file_path, 'rb') as lf:
         print(len(segments))
 segment_objects = [ bm.get_SwiftUploadObject(large_file_path, None, options={'contents':segment, 'content_type':'bytes'}) for segment in segments ]
 print(segment_objects)
+segmented_upload = [large_file_path]
 for so in segment_objects:
     segmented_upload.append(so)
 
@@ -108,10 +109,11 @@ results = swift_service.upload(
         'skip_identical': False,
         'skip_container_put': False,
         'fail_fast': False,
-        'dir_marker': False  # Only for None sources
+        'dir_marker': False 
         }
     )
 
-for result in results:
-    if result['action'] == 'upload_object':
-        print(result)
+# for result in results:
+#     if result['action'] == 'upload_object':
+#         print(result)
+print(results)
