@@ -799,11 +799,11 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, api, local
     """
     Uploads files to an S3 bucket and logs the output. Supports both collated (zipped) and individual file uploads.
     Args:
-        s3_host (str): The S3 host URL.
-        access_key (str): The access key for S3 authentication.
-        secret_key (str): The secret key for S3 authentication.
+        s3_host (str | swiftclient.Connection): The S3 host URL or swiftclient.Connection
+        access_key (str | None): The access key for S3 authentication or None.
+        secret_key (str | None): The secret key for S3 authentication or None.
         bucket_name (str): The name of the S3 bucket.
-        api (object): The API object for interacting with S3.
+        api (str): The API object for interacting with S3.
         local_dir (str): The local directory containing the files to upload.
         folder (str): The folder containing the files to upload.
         file_name_or_data (str or bytes): The name of the file or the file data to upload.
