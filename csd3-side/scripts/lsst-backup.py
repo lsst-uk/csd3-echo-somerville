@@ -679,15 +679,11 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, api,
                 """
                 print(f'Uploading zip file "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key}')
                 metadata_value = '|'.join(zip_contents) # use | as separator
-                metadata_size = len(metadata_value.encode('utf-8'))
 
-                if metadata_size > 1024:
-                    metadata_object_key = object_key + '.metadata'
-                    print(f'Metadata size exceeds the size limit. Writing to {metadata_object_key}.', flush=True)
-                    bucket.put_object(Body=metadata_value, Key=metadata_object_key, Metadata={'corresponding-zip': object_key})
-                    metadata = {'zip-contents-object': metadata_object_key}
-                else:
-                    metadata = {'zip-contents': metadata_value}
+                metadata_object_key = object_key + '.metadata'
+                print(f'Writing zip contents to {metadata_object_key}.', flush=True)
+                bucket.put_object(Body=metadata_value, Key=metadata_object_key, Metadata={'corresponding-zip': object_key})
+                metadata = {'zip-contents-object': metadata_object_key}
 
                 bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64, Metadata=metadata)
             except Exception as e:
@@ -735,17 +731,11 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, api,
                 """
                 print(f'Uploading zip file "{filename}" ({file_data_size} bytes) to {bucket_name}/{object_key}')
                 metadata_value = '|'.join(zip_contents) # use | as separator
-                metadata_size = len(metadata_value.encode('utf-8'))
 
-                if metadata_size > 1024:
-                    metadata_object_key = object_key + '.metadata'
-                    print(f'Metadata size exceeds the size limit. Writing to {metadata_object_key}.', flush=True)
-                    s3.put_object(container=bucket_name, contents=metadata_value, obj=metadata_object_key, headers={'corresponding-zip': object_key})
-                    metadata = {'zip-contents-object': metadata_object_key}
-                else:
-                    metadata = {'zip-contents': metadata_value}
-
-                s3.put_object(container=bucket_name, contents=file_data, obj=object_key, etag=checksum_base64) # NEED TO ADD METADATA HERE
+                metadata_object_key = object_key + '.metadata'
+                print(f'Writing zip contents to {metadata_object_key}.', flush=True)
+                s3.put_object(container=bucket_name, contents=metadata_value, obj=metadata_object_key, headers={'x-object-meta-corresponding-zip': object_key})
+                s3.put_object(container=bucket_name, contents=file_data, obj=object_key, etag=checksum_base64, headers={'x-object-meta-zip-contents-object':metadata_object_key}) # NEED TO ADD METADATA HERE
             except Exception as e:
                 print(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
                 exit(1)
