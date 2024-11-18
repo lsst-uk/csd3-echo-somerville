@@ -113,5 +113,5 @@ results = swift_service.upload(
         }
     )
 
-for result in results:
-    print(result)
+# for result in results:
+#     print(result)
