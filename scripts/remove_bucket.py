@@ -12,7 +12,7 @@ import argparse
 # from tqdm import tqdm
 import bucket_manager.bucket_manager as bm
 
-s3_host = 'echo.stfc.ac.uk'
+s3_host = 'https://echo.stfc.ac.uk'
 try:
     keys = bm.get_keys()
 except KeyError as e:
