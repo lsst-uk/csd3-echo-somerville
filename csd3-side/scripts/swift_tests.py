@@ -52,7 +52,7 @@ if not current_objects:
 
 
 print(f'len(current_objects): {len(current_objects)}')
-exit()
+
 
 '''
 ```python
