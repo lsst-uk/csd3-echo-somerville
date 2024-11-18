@@ -30,8 +30,8 @@ print(bucket_list)
 
 bucket_name = 'test-large-file'
 try:
-    result = swift.put_container(bucket_name)
-    print(result)
+    results = swift.put_container(bucket_name)
+    print([result for result in results])
 except Exception as e:
     print(f'Error: {e}')
 
