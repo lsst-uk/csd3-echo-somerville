@@ -73,7 +73,7 @@ prefix = 'test'
 remote_path = f'{prefix}/{os.path.basename(large_file_path)}'
 print(f'remote_path {remote_path}')
 segments = []
-segmented_upload = [large_file_path]
+segmented_upload = [remote_path]
 with open(large_file_path, 'rb') as lf:
     file_size = len(lf.read())
     n_segments = int(np.ceil(file_size / segment_size))
