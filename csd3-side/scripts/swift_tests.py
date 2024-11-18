@@ -95,7 +95,7 @@ for so in segment_objects:
 
 print(f'Uploading large file in {len(segment_objects)} segments.')
 results = swift_service.upload(
-    bucket_name,
+    bucket_name + '_segments',
     segmented_upload,
     options={
         'meta': [],
