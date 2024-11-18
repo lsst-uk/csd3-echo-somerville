@@ -29,6 +29,10 @@ bucket_list = bm.bucket_list_swift(swift)
 print(bucket_list)
 
 bucket_name = 'test-large-file'
+try:
+    swift.put_container(bucket_name)
+except Exception as e:
+    print(f'Error: {e}')
 
 large_file_path = sys.argv[1]
 if large_file_path.startswith('~'):
@@ -43,12 +47,6 @@ except Exception as e:
     print(f'Error: {e}')
 
 print(current_objects)
-
-if not current_objects:
-    try:
-        swift.put_container(bucket_name)
-    except Exception as e:
-        print(f'Error: {e}')
 
 
 print(f'len(current_objects): {len(current_objects)}')
