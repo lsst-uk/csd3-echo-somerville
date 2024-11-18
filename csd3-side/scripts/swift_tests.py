@@ -107,7 +107,7 @@ results = swift_service.upload(
         'changed': None,
         'skip_identical': False,
         'skip_container_put': False,
-        'fail_fast': True,
+        'fail_fast': False,
         'dir_marker': False  # Only for None sources
         }
     )
