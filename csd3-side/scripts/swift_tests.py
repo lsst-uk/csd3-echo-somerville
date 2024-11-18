@@ -31,7 +31,8 @@ print(bucket_list)
 bucket_name = 'test-large-file'
 try:
     results = swift.put_container(bucket_name)
-    print([result for result in results])
+    if results is not None:
+        print([result for result in results])
 except Exception as e:
     print(f'Error: {e}')
 
