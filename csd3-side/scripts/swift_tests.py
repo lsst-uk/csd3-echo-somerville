@@ -30,9 +30,11 @@ print(bucket_list)
 
 bucket_name = 'test-large-file'
 try:
-    swift.put_container(bucket_name)
+    result = swift.put_container(bucket_name)
+    print(result)
 except Exception as e:
     print(f'Error: {e}')
+
 
 large_file_path = sys.argv[1]
 if large_file_path.startswith('~'):
