@@ -71,7 +71,7 @@ segment_size = 2*1024**3 # 2GiB
 prefix = 'test'
 remote_path = f'{prefix}/{os.path.basename(large_file_path)}'
 segments = []
-segmented_upload = [remote_path]
+segmented_upload = [large_file_path]
 with open(large_file_path, 'rb') as lf:
     file_size = len(lf.read())
     n_segments = int(np.ceil(file_size / segment_size))
@@ -86,10 +86,10 @@ with open(large_file_path, 'rb') as lf:
         print(segment_number)
         segments.append(lf.read()[start:end])
         print(len(segments))
-    segment_objects = [ bm.get_SwiftUploadObject(bucket_name, f'{large_file_path}_segmented_{segment_number}', options={'contents':segment, 'content_type':'bytes'}) for segment_number, segment in enumerate(segments) ]
-    print(segment_objects)
-    for so in segment_objects:
-        segmented_upload.append(so)
+segment_objects = [ bm.get_SwiftUploadObject(bucket_name, f'{large_file_path}_segmented_{segment_number}', options={'contents':segment, 'content_type':'bytes'}) for segment_number, segment in enumerate(segments) ]
+print(segment_objects)
+for so in segment_objects:
+    segmented_upload.append(so)
 
 print('Uploading large file in segments.')
 results = swift_service.upload(
