@@ -1344,6 +1344,7 @@ if __name__ == '__main__':
     parser.add_argument('--exclude', nargs='+', help="Files or folders to exclude from upload as a list in the form ['dir1', 'dir2', ...] or other valid YAML. Must relative paths to local_path.")
     parser.add_argument('--nprocs', type=int, help='Number of CPU cores to use for parallel upload.')
     parser.add_argument('--threads-per-worker', type=int, help='Number of threads per Dask worker to use for parallel upload.')
+    parser.add_argument('--no-checksum', default=False, action='store_true', help='DEPRECATED - Turn off file checksum.')
     parser.add_argument('--no-collate', default=False, action='store_true', help='Turn off collation of subfolders containing small numbers of small files into zip files.')
     parser.add_argument('--dryrun', default=False, action='store_true', help='Perform a dry run without uploading files.')
     parser.add_argument('--no-compression', default=False, action='store_true', help='Do not use compression when collating files.')
@@ -1382,6 +1383,8 @@ if __name__ == '__main__':
                     args.threads_per_worker = config['threads_per_worker']
                 if 'threads_per_worker' not in config.keys() and not args.threads_per_worker: # required to allow default value of 4 as this overrides "default" in add_argument
                     args.threads_per_worker = 2
+                if 'no_checksum' in config.keys() and not args.no_checksum:
+                    args.no_checksum = config['no_checksum']
                 if 'no_collate' in config.keys() and not args.no_collate:
                     args.no_collate = config['no_collate']
                 if 'dryrun' in config.keys() and not args.dryrun:
@@ -1401,6 +1404,10 @@ if __name__ == '__main__':
 
     if args.save_config and not args.config_file:
         parser.error('A config file must be provided to save the configuration.')
+
+    no_checksum = args.no_checksum
+    if no_checksum:
+        parser.error('Please note: the optin to disable file checksum has been deprecated.')
 
     save_config = args.save_config
     api = args.api.lower()
