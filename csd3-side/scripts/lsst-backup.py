@@ -548,41 +548,33 @@ def upload_to_bucket(s3, bucket_name, api, local_dir, folder, filename, object_k
                         """
                         - Use multipart upload for large files
                         """
-                        exit()
-                        # obj = bucket.Object(object_key)
-                        # mp_upload = obj.initiate_multipart_upload()
-                        # chunk_size = 512 * 1024**2  # 512 MiB
-                        # chunk_count = int(np.ceil(file_size / chunk_size))
-                        # print(f'Uploading {filename} to {bucket_name}/{object_key} in {chunk_count} parts.')
-                        # parts = []
-                        # part_futures = []
-                        # for i in range(chunk_count):
-                        #     start = i * chunk_size
-                        #     end = min(start + chunk_size, file_size)
-                        #     part_number = i + 1
-                        #     # with open(filename, 'rb') as f:
-                        #     #     f.seek(start)
-                        #     # chunk_data = get_client.gather(file_data)[start:end]
-                        #     part_futures.append(get_client().submit(
-                        #     part_uploader,
-                        #         s3_host,
-                        #         access_key,
-                        #         secret_key,
-                        #         bucket_name,
-                        #         object_key,
-                        #         part_number,
-                        #         file_data[start:end],
-                        #         mp_upload.id
-                        #     ))
-                        # for future in as_completed(part_futures):
-                        #     parts.append(future.result())
-                        #     del future
-                        # s3_client.complete_multipart_upload(
-                        #     Bucket=bucket_name,
-                        #     Key=object_key,
-                        #     UploadId=mp_upload.id,
-                        #     MultipartUpload={"Parts": parts}
-                        # )
+                        swift_service = bm.get_swift_service()
+                        segment_size = 512*1024**2
+                        segments = []
+                        n_segments = int(np.ceil(file_size / segment_size))
+                        for i in range(n_segments):
+                            start = i * segment_size
+                            end = min(start + segment_size, file_size)
+                            segments.append(file_data[start:end])
+                        segment_objects = [bm.get_SwiftUploadObject(filename, object_name=object_key, options={'contents':segment, 'content_type':'bytes'}) for segment in segments]
+                        segmented_upload = [filename]
+                        for so in segment_objects:
+                            segmented_upload.append(so)
+                        print(f'Uploading {filename} to {bucket_name}/{object_key} in {n_segments} parts.', flush=True)
+                        results = swift_service.upload(
+                            bucket_name,
+                            segmented_upload,
+                            options={
+                                'meta': [],
+                                'header': [],
+                                'segment_size': segment_size,
+                                'use_slo': True,
+                                'segment_container': bucket_name+'-segments'
+                            }
+                        )
+                        # for result in results:
+                        #     if result['action'] == 'upload_object':
+                        # check if all parts uploaded successfully
                     else:
                         """
                         - Upload the file to the bucket
@@ -598,8 +590,6 @@ def upload_to_bucket(s3, bucket_name, api, local_dir, folder, filename, object_k
                 del file_data
         else:
             checksum_string = "DRYRUN"
-
-        # del file_data # Delete the file data to free up memory
 
         """
             report actions
