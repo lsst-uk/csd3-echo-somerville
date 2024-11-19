@@ -1505,16 +1505,13 @@ if __name__ == '__main__':
     try:
         if bm.check_keys(api):
             if api == 's3':
-                s3_host = 'https://echo.stfc.ac.uk'
                 access_key = os.environ['S3_ACCESS_KEY']
                 secret_key = os.environ['S3_ACCESS_KEY']
+                s3_host = os.environ['S3_HOST_URL']
             elif api == 'swift':
                 access_key = os.environ['ST_USER']
                 secret_key = os.environ['ST_KEY']
-                os.environ['ST_AUTH'] = s3_host
-                os.environ['ST_USER'] = access_key
-                os.environ['ST_KEY'] = secret_key
-                s3_host = 'https://s3.echo.stfc.ac.uk/auth/1.0'
+                s3_host = os.environ['ST_AUTH']
     except AssertionError as e:
         print(f'AssertionError {e}', file=sys.stderr)
         sys.exit()
@@ -1531,7 +1528,7 @@ if __name__ == '__main__':
         s3 = bm.get_resource()
         bucket_list = bm.bucket_list(s3)
     elif api == 'swift':
-        s3 = bm.get_conn_swift(access_key, secret_key, s3_host)
+        s3 = bm.get_conn_swift()
         bucket_list = bm.bucket_list_swift(s3)
     
     if bucket_name not in bucket_list:

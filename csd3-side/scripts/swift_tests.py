@@ -6,22 +6,18 @@ import bucket_manager.bucket_manager as bm
 import numpy as np
 import os
 import json
-s3_host = 'https://s3.echo.stfc.ac.uk/auth/1.0'
 
-# keys = bm.get_keys(api)
-with open(os.path.expanduser('~/lsst-swift-credentials.json'), 'r') as kf:
-    keys = json.load(kf)
-user = keys['user']
-secret_key = keys['secret_key']
 
-os.environ['ST_AUTH'] = s3_host
-os.environ['ST_USER'] = user
-os.environ['ST_KEY'] = secret_key
 
-swift = bm.get_conn_swift(user, secret_key, s3_host)
+# s3_host = os.environ['ST_AUTH']
+# user = os.environ['ST_USER']
+# secret_key = os.environ['ST_KEY']
+if not bm.check_keys('swift'):
+    sys.exit('Error: Missing environment variables for Swift API.')
+swift = bm.get_conn_swift()
 print(swift)
 
-swift_service = bm.get_service_swift(user, secret_key, s3_host)
+swift_service = bm.get_service_swift()
 print(swift_service)
 
 bucket_list = bm.bucket_list_swift(swift)
