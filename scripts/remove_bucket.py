@@ -6,24 +6,26 @@
 This script allows you to delete a bucket in an S3-compatible storage service.
 """
 
+import os
 import sys
 import warnings
 import argparse
 # from tqdm import tqdm
 import bucket_manager.bucket_manager as bm
 
-s3_host = 'https://echo.stfc.ac.uk'
+
 try:
-    keys = bm.get_keys()
+    keys = bm.check_keys()
 except KeyError as e:
     print(e)
     sys.exit()
-access_key = keys['access_key']
-secret_key = keys['secret_key']
+# s3_host = os.environ['S3_HOST_URL']
+# access_key = os.environ['S3_ACCESS_KEY']
+# secret_key = os.environ['S3_SECRET_KEY']
 
 warnings.filterwarnings('ignore')
 
-s3 = bm.get_resource(access_key, secret_key, s3_host)
+s3 = bm.get_resource()
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-y', action='store_true', help='Skip confirmation prompt')
