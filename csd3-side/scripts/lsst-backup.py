@@ -1632,6 +1632,7 @@ if __name__ == '__main__':
         upload_to_bucket(
             s3,
             bucket_name,
+            api,
             local_dir,
             '/', #path
             log, 
