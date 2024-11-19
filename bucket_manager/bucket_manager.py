@@ -65,9 +65,12 @@ def get_resource(access_key: str, secret_key: str, s3_host: str):
     Returns:
     An S3 resource object.
     """
-    creds = {'access_key': os.environ['S3_ACCESS_KEY'],
-             'secret_key': os.environ['S3_SECRET_KEY'],
-             'host_url': os.environ['S3_HOST_URL']}
+    try:
+        creds = {'access_key': os.environ['S3_ACCESS_KEY'],
+            'secret_key': os.environ['S3_SECRET_KEY'],
+            'host_url': os.environ['S3_HOST_URL']}
+    except KeyError as e:
+        raise KeyError('Set S3_ACCESS_KEY, S3_SECRET_KEY and S3_HOST_URL environment variables.')
     session = boto3.Session(
         aws_access_key_id=creds['access_key'],
         aws_secret_access_key=creds['secret_key']
@@ -90,9 +93,12 @@ def get_client():
     Returns:
     An S3 client object.
     """
-    creds = {'access_key': os.environ['S3_ACCESS_KEY'],
-             'secret_key': os.environ['S3_SECRET_KEY'],
-             'host_url': os.environ['S3_HOST_URL']}
+    try:
+        creds = {'access_key': os.environ['S3_ACCESS_KEY'],
+            'secret_key': os.environ['S3_SECRET_KEY'],
+            'host_url': os.environ['S3_HOST_URL']}
+    except KeyError as e:
+        raise KeyError('Set S3_ACCESS_KEY, S3_SECRET_KEY and S3_HOST_URL environment variables.')
     session = boto3.Session(
         aws_access_key_id=creds['access_key'],
         aws_secret_access_key=creds['secret_key']
@@ -237,9 +243,12 @@ def get_conn_swift() -> swiftclient.Connection:
     Returns:
     A Swift connection object.
     """
-    creds = {'user': os.environ['ST_USER'],
-             'key': os.environ['ST_SECRET'],
-             'authurl': os.environ['ST_AUTH']}
+    try:
+        creds = {'user': os.environ['ST_USER'],
+            'key': os.environ['ST_SECRET'],
+            'authurl': os.environ['ST_AUTH']}
+    except KeyError as e:
+        raise KeyError('Set ST_USER, ST_SECRET and ST_AUTH environment variables.')
     return swiftclient.Connection(
         user=creds['user'],
         key=creds['key'],
@@ -258,9 +267,12 @@ def get_service_swift() -> swiftclient.service.SwiftService:
     Returns:
     A Swift service object.
     """
-    creds = {'user': os.environ['ST_USER'],
-             'key': os.environ['ST_SECRET'],
+    try:
+        creds = {'user': os.environ['ST_USER'],
+             'key': os.environ['ST_KEY'],
              'authurl': os.environ['ST_AUTH']}
+    except KeyError as e:
+        raise KeyError('Set ST_USER, ST_SECRET and ST_AUTH environment variables.')
     return swiftclient.service.SwiftService(
         {
             'auth_version': '1',

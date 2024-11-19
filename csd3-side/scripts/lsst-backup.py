@@ -1502,31 +1502,33 @@ if __name__ == '__main__':
                 logfile.write('LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS\n')
     
     # Setup bucket
-    if api == 's3':
-        s3_host = 'https://echo.stfc.ac.uk'
-    elif api == 'swift':
-        s3_host = 'https://s3.echo.stfc.ac.uk/auth/1.0'
-    print(f'Using {api.capitalize()} API with host {s3_host}')
     try:
-        keys = bm.get_keys(api)
+        if bm.check_keys(api):
+            if api == 's3':
+                s3_host = 'https://echo.stfc.ac.uk'
+                access_key = os.environ['S3_ACCESS_KEY']
+                secret_key = os.environ['S3_ACCESS_KEY']
+            elif api == 'swift':
+                access_key = os.environ['ST_USER']
+                secret_key = os.environ['ST_KEY']
+                os.environ['ST_AUTH'] = s3_host
+                os.environ['ST_USER'] = access_key
+                os.environ['ST_KEY'] = secret_key
+                s3_host = 'https://s3.echo.stfc.ac.uk/auth/1.0'
+    except AssertionError as e:
+        print(f'AssertionError {e}', file=sys.stderr)
+        sys.exit()
     except KeyError as e:
         print(f'KeyError {e}', file=sys.stderr)
         sys.exit()
     except ValueError as e:
         print(f'ValueError {e}', file=sys.stderr)
         sys.exit()
-    if api == 's3':
-        access_key = keys['access_key']
-        secret_key = keys['secret_key']
-    elif api == 'swift':
-        access_key = keys['user']
-        secret_key = keys['secret_key']
-        os.environ['ST_AUTH'] = s3_host
-        os.environ['ST_USER'] = access_key
-        os.environ['ST_KEY'] = secret_key
+
+    print(f'Using {api.capitalize()} API with host {s3_host}')
     
     if api == 's3':
-        s3 = bm.get_resource(access_key, secret_key, s3_host)
+        s3 = bm.get_resource()
         bucket_list = bm.bucket_list(s3)
     elif api == 'swift':
         s3 = bm.get_conn_swift(access_key, secret_key, s3_host)
