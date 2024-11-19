@@ -22,7 +22,7 @@ def print_buckets(resource) -> None:
     for b in resource.buckets.all():
         print(b.name)
     
-def check_keys(api: str ='s3') -> None:
+def check_keys(api: str ='swift') -> None:
     """
     Retrieves the access key and secret key for the specified API.
 
@@ -53,7 +53,7 @@ def check_keys(api: str ='s3') -> None:
     else:
         raise ValueError(f'Invalid API: {api}')
 
-def get_resource(access_key: str, secret_key: str, s3_host: str):
+def get_resource():
     """
     Creates and returns an S3 resource object for the specified S3 endpoint.
 
