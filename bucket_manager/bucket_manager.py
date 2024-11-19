@@ -22,7 +22,7 @@ def print_buckets(resource) -> None:
     for b in resource.buckets.all():
         print(b.name)
     
-def get_keys(api: str ='s3') -> None:
+def check_keys(api: str ='s3') -> None:
     """
     Retrieves the access key and secret key for the specified API.
 
@@ -35,19 +35,21 @@ def get_keys(api: str ='s3') -> None:
     """
     if api == 's3':
         try:
-            access_key = os.environ['ECHO_S3_ACCESS_KEY']
-            secret_key = os.environ['ECHO_S3_SECRET_KEY']
-        except KeyError:
-            raise KeyError('Set ECHO_S3_ACCESS_KEY and ECHO_S3_SECRET_KEY environment variables.')
-        return {'access_key': access_key, 'secret_key': secret_key}
+            assert 'S3_ACCESS_KEY' in os.environ
+            assert 'S3_SECRET_KEY' in os.environ
+            assert 'S3_HOST_URL' in os.environ
+        except AssertionError:
+            raise AssertionError('Set S3_ACCESS_KEY, S3_SECRET_KEY and S3_HOST_URL environment variables.')
+        return True
     
     elif api == 'swift':
         try:
-            user = os.environ['ECHO_SWIFT_USER']
-            secret_key = os.environ['ECHO_SWIFT_SECRET_KEY']
-        except KeyError:
-            raise KeyError('Set ECHO_SWIFT_USER and ECHO_SWIFT_SECRET_KEY environment variables.')
-        return {'user': user, 'secret_key': secret_key}
+            assert 'ST_USER' in os.environ
+            assert 'ST_SECRET' in os.environ
+            assert 'ST_AUTH' in os.environ
+        except AssertionError:
+            raise AssertionError('Set ST_USER, ST_SECRET and ST_AUTH environment variables.')
+        return True
     else:
         raise ValueError(f'Invalid API: {api}')
 
@@ -55,43 +57,49 @@ def get_resource(access_key: str, secret_key: str, s3_host: str):
     """
     Creates and returns an S3 resource object for the specified S3 endpoint.
 
-    Parameters:
-    - access_key: The access key for the S3 endpoint.
-    - secret_key: The secret key for the S3 endpoint.
-    - s3_host: The hostname of the S3 endpoint.
+    Requires the following environment variables to be set:
+    - S3_ACCESS_KEY: The S3 access key.
+    - S3_SECRET_KEY: The S3 secret key.
+    - S3_HOST_URL: The S3 endpoint URL.
 
     Returns:
     An S3 resource object.
     """
+    creds = {'access_key': os.environ['S3_ACCESS_KEY'],
+             'secret_key': os.environ['S3_SECRET_KEY'],
+             'host_url': os.environ['S3_HOST_URL']}
     session = boto3.Session(
-        aws_access_key_id=access_key,
-        aws_secret_access_key=secret_key
+        aws_access_key_id=creds['access_key'],
+        aws_secret_access_key=creds['secret_key']
     )
     return session.resource(
         service_name='s3',
-        endpoint_url=s3_host,
+        endpoint_url=creds['host_url'],
         verify=False  # Disable SSL verification for non-AWS S3 endpoints
     )
 
-def get_client(access_key: str, secret_key: str, s3_host:str):
+def get_client():
     """
     Creates and returns an S3 client object for the specified S3 endpoint.
 
-    Parameters:
-    - access_key: The access key for the S3 endpoint.
-    - secret_key: The secret key for the S3 endpoint.
-    - s3_host: The hostname of the S3 endpoint.
+    Requires the following environment variables to be set:
+    - S3_ACCESS_KEY: The S3 access key.
+    - S3_SECRET_KEY: The S3 secret key.
+    - S3_HOST_URL: The S3 endpoint URL.
 
     Returns:
     An S3 client object.
     """
+    creds = {'access_key': os.environ['S3_ACCESS_KEY'],
+             'secret_key': os.environ['S3_SECRET_KEY'],
+             'host_url': os.environ['S3_HOST_URL']}
     session = boto3.Session(
-        aws_access_key_id=access_key,
-        aws_secret_access_key=secret_key
+        aws_access_key_id=creds['access_key'],
+        aws_secret_access_key=creds['secret_key']
     )
     return session.client(
         service_name='s3',
-        endpoint_url=s3_host,
+        endpoint_url=creds['host_url'],
         verify=False  # Disable SSL verification for non-AWS S3 endpoints
     )
 
@@ -217,25 +225,28 @@ def print_contents_swift(conn: swiftclient.Connection, container_name: str) -> N
     for data in conn.get_container(container_name)[1]:
         print('{0}\t{1}\t{2}'.format(data['name'], data['bytes'], data['last_modified']))
 
-def get_conn_swift(user: str, access_key: str, host: str) -> swiftclient.Connection:
+def get_conn_swift() -> swiftclient.Connection:
     """
     Creates and returns a Swift connection object for the specified Swift endpoint.
 
-    Parameters:
-    - user: The Swift user.
-    - access_key: The Swift access key.
-    - host: The Swift authentication URL.
+    Requires the following environment variables to be set:
+    - ST_USER: The Swift user.
+    - ST_SECRET: The Swift secret key.
+    - ST_AUTH: The Swift authentication URL.
 
     Returns:
     A Swift connection object.
     """
+    creds = {'user': os.environ['ST_USER'],
+             'key': os.environ['ST_SECRET'],
+             'authurl': os.environ['ST_AUTH']}
     return swiftclient.Connection(
-        user=user,
-        key=access_key,
-        authurl=host
+        user=creds['user'],
+        key=creds['key'],
+        authurl=creds['authurl']
     )
 
-def get_service_swift(user: str, secret_key: str, host: str) -> swiftclient.service.SwiftService:
+def get_service_swift() -> swiftclient.service.SwiftService:
     """
     Creates and returns a Swift service object for the specified Swift endpoint.
 
@@ -247,13 +258,16 @@ def get_service_swift(user: str, secret_key: str, host: str) -> swiftclient.serv
     Returns:
     A Swift service object.
     """
+    creds = {'user': os.environ['ST_USER'],
+             'key': os.environ['ST_SECRET'],
+             'authurl': os.environ['ST_AUTH']}
     return swiftclient.service.SwiftService(
         {
             'auth_version': '1',
-            'os_auth_url': host,
-            'os_username': user.split(':')[1],
-            'os_password': secret_key,
-            'os_project_name': user.split(':')[0],
+            'os_auth_url': creds['authurl'],
+            'os_username': creds['user'].split(':')[1],
+            'os_password': creds['key'],
+            'os_project_name': creds['user'].split(':')[0],
             'os_user_domain_name': 'default',
             'os_project_domain_name': 'default'
         }
