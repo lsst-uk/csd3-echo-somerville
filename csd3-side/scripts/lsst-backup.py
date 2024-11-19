@@ -296,14 +296,11 @@ def zip_folders(local_dir:str, file_paths:list[str], use_compression:bool, dryru
     else:
         return b'', []
     
-def part_uploader(s3_host, access_key, secret_key, bucket_name, object_key, part_number, chunk_data, upload_id) -> dict:
+def part_uploader(bucket_name, object_key, part_number, chunk_data, upload_id) -> dict:
     """
     Uploads a part of a file to an S3 bucket.
 
     Args:
-        s3_host (str): The host URL of the S3 service.
-        access_key (str): The access key for the S3 service.
-        secret_key (str): The secret key for the S3 service.
         bucket_name (str): The name of the S3 bucket.
         object_key (str): The key of the object in the S3 bucket.
         part_number (int): The part number of the chunk being uploaded.
@@ -313,7 +310,7 @@ def part_uploader(s3_host, access_key, secret_key, bucket_name, object_key, part
     Returns:
         dict: A dictionary containing the part number and ETag of the uploaded part.
     """
-    s3_client = bm.get_client(access_key, secret_key, s3_host)
+    s3_client = bm.get_client()
     return {"PartNumber":part_number,
             "ETag":s3_client.upload_part(Body=chunk_data,
                           Bucket=bucket_name,
@@ -321,15 +318,13 @@ def part_uploader(s3_host, access_key, secret_key, bucket_name, object_key, part
                           PartNumber=part_number,
                           UploadId=upload_id)["ETag"]}
     
-def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, api, local_dir, folder, filename, object_key, dryrun, mem_per_worker) -> str:
+def upload_to_bucket(s3, bucket_name, api, local_dir, folder, filename, object_key, dryrun, mem_per_worker) -> str:
     """
     Uploads a file to an S3 bucket.
     Calculates a checksum for the file
     
     Args:
-        s3_host (str): The S3 host URL or swiftclient Connection object.
-        access_key (str): The access key for the S3 bucket or None.
-        secret_key (str): The secret key for the S3 bucket or None.
+        s3 (None | swiftclient.Connection): None or swiftclient Connection object.
         bucket_name (str): The name of the S3 bucket or Swift container name.
         api (str): The API to use for the S3 connection, 's3' or 'swift'.
         folder (str): The local folder containing the file to upload.
@@ -343,10 +338,8 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, api, local_di
             The format is: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY
     """
     if api == 's3': # Need to make a new S3 connection
-        assert access_key is not None
-        assert secret_key is not None
-        s3 = bm.get_resource(access_key, secret_key, s3_host)
-        s3_client = bm.get_client(access_key, secret_key, s3_host)
+        s3 = bm.get_resource()
+        s3_client = bm.get_client()
         bucket = s3.Bucket(bucket_name)
 
         # Check if the file is a symlink
@@ -458,9 +451,6 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, api, local_di
                             # chunk_data = get_client.gather(file_data)[start:end]
                             part_futures.append(get_client().submit(
                             part_uploader,
-                                s3_host,
-                                access_key,
-                                secret_key,
                                 bucket_name,
                                 object_key,
                                 part_number,
@@ -512,10 +502,10 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, api, local_di
         return_string += ',n/a'
         return return_string
     elif api == 'swift':
-        s3 = s3_host
-        assert type(s3) is swiftclient.Connection
-        assert access_key is None
-        assert secret_key is None
+        try:
+            assert type(s3) is swiftclient.Connection
+        except AssertionError:
+            raise AssertionError('s3_host must be a swiftclient.Connection object.')
 
         filename = object_key.split('/')[-1]
         file_data_size = len(file_data)
@@ -629,15 +619,13 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, api, local_di
         return_string += ',n/a'
         return return_string
 
-def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, api, folder, file_data, zip_contents, object_key, dryrun, mem_per_worker) -> str:
+def upload_to_bucket_collated(s3, bucket_name, api, folder, file_data, zip_contents, object_key, dryrun, mem_per_worker) -> str:
     """
     Uploads a file to an S3 bucket.
     Calculates a checksum for the file
     
     Args:
-        s3_host (str): The S3 host URL.
-        access_key (str): The access key for the S3 bucket.
-        secret_key (str): The secret key for the S3 bucket.
+        s3 (None | swiftclient.Connection): None or Swift swiftclient.Connection object.
         bucket_name (str): The name of the S3 bucket.
         api (str): The API to use for the S3 connection, 's3' or 'swift'.
         folder (str): The local folder containing the file to upload.
@@ -652,10 +640,8 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, api,
             The format is: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY
     """
     if api == 's3':
-        assert access_key is not None
-        assert secret_key is not None
-        s3 = bm.get_resource(access_key, secret_key, s3_host)
-        s3_client = bm.get_client(access_key, secret_key, s3_host)
+        s3 = bm.get_resource()
+        # s3_client = bm.get_client()
         bucket = s3.Bucket(bucket_name)
 
         filename = object_key.split('/')[-1]
@@ -704,10 +690,10 @@ def upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, api,
         return return_string
     
     elif api == 'swift':
-        s3 = s3_host
-        assert type(s3) is swiftclient.Connection
-        assert access_key is None
-        assert secret_key is None
+        try:
+            assert type(s3) is swiftclient.Connection
+        except AssertionError:
+            raise AssertionError('s3_host must be a swiftclient.Connection object.')
 
         filename = object_key.split('/')[-1]
         file_data_size = len(file_data)
@@ -795,13 +781,11 @@ def print_stats(file_name_or_data, file_count, total_size, file_start, file_end,
         pass
     # del file_name_or_data
 
-def upload_and_callback(s3_host, access_key, secret_key, bucket_name, api, local_dir, folder, file_name_or_data, zip_contents, object_key, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded, collated, mem_per_worker) -> None:
+def upload_and_callback(s3, bucket_name, api, local_dir, folder, file_name_or_data, zip_contents, object_key, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded, collated, mem_per_worker) -> None:
     """
     Uploads files to an S3 bucket and logs the output. Supports both collated (zipped) and individual file uploads.
     Args:
-        s3_host (str | swiftclient.Connection): The S3 host URL or swiftclient.Connection
-        access_key (str | None): The access key for S3 authentication or None.
-        secret_key (str | None): The secret key for S3 authentication or None.
+        s3 (None | swiftclient.Connection): The S3 host URL or swiftclient.Connection
         bucket_name (str): The name of the S3 bucket.
         api (str): The API object for interacting with S3.
         local_dir (str): The local directory containing the files to upload.
@@ -826,13 +810,13 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, api, local
     if collated:
         try:
             print(f'Uploading zip containing {file_count} subfolders from {folder}.')
-            result = upload_to_bucket_collated(s3_host, access_key, secret_key, bucket_name, api, folder, file_name_or_data, zip_contents, object_key, dryrun, mem_per_worker)
+            result = upload_to_bucket_collated(s3, bucket_name, api, folder, file_name_or_data, zip_contents, object_key, dryrun, mem_per_worker)
         except Exception as e:
             print(f'Error uploading {folder} to {bucket_name}/{object_key}: {e}')
             sys.exit(1)
     else:
         print(f'Uploading {file_count} files from {folder}.')
-        result = upload_to_bucket(s3_host, access_key, secret_key, bucket_name, api, local_dir, folder, file_name_or_data, object_key, dryrun, mem_per_worker)
+        result = upload_to_bucket(s3, bucket_name, api, local_dir, folder, file_name_or_data, object_key, dryrun, mem_per_worker)
     
     file_end = datetime.now()
     print_stats(file_name_or_data, file_count, folder_files_size, file_start, file_end, processing_start, total_size_uploaded, total_files_uploaded, collated)
@@ -844,14 +828,12 @@ def upload_and_callback(s3_host, access_key, secret_key, bucket_name, api, local
     return None
 
 ### KEY FUNCTION TO FIND ALL FILES AND ORGANISE UPLOADS ###
-def process_files(s3_host, access_key, secret_key, bucket_name, api, current_objects, exclude, local_dir, destination_dir, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_file, file_count_stop) -> None:
+def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, destination_dir, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_file, file_count_stop) -> None:
     """
     Uploads files from a local directory to an S3 bucket in parallel.
 
     Args:
-        s3_host (str or swiftclient.Connection): The hostname of the S3 server or swiftclient.Connection.
-        access_key (str or None): The access key for the S3 server or None.
-        secret_key (str or None): The secret key for the S3 server or None.
+        s3 (None or swiftclient.Connection): None or swiftclient.Connection.
         bucket_name (str): The name of the S3 bucket.
         api (str): The API to use for the S3 connection, 's3' or 'swift'.
         current_objects (ps.Dataframe): A list of object names already present in the S3 bucket.
@@ -870,14 +852,15 @@ def process_files(s3_host, access_key, secret_key, bucket_name, api, current_obj
         None
     """
     if api == 's3':
-        assert access_key is not None
-        assert secret_key is not None
-        s3 = None
+        try:
+            assert s3 == None
+        except AssertionError:
+            raise AssertionError('s3 must be None if using S3 API.')
     elif api == 'swift':
-        s3 = s3_host
-        assert type(s3) is swiftclient.Connection
-        assert access_key is None
-        assert secret_key is None
+        try:
+            assert type(s3) is swiftclient.Connection
+        except AssertionError:
+            raise AssertionError('s3 must be a swiftclient.Connection object if using Swift API.')
         # current_objects_dd = dd.from_pandas(pd.DataFrame(current_objects), npartitions=len(client.scheduler_info()['workers'])*10)
     processing_start = datetime.now()
     total_size_uploaded = 0
@@ -1062,9 +1045,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, api, current_obj
                 
                 try:
                     for i,args in enumerate(zip(
-                            repeat(s3_host), 
-                            repeat(access_key), 
-                            repeat(secret_key), 
+                            repeat(s3), 
                             repeat(api),
                             repeat(bucket_name),
                             repeat(local_dir),
@@ -1258,9 +1239,7 @@ def process_files(s3_host, access_key, secret_key, bucket_name, api, current_obj
             mem_check(zul_futures+upload_futures)
             zul_futures.append(client.submit(
                 zip_and_upload,
-                s3_host,
-                access_key,
-                secret_key,
+                s3,
                 bucket_name,
                 destination_dir,
                 local_dir,
@@ -1617,6 +1596,11 @@ if __name__ == '__main__':
                 bm.download_file_swift(s3, bucket_name, previous_log, log)
         print(f'Done, elapsed time = {datetime.now() - start}', flush=True)
 
+        # boto3 does not allow for objects to be serialised
+        if api == 's3':
+            s3 = None
+            del bucket
+
         # check local_dir formatting
         while local_dir[-1] == '/':
             local_dir = local_dir[:-1]
@@ -1625,9 +1609,9 @@ if __name__ == '__main__':
             warnings.filterwarnings('ignore')
             print(f'Processing files in {local_dir}, elapsed time = {datetime.now() - start}', flush=True)
             if api == 's3':
-                process_files(s3_host,access_key, secret_key, bucket_name, api, current_objects, exclude, local_dir, destination_dir, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_list, file_count_stop)
+                process_files(s3, bucket_name, api, current_objects, exclude, local_dir, destination_dir, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_list, file_count_stop)
             elif api == 'swift':
-                process_files(s3, None, None, bucket_name, api, current_objects, exclude, local_dir, destination_dir, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_list, file_count_stop)
+                process_files(s3, bucket_name, api, current_objects, exclude, local_dir, destination_dir, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_list, file_count_stop)
         # success = True
     # except Exception as e:
     #     print(e)
@@ -1655,9 +1639,8 @@ if __name__ == '__main__':
     # Upload log file
     if not dryrun:
         print('Uploading log file.')
-        upload_to_bucket(s3_host,
-            access_key, 
-            secret_key, 
+        upload_to_bucket(
+            s3,
             bucket_name,
             local_dir,
             '/', #path
