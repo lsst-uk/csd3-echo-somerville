@@ -174,7 +174,7 @@ def mem_check(futures):
 def remove_duplicates(l: list[dict]) -> list[dict]:
     return pd.DataFrame(l).drop_duplicates().to_dict(orient='records')
 
-def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir, local_dir, file_paths, total_size_uploaded, total_files_uploaded, use_compression, dryrun, id, mem_per_worker) -> tuple[str, int, bytes]:
+def zip_and_upload(s3, bucket_name, api, destination_dir, local_dir, file_paths, total_size_uploaded, total_files_uploaded, use_compression, dryrun, id, mem_per_worker) -> tuple[str, int, bytes]:
     # print('in zip_and_upload', flush=True)
     #############
     #  zip part #
@@ -219,10 +219,9 @@ def zip_and_upload(s3_host, access_key, secret_key, bucket_name, destination_dir
         print(f'Uploading zip file containing {len(file_paths)} files to S3 bucket {bucket_name} to key {zip_object_key}.', flush=True)
         # with annotate(parent_folder=parent_folder):
         f = client.submit(upload_and_callback,
-            s3_host,
-            access_key,
-            secret_key,
+            s3,
             bucket_name,
+            api,
             local_dir,
             destination_dir,
             zip_data,
@@ -1231,6 +1230,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 zip_and_upload,
                 s3,
                 bucket_name,
+                api,
                 destination_dir,
                 local_dir,
                 to_collate.iloc[i]['file_paths'],
