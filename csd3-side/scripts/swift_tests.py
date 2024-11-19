@@ -88,9 +88,9 @@ with open(large_file_path, 'rb') as lf:
         print(segment_number)
         segments.append(lf.read()[start:end])
         print(len(segments))
-segment_objects = [ bm.get_SwiftUploadObject(large_file_path, None, options={'contents':segment, 'content_type':'bytes'}) for segment in segments ]
+segment_objects = [ bm.get_SwiftUploadObject(remote_path, None, options={'contents':segment, 'content_type':'bytes'}) for segment in segments ]
 print(segment_objects)
-segmented_upload = [large_file_path]
+segmented_upload = [remote_path]
 for so in segment_objects:
     segmented_upload.append(so)
 
@@ -113,5 +113,6 @@ results = swift_service.upload(
         }
     )
 
-# for result in results:
-#     print(result)
+for result in results:
+    if result['action'] == 'upload_object':
+        print(result)

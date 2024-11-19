@@ -554,54 +554,54 @@ def upload_to_bucket(s3_host, access_key, secret_key, bucket_name, api, local_di
                 # file_data.seek(0)  # Reset the file pointer to the start
                 
                 try:
-                    # if file_size > mem_per_worker or file_size > 5 * 1024**3:  # Check if file size is larger than 5GiB
-                    #     """
-                    #     - Use multipart upload for large files
-                    #     """
-                        
-                    #     obj = bucket.Object(object_key)
-                    #     mp_upload = obj.initiate_multipart_upload()
-                    #     chunk_size = 512 * 1024**2  # 512 MiB
-                    #     chunk_count = int(np.ceil(file_size / chunk_size))
-                    #     print(f'Uploading {filename} to {bucket_name}/{object_key} in {chunk_count} parts.')
-                    #     parts = []
-                    #     part_futures = []
-                    #     for i in range(chunk_count):
-                    #         start = i * chunk_size
-                    #         end = min(start + chunk_size, file_size)
-                    #         part_number = i + 1
-                    #         # with open(filename, 'rb') as f:
-                    #         #     f.seek(start)
-                    #         # chunk_data = get_client.gather(file_data)[start:end]
-                    #         part_futures.append(get_client().submit(
-                    #         part_uploader,
-                    #             s3_host,
-                    #             access_key,
-                    #             secret_key,
-                    #             bucket_name,
-                    #             object_key,
-                    #             part_number,
-                    #             file_data[start:end],
-                    #             mp_upload.id
-                    #         ))
-                    #     for future in as_completed(part_futures):
-                    #         parts.append(future.result())
-                    #         del future
-                    #     s3_client.complete_multipart_upload(
-                    #         Bucket=bucket_name,
-                    #         Key=object_key,
-                    #         UploadId=mp_upload.id,
-                    #         MultipartUpload={"Parts": parts}
-                    #     )
-                    # else:
-                    """
-                    - Upload the file to the bucket
-                    """
-                    print(f'Uploading {filename} to {bucket_name}/{object_key}')
-                    # if use_future:
-                    #     bucket.put_object(Body=get_client().gather(file_data), Key=object_key, ContentMD5=checksum_base64)
-                    # else:
-                    s3.put_object(container=bucket_name, contents=file_data, obj=object_key, etag=checksum_base64) 
+                    if file_size > mem_per_worker or file_size > 5 * 1024**3:  # Check if file size is larger than 5GiB
+                        """
+                        - Use multipart upload for large files
+                        """
+                        exit()
+                        # obj = bucket.Object(object_key)
+                        # mp_upload = obj.initiate_multipart_upload()
+                        # chunk_size = 512 * 1024**2  # 512 MiB
+                        # chunk_count = int(np.ceil(file_size / chunk_size))
+                        # print(f'Uploading {filename} to {bucket_name}/{object_key} in {chunk_count} parts.')
+                        # parts = []
+                        # part_futures = []
+                        # for i in range(chunk_count):
+                        #     start = i * chunk_size
+                        #     end = min(start + chunk_size, file_size)
+                        #     part_number = i + 1
+                        #     # with open(filename, 'rb') as f:
+                        #     #     f.seek(start)
+                        #     # chunk_data = get_client.gather(file_data)[start:end]
+                        #     part_futures.append(get_client().submit(
+                        #     part_uploader,
+                        #         s3_host,
+                        #         access_key,
+                        #         secret_key,
+                        #         bucket_name,
+                        #         object_key,
+                        #         part_number,
+                        #         file_data[start:end],
+                        #         mp_upload.id
+                        #     ))
+                        # for future in as_completed(part_futures):
+                        #     parts.append(future.result())
+                        #     del future
+                        # s3_client.complete_multipart_upload(
+                        #     Bucket=bucket_name,
+                        #     Key=object_key,
+                        #     UploadId=mp_upload.id,
+                        #     MultipartUpload={"Parts": parts}
+                        # )
+                    else:
+                        """
+                        - Upload the file to the bucket
+                        """
+                        print(f'Uploading {filename} to {bucket_name}/{object_key}')
+                        # if use_future:
+                        #     bucket.put_object(Body=get_client().gather(file_data), Key=object_key, ContentMD5=checksum_base64)
+                        # else:
+                        s3.put_object(container=bucket_name, contents=file_data, obj=object_key, etag=checksum_base64) 
                 except Exception as e:
                     print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
                 
@@ -1521,6 +1521,9 @@ if __name__ == '__main__':
     elif api == 'swift':
         access_key = keys['user']
         secret_key = keys['secret_key']
+        os.environ['ST_AUTH'] = s3_host
+        os.environ['ST_USER'] = access_key
+        os.environ['ST_KEY'] = secret_key
     
     if api == 's3':
         s3 = bm.get_resource(access_key, secret_key, s3_host)
