@@ -45,10 +45,10 @@ def check_keys(api: str ='s3') -> None:
     elif api == 'swift':
         try:
             assert 'ST_USER' in os.environ
-            assert 'ST_SECRET' in os.environ
+            assert 'ST_KEY' in os.environ
             assert 'ST_AUTH' in os.environ
         except AssertionError:
-            raise AssertionError('Set ST_USER, ST_SECRET and ST_AUTH environment variables.')
+            raise AssertionError('Set ST_USER, ST_KEY and ST_AUTH environment variables.')
         return True
     else:
         raise ValueError(f'Invalid API: {api}')
@@ -237,7 +237,7 @@ def get_conn_swift() -> swiftclient.Connection:
 
     Requires the following environment variables to be set:
     - ST_USER: The Swift user.
-    - ST_SECRET: The Swift secret key.
+    - ST_KEY: The Swift secret key.
     - ST_AUTH: The Swift authentication URL.
 
     Returns:
@@ -245,10 +245,10 @@ def get_conn_swift() -> swiftclient.Connection:
     """
     try:
         creds = {'user': os.environ['ST_USER'],
-            'key': os.environ['ST_SECRET'],
+            'key': os.environ['ST_KEY'],
             'authurl': os.environ['ST_AUTH']}
     except KeyError as e:
-        raise KeyError('Set ST_USER, ST_SECRET and ST_AUTH environment variables.')
+        raise KeyError('Set ST_USER, ST_KEY and ST_AUTH environment variables.')
     return swiftclient.Connection(
         user=creds['user'],
         key=creds['key'],
@@ -272,7 +272,7 @@ def get_service_swift() -> swiftclient.service.SwiftService:
              'key': os.environ['ST_KEY'],
              'authurl': os.environ['ST_AUTH']}
     except KeyError as e:
-        raise KeyError('Set ST_USER, ST_SECRET and ST_AUTH environment variables.')
+        raise KeyError('Set ST_USER, ST_KEY and ST_AUTH environment variables.')
     return swiftclient.service.SwiftService(
         {
             'auth_version': '1',
