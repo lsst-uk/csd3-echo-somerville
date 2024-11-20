@@ -155,7 +155,7 @@ def mem_check(futures):
     client = get_client()
     workers = client.scheduler_info()['workers']
     system_perc = mem().percent
-    print(f'System memory usage: {system_perc:.0f}%.')
+    print(f'System memory usage: {system_perc:.0f}%.', file=sys.stderr)
     min_w_mem = None
     high_mem_workers = []
     for w in workers.items():
@@ -166,7 +166,7 @@ def mem_check(futures):
         if used_perc > 80:
             high_mem_workers.append(w[1]['id'])
     if high_mem_workers:
-        print(f'High memory usage on workers: {high_mem_workers}.')
+        print(f'High memory usage on workers: {high_mem_workers}.', file=sys.stderr)
         client.rebalance()
         wait(futures)
 
