@@ -507,7 +507,6 @@ def upload_to_bucket(s3, bucket_name, api, local_dir, folder, filename, object_k
             raise AssertionError('s3_host must be a swiftclient.Connection object.')
 
         filename = object_key.split('/')[-1]
-        file_data_size = len(file_data)
 
         # Check if the file is a symlink
         # If it is, upload an object containing the target path instead
