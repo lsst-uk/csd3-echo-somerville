@@ -582,7 +582,7 @@ def upload_to_bucket(s3, bucket_name, api, local_dir, folder, filename, object_k
                         # if use_future:
                         #     bucket.put_object(Body=get_client().gather(file_data), Key=object_key, ContentMD5=checksum_base64)
                         # else:
-                        s3.put_object(container=bucket_name, contents=file_data, content_type=None, obj=object_key, etag=checksum_base64) 
+                        s3.put_object(container=bucket_name, contents=file_data, content_type='multipart/mixed', obj=object_key, etag=checksum_string) 
                 except Exception as e:
                     print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
                 
@@ -711,7 +711,7 @@ def upload_to_bucket_collated(s3, bucket_name, api, folder, file_data, zip_conte
                 print(f'Writing zip contents to {metadata_object_key}.', flush=True)
                 s3.put_object(container=bucket_name, contents=metadata_value, content_type='text/plain', obj=metadata_object_key, headers={'x-object-meta-corresponding-zip': object_key})
                 #bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64, Metadata=metadata)
-                s3.put_object(container=bucket_name, contents=file_data, content_type='', obj=object_key, etag=checksum_base64, headers={'x-object-meta-zip-contents-object':metadata_object_key}) # NEED TO ADD METADATA HERE
+                s3.put_object(container=bucket_name, contents=file_data, content_type='multipart/mixed', obj=object_key, etag=checksum_string, headers={'x-object-meta-zip-contents-object':metadata_object_key}) # NEED TO ADD METADATA HERE
             except Exception as e:
                 print(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
                 exit(1)
