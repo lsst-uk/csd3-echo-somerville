@@ -555,7 +555,7 @@ def upload_to_bucket(s3, bucket_name, api, local_dir, folder, filename, object_k
                             start = i * segment_size
                             end = min(start + segment_size, file_size)
                             segments.append(file_data[start:end])
-                        segment_objects = [bm.get_SwiftUploadObject(filename, object_name=object_key, options={'contents':segment, 'content_type':'bytes'}) for segment in segments]
+                        segment_objects = [bm.get_SwiftUploadObject(filename, object_name=object_key, options={'contents':segment, 'content_type':None}) for segment in segments]
                         segmented_upload = [filename]
                         for so in segment_objects:
                             segmented_upload.append(so)
@@ -582,7 +582,7 @@ def upload_to_bucket(s3, bucket_name, api, local_dir, folder, filename, object_k
                         # if use_future:
                         #     bucket.put_object(Body=get_client().gather(file_data), Key=object_key, ContentMD5=checksum_base64)
                         # else:
-                        s3.put_object(container=bucket_name, contents=file_data, obj=object_key, etag=checksum_base64) 
+                        s3.put_object(container=bucket_name, contents=file_data, content_type=None, obj=object_key, etag=checksum_base64) 
                 except Exception as e:
                     print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
                 
@@ -709,8 +709,9 @@ def upload_to_bucket_collated(s3, bucket_name, api, folder, file_data, zip_conte
 
                 metadata_object_key = object_key + '.metadata'
                 print(f'Writing zip contents to {metadata_object_key}.', flush=True)
-                s3.put_object(container=bucket_name, contents=metadata_value, obj=metadata_object_key, headers={'x-object-meta-corresponding-zip': object_key})
-                s3.put_object(container=bucket_name, contents=file_data, obj=object_key, etag=checksum_base64, headers={'x-object-meta-zip-contents-object':metadata_object_key}) # NEED TO ADD METADATA HERE
+                s3.put_object(container=bucket_name, contents=metadata_value, content_type='text/plain', obj=metadata_object_key, headers={'x-object-meta-corresponding-zip': object_key})
+                #bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64, Metadata=metadata)
+                s3.put_object(container=bucket_name, contents=file_data, content_type=None, obj=object_key, etag=checksum_base64, headers={'x-object-meta-zip-contents-object':metadata_object_key}) # NEED TO ADD METADATA HERE
             except Exception as e:
                 print(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
                 exit(1)
