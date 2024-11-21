@@ -1218,9 +1218,9 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         # print(type(to_collate.iloc[0]['file_paths']))
         # exit()
 
-        to_collate_uploads = dd.from_pandas(to_collate[to_collate.upload == True], npartitions=len(client.scheduler_info()['workers'])*10)
+        to_collate_uploads = dd.from_pandas(to_collate[to_collate.upload == True][['file_paths','id']], npartitions=len(client.scheduler_info()['workers'])*10)
         #current_objects['CURRENT_OBJECTS'].apply(find_metadata_swift, conn=s3, container_name=bucket_name)
-        zul_futures = to_collate_uploads.apply(zip_and_upload, s3=s3, bucket_name=bucket_name, api=api, destination_dir=destination_dir, local_dir=local_dir, total_size_uploaded=total_size_uploaded, total_files_uploaded=total_files_uploaded, use_compression=use_compression, dryrun=dryrun, mem_per_worker=mem_per_worker)
+        zul_futures = to_collate_uploads.apply(zip_and_upload, axis=1, s3=s3, bucket_name=bucket_name, api=api, destination_dir=destination_dir, local_dir=local_dir, total_size_uploaded=total_size_uploaded, total_files_uploaded=total_files_uploaded, use_compression=use_compression, dryrun=dryrun, mem_per_worker=mem_per_worker)
         # for i in range(len(to_collate)):
         #     mem_check(zul_futures+upload_futures)
         #     zul_futures.append(client.submit(
@@ -1250,7 +1250,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         result = f.result()
         if result[0] is not None:
             upload_futures.append(result[0])
-            to_collate = to_collate[to_collate.object_names != result[1]]
+            to_collate[to_collate.object_names == result[1]]['upload'] = False
             print(f'Zip {result[1]} created and added to upload queue.', flush=True)
             del f
         else:
