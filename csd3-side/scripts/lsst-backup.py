@@ -1218,10 +1218,11 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         # print(to_collate)
         # print(type(to_collate.iloc[0]['file_paths']))
         # exit()
+        print(to_collate[to_collate.upload == True][['file_paths','id']]) 
 
         to_collate_uploads = dd.from_pandas(to_collate[to_collate.upload == True][['file_paths','id']], npartitions=len(client.scheduler_info()['workers'])*10)
         #current_objects['CURRENT_OBJECTS'].apply(find_metadata_swift, conn=s3, container_name=bucket_name)
-        print(to_collate_uploads.head())
+        # print(to_collate_uploads.head())
         zul_futures = to_collate_uploads.apply(zip_and_upload, axis=1, s3=s3, bucket_name=bucket_name, api=api, destination_dir=destination_dir, local_dir=local_dir, total_size_uploaded=total_size_uploaded, total_files_uploaded=total_files_uploaded, use_compression=use_compression, dryrun=dryrun, mem_per_worker=mem_per_worker)
         # for i in range(len(to_collate)):
         #     mem_check(zul_futures+upload_futures)
