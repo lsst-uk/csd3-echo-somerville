@@ -33,13 +33,13 @@ import argparse
 
 import re
 
-def get_key_lists(bucket_name, access_key, secret_key, s3_host, get_contents_metadata, debug):
+def get_key_lists(bucket_name, get_contents_metadata, debug):
     zipfile_list = []
     contents_list = []
     zipfile_sizes = []
     all_keys_list = []
-    s3 = bm.get_resource(access_key, secret_key, s3_host)
-    s3_client = bm.get_client(access_key, secret_key, s3_host)
+    s3 = bm.get_resource()
+    s3_client = bm.get_client()
     bucket = s3.Bucket(bucket_name)
 
     pattern = re.compile(r'.*collated_\d+\.zip$')
@@ -136,8 +136,8 @@ def prepend_zipfile_path_to_contents(zipfile_df, debug):
     zipfile_df['contents'] = [[f'{zipfile_df.iloc[i]["path_stubs"]}/{x}' for x in zipfile_df.iloc[i]['contents']] for i in range(len(zipfile_df))]
     return zipfile_df.drop(columns='path_stubs')
 
-def extract_and_upload_mp(bucket_name, access_key, secret_key, s3_host, debug, zipfile_key):
-    s3 = bm.get_resource(access_key, secret_key, s3_host)
+def extract_and_upload_mp(bucket_name, debug, zipfile_key):
+    s3 = bm.get_resource()
     bucket = s3.Bucket(bucket_name)
     print(f'Extracting {zipfile_key}...', flush=True)
     path_stub = '/'.join(zipfile_key.split('/')[:-1])
@@ -153,10 +153,10 @@ def extract_and_upload_mp(bucket_name, access_key, secret_key, s3_host, debug, z
                 print(f'Uploaded {content_file} to {key}', flush=True)
                 pbar.update(zf.getinfo(content_file).file_size)
 
-def extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_key, s3_host, pool_size, debug):
+def extract_and_upload_zipfiles(extract_list, bucket_name, pool_size, debug):
     print(f'Extracting zip files and uploading contents using {pool_size} processes...') 
     with Pool(pool_size) as p:
-        p.map(partial(extract_and_upload_mp, bucket_name, access_key, secret_key, s3_host, debug), extract_list)#, chunksize=len(extract_list)//pool_size)
+        p.map(partial(extract_and_upload_mp, bucket_name, debug), extract_list)#, chunksize=len(extract_list)//pool_size)
 
 def calc_pool_size(zipfiles_df, extract_list, nprocs):
     """
@@ -247,23 +247,21 @@ def main():
         get_contents_metadata = True
 
     # Setup bucket object
-    s3_host = 'echo.stfc.ac.uk'
+    
     try:
-        keys = bm.get_keys()
-    except KeyError as e:
+        assert bm.check_keys()
+    except AssertionError as e:
         print(e)
         sys.exit()
-    access_key = keys['access_key']
-    secret_key = keys['secret_key']
     
-    s3 = bm.get_resource(access_key, secret_key, s3_host)
+    s3 = bm.get_resource()
     bucket_list = bm.bucket_list(s3)
 
     if bucket_name not in bucket_list:
-        print(f'Bucket {bucket_name} not found in {s3_host}.')
+        print(f'Bucket {bucket_name} not found in {os.environ['S3_HOST_URL']}.')
         sys.exit()
 
-    zipfiles_df, all_keys = get_key_lists(bucket_name, access_key, secret_key, s3_host, get_contents_metadata, debug)
+    zipfiles_df, all_keys = get_key_lists(bucket_name, get_contents_metadata, debug)
 
     if list_contents:
         for i in range(len(zipfiles_df)):
@@ -289,7 +287,7 @@ def main():
         print(extract_list)
         if len(extract_list) > 0:
             pool_size = calc_pool_size(zipfiles_df, extract_list, nprocs)
-            extract_and_upload_zipfiles(extract_list, bucket_name, access_key, secret_key, s3_host, pool_size, debug)
+            extract_and_upload_zipfiles(extract_list, bucket_name, pool_size, debug)
         else:
             print('All zip files previously extracted.')
 

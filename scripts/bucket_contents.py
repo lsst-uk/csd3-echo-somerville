@@ -8,19 +8,16 @@ if len(sys.argv) != 2:
 import os
 import bucket_manager.bucket_manager as bm
 
-s3_host = 'echo.stfc.ac.uk'
 try:
-    keys = bm.get_keys()
-except KeyError as e:
+    assert bm.check_keys()
+except AssertionError as e:
     print(e)
     sys.exit()
-access_key = keys['access_key']
-secret_key = keys['secret_key']
 
 import warnings
 warnings.filterwarnings('ignore')
 
-s3 = bm.get_resource(access_key,secret_key,s3_host)
+s3 = bm.get_resource()
 
 bucket_name = sys.argv[1]
 bucket = s3.Bucket(bucket_name)

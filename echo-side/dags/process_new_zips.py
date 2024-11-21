@@ -58,8 +58,9 @@ with DAG(
         cmds=['./entrypoint.sh'],
         arguments=['python', 'csd3-echo-somerville/scripts/process_collated_zips.py', '--bucket-name', bucket_name, '--extract', '--nprocs', '6'],
         env_vars={
-            'ECHO_S3_ACCESS_KEY': Variable.get("ECHO_S3_ACCESS_KEY"),
-            'ECHO_S3_SECRET_KEY': Variable.get("ECHO_S3_SECRET_KEY"),
+            'S3_ACCESS_KEY': Variable.get("S3_ACCESS_KEY"),
+            'S3_SECRET_KEY': Variable.get("S3_SECRET_KEY"),
+            'S3_HOST_URL': Variable.get("S3_HOST_URL"),
         },
         get_logs=True,
     ) for bucket_name in bucket_names]
