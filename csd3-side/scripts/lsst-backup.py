@@ -1175,7 +1175,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             del zip_batch_files, zip_batch_object_names, zip_batch_sizes
         else:
             # with open(collate_list_file, 'r') as f:
-            to_collate = dd.from_pandas(pd.read_csv(collate_list_file), npartitions='auto')
+            to_collate = dd.from_pandas(pd.read_csv(collate_list_file), npartitions=len(client.scheduler_info()['workers'])*10)
             to_collate.object_names = to_collate.object_names.apply(literal_eval)
             to_collate.file_paths = to_collate.file_paths.apply(literal_eval)
             to_collate.upload = to_collate.upload.apply(literal_eval)
@@ -1216,7 +1216,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         # print(type(to_collate.iloc[0]['file_paths']))
         # exit()
 
-        to_collate_uploads = dd.from_pandas(to_collate[to_collate.upload == True], npartitions='auto')
+        to_collate_uploads = dd.from_pandas(to_collate[to_collate.upload == True], npartitions=len(client.scheduler_info()['workers'])*10)
         #current_objects['CURRENT_OBJECTS'].apply(find_metadata_swift, conn=s3, container_name=bucket_name)
         zul_futures = to_collate_uploads.apply(zip_and_upload, s3=s3, bucket_name=bucket_name, api=api, destination_dir=destination_dir, local_dir=local_dir, total_size_uploaded=total_size_uploaded, total_files_uploaded=total_files_uploaded, use_compression=use_compression, dryrun=dryrun, mem_per_worker=mem_per_worker)
         # for i in range(len(to_collate)):
@@ -1237,7 +1237,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         #         mem_per_worker,
         #     ))
         #     # mem_check(zul_futures)
-        
+
     
     ########################
     # Monitor upload tasks #
