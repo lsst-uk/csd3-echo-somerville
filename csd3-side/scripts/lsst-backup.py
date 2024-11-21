@@ -1182,7 +1182,6 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             to_collate = pd.read_csv(collate_list_file)
             to_collate.object_names = to_collate.object_names.apply(literal_eval)
             to_collate.file_paths = to_collate.file_paths.apply(literal_eval)
-            to_collate = to_collate.compute()
             client.scatter(to_collate)
             print(f'Loaded collate list from {collate_list_file}, len={len(to_collate)}.', flush=True)
             if not current_objects.empty:
