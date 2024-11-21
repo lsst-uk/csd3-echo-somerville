@@ -174,8 +174,9 @@ def mem_check(futures):
 def remove_duplicates(l: list[dict]) -> list[dict]:
     return pd.DataFrame(l).drop_duplicates().to_dict(orient='records')
 
-def zip_and_upload(df, s3, bucket_name, destination_dir, local_dir, total_size_uploaded, total_files_uploaded, use_compression, dryrun, id, mem_per_worker) -> tuple[str, int, bytes]:
+def zip_and_upload(df, s3, bucket_name, api, destination_dir, local_dir, total_size_uploaded, total_files_uploaded, use_compression, dryrun, id, mem_per_worker) -> tuple[str, int, bytes]:
     # print('in zip_and_upload', flush=True)
+    print(df, flush=True)
     file_paths = df['file_paths'].to_list()
     id = df['id'].iloc[0]
     #############
