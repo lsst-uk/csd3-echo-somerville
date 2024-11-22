@@ -182,7 +182,8 @@ def zip_and_upload(df, s3, bucket_name, api, destination_dir, local_dir, total_s
     file_paths = list(literal_eval(str(df['file_paths'])))
     print(file_paths, flush=True)
     print(type(df['id']), flush=True)
-    id = df['id'][0]
+    id = df['id']
+    print(f'Zipping and uploading {len(file_paths)} files from {local_dir} to {destination_dir}/collated_{id}.zip.', flush=True)
     #############
     #  zip part #
     #############
