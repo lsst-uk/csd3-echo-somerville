@@ -1144,18 +1144,18 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                     if current_objects['METADATA'].isin([cmp]).any():
                         existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
                         if all([x in existing_zip_contents for x in cmp]):
-                            print(f'Zip file {destination_dir}/collated_{i+1}.zip already exists and file lists match - skipping.', flush=True)
+                            print(f'Zip file {destination_dir}/collated_{i}.zip already exists and file lists match - skipping.', flush=True)
                             # zip_batch_object_names.pop(i)
                             # zip_batch_files.pop(i)
                             # continue
                         else:
-                            print(f'Zip file {destination_dir}/collated_{i+1}.zip already exists but file lists do not match - reuploading.', flush=True)
+                            print(f'Zip file {destination_dir}/collated_{i}.zip already exists but file lists do not match - reuploading.', flush=True)
                             zips_to_upload.append(i)
                     else:
-                        print(f'Zip file {destination_dir}/collated_{i+1}.zip does not exists uploading.', flush=True)
+                        print(f'Zip file {destination_dir}/collated_{i}.zip does not exists uploading.', flush=True)
                         zips_to_upload.append(i)
                 else:
-                    print(f'Zip file {destination_dir}/collated_{i+1}.zip does not exists uploading.', flush=True)
+                    print(f'Zip file {destination_dir}/collated_{i}.zip does not exists uploading.', flush=True)
                     zips_to_upload.append(i)
 
             # Create dict for zip files
@@ -1195,16 +1195,16 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                     if current_objects['METADATA'].isin([cmp]).any():
                         existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
                         if all([x in existing_zip_contents for x in cmp]) and to_collate.iloc[i]['upload']:
-                            print(f'Zip file {destination_dir}/collated_{i+1}.zip from {collate_list_file} already exists and file lists match - skipping.', flush=True)
+                            print(f'Zip file {destination_dir}/collated_{i}.zip from {collate_list_file} already exists and file lists match - skipping.', flush=True)
                             to_collate.iloc[i]['upload'] = False
                         elif all([x in existing_zip_contents for x in cmp]) and not to_collate.iloc[i]['upload']:
-                            print(f'Zip file {destination_dir}/collated_{i+1}.zip from {collate_list_file} already exists but file lists do not match - reuploading.', flush=True)
+                            print(f'Zip file {destination_dir}/collated_{i}.zip from {collate_list_file} already exists but file lists do not match - reuploading.', flush=True)
                             to_collate.iloc[i]['upload'] = True
                         elif not all([x in existing_zip_contents for x in cmp]) and not to_collate.iloc[i]['upload']:
                             to_collate.iloc[i]['upload'] = True
-                            print(f'Zip file {destination_dir}/collated_{i+1}.zip from {collate_list_file} does not exists uploading.', flush=True)
+                            print(f'Zip file {destination_dir}/collated_{i}.zip from {collate_list_file} does not exists uploading.', flush=True)
                         else:
-                            print(f'Zip file {destination_dir}/collated_{i+1}.zip from {collate_list_file} does not exists uploading.', flush=True)
+                            print(f'Zip file {destination_dir}/collated_{i}.zip from {collate_list_file} does not exists uploading.', flush=True)
                             to_collate.iloc[i]['upload'] = True
         if save_collate_file:
             print(f'Saving collate list to {collate_list_file}, len={len(to_collate)}.', flush=True)
