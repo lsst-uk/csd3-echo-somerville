@@ -183,9 +183,9 @@ def zip_and_upload(ds, s3, bucket_name, api, destination_dir, local_dir, total_s
     id = ds['id']
     file_paths = ds['file_paths']
     #debugging
-    print(f'DEBUGGING - ds: {ds}', flush=True)
-    print(f'DEBUGGING - file_paths: {ds['file_paths']}', flush=True)
-    print(f'DEBUGGING - type(ds["file_paths"]): {type(ds['file_paths'])}', flush=True)
+    print(f"DEBUGGING - ds: {ds}", flush=True)
+    print(f"DEBUGGING - file_paths: {ds['file_paths']}", flush=True)
+    print(f"DEBUGGING - type(ds['file_paths']): {type(ds['file_paths'])}", flush=True)
     
     print(f'Zipping and uploading {len(file_paths)} files from {local_dir} to {destination_dir}/collated_{id}.zip.', flush=True)
     #############
