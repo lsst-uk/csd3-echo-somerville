@@ -176,6 +176,7 @@ def remove_duplicates(l: list[dict]) -> list[dict]:
 
 def zip_and_upload(df, s3, bucket_name, api, destination_dir, local_dir, total_size_uploaded, total_files_uploaded, use_compression, dryrun, mem_per_worker) -> tuple[str, int, bytes]:
     # print('in zip_and_upload', flush=True)
+    print(type(df), flush=True)
     print(df, flush=True)
     print(df['file_paths'], flush=True)
     print(type(df['file_paths']), flush=True)
@@ -184,6 +185,7 @@ def zip_and_upload(df, s3, bucket_name, api, destination_dir, local_dir, total_s
     print(type(df['id']), flush=True)
     id = df['id']
     print(f'Zipping and uploading {len(file_paths)} files from {local_dir} to {destination_dir}/collated_{id}.zip.', flush=True)
+    sys.exit(0)
     #############
     #  zip part #
     #############
@@ -1228,9 +1230,20 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         to_collate_uploads = dd.from_pandas(to_collate[to_collate.upload == True][['file_paths','id']], npartitions=len(client.scheduler_info()['workers'])*10)
         #current_objects['CURRENT_OBJECTS'].apply(find_metadata_swift, conn=s3, container_name=bucket_name)
         # print(to_collate_uploads.head())
-        zip_and_upload(to_collate[to_collate.upload == True][['file_paths','id']].iloc[0], s3=s3, bucket_name=bucket_name, api=api, destination_dir=destination_dir, local_dir=local_dir, total_size_uploaded=total_size_uploaded, total_files_uploaded=total_files_uploaded, use_compression=use_compression, dryrun=dryrun, mem_per_worker=mem_per_worker)
-        exit()
-        zul_futures = to_collate_uploads.apply(zip_and_upload, axis=1, s3=s3, bucket_name=bucket_name, api=api, destination_dir=destination_dir, local_dir=local_dir, total_size_uploaded=total_size_uploaded, total_files_uploaded=total_files_uploaded, use_compression=use_compression, dryrun=dryrun, mem_per_worker=mem_per_worker)
+        # zip_and_upload(to_collate[to_collate.upload == True][['file_paths','id']].iloc[0], s3=s3, bucket_name=bucket_name, api=api, destination_dir=destination_dir, local_dir=local_dir, total_size_uploaded=total_size_uploaded, total_files_uploaded=total_files_uploaded, use_compression=use_compression, dryrun=dryrun, mem_per_worker=mem_per_worker)
+        # exit()
+        zul_futures = to_collate_uploads.apply(zip_and_upload, axis=1, 
+            s3=s3, 
+            bucket_name=bucket_name, 
+            api=api, 
+            destination_dir=destination_dir, 
+            local_dir=local_dir, 
+            total_size_uploaded=total_size_uploaded, 
+            total_files_uploaded=total_files_uploaded, 
+            use_compression=use_compression, 
+            dryrun=dryrun, 
+            mem_per_worker=mem_per_worker
+        )
         # for i in range(len(to_collate)):
         #     mem_check(zul_futures+upload_futures)
         #     zul_futures.append(client.submit(
