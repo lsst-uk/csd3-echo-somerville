@@ -176,18 +176,20 @@ def remove_duplicates(l: list[dict]) -> list[dict]:
 
 def zip_and_upload(ds, s3, bucket_name, api, destination_dir, local_dir, total_size_uploaded, total_files_uploaded, use_compression, dryrun, mem_per_worker) -> tuple[str, int, bytes]:
     # print('in zip_and_upload', flush=True)
-    print(type(ds), flush=True)
-    assert type(ds) is pd.Series
+    try:
+        assert type(ds) is pd.Series
+    except AssertionError:
+        raise AssertionError('ds must be a pandas Series object.')
     id = ds['id']
     file_paths = ds['file_paths']
-    print(ds, flush=True)
-    print(ds['file_paths'], flush=True)
-    print(type(ds['file_paths']), flush=True)
-    print(file_paths, flush=True)
-    print(type(ds['id']), flush=True)
+    #debugging
+    # print(ds, flush=True)
+    # print(ds['file_paths'], flush=True)
+    # print(type(ds['file_paths']), flush=True)
+    # print(file_paths, flush=True)
+    # print(type(ds['id']), flush=True)
     
     print(f'Zipping and uploading {len(file_paths)} files from {local_dir} to {destination_dir}/collated_{id}.zip.', flush=True)
-    sys.exit(0)
     #############
     #  zip part #
     #############
