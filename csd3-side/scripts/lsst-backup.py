@@ -174,16 +174,16 @@ def mem_check(futures):
 def remove_duplicates(l: list[dict]) -> list[dict]:
     return pd.DataFrame(l).drop_duplicates().to_dict(orient='records')
 
-def zip_and_upload(df, s3, bucket_name, api, destination_dir, local_dir, total_size_uploaded, total_files_uploaded, use_compression, dryrun, mem_per_worker) -> tuple[str, int, bytes]:
+def zip_and_upload(ds, s3, bucket_name, api, destination_dir, local_dir, total_size_uploaded, total_files_uploaded, use_compression, dryrun, mem_per_worker) -> tuple[str, int, bytes]:
     # print('in zip_and_upload', flush=True)
-    print(type(df), flush=True)
-    print(df, flush=True)
-    print(df['file_paths'], flush=True)
-    print(type(df['file_paths']), flush=True)
-    file_paths = list(literal_eval(str(df['file_paths'])))
+    print(type(ds), flush=True)
+    assert type(ds) is pd.Series
+    print(ds, flush=True)
+    print(ds['file_paths'], flush=True)
+    print(type(ds['file_paths']), flush=True)
     print(file_paths, flush=True)
-    print(type(df['id']), flush=True)
-    id = df['id']
+    print(type(ds['id']), flush=True)
+    id = ds['id']
     print(f'Zipping and uploading {len(file_paths)} files from {local_dir} to {destination_dir}/collated_{id}.zip.', flush=True)
     sys.exit(0)
     #############
