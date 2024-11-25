@@ -1239,16 +1239,17 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         # zip_and_upload(to_collate[to_collate.upload == True][['file_paths','id']].iloc[0], s3=s3, bucket_name=bucket_name, api=api, destination_dir=destination_dir, local_dir=local_dir, total_size_uploaded=total_size_uploaded, total_files_uploaded=total_files_uploaded, use_compression=use_compression, dryrun=dryrun, mem_per_worker=mem_per_worker)
         # exit()
         zul_futures = to_collate_uploads.apply(zip_and_upload, axis=1, 
-            s3=s3, 
-            bucket_name=bucket_name, 
-            api=api, 
-            destination_dir=destination_dir, 
-            local_dir=local_dir, 
-            total_size_uploaded=total_size_uploaded, 
-            total_files_uploaded=total_files_uploaded, 
-            use_compression=use_compression, 
-            dryrun=dryrun, 
-            mem_per_worker=mem_per_worker
+            args=(s3, 
+            bucket_name, 
+            api, 
+            destination_dir, 
+            local_dir, 
+            total_size_uploaded, 
+            total_files_uploaded, 
+            use_compression, 
+            dryrun, 
+            mem_per_worker),
+            meta={'f': 'object', 'zip_object_key': 'str'}
         )
         # for i in range(len(to_collate)):
         #     mem_check(zul_futures+upload_futures)
