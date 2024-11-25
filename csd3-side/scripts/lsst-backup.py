@@ -205,6 +205,7 @@ def zip_and_upload(ds, s3, bucket_name, api, destination_dir, local_dir, total_s
         )
     def get_zip_future(future):
         return future.result()
+    
     tries = 0
     zip_data = None
     namelist = None
@@ -217,6 +218,7 @@ def zip_and_upload(ds, s3, bucket_name, api, destination_dir, local_dir, total_s
             print(f'Zip future timed out {tries}/5')
     if zip_data is None and namelist is None:
         raise Exception('Zip future timed out 5 times.')
+    print(f'Zip data size: {len(zip_data)} bytes.', flush=True)
     # if len(zip_data) > mem_per_worker/2:
     # print('Scattering zip data.')
     # scattered_zip_data = client.scatter(zip_data)
