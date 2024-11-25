@@ -1249,10 +1249,10 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             use_compression, 
             dryrun, 
             mem_per_worker),
-            meta={'f': 'object', 'zip_object_key': 'str'}
+            meta={'f': 'future', 'zip_object_key': 'str'}
         )
         print('zul_futures')
-        print(zul_futures['f'])
+        print(zul_futures[['f','zip_object_key']])
         print(type(zul_futures))
         # for i in range(len(to_collate)):
         #     mem_check(zul_futures+upload_futures)
