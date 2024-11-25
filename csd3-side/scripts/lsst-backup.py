@@ -176,10 +176,10 @@ def remove_duplicates(l: list[dict]) -> list[dict]:
 
 def zip_and_upload(ds, s3, bucket_name, api, destination_dir, local_dir, total_size_uploaded, total_files_uploaded, use_compression, dryrun, mem_per_worker) -> tuple[str, int, bytes]:
     # print('in zip_and_upload', flush=True)
-    try:
-        assert type(ds) is pd.Series
-    except AssertionError:
-        raise AssertionError('ds must be a pandas Series object.')
+    # try:
+    #     assert type(ds) is pd.Series
+    # except AssertionError:
+    #     raise AssertionError('ds must be a pandas Series object.')
     id = ds['id']
     file_paths = ds['file_paths']
     #debugging
