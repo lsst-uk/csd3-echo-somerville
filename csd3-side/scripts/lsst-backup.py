@@ -1249,7 +1249,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             use_compression, 
             dryrun, 
             mem_per_worker),
-            meta={'future': 'object', 'zip_object_key': 'str'}
+            meta={'zul': 'tuple'}
         )
         print('zul_futures')
         print(zul_futures[['f','zip_object_key']])
@@ -1279,7 +1279,8 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
     ########################
 
     print('Monitoring zip tasks.', flush=True)
-    for f in as_completed(zul_futures):
+    for f in as_completed(zul_futures['zul']):
+        print(f.result())
         result = f.result()
         if result[0] is not None:
             upload_futures.append(result[0])
