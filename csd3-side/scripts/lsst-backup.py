@@ -183,6 +183,8 @@ def zip_and_upload(ds, s3, bucket_name, api, destination_dir, local_dir, total_s
     id = ds['id']
     file_paths = ds['file_paths']
     #debugging
+    print(f"DEBUGGING - type(ds): {type(ds)}", flush=True)
+    print(f"DEBUGGING - id: {id}", flush=True)
     print(f"DEBUGGING - ds: {ds}", flush=True)
     print(f"DEBUGGING - file_paths: {ds['file_paths']}", flush=True)
     print(f"DEBUGGING - type(ds['file_paths']): {type(ds['file_paths'])}", flush=True)
@@ -1231,7 +1233,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         to_collate_uploads = to_collate[to_collate.upload == True][['file_paths','id']]
         print(f'to_collate_uploads: {to_collate_uploads}')
 
-        # to_collate_uploads = dd.from_pandas(to_collate[to_collate.upload == True][['file_paths','id']], npartitions=len(client.scheduler_info()['workers'])*10)
+        to_collate_uploads = dd.from_pandas(to_collate[to_collate.upload == True][['file_paths','id']], npartitions=len(client.scheduler_info()['workers'])*10)
         #current_objects['CURRENT_OBJECTS'].apply(find_metadata_swift, conn=s3, container_name=bucket_name)
         # print(to_collate_uploads.head(), flush=True)
         # zip_and_upload(to_collate[to_collate.upload == True][['file_paths','id']].iloc[0], s3=s3, bucket_name=bucket_name, api=api, destination_dir=destination_dir, local_dir=local_dir, total_size_uploaded=total_size_uploaded, total_files_uploaded=total_files_uploaded, use_compression=use_compression, dryrun=dryrun, mem_per_worker=mem_per_worker)
