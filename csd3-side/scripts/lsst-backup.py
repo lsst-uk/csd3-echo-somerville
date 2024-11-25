@@ -1228,6 +1228,8 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         # print(type(to_collate.iloc[0]['file_paths']))
         # exit()
         print(to_collate[to_collate.upload == True][['file_paths','id']]) 
+        to_collate_uploads = to_collate[to_collate.upload == True][['file_paths','id']]
+        print(f'to_collate_uploads: {to_collate_uploads}')
 
         to_collate_uploads = dd.from_pandas(to_collate[to_collate.upload == True][['file_paths','id']], npartitions=len(client.scheduler_info()['workers'])*10)
         #current_objects['CURRENT_OBJECTS'].apply(find_metadata_swift, conn=s3, container_name=bucket_name)
