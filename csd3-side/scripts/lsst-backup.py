@@ -1247,14 +1247,14 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             api,
             destination_dir,
             local_dir,
-            to_collate_uploads.iloc[i]['file_paths'],
+            to_collate_uploads[to_collate_uploads.id == id]['file_paths'].values[0],
             total_size_uploaded,
             total_files_uploaded,
             use_compression,
             dryrun,
-            to_collate_uploads.iloc[i]['id'],
+            id,
             mem_per_worker,
-        ) for i in range(len(to_collate_uploads))]
+        ) for id in to_collate_uploads['id']]
         # zul_futures = to_collate_uploads.apply(zip_and_upload, axis=1, 
         #     args=(s3, 
         #     bucket_name, 
