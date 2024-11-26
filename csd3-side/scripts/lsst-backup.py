@@ -230,7 +230,7 @@ def zip_and_upload(ds, s3, bucket_name, api, destination_dir, local_dir, total_s
     print(f'zip_object_key: {zip_object_key}', flush=True)
     if namelist == []:
         print(f'No files to upload in zip file.')
-        return None, zip_object_key #+' nothing to upload'
+        return_tuple = None, zip_object_key #+' nothing to upload'
     else:
         print(f'Uploading zip file containing {len(file_paths)} files to S3 bucket {bucket_name} to key {zip_object_key}.', flush=True)
         # with annotate(parent_folder=parent_folder):
@@ -252,7 +252,8 @@ def zip_and_upload(ds, s3, bucket_name, api, destination_dir, local_dir, total_s
             True,
             mem_per_worker
             )
-        return f, zip_object_key
+        return_tuple = f, zip_object_key
+    return pd.DataFrame.from_dict({'future': return_tuple[0], 'zip_object_key': return_tuple[1]})
 
 def zip_folders(local_dir:str, file_paths:list[str], use_compression:bool, dryrun:bool, id:int, mem_per_worker:int) -> tuple[str, int, bytes]:
     """
