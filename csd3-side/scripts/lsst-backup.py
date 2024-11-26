@@ -1255,7 +1255,9 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             meta=pd.DataFrame(columns=['future','zip_object_key'], dtype='object')
         )
         print('zul_futures')
-        print(zul_futures.compute())
+        print(zul_futures)
+        wait(zul_futures['future'].to_list())
+        print('waiting')
         exit()
         print(type(zul_futures))
         # for i in range(len(to_collate)):
