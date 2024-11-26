@@ -1251,7 +1251,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             use_compression, 
             dryrun, 
             mem_per_worker),
-            meta={'zul': 'object'}
+            meta={'zul': 'object|None', 'key': 'str'}
         )
         print('zul_futures')
         while True:
