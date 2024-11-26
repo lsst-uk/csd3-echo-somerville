@@ -205,7 +205,7 @@ def zip_and_upload(ds, s3, bucket_name, api, destination_dir, local_dir, total_s
         )
     def get_zip_future(future):
         return future.result()
-    
+    print('Got zip', flush=True)
     tries = 0
     zip_data = None
     namelist = None
