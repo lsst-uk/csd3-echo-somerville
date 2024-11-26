@@ -1297,7 +1297,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
     ########################
 
     print('Monitoring zip tasks.', flush=True)
-    for f in as_completed(zul_futures['zul']):
+    for f in as_completed(zul_futures):
         print(f.result())
         result = f.result()
         if result[0] is not None:
