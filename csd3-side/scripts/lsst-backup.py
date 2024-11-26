@@ -1302,7 +1302,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         result = f.result()
         if result[0] is not None:
             upload_futures.append(result[0])
-            to_collate[to_collate.object_names == result[1]]['upload'] = False
+            to_collate.loc[to_collate['object_names'] == result[1], 'upload'] = False
             print(f'Zip {result[1]} created and added to upload queue.', flush=True)
             print(f'To upload: {len(to_collate[to_collate.upload == True])} zips remaining.', flush=True)
             del f
