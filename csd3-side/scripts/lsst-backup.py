@@ -1251,7 +1251,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             use_compression, 
             dryrun, 
             mem_per_worker),
-            meta={'zul': 'object|None', 'key': 'str'}
+            meta=pd.DataFrame(columns=['future','zip_object_key'], dtype='object')
         )
         print('zul_futures')
         while True:
