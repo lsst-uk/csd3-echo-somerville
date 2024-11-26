@@ -174,20 +174,17 @@ def mem_check(futures):
 def remove_duplicates(l: list[dict]) -> list[dict]:
     return pd.DataFrame(l).drop_duplicates().to_dict(orient='records')
 
-def zip_and_upload(ds, s3, bucket_name, api, destination_dir, local_dir, total_size_uploaded, total_files_uploaded, use_compression, dryrun, mem_per_worker) -> tuple[str, int, bytes]:
+def zip_and_upload(id, file_paths, s3, bucket_name, api, destination_dir, local_dir, total_size_uploaded, total_files_uploaded, use_compression, dryrun, mem_per_worker) -> tuple[object, str]:
     # print('in zip_and_upload', flush=True)
     # try:
     #     assert type(ds) is pd.Series
     # except AssertionError:
     #     raise AssertionError('ds must be a pandas Series object.')
-    id = ds['id']
-    file_paths = ds['file_paths']
+    # id = ds['id']
+    # file_paths = ds['file_paths']
     #debugging
-    print(f"DEBUGGING - type(ds): {type(ds)}", flush=True)
     print(f"DEBUGGING - id: {id}", flush=True)
-    print(f"DEBUGGING - ds: {ds}", flush=True)
-    print(f"DEBUGGING - file_paths: {ds['file_paths']}", flush=True)
-    print(f"DEBUGGING - type(ds['file_paths']): {type(ds['file_paths'])}", flush=True)
+    print(f"DEBUGGING - file_paths: {file_paths}", flush=True)
     
     print(f'Zipping and uploading {len(file_paths)} files from {local_dir} to {destination_dir}/collated_{id}.zip.', flush=True)
     #############
@@ -1243,17 +1240,17 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         # exit()
         zul_futures =  [ client.submit(
             zip_and_upload,
+            id,
+            to_collate_uploads[to_collate_uploads.id == id]['file_paths'].values[0],
             s3,
             bucket_name,
             api,
             destination_dir,
             local_dir,
-            to_collate_uploads[to_collate_uploads.id == id]['file_paths'].values[0],
             total_size_uploaded,
             total_files_uploaded,
             use_compression,
             dryrun,
-            id,
             mem_per_worker,
         ) for id in to_collate_uploads['id']]
         # zul_futures = to_collate_uploads.apply(zip_and_upload, axis=1, 
