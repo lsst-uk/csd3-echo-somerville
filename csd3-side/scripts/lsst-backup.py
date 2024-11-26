@@ -183,8 +183,8 @@ def zip_and_upload(id, file_paths, s3, bucket_name, api, destination_dir, local_
     # id = ds['id']
     # file_paths = ds['file_paths']
     #debugging
-    print(f"DEBUGGING - id: {id}", flush=True)
-    print(f"DEBUGGING - file_paths: {file_paths}", flush=True)
+    # print(f"DEBUGGING - id: {id}", flush=True)
+    # print(f"DEBUGGING - file_paths: {file_paths}", flush=True)
     
     print(f'Zipping and uploading {len(file_paths)} files from {local_dir} to {destination_dir}/collated_{id}.zip.', flush=True)
     #############
@@ -202,7 +202,7 @@ def zip_and_upload(id, file_paths, s3, bucket_name, api, destination_dir, local_
         )
     def get_zip_future(future):
         return future.result()
-    print('Got zip', flush=True)
+    # print('DEBUGGING - Got zip', flush=True)
     tries = 0
     zip_data = None
     namelist = None
@@ -215,7 +215,7 @@ def zip_and_upload(id, file_paths, s3, bucket_name, api, destination_dir, local_
             print(f'Zip future timed out {tries}/5')
     if zip_data is None and namelist is None:
         raise Exception('Zip future timed out 5 times.')
-    print(f'Zip data size: {len(zip_data)} bytes.', flush=True)
+    # print(f'DEBUGGING - Zip data size: {len(zip_data)} bytes.', flush=True)
     # if len(zip_data) > mem_per_worker/2:
     # print('Scattering zip data.')
     # scattered_zip_data = client.scatter(zip_data)
@@ -1266,12 +1266,12 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         #     mem_per_worker),
         #     meta=pd.DataFrame(columns=['future','zip_object_key'], dtype='object')
         # )
-        print('zul_futures')
-        print(zul_futures)
+        # print('zul_futures')
+        # print(zul_futures)
         # wait(zul_futures)
         # print('waiting')
         # exit()
-        print(type(zul_futures))
+        # print(type(zul_futures))
         # for i in range(len(to_collate)):
         #     mem_check(zul_futures+upload_futures)
         #     zul_futures.append(client.submit(
