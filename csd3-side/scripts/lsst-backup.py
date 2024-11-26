@@ -230,7 +230,7 @@ def zip_and_upload(ds, s3, bucket_name, api, destination_dir, local_dir, total_s
     print(f'zip_object_key: {zip_object_key}', flush=True)
     if namelist == []:
         print(f'No files to upload in zip file.')
-        return_tuple = None, zip_object_key #+' nothing to upload'
+        return None, zip_object_key #+' nothing to upload'
     else:
         print(f'Uploading zip file containing {len(file_paths)} files to S3 bucket {bucket_name} to key {zip_object_key}.', flush=True)
         # with annotate(parent_folder=parent_folder):
@@ -252,8 +252,7 @@ def zip_and_upload(ds, s3, bucket_name, api, destination_dir, local_dir, total_s
             True,
             mem_per_worker
             )
-        return_tuple = f, zip_object_key
-    return pd.DataFrame.from_dict({'future': return_tuple[0], 'zip_object_key': return_tuple[1]})
+        return f, zip_object_key
 
 def zip_folders(local_dir:str, file_paths:list[str], use_compression:bool, dryrun:bool, id:int, mem_per_worker:int) -> tuple[str, int, bytes]:
     """
@@ -1241,24 +1240,39 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         # print(to_collate_uploads.head(), flush=True)
         # zip_and_upload(to_collate[to_collate.upload == True][['file_paths','id']].iloc[0], s3=s3, bucket_name=bucket_name, api=api, destination_dir=destination_dir, local_dir=local_dir, total_size_uploaded=total_size_uploaded, total_files_uploaded=total_files_uploaded, use_compression=use_compression, dryrun=dryrun, mem_per_worker=mem_per_worker)
         # exit()
-        zul_futures = to_collate_uploads.apply(zip_and_upload, axis=1, 
-            args=(s3, 
-            bucket_name, 
-            api, 
-            destination_dir, 
-            local_dir, 
-            total_size_uploaded, 
-            total_files_uploaded, 
-            use_compression, 
-            dryrun, 
-            mem_per_worker),
-            meta=pd.DataFrame(columns=['future','zip_object_key'], dtype='object')
-        )
+        zul_futures =  [ client.submit(
+            zip_and_upload,
+            s3,
+            bucket_name,
+            api,
+            destination_dir,
+            local_dir,
+            to_collate_uploads.iloc[i]['file_paths'],
+            total_size_uploaded,
+            total_files_uploaded,
+            use_compression,
+            dryrun,
+            to_collate_uploads.iloc[i]['id'],
+            mem_per_worker,
+        ) for i in range(len(to_collate_uploads))]
+        # zul_futures = to_collate_uploads.apply(zip_and_upload, axis=1, 
+        #     args=(s3, 
+        #     bucket_name, 
+        #     api, 
+        #     destination_dir, 
+        #     local_dir, 
+        #     total_size_uploaded, 
+        #     total_files_uploaded, 
+        #     use_compression, 
+        #     dryrun, 
+        #     mem_per_worker),
+        #     meta=pd.DataFrame(columns=['future','zip_object_key'], dtype='object')
+        # )
         print('zul_futures')
         print(zul_futures)
-        wait(zul_futures['future'].to_list())
-        print('waiting')
-        exit()
+        # wait(zul_futures)
+        # print('waiting')
+        # exit()
         print(type(zul_futures))
         # for i in range(len(to_collate)):
         #     mem_check(zul_futures+upload_futures)
