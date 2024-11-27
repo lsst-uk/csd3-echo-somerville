@@ -192,30 +192,35 @@ def zip_and_upload(id, file_paths, s3, bucket_name, api, destination_dir, local_
     #############
     client = get_client()
     # with annotate(parent_folder=parent_folder):
-    zip_future = client.submit(zip_folders,
-        local_dir, 
-        file_paths, 
-        use_compression, 
-        dryrun, 
-        id, 
-        mem_per_worker
-        )
-    def get_zip_future(future):
-        return future.result()
-    wait(zip_future)
-    # print('DEBUGGING - Got zip', flush=True)
-    tries = 0
-    zip_data = None
-    namelist = None
-    while tries < 5:
-        try:
-            zip_data, namelist = get_zip_future(zip_future)
-            tries += 1
-        except Exception as e:
-            sleep(5)
-            print(f'Zip future timed out {tries}/5')
-    if zip_data is None and namelist is None:
-        raise Exception('Zip future timed out 5 times.')
+    # zip_future = client.submit(zip_folders,
+    #     local_dir, 
+    #     file_paths, 
+    #     use_compression, 
+    #     dryrun, 
+    #     id, 
+    #     mem_per_worker
+    #     )
+    # def get_zip_future(future):
+    #     return future.result()
+    # wait(zip_future)
+
+
+    # # print('DEBUGGING - Got zip', flush=True)
+    # tries = 0
+    # zip_data = None
+    # namelist = None
+    # while tries < 5:
+    #     try:
+    #         zip_data, namelist = get_zip_future(zip_future)
+    #         tries += 1
+    #     except Exception as e:
+    #         sleep(5)
+    #         print(f'Zip future timed out {tries}/5')
+    # if zip_data is None and namelist is None:
+    #     raise Exception('Zip future timed out 5 times.')
+    
+    zip_data, namelist = zip_folders(local_dir, file_paths, use_compression, dryrun, id, mem_per_worker)
+
     # print(f'DEBUGGING - Zip data size: {len(zip_data)} bytes.', flush=True)
     # if len(zip_data) > mem_per_worker/2:
     # print('Scattering zip data.')
@@ -1298,21 +1303,21 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
     ########################
 
     print('Monitoring zip tasks.', flush=True)
-    for f in as_completed(zul_futures):
-        print(f.result())
-        result = f.result()
-        if result[0] is not None:
-            upload_futures.append(result[0])
-            to_collate.loc[to_collate['object_names'] == result[1], 'upload'] = False
-            print(f'Zip {result[1]} created and added to upload queue.', flush=True)
-            print(f'To upload: {len(to_collate[to_collate.upload == True])} zips remaining.', flush=True)
-            del f
-        else:
-            print(f'No files to zip as {result[1]}. Skipping upload.', flush=True)
-            del f
+    # for f in as_completed(zul_futures):
+    #     print(f.result())
+    #     result = f.result()
+    #     if result[0] is not None:
+    #         upload_futures.append(result[0])
+    #         to_collate.loc[to_collate['object_names'] == result[1], 'upload'] = False
+    #         print(f'Zip {result[1]} created and added to upload queue.', flush=True)
+    #         print(f'To upload: {len(to_collate[to_collate.upload == True])} zips remaining.', flush=True)
+    #         del f
+    #     else:
+    #         print(f'No files to zip as {result[1]}. Skipping upload.', flush=True)
+    #         del f
 
     # fire_and_forget(upload_futures)
-    for f in as_completed(upload_futures):
+    for f in as_completed(upload_futures+zul_futures):
         if 'exception' in f.status or 'error' in f.status:
             f_tuple = f.exception(), f.traceback()
             failed.append(f_tuple)
