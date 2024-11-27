@@ -218,7 +218,7 @@ def zip_and_upload(id, file_paths, s3, bucket_name, api, destination_dir, local_
     #         print(f'Zip future timed out {tries}/5')
     # if zip_data is None and namelist is None:
     #     raise Exception('Zip future timed out 5 times.')
-    
+
     zip_data, namelist = zip_folders(local_dir, file_paths, use_compression, dryrun, id, mem_per_worker)
 
     # print(f'DEBUGGING - Zip data size: {len(zip_data)} bytes.', flush=True)
@@ -1317,7 +1317,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
     #         del f
 
     # fire_and_forget(upload_futures)
-    for f in as_completed(upload_futures+zul_futures):
+    for f in as_completed(upload_futures):
         if 'exception' in f.status or 'error' in f.status:
             f_tuple = f.exception(), f.traceback()
             failed.append(f_tuple)
