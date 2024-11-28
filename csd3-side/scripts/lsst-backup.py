@@ -1263,10 +1263,10 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         ) for id in to_collate_uploads['id']]
 
         for f in as_completed(zul_futures): # is a zip_and_upload_future
-            mem_check(zul_futures+upload_futures)
+            # mem_check(zul_futures+upload_futures)
             result = f.result()
             if result[0] is not None:
-                upload_futures.append(
+                wait(
                     client.submit(upload_and_callback, 
                         s3, 
                         bucket_name, 
@@ -1288,10 +1288,10 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 to_collate.loc[to_collate['object_names'] == result[1], 'upload'] = False
                 print(f'Zip {result[1]} created and added to upload queue.', flush=True)
                 print(f'To upload: {len(to_collate[to_collate.upload == True])} zips remaining.', flush=True)
-                # del f
+                del f
             else:
                 print(f'No files to zip as {result[1]}. Skipping upload.', flush=True)
-                # del f
+                del f
         del zul_futures
 
         # zul_futures = to_collate_uploads.apply(zip_and_upload, axis=1, 
