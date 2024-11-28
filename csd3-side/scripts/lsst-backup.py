@@ -1303,27 +1303,29 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
     ########################
 
     print('Monitoring zip tasks.', flush=True)
-    # for f in as_completed(zul_futures):
-    #     print(f.result())
-    #     result = f.result()
-    #     if result[0] is not None:
-    #         upload_futures.append(result[0])
-    #         to_collate.loc[to_collate['object_names'] == result[1], 'upload'] = False
-    #         print(f'Zip {result[1]} created and added to upload queue.', flush=True)
-    #         print(f'To upload: {len(to_collate[to_collate.upload == True])} zips remaining.', flush=True)
-    #         del f
-    #     else:
-    #         print(f'No files to zip as {result[1]}. Skipping upload.', flush=True)
-    #         del f
+    
 
     # fire_and_forget(upload_futures)
-    for f in as_completed(upload_futures):
-        if 'exception' in f.status or 'error' in f.status:
-            f_tuple = f.exception(), f.traceback()
-            failed.append(f_tuple)
-            del f
-        elif 'finished' in f.status:
-            del f
+    while len(upload_futures) > 0 or len(zul_futures) > 0:
+        for f in as_completed(upload_futures+zul_futures):
+            if f in zul_futures: # is a zip_and_upload_future
+                result = f.result()
+                if result[0] is not None:
+                    upload_futures.append(result[0])
+                    to_collate.loc[to_collate['object_names'] == result[1], 'upload'] = False
+                    print(f'Zip {result[1]} created and added to upload queue.', flush=True)
+                    print(f'To upload: {len(to_collate[to_collate.upload == True])} zips remaining.', flush=True)
+                    del f
+                else:
+                    print(f'No files to zip as {result[1]}. Skipping upload.', flush=True)
+                    del f
+            else: # is an upload_future
+                if 'exception' in f.status or 'error' in f.status:
+                    f_tuple = f.exception(), f.traceback()
+                    failed.append(f_tuple)
+                    del f
+                elif 'finished' in f.status:
+                    del f
 
     if failed:
         for i, failed_upload in enumerate(failed):
