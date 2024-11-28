@@ -233,29 +233,31 @@ def zip_and_upload(id, file_paths, s3, bucket_name, api, destination_dir, local_
     print(f'zip_object_key: {zip_object_key}', flush=True)
     if namelist == []:
         print(f'No files to upload in zip file.')
-        return None, zip_object_key #+' nothing to upload'
-    else:
-        print(f'Uploading zip file containing {len(file_paths)} files to S3 bucket {bucket_name} to key {zip_object_key}.', flush=True)
-        # with annotate(parent_folder=parent_folder):
-        f = client.submit(upload_and_callback,
-            s3,
-            bucket_name,
-            api,
-            local_dir,
-            destination_dir,
-            zip_data,
-            namelist,
-            zip_object_key,
-            dryrun,
-            datetime.now(),
-            1,
-            len(zip_data),
-            total_size_uploaded,
-            total_files_uploaded,
-            True,
-            mem_per_worker
-            )
-        return f, zip_object_key
+        return None, zip_object_key, namelist #+' nothing to upload'
+    else: # for no subtasks
+        return zip_data, zip_object_key, namelist, len(zip_data)
+    # else:
+    #     print(f'Uploading zip file containing {len(file_paths)} files to S3 bucket {bucket_name} to key {zip_object_key}.', flush=True)
+    #     # with annotate(parent_folder=parent_folder):
+    #     f = client.submit(upload_and_callback,
+    #         s3,
+    #         bucket_name,
+    #         api,
+    #         local_dir,
+    #         destination_dir,
+    #         zip_data,
+    #         namelist,
+    #         zip_object_key,
+    #         dryrun,
+    #         datetime.now(),
+    #         1,
+    #         len(zip_data),
+    #         total_size_uploaded,
+    #         total_files_uploaded,
+    #         True,
+    #         mem_per_worker
+    #         )
+    #     return f, zip_object_key
 
 def zip_folders(local_dir:str, file_paths:list[str], use_compression:bool, dryrun:bool, id:int, mem_per_worker:int) -> tuple[str, int, bytes]:
     """
@@ -1259,6 +1261,38 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             dryrun,
             mem_per_worker,
         ) for id in to_collate_uploads['id']]
+
+        for f in as_completed(zul_futures): # is a zip_and_upload_future
+            result = f.result()
+            if result[0] is not None:
+                upload_futures.append(
+                    client.submit(upload_and_callback, 
+                        s3, 
+                        bucket_name, 
+                        api, 
+                        local_dir, 
+                        result[0], # zip_data
+                        result[2], # namelist
+                        result[1], # zip_object_key
+                        dryrun, 
+                        processing_start, 
+                        1, # 1 zip file
+                        result[3], # len(zip_data) (size in bytes)
+                        total_size_uploaded, 
+                        total_files_uploaded, 
+                        True, 
+                        mem_per_worker
+                    )
+                )
+                to_collate.loc[to_collate['object_names'] == result[1], 'upload'] = False
+                print(f'Zip {result[1]} created and added to upload queue.', flush=True)
+                print(f'To upload: {len(to_collate[to_collate.upload == True])} zips remaining.', flush=True)
+                # del f
+            else:
+                print(f'No files to zip as {result[1]}. Skipping upload.', flush=True)
+                # del f
+        del zul_futures
+
         # zul_futures = to_collate_uploads.apply(zip_and_upload, axis=1, 
         #     args=(s3, 
         #     bucket_name, 
@@ -1303,29 +1337,38 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
     ########################
 
     print('Monitoring zip tasks.', flush=True)
+    #just upload futures
     
+    for f in as_completed(upload_futures):
+        if 'exception' in f.status or 'error' in f.status:
+            f_tuple = f.exception(), f.traceback()
+            failed.append(f_tuple)
+            # del f
+        # elif 'finished' in f.status:
+        #     del f
+    del upload_futures
 
-    # fire_and_forget(upload_futures)
-    while len(upload_futures) > 0 or len(zul_futures) > 0:
-        for f in as_completed(upload_futures+zul_futures):
-            if f in zul_futures: # is a zip_and_upload_future
-                result = f.result()
-                if result[0] is not None:
-                    upload_futures.append(result[0])
-                    to_collate.loc[to_collate['object_names'] == result[1], 'upload'] = False
-                    print(f'Zip {result[1]} created and added to upload queue.', flush=True)
-                    print(f'To upload: {len(to_collate[to_collate.upload == True])} zips remaining.', flush=True)
-                    del f
-                else:
-                    print(f'No files to zip as {result[1]}. Skipping upload.', flush=True)
-                    del f
-            else: # is an upload_future
-                if 'exception' in f.status or 'error' in f.status:
-                    f_tuple = f.exception(), f.traceback()
-                    failed.append(f_tuple)
-                    del f
-                elif 'finished' in f.status:
-                    del f
+    # upload_futures and zul_futures
+    # while len(upload_futures) > 0 or len(zul_futures) > 0:
+    #     for f in as_completed(upload_futures+zul_futures):
+    #         if f in zul_futures: # is a zip_and_upload_future
+    #             result = f.result()
+    #             if result[0] is not None:
+    #                 upload_futures.append(result[0])
+    #                 to_collate.loc[to_collate['object_names'] == result[1], 'upload'] = False
+    #                 print(f'Zip {result[1]} created and added to upload queue.', flush=True)
+    #                 print(f'To upload: {len(to_collate[to_collate.upload == True])} zips remaining.', flush=True)
+    #                 del f
+    #             else:
+    #                 print(f'No files to zip as {result[1]}. Skipping upload.', flush=True)
+    #                 del f
+    #         else: # is an upload_future
+    #             if 'exception' in f.status or 'error' in f.status:
+    #                 f_tuple = f.exception(), f.traceback()
+    #                 failed.append(f_tuple)
+    #                 del f
+    #             elif 'finished' in f.status:
+    #                 del f
 
     if failed:
         for i, failed_upload in enumerate(failed):
