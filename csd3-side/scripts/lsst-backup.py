@@ -1263,6 +1263,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         ) for id in to_collate_uploads['id']]
 
         for f in as_completed(zul_futures): # is a zip_and_upload_future
+            mem_check(zul_futures+upload_futures)
             result = f.result()
             if result[0] is not None:
                 upload_futures.append(
