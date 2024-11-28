@@ -1285,6 +1285,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                                 bucket_name, 
                                 api, 
                                 local_dir, 
+                                destination_dir,
                                 result[0], # zip_data
                                 result[2], # namelist
                                 result[1], # zip_object_key
