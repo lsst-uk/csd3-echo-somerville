@@ -1269,7 +1269,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
 
                 for zul_f in as_completed(zul_futures): # is a zip_and_upload_future
                     # mem_check(zul_futures+upload_futures)
-                    if len(upload_futures) > len(client.scheduler_info()['workers']):
+                    if len(upload_futures) >= len(client.scheduler_info()['workers']):
                         print('Waiting for upload slots to free up.', flush=True)
                         for f in as_completed(upload_futures):
                             if 'exception' in f.status or 'error' in f.status:
