@@ -1264,7 +1264,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
 
         for zul_f in as_completed(zul_futures): # is a zip_and_upload_future
             # mem_check(zul_futures+upload_futures)
-            result = f.result()
+            result = zul_f.result()
             if result[0] is not None:
                 f = client.submit(upload_and_callback, 
                         s3, 
