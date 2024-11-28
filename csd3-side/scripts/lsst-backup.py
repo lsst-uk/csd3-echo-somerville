@@ -1246,52 +1246,65 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         # print(to_collate_uploads.head(), flush=True)
         # zip_and_upload(to_collate[to_collate.upload == True][['file_paths','id']].iloc[0], s3=s3, bucket_name=bucket_name, api=api, destination_dir=destination_dir, local_dir=local_dir, total_size_uploaded=total_size_uploaded, total_files_uploaded=total_files_uploaded, use_compression=use_compression, dryrun=dryrun, mem_per_worker=mem_per_worker)
         # exit()
-        zul_futures =  [ client.submit(
-            zip_and_upload,
-            id,
-            to_collate_uploads[to_collate_uploads.id == id]['file_paths'].values[0],
-            s3,
-            bucket_name,
-            api,
-            destination_dir,
-            local_dir,
-            total_size_uploaded,
-            total_files_uploaded,
-            use_compression,
-            dryrun,
-            mem_per_worker,
-        ) for id in to_collate_uploads['id']]
+        for id in to_collate_uploads['id']:
+            if len(zul_futures) < len(client.scheduler_info()['workers']):
+                zul_futures.append(client.submit(
+                    zip_and_upload,
+                    id,
+                    to_collate_uploads[to_collate_uploads.id == id]['file_paths'].values[0],
+                    s3,
+                    bucket_name,
+                    api,
+                    destination_dir,
+                    local_dir,
+                    total_size_uploaded,
+                    total_files_uploaded,
+                    use_compression,
+                    dryrun,
+                    mem_per_worker,
+                ))
 
-        for zul_f in as_completed(zul_futures): # is a zip_and_upload_future
-            # mem_check(zul_futures+upload_futures)
-            result = zul_f.result()
-            if result[0] is not None:
-                f = client.submit(upload_and_callback, 
-                        s3, 
-                        bucket_name, 
-                        api, 
-                        local_dir, 
-                        result[0], # zip_data
-                        result[2], # namelist
-                        result[1], # zip_object_key
-                        dryrun, 
-                        processing_start, 
-                        1, # 1 zip file
-                        result[3], # len(zip_data) (size in bytes)
-                        total_size_uploaded, 
-                        total_files_uploaded, 
-                        True, 
-                        mem_per_worker
-                    )
-                wait(f)
-                to_collate.loc[to_collate['object_names'] == result[1], 'upload'] = False
-                print(f'Zip {result[1]} created and added to upload queue.', flush=True)
-                print(f'To upload: {len(to_collate[to_collate.upload == True])} zips remaining.', flush=True)
-                del f, zul_f
             else:
-                print(f'No files to zip as {result[1]}. Skipping upload.', flush=True)
-                del zul_f
-        del zul_futures
+                print('Waiting for zip slots to free up.', flush=True)
+
+                for zul_f in as_completed(zul_futures): # is a zip_and_upload_future
+                    # mem_check(zul_futures+upload_futures)
+                    if len(upload_futures) > len(client.scheduler_info()['workers']):
+                        print('Waiting for upload slots to free up.', flush=True)
+                        for f in as_completed(upload_futures):
+                            if 'exception' in f.status or 'error' in f.status:
+                                f_tuple = f.exception(), f.traceback()
+                                failed.append(f_tuple)
+                                del f
+                            else:
+                                del f
+                    result = zul_f.result()
+                    if result[0] is not None:
+                        upload_futures.append(client.submit(upload_and_callback, 
+                                s3, 
+                                bucket_name, 
+                                api, 
+                                local_dir, 
+                                result[0], # zip_data
+                                result[2], # namelist
+                                result[1], # zip_object_key
+                                dryrun, 
+                                processing_start, 
+                                1, # 1 zip file
+                                result[3], # len(zip_data) (size in bytes)
+                                total_size_uploaded, 
+                                total_files_uploaded, 
+                                True, 
+                                mem_per_worker
+                            ))
+                        to_collate.loc[to_collate['object_names'] == result[1], 'upload'] = False
+                        print(f'Zip {result[1]} created and added to upload queue.', flush=True)
+                        print(f'To upload: {len(to_collate[to_collate.upload == True])} zips remaining.', flush=True)
+                        del zul_f
+                    else:
+                        print(f'No files to zip as {result[1]}. Skipping upload.', flush=True)
+                        del zul_f
+            # del zul_futures
 
         # zul_futures = to_collate_uploads.apply(zip_and_upload, axis=1, 
         #     args=(s3, 
@@ -1339,14 +1352,11 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
     print('Monitoring zip tasks.', flush=True)
     #just upload futures
     
-    for f in as_completed(upload_futures):
-        if 'exception' in f.status or 'error' in f.status:
-            f_tuple = f.exception(), f.traceback()
-            failed.append(f_tuple)
+    
             # del f
         # elif 'finished' in f.status:
         #     del f
-    del upload_futures
+    # del upload_futures
 
     # upload_futures and zul_futures
     # while len(upload_futures) > 0 or len(zul_futures) > 0:
