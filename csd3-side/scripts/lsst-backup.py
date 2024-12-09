@@ -1285,8 +1285,8 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         # zip_and_upload(to_collate[to_collate.upload == True][['file_paths','id']].iloc[0], s3=s3, bucket_name=bucket_name, api=api, destination_dir=destination_dir, local_dir=local_dir, total_size_uploaded=total_size_uploaded, total_files_uploaded=total_files_uploaded, use_compression=use_compression, dryrun=dryrun, mem_per_worker=mem_per_worker)
         # exit()
         for id in to_collate_uploads['id']:
-            if len(upload_futures) >= len(client.scheduler_info()['workers']):
-                print('Waiting for zip slots to free up.', flush=True)
+            if len(upload_futures) >= len(client.scheduler_info()['workers'])*2:
+                # print('Waiting for zip slots to free up.', flush=True)
                 while len(upload_futures) >= len(client.scheduler_info()['workers'])*2:
                     print(len(upload_futures), flush=True)
                     for ul in upload_futures:
