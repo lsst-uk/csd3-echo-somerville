@@ -1285,28 +1285,10 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         # zip_and_upload(to_collate[to_collate.upload == True][['file_paths','id']].iloc[0], s3=s3, bucket_name=bucket_name, api=api, destination_dir=destination_dir, local_dir=local_dir, total_size_uploaded=total_size_uploaded, total_files_uploaded=total_files_uploaded, use_compression=use_compression, dryrun=dryrun, mem_per_worker=mem_per_worker)
         # exit()
         for id in to_collate_uploads['id']:
-            if len(upload_futures) < len(client.scheduler_info()['workers']):
-                upload_futures.append(client.submit(
-                    zip_and_upload,
-                    id,
-                    to_collate_uploads[to_collate_uploads.id == id]['file_paths'].values[0],
-                    s3,
-                    bucket_name,
-                    api,
-                    destination_dir,
-                    local_dir,
-                    total_size_uploaded,
-                    total_files_uploaded,
-                    use_compression,
-                    dryrun,
-                    processing_start,
-                    mem_per_worker,
-                ))
-
-            else:
+            if len(upload_futures) >= len(client.scheduler_info()['workers']):
                 print('Waiting for zip slots to free up.', flush=True)
-                while len(upload_futures) >= len(client.scheduler_info()['workers']):
-                    print(len(upload_futures))
+                while len(upload_futures) >= len(client.scheduler_info()['workers'])*2:
+                    print(len(upload_futures), flush=True)
                     for ul in upload_futures:
                         if 'exception' in ul.status or 'error' in ul.status:
                             f_tuple = ul.exception(), ul.traceback()
@@ -1314,6 +1296,26 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                             del ul
                         else:
                             del ul
+
+            upload_futures.append(client.submit(
+                zip_and_upload,
+                id,
+                to_collate_uploads[to_collate_uploads.id == id]['file_paths'].values[0],
+                s3,
+                bucket_name,
+                api,
+                destination_dir,
+                local_dir,
+                total_size_uploaded,
+                total_files_uploaded,
+                use_compression,
+                dryrun,
+                processing_start,
+                mem_per_worker,
+            ))
+
+            
+                
 
                 # for zul_f in as_completed(zul_futures): # is a zip_and_upload_future
                 #     # mem_check(zul_futures+upload_futures)
