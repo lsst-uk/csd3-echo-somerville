@@ -1293,9 +1293,9 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                         if 'exception' in ul.status or 'error' in ul.status:
                             f_tuple = ul.exception(), ul.traceback()
                             failed.append(f_tuple)
-                            del upload_futures.index(ul)
+                            upload_futures.remove(ul)
                         else:
-                            del upload_futures.index(ul)
+                            upload_futures.remove(ul)
 
             upload_futures.append(client.submit(
                 zip_and_upload,
