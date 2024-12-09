@@ -1306,6 +1306,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             else:
                 print('Waiting for zip slots to free up.', flush=True)
                 while len(upload_futures) < len(client.scheduler_info()['workers']):
+                    print(len(upload_futures))
                     for ul in upload_futures:
                         if 'exception' in ul.status or 'error' in ul.status:
                             f_tuple = ul.exception(), ul.traceback()
