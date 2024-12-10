@@ -1363,6 +1363,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                             upload_futures.remove(ulf)
                         else:
                             upload_futures.remove(ulf)
+                            # CHANGE UPLOAD VALUE TO FALSE IN to_collate
 
             upload_futures.append(client.submit(
                 zip_and_upload,
