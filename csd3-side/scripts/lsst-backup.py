@@ -284,7 +284,6 @@ def zip_and_upload(id, file_paths, s3, bucket_name, api, destination_dir, local_
     #     return future.result()
     # wait(zip_future)
 
-
     # # print('DEBUGGING - Got zip', flush=True)
     # tries = 0
     # zip_data = None
@@ -300,6 +299,7 @@ def zip_and_upload(id, file_paths, s3, bucket_name, api, destination_dir, local_
     #     raise Exception('Zip future timed out 5 times.')
 
     zip_data, namelist = zip_folders(local_dir, file_paths, use_compression, dryrun, id, mem_per_worker)
+    print('Created zipFile in memory', flush=True)
 
     # print(f'DEBUGGING - Zip data size: {len(zip_data)} bytes.', flush=True)
     # if len(zip_data) > mem_per_worker/2:
