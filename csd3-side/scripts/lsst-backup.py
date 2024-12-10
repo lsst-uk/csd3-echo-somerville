@@ -66,6 +66,8 @@ def compare_zip_contents(collate_objects: list[str] | pd.DataFrame, current_obje
     Returns:
     list[str] | pd.DataFrame: A list of indices of zip files to be uploaded if collate_objects is a list, or a DataFrame with an 'upload' column indicating which zip files need to be uploaded if collate_objects is a DataFrame.
     """
+    skipping = 0
+
     if type(collate_objects) == pd.DataFrame:
         df = True
     else:
@@ -106,9 +108,9 @@ def compare_zip_contents(collate_objects: list[str] | pd.DataFrame, current_obje
             else:
                 zips_to_upload.append(i)
     if df:
-        return collate_objects
+        return collate_objects, skipping
     else:
-        return zips_to_upload
+        return zips_to_upload, skipping
 
 
 def to_rds_path(home_path: str, local_dir: str) -> str:
@@ -1006,7 +1008,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
     zip_batch_files = [[]]
     zip_batch_object_names = [[]]
     zip_batch_sizes = [0]
-    skipping = 0
+
     # if save_collate_file:
     #     scanned_list = []
     #     scanned_dicts = []
@@ -1267,7 +1269,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         # CHECK HERE FOR ZIP CONTENTS #
         ###############################
         if not os.path.exists(collate_list_file):
-            zips_to_upload = compare_zip_contents(zip_batch_object_names, current_objects, destination_dir)
+            zips_to_upload, skipping = compare_zip_contents(zip_batch_object_names, current_objects, destination_dir)
 
             # Create dict for zip files
             for i in range(len(zip_batch_files)):
@@ -1317,7 +1319,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             print(f'Loaded collate list from {collate_list_file}, len={len(to_collate)}.', flush=True)
             if not current_objects.empty:
                 # now using pandas for both current_objects and to_collate - this could be re-written to using vectorised operations
-                to_collate = compare_zip_contents(to_collate, current_objects, destination_dir)
+                to_collate, skipping = compare_zip_contents(to_collate, current_objects, destination_dir)
 
         if save_collate_file:
             print(f'Saving collate list to {collate_list_file}, len={len(to_collate)}.', flush=True)
