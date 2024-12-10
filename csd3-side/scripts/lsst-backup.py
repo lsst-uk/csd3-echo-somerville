@@ -950,6 +950,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
     zip_batch_files = [[]]
     zip_batch_object_names = [[]]
     zip_batch_sizes = [0]
+    skipping = 0
     # if save_collate_file:
     #     scanned_list = []
     #     scanned_dicts = []
@@ -1258,7 +1259,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             to_collate = pd.read_csv(collate_list_file)
             to_collate.object_names = to_collate.object_names.apply(literal_eval)
             to_collate.file_paths = to_collate.file_paths.apply(literal_eval)
-            client.scatter(to_collate)
+            # client.scatter(to_collate)
             print(f'Loaded collate list from {collate_list_file}, len={len(to_collate)}.', flush=True)
             if not current_objects.empty:
                 # now using pandas for both current_objects and to_collate - this could be re-written to using vectorised operations
@@ -1270,6 +1271,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                         if all([x in existing_zip_contents for x in cmp]) and to_collate.iloc[i]['upload']:
                             print(f'Zip file {destination_dir}/collated_{i}.zip from {collate_list_file} already exists and file lists match - skipping.', flush=True)
                             to_collate.iloc[i]['upload'] = False
+                            skipping += 1
                         elif all([x in existing_zip_contents for x in cmp]) and not to_collate.iloc[i]['upload']:
                             print(f'Zip file {destination_dir}/collated_{i}.zip from {collate_list_file} already exists but file lists do not match - reuploading.', flush=True)
                             to_collate.iloc[i]['upload'] = True
@@ -1294,6 +1296,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         # print(type(to_collate.iloc[0]['file_paths']))
         # exit()
         print(to_collate[to_collate.upload == False][['file_paths','id', 'upload']]) 
+        print(len(to_collate[to_collate.upload == False]), skipping)
         to_collate_uploads = to_collate[to_collate.upload == True][['file_paths','id', 'upload']]
         # print(f'to_collate_uploads: {to_collate_uploads}')
 
