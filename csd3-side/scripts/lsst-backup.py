@@ -1312,7 +1312,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         # print(type(to_collate.iloc[0]['file_paths']))
         # exit()
         print(to_collate[to_collate.upload == False][['file_paths','id', 'upload']])
-        print(len(to_collate[to_collate.upload == False]), skipping)
+        print(f'len(to_collate[to_collate.upload == False]): {len(to_collate[to_collate.upload == False])}, skipping: {skipping}')
         to_collate_uploads = to_collate[to_collate.upload == True][['file_paths','id', 'upload']]
         # print(f'to_collate_uploads: {to_collate_uploads}')
 
