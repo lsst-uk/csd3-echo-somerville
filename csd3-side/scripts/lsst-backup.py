@@ -1219,6 +1219,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                         existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
                         if all([x in existing_zip_contents for x in cmp]):
                             print(f'Zip file {destination_dir}/collated_{i}.zip already exists and file lists match - skipping.', flush=True)
+                            skipping += 1
                             # zip_batch_object_names.pop(i)
                             # zip_batch_files.pop(i)
                             # continue
@@ -1226,10 +1227,10 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                             print(f'Zip file {destination_dir}/collated_{i}.zip already exists but file lists do not match - reuploading.', flush=True)
                             zips_to_upload.append(i)
                     else:
-                        print(f'Zip file {destination_dir}/collated_{i}.zip does not exists uploading.', flush=True)
+                        print(f'Zip file {destination_dir}/collated_{i}.zip does not exist uploading.', flush=True)
                         zips_to_upload.append(i)
                 else:
-                    print(f'Zip file {destination_dir}/collated_{i}.zip does not exists uploading.', flush=True)
+                    print(f'Zip file {destination_dir}/collated_{i}.zip does not exist uploading.', flush=True)
                     zips_to_upload.append(i)
 
             # Create dict for zip files
