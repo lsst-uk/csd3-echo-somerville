@@ -1293,9 +1293,9 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         # print(to_collate)
         # print(type(to_collate.iloc[0]['file_paths']))
         # exit()
-        print(to_collate[to_collate.upload == True][['file_paths','id']]) 
+        print(to_collate[to_collate.upload == False][['file_paths','id']]) 
         to_collate_uploads = to_collate[to_collate.upload == True][['file_paths','id']]
-        print(f'to_collate_uploads: {to_collate_uploads}')
+        # print(f'to_collate_uploads: {to_collate_uploads}')
 
         # to_collate_uploads = dd.from_pandas(to_collate[to_collate.upload == True][['file_paths','id']], npartitions=len(client.scheduler_info()['workers'])*10)
         to_collate_uploads = to_collate[to_collate.upload == True][['file_paths','id']]
@@ -1310,13 +1310,13 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 # print('Waiting for zip slots to free up.', flush=True)
                 while len(upload_futures) >= len(client.scheduler_info()['workers'])*2:
                     print(len(upload_futures), flush=True)
-                    for ul in upload_futures:
-                        if 'exception' in ul.status or 'error' in ul.status:
-                            f_tuple = ul.exception(), ul.traceback()
+                    for ulf in upload_futures:
+                        if 'exception' in ulf.status or 'error' in ulf.status:
+                            f_tuple = ulf.exception(), ulf.traceback()
                             failed.append(f_tuple)
-                            upload_futures.remove(ul)
+                            upload_futures.remove(ulf)
                         else:
-                            upload_futures.remove(ul)
+                            upload_futures.remove(ulf)
 
             upload_futures.append(client.submit(
                 zip_and_upload,
