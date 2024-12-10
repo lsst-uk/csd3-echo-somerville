@@ -83,8 +83,11 @@ def compare_zip_contents(collate_objects: list[str] | pd.DataFrame, current_obje
                 if all([x in existing_zip_contents for x in cmp]):
                     print(f'Zip file {destination_dir}/collated_{i}.zip already exists and file lists match - skipping.', flush=True)
                     if df:
-                        collate_objects.iloc[i]['upload'] = False
-                    skipping += 1
+                        if collate_objects.iloc[i]['upload']:
+                            collate_objects.iloc[i]['upload'] = False
+                            skipping += 1
+                    else:
+                        skipping += 1
                 else:
                     print(f'Zip file {destination_dir}/collated_{i}.zip already exists but file lists do not match - reuploading.', flush=True)
                     if df:
