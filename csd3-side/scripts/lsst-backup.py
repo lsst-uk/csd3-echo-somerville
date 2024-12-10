@@ -175,6 +175,25 @@ def remove_duplicates(l: list[dict]) -> list[dict]:
     return pd.DataFrame(l).drop_duplicates().to_dict(orient='records')
 
 def zip_and_upload(id, file_paths, s3, bucket_name, api, destination_dir, local_dir, total_size_uploaded, total_files_uploaded, use_compression, dryrun, processing_start, mem_per_worker) -> tuple[object, str]:
+    """
+    Zips a list of files and uploads the resulting zip file to an S3 bucket.
+    Args:
+        id (str): Identifier for the zip file.
+        file_paths (list): List of file paths to be included in the zip file.
+        s3 (swiftclient.Connection | None): if api == "swift": swiftclient.Connection for uploading the zip file; elif api == "s3": None.
+        bucket_name (str): Name of the S3 bucket where the zip file will be uploaded.
+        api (str): API name: "swift" or "s3".
+        destination_dir (str): Destination "directory" in the S3 bucket.
+        local_dir (str): Local directory containing the files to be zipped.
+        total_size_uploaded (int): Total size of files uploaded so far.
+        total_files_uploaded (int): Total number of files uploaded so far.
+        use_compression (bool): Whether to use compression for the zip file.
+        dryrun (bool): If True, perform a dry run without actual upload.
+        processing_start (datetime): Start time of the processing.
+        mem_per_worker (int): Memory allocated per worker.
+    Returns:
+        bool: True if a zip was created and uploaded, False if not..
+    """
     # print('in zip_and_upload', flush=True)
     # try:
     #     assert type(ds) is pd.Series
@@ -233,7 +252,7 @@ def zip_and_upload(id, file_paths, s3, bucket_name, api, destination_dir, local_
     print(f'zip_object_key: {zip_object_key}', flush=True)
     if namelist == []:
         print(f'No files to upload in zip file.')
-        return None #, zip_object_key, namelist #+' nothing to upload'
+        return False #, zip_object_key, namelist #+' nothing to upload'
     else: # for no subtasks
         # return zip_data, zip_object_key, namelist, len(zip_data)
         upload_and_callback(
