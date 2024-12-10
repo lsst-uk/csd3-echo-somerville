@@ -54,6 +54,62 @@ from typing import List
 #     libc = ctypes.CDLL("libc.so.6")
 #     return libc.malloc_trim(0)
 
+def compare_zip_contents(collate_objects: list[str] | pd.DataFrame, current_objects: pd.DataFrame, destination_dir: str) -> list[str] | pd.DataFrame:
+    """
+    Compare the contents of zip files to determine which files need to be uploaded.
+
+    Parameters:
+    collate_objects (list[str] | pd.DataFrame): A list of file paths or a DataFrame of file paths to be collated into zip files containing 'object_names' and 'upload' columns.
+    current_objects (pd.DataFrame): A DataFrame containing metadata of current zip files, including their contents.
+    destination_dir (str): The directory where the zip files will be stored.
+
+    Returns:
+    list[str] | pd.DataFrame: A list of indices of zip files to be uploaded if collate_objects is a list, or a DataFrame with an 'upload' column indicating which zip files need to be uploaded if collate_objects is a DataFrame.
+    """
+    if type(collate_objects) == pd.DataFrame:
+        df = True
+    else:
+        df = False
+        zips_to_upload = []
+
+    for i in range(len(collate_objects)):
+        if df:
+            cmp = [x.replace(destination_dir+'/', '') for x in collate_objects['object_names'].iloc[i]]
+        else:
+            cmp = [x.replace(destination_dir+'/', '') for x in collate_objects[i]]
+        if not current_objects.empty:
+            if current_objects['METADATA'].isin([cmp]).any():
+                existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
+                if all([x in existing_zip_contents for x in cmp]):
+                    print(f'Zip file {destination_dir}/collated_{i}.zip already exists and file lists match - skipping.', flush=True)
+                    if df:
+                        collate_objects.iloc[i]['upload'] = False
+                        skipping += 1
+                    else:
+                        skipping += 1
+                else:
+                    print(f'Zip file {destination_dir}/collated_{i}.zip already exists but file lists do not match - reuploading.', flush=True)
+                    if df:
+                        collate_objects.iloc[i]['upload'] = True
+                    else:
+                        zips_to_upload.append(i)
+            else:
+                print(f'Zip file {destination_dir}/collated_{i}.zip does not exist uploading.', flush=True)
+                if df:
+                    collate_objects.iloc[i]['upload'] = True
+                else:
+                    zips_to_upload.append(i)
+        else:
+            print(f'Zip file {destination_dir}/collated_{i}.zip does not exist uploading.', flush=True)
+            if df:
+                collate_objects.iloc[i]['upload'] = True
+            else:
+                zips_to_upload.append(i)
+    if df:
+        return collate_objects
+    else:
+        return zips_to_upload
+
 
 def to_rds_path(home_path: str, local_dir: str) -> str:
     # get base folder for rds- folders
@@ -1210,28 +1266,8 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         ###############################
         # CHECK HERE FOR ZIP CONTENTS #
         ###############################
-        zips_to_upload = []
         if not os.path.exists(collate_list_file):
-            for i, zip_batch in enumerate(zip_batch_object_names):
-                cmp = [x.replace(destination_dir+'/', '') for x in zip_batch]
-                if not current_objects.empty:
-                    if current_objects['METADATA'].isin([cmp]).any():
-                        existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
-                        if all([x in existing_zip_contents for x in cmp]):
-                            print(f'Zip file {destination_dir}/collated_{i}.zip already exists and file lists match - skipping.', flush=True)
-                            skipping += 1
-                            # zip_batch_object_names.pop(i)
-                            # zip_batch_files.pop(i)
-                            # continue
-                        else:
-                            print(f'Zip file {destination_dir}/collated_{i}.zip already exists but file lists do not match - reuploading.', flush=True)
-                            zips_to_upload.append(i)
-                    else:
-                        print(f'Zip file {destination_dir}/collated_{i}.zip does not exist uploading.', flush=True)
-                        zips_to_upload.append(i)
-                else:
-                    print(f'Zip file {destination_dir}/collated_{i}.zip does not exist uploading.', flush=True)
-                    zips_to_upload.append(i)
+            zips_to_upload = compare_zip_contents(zip_batch_object_names, current_objects, destination_dir)
 
             # Create dict for zip files
             for i in range(len(zip_batch_files)):
@@ -1267,6 +1303,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             to_collate = pd.DataFrame.from_dict(to_collate_list)
             client.scatter(to_collate)
             del zip_batch_files, zip_batch_object_names, zip_batch_sizes
+
         else:
             # with open(collate_list_file, 'r') as f:
             # to_collate = dd.from_pandas(pd.read_csv(collate_list_file), npartitions=len(client.scheduler_info()['workers'])*10)
@@ -1280,24 +1317,8 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             print(f'Loaded collate list from {collate_list_file}, len={len(to_collate)}.', flush=True)
             if not current_objects.empty:
                 # now using pandas for both current_objects and to_collate - this could be re-written to using vectorised operations
-                for i in range(len(to_collate['object_names'])):
-                    # print(zip_object_names)
-                    cmp = [x.replace(destination_dir+'/', '') for x in to_collate.iloc[i]['object_names']]
-                    if current_objects['METADATA'].isin([cmp]).any():
-                        existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
-                        if all([x in existing_zip_contents for x in cmp]) and to_collate.iloc[i]['upload']:
-                            print(f'Zip file {destination_dir}/collated_{i}.zip from {collate_list_file} already exists and file lists match - skipping.', flush=True)
-                            to_collate.iloc[i]['upload'] = False
-                            skipping += 1
-                        elif all([x in existing_zip_contents for x in cmp]) and not to_collate.iloc[i]['upload']:
-                            print(f'Zip file {destination_dir}/collated_{i}.zip from {collate_list_file} already exists but file lists do not match - reuploading.', flush=True)
-                            to_collate.iloc[i]['upload'] = True
-                        elif not all([x in existing_zip_contents for x in cmp]) and not to_collate.iloc[i]['upload']:
-                            to_collate.iloc[i]['upload'] = True
-                            print(f'Zip file {destination_dir}/collated_{i}.zip from {collate_list_file} does not exists uploading.', flush=True)
-                        else:
-                            print(f'Zip file {destination_dir}/collated_{i}.zip from {collate_list_file} does not exists uploading.', flush=True)
-                            to_collate.iloc[i]['upload'] = True
+                to_collate = compare_zip_contents(to_collate, current_objects, destination_dir)
+
         if save_collate_file:
             print(f'Saving collate list to {collate_list_file}, len={len(to_collate)}.', flush=True)
             # with open(collate_list_file, 'w') as f:
