@@ -1381,7 +1381,14 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 processing_start,
                 mem_per_worker,
             ))
-
+        for ulf in as_completed(upload_futures):
+            if 'exception' in ulf.status or 'error' in ulf.status:
+                f_tuple = ulf.exception(), ulf.traceback()
+                failed.append(f_tuple)
+                upload_futures.remove(ulf)
+            else:
+                upload_futures.remove(ulf)
+                to_collate.loc[to_collate['id'] == id, 'upload'] = False
 
 
 
@@ -1468,7 +1475,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
     # Monitor upload tasks #
     ########################
 
-    print('Monitoring zip tasks.', flush=True)
+    # print('Monitoring zip tasks.', flush=True)
     #just upload futures
 
 
@@ -1505,6 +1512,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
 
     # Re-save collate list to reflect uploads
     if save_collate_file:
+        print(f'Saving updated collate list to {collate_list_file}.', flush=True)
         to_collate.to_csv(collate_list_file, index=False)
         # with open(collate_list_file, 'w') as f:
         #     json.dump(to_collate, f)
