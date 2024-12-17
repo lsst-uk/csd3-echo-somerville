@@ -1517,6 +1517,8 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
     else:
         print(f'Collate list not saved.')
 
+    client.wait()
+
 # # Go!
 if __name__ == '__main__':
     epilog = ''
