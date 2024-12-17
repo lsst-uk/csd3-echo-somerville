@@ -54,6 +54,67 @@ from typing import List
 #     libc = ctypes.CDLL("libc.so.6")
 #     return libc.malloc_trim(0)
 
+def compare_zip_contents(collate_objects: list[str] | pd.DataFrame, current_objects: pd.DataFrame, destination_dir: str, skipping: int) -> list[str] | pd.DataFrame:
+    """
+    Compare the contents of zip files to determine which files need to be uploaded.
+
+    Parameters:
+    collate_objects (list[str] | pd.DataFrame): A list of file paths or a DataFrame of file paths to be collated into zip files containing 'object_names' and 'upload' columns.
+    current_objects (pd.DataFrame): A DataFrame containing metadata of current zip files, including their contents.
+    destination_dir (str): The directory where the zip files will be stored.
+
+    Returns:
+    list[str] | pd.DataFrame: A list of indices of zip files to be uploaded if collate_objects is a list, or a DataFrame with an 'upload' column indicating which zip files need to be uploaded if collate_objects is a DataFrame.
+    """
+    if type(collate_objects) == pd.DataFrame:
+        df = True
+    else:
+        df = False
+        zips_to_upload = []
+
+    for i in range(len(collate_objects)):
+        if df:
+            cmp = [x.replace(destination_dir+'/', '') for x in collate_objects['object_names'].iloc[i]]
+        else:
+            cmp = [x.replace(destination_dir+'/', '') for x in collate_objects[i]]
+        if not current_objects.empty:
+            if current_objects['METADATA'].isin([cmp]).any():
+                existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
+                if all([x in existing_zip_contents for x in cmp]):
+                    print(f'Zip file {destination_dir}/collated_{i}.zip already exists and file lists match - skipping.', flush=True)
+                    if df:
+                        if collate_objects.iloc[i]['upload']:
+                            collate_objects.iloc[i]['upload'] = False
+                            skipping += 1
+                    else:
+                        skipping += 1
+                else:
+                    print(f'Zip file {destination_dir}/collated_{i}.zip already exists but file lists do not match - reuploading.', flush=True)
+                    if df:
+                        if not collate_objects.iloc[i]['upload']:
+                            collate_objects.iloc[i]['upload'] = True
+                            skipping -= 1
+                    else:
+                        zips_to_upload.append(i)
+            else:
+                print(f'Zip file {destination_dir}/collated_{i}.zip does not exist uploading.', flush=True)
+                if df:
+                    if not collate_objects.iloc[i]['upload']:
+                        collate_objects.iloc[i]['upload'] = True
+                        skipping -= 1
+                else:
+                    zips_to_upload.append(i)
+        else:
+            print(f'Zip file {destination_dir}/collated_{i}.zip does not exist uploading.', flush=True)
+            if df:
+                collate_objects.iloc[i]['upload'] = True
+            else:
+                zips_to_upload.append(i)
+    if df:
+        return collate_objects, skipping
+    else:
+        return zips_to_upload, skipping
+
 
 def to_rds_path(home_path: str, local_dir: str) -> str:
     # get base folder for rds- folders
@@ -174,35 +235,73 @@ def mem_check(futures):
 def remove_duplicates(l: list[dict]) -> list[dict]:
     return pd.DataFrame(l).drop_duplicates().to_dict(orient='records')
 
-def zip_and_upload(s3, bucket_name, api, destination_dir, local_dir, file_paths, total_size_uploaded, total_files_uploaded, use_compression, dryrun, id, mem_per_worker) -> tuple[str, int, bytes]:
+def zip_and_upload(id, file_paths, s3, bucket_name, api, destination_dir, local_dir, total_size_uploaded, total_files_uploaded, use_compression, dryrun, processing_start, mem_per_worker) -> tuple[object, str]:
+    """
+    Zips a list of files and uploads the resulting zip file to an S3 bucket.
+    Args:
+        id (str): Identifier for the zip file.
+        file_paths (list): List of file paths to be included in the zip file.
+        s3 (swiftclient.Connection | None): if api == "swift": swiftclient.Connection for uploading the zip file; elif api == "s3": None.
+        bucket_name (str): Name of the S3 bucket where the zip file will be uploaded.
+        api (str): API name: "swift" or "s3".
+        destination_dir (str): Destination "directory" in the S3 bucket.
+        local_dir (str): Local directory containing the files to be zipped.
+        total_size_uploaded (int): Total size of files uploaded so far.
+        total_files_uploaded (int): Total number of files uploaded so far.
+        use_compression (bool): Whether to use compression for the zip file.
+        dryrun (bool): If True, perform a dry run without actual upload.
+        processing_start (datetime): Start time of the processing.
+        mem_per_worker (int): Memory allocated per worker.
+    Returns:
+        bool: True if a zip was created and uploaded, False if not..
+    """
     # print('in zip_and_upload', flush=True)
+    # try:
+    #     assert type(ds) is pd.Series
+    # except AssertionError:
+    #     raise AssertionError('ds must be a pandas Series object.')
+    # id = ds['id']
+    # file_paths = ds['file_paths']
+    #debugging
+    # print(f"DEBUGGING - id: {id}", flush=True)
+    # print(f"DEBUGGING - file_paths: {file_paths}", flush=True)
+
+    print(f'Zipping and uploading {len(file_paths)} files from {local_dir} to {destination_dir}/collated_{id}.zip.', flush=True)
     #############
     #  zip part #
     #############
     client = get_client()
     # with annotate(parent_folder=parent_folder):
-    zip_future = client.submit(zip_folders,
-        local_dir,
-        file_paths,
-        use_compression,
-        dryrun,
-        id,
-        mem_per_worker
-        )
-    def get_zip_future(future):
-        return future.result()
-    tries = 0
-    zip_data = None
-    namelist = None
-    while tries < 5:
-        try:
-            zip_data, namelist = get_zip_future(zip_future)
-            tries += 1
-        except Exception as e:
-            sleep(5)
-            print(f'Zip future timed out {tries}/5')
-    if zip_data is None and namelist is None:
-        raise Exception('Zip future timed out 5 times.')
+    # zip_future = client.submit(zip_folders,
+    #     local_dir,
+    #     file_paths,
+    #     use_compression,
+    #     dryrun,
+    #     id,
+    #     mem_per_worker
+    #     )
+    # def get_zip_future(future):
+    #     return future.result()
+    # wait(zip_future)
+
+    # # print('DEBUGGING - Got zip', flush=True)
+    # tries = 0
+    # zip_data = None
+    # namelist = None
+    # while tries < 5:
+    #     try:
+    #         zip_data, namelist = get_zip_future(zip_future)
+    #         tries += 1
+    #     except Exception as e:
+    #         sleep(5)
+    #         print(f'Zip future timed out {tries}/5')
+    # if zip_data is None and namelist is None:
+    #     raise Exception('Zip future timed out 5 times.')
+
+    zip_data, namelist = zip_folders(local_dir, file_paths, use_compression, dryrun, id, mem_per_worker)
+    print('Created zipFile in memory', flush=True)
+
+    # print(f'DEBUGGING - Zip data size: {len(zip_data)} bytes.', flush=True)
     # if len(zip_data) > mem_per_worker/2:
     # print('Scattering zip data.')
     # scattered_zip_data = client.scatter(zip_data)
@@ -214,11 +313,10 @@ def zip_and_upload(s3, bucket_name, api, destination_dir, local_dir, file_paths,
     print(f'zip_object_key: {zip_object_key}', flush=True)
     if namelist == []:
         print(f'No files to upload in zip file.')
-        return None, zip_object_key #+' nothing to upload'
-    else:
-        print(f'Uploading zip file containing {len(file_paths)} files to S3 bucket {bucket_name} to key {zip_object_key}.', flush=True)
-        # with annotate(parent_folder=parent_folder):
-        f = client.submit(upload_and_callback,
+        return False #, zip_object_key, namelist #+' nothing to upload'
+    else: # for no subtasks
+        # return zip_data, zip_object_key, namelist, len(zip_data)
+        upload_and_callback(
             s3,
             bucket_name,
             api,
@@ -228,15 +326,56 @@ def zip_and_upload(s3, bucket_name, api, destination_dir, local_dir, file_paths,
             namelist,
             zip_object_key,
             dryrun,
-            datetime.now(),
-            1,
+            processing_start,
+            1, # i.e., 1 zip file
             len(zip_data),
             total_size_uploaded,
             total_files_uploaded,
             True,
             mem_per_worker
-            )
-        return f, zip_object_key
+        )
+        return True
+    # else:
+    #     print(f'Uploading zip file containing {len(file_paths)} files to S3 bucket {bucket_name} to key {zip_object_key}.', flush=True)
+    #     # with annotate(parent_folder=parent_folder):
+    #     f = client.submit(upload_and_callback,
+    #         s3,
+    #         bucket_name,
+    #         api,
+    #         local_dir,
+    #         destination_dir,
+    #         zip_data,
+    #         namelist,
+    #         zip_object_key,
+    #         dryrun,
+    #         datetime.now(),
+    #         1,
+    #         len(zip_data),
+    #         total_size_uploaded,
+    #         total_files_uploaded,
+    #         True,
+    #         mem_per_worker
+    #         )
+    #     return f, zip_object_key
+
+    # Try calling zip_and_upload directly
+    #  s3,
+    #     bucket_name,
+    #     api,
+    #     local_dir,
+    #     destination_dir,
+    #     result[0], # zip_data
+    #     result[2], # namelist
+    #     result[1], # zip_object_key
+    #     dryrun,
+    #     processing_start,
+    #     1, # 1 zip file
+    #     result[3], # len(zip_data) (size in bytes)
+    #     total_size_uploaded,
+    #     total_files_uploaded,
+    #     True,
+    #     mem_per_worker
+
 
 def zip_folders(local_dir:str, file_paths:list[str], use_compression:bool, dryrun:bool, id:int, mem_per_worker:int) -> tuple[str, int, bytes]:
     """
@@ -872,6 +1011,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
     zip_batch_files = [[]]
     zip_batch_object_names = [[]]
     zip_batch_sizes = [0]
+
     # if save_collate_file:
     #     scanned_list = []
     #     scanned_dicts = []
@@ -1132,22 +1272,30 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         # CHECK HERE FOR ZIP CONTENTS #
         ###############################
         if not os.path.exists(collate_list_file):
-            for i, zip_batch in enumerate(zip_batch_object_names):
-                cmp = [x.replace(destination_dir+'/', '') for x in zip_batch]
-                if not current_objects.empty:
-                    if current_objects['METADATA'].isin([cmp]).any():
-                        existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
-                        if all([x in existing_zip_contents for x in cmp]):
-                            print(f'Zip file {destination_dir}/collated_{i+1}.zip already exists and file lists match - skipping.', flush=True)
-                            zip_batch_object_names.pop(i)
-                            zip_batch_files.pop(i)
-                            continue
-                        else:
-                            print(f'Zip file {destination_dir}/collated_{i+1}.zip already exists but file lists do not match - reuploading.', flush=True)
+            zips_to_upload, skipping = compare_zip_contents(zip_batch_object_names, current_objects, destination_dir, 0)
 
             # Create dict for zip files
             for i in range(len(zip_batch_files)):
-                to_collate_list.append({'id':i, 'object_names':zip_batch_object_names[i], 'file_paths':zip_batch_files[i], 'size':zip_batch_sizes[i]})
+                if i in zips_to_upload:
+                    to_collate_list.append(
+                        {
+                            'id': i,
+                            'object_names': zip_batch_object_names[i],
+                            'file_paths': zip_batch_files[i],
+                            'size': zip_batch_sizes[i],
+                            'upload': True
+                        }
+                    )
+                else:
+                    to_collate_list.append(
+                        {
+                            'id': i,
+                            'object_names': zip_batch_object_names[i],
+                            'file_paths': zip_batch_files[i],
+                            'size': zip_batch_sizes[i],
+                            'upload': False
+                        }
+                    )
                 # to_collate['id'].append(i)
                 # to_collate['object_names'].append(zip_batch_object_names[i])
                 # to_collate['file_paths'].append(file_paths)
@@ -1160,27 +1308,22 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             to_collate = pd.DataFrame.from_dict(to_collate_list)
             client.scatter(to_collate)
             del zip_batch_files, zip_batch_object_names, zip_batch_sizes
+
         else:
             # with open(collate_list_file, 'r') as f:
+            # to_collate = dd.from_pandas(pd.read_csv(collate_list_file), npartitions=len(client.scheduler_info()['workers'])*10)
+            # to_collate.object_names = to_collate.object_names.apply(literal_eval, meta=('object_names', 'object'))
+            # to_collate.file_paths = to_collate.file_paths.apply(literal_eval, meta=('file_paths', 'object'))
+            # to_collate = to_collate.compute()
             to_collate = pd.read_csv(collate_list_file)
             to_collate.object_names = to_collate.object_names.apply(literal_eval)
             to_collate.file_paths = to_collate.file_paths.apply(literal_eval)
-            client.scatter(to_collate)
+            # client.scatter(to_collate)
             print(f'Loaded collate list from {collate_list_file}, len={len(to_collate)}.', flush=True)
             if not current_objects.empty:
                 # now using pandas for both current_objects and to_collate - this could be re-written to using vectorised operations
-                droplist = []
-                for i in range(len(to_collate['object_names'])):
-                    # print(zip_object_names)
-                    cmp = [x.replace(destination_dir+'/', '') for x in to_collate.iloc[i]['object_names']]
-                    if current_objects['METADATA'].isin([cmp]).any():
-                        existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
-                        if all([x in existing_zip_contents for x in cmp]):
-                            print(f'Zip file {destination_dir}/collated_{i+1}.zip from {collate_list_file} already exists and file lists match - skipping.', flush=True)
-                            droplist.append(i)
-                        else:
-                            print(f'Zip file {destination_dir}/collated_{i+1}.zip from {collate_list_file} already exists but file lists do not match - reuploading.', flush=True)
-                to_collate.drop(droplist, inplace=True)
+                to_collate, skipping = compare_zip_contents(to_collate, current_objects, destination_dir, len(to_collate[to_collate.upload == False]))
+
         if save_collate_file:
             print(f'Saving collate list to {collate_list_file}, len={len(to_collate)}.', flush=True)
             # with open(collate_list_file, 'w') as f:
@@ -1195,78 +1338,173 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         # print(to_collate)
         # print(type(to_collate.iloc[0]['file_paths']))
         # exit()
+        print(to_collate[to_collate.upload == False][['file_paths','id', 'upload']])
+        print(f'len(to_collate[to_collate.upload == False]): {len(to_collate[to_collate.upload == False])}, skipping: {skipping}')
+        to_collate_uploads = to_collate[to_collate.upload == True][['file_paths','id', 'upload']]
+        # print(f'to_collate_uploads: {to_collate_uploads}')
 
+        # to_collate_uploads = dd.from_pandas(to_collate[to_collate.upload == True][['file_paths','id']], npartitions=len(client.scheduler_info()['workers'])*10)
+        print(f'to_collate: {to_collate}, {len(to_collate)}')
+        print(f'to_collate_uploads: {to_collate_uploads}, {len(to_collate_uploads)}')
+        assert to_collate_uploads['upload'].all()
+        #current_objects['CURRENT_OBJECTS'].apply(find_metadata_swift, conn=s3, container_name=bucket_name)
+        # print(to_collate_uploads.head(), flush=True)
+        # zip_and_upload(to_collate[to_collate.upload == True][['file_paths','id']].iloc[0], s3=s3, bucket_name=bucket_name, api=api, destination_dir=destination_dir, local_dir=local_dir, total_size_uploaded=total_size_uploaded, total_files_uploaded=total_files_uploaded, use_compression=use_compression, dryrun=dryrun, mem_per_worker=mem_per_worker)
+        # exit()
+        for id in to_collate_uploads['id']:
+            if len(upload_futures) >= len(client.scheduler_info()['workers'])*2:
+                # print('Waiting for zip slots to free up.', flush=True)
+                while len(upload_futures) >= len(client.scheduler_info()['workers'])*2:
+                    print(len(upload_futures), flush=True)
+                    for ulf in upload_futures:
+                        if 'exception' in ulf.status or 'error' in ulf.status:
+                            f_tuple = ulf.exception(), ulf.traceback()
+                            failed.append(f_tuple)
+                            upload_futures.remove(ulf)
+                        else:
+                            upload_futures.remove(ulf)
+                            to_collate.loc[to_collate['id'] == id, 'upload'] = False
 
-        for i in range(len(to_collate)):
-            # mem_half_full = len(zul_futures)*np.sum(np.array([os.stat(fp).st_size for fp in to_collate.iloc[i]['file_paths']])) > len(client.scheduler_info()['workers'])*mem_per_worker / 2
-            # if mem_half_full:
-            #     # clean up finished futures, but don't block
-            #     print(f'Memory is half full. Cleaning up finished futures.', flush=True)
-            #     for f in zul_futures:
-            #         result = f.result()
-            #         if result[0] is not None:
-            #             upload_futures.append(result[0])
-            #             to_collate = to_collate[to_collate.object_names != result[1]]
-            #             print(f'Zip {result[1]} created and added to upload queue.', flush=True)
-            #             del f
-            #         else:
-            #             print(f'No files to zip as {result[1]}. Skipping upload.', flush=True)
-            #             del f
-            #     if len(upload_futures) > 0:
-            #         if sum([f.status == 'finished' for f in upload_futures]) > 0:
-            #             for f in upload_futures:
-            #                 if 'exception' in f.status and f not in failed:
-            #                     f_tuple = f.exception(), f.traceback()
-            #                     del f
-            #                     if f_tuple not in failed:
-            #                         failed.append(f_tuple)
-            #                 elif 'finished' in f.status:
-            #                     del f
-            #     print('Rebalancing memory.', flush=True)
-            #     client.rebalance()
-
-            mem_check(zul_futures+upload_futures)
-            zul_futures.append(client.submit(
+            upload_futures.append(client.submit(
                 zip_and_upload,
+                id,
+                to_collate_uploads[to_collate_uploads.id == id]['file_paths'].values[0],
                 s3,
                 bucket_name,
                 api,
                 destination_dir,
                 local_dir,
-                to_collate.iloc[i]['file_paths'],
                 total_size_uploaded,
                 total_files_uploaded,
                 use_compression,
                 dryrun,
-                i,
+                processing_start,
                 mem_per_worker,
             ))
-            # mem_check(zul_futures)
+        for ulf in as_completed(upload_futures):
+            if 'exception' in ulf.status or 'error' in ulf.status:
+                f_tuple = ulf.exception(), ulf.traceback()
+                failed.append(f_tuple)
+                upload_futures.remove(ulf)
+            else:
+                upload_futures.remove(ulf)
+                to_collate.loc[to_collate['id'] == id, 'upload'] = False
+
+
+
+                # for zul_f in as_completed(zul_futures): # is a zip_and_upload_future
+                #     # mem_check(zul_futures+upload_futures)
+                #     if len(upload_futures) >= len(client.scheduler_info()['workers']):
+                #         print('Waiting for upload slots to free up.', flush=True)
+                #         for f in as_completed(upload_futures):
+                #             if 'exception' in f.status or 'error' in f.status:
+                #                 f_tuple = f.exception(), f.traceback()
+                #                 failed.append(f_tuple)
+                #                 del f
+                #             else:
+                #                 del f
+                #     result = zul_f.result()
+                #     if result[0] is not None:
+                #         upload_futures.append(client.submit(upload_and_callback,
+                #                 s3,
+                #                 bucket_name,
+                #                 api,
+                #                 local_dir,
+                #                 destination_dir,
+                #                 result[0], # zip_data
+                #                 result[2], # namelist
+                #                 result[1], # zip_object_key
+                #                 dryrun,
+                #                 processing_start,
+                #                 1, # 1 zip file
+                #                 result[3], # len(zip_data) (size in bytes)
+                #                 total_size_uploaded,
+                #                 total_files_uploaded,
+                #                 True,
+                #                 mem_per_worker
+                #             ))
+                #         to_collate.loc[to_collate['object_names'] == result[1], 'upload'] = False
+                #         print(f'Zip {result[1]} created and added to upload queue.', flush=True)
+                #         print(f'To upload: {len(to_collate[to_collate.upload == True])} zips remaining.', flush=True)
+                #         del zul_f
+                #     else:
+                #         print(f'No files to zip as {result[1]}. Skipping upload.', flush=True)
+                #         del zul_f
+            # del zul_futures
+
+        # zul_futures = to_collate_uploads.apply(zip_and_upload, axis=1,
+        #     args=(s3,
+        #     bucket_name,
+        #     api,
+        #     destination_dir,
+        #     local_dir,
+        #     total_size_uploaded,
+        #     total_files_uploaded,
+        #     use_compression,
+        #     dryrun,
+        #     mem_per_worker),
+        #     meta=pd.DataFrame(columns=['future','zip_object_key'], dtype='object')
+        # )
+        # print('zul_futures')
+        # print(zul_futures)
+        # wait(zul_futures)
+        # print('waiting')
+        # exit()
+        # print(type(zul_futures))
+        # for i in range(len(to_collate)):
+        #     mem_check(zul_futures+upload_futures)
+        #     zul_futures.append(client.submit(
+        #         zip_and_upload,
+        #         s3,
+        #         bucket_name,
+        #         api,
+        #         destination_dir,
+        #         local_dir,
+        #         to_collate.iloc[i]['file_paths'],
+        #         total_size_uploaded,
+        #         total_files_uploaded,
+        #         use_compression,
+        #         dryrun,
+        #         i,
+        #         mem_per_worker,
+        #     ))
+        #     # mem_check(zul_futures)
+
 
     ########################
     # Monitor upload tasks #
     ########################
 
-    print('Monitoring zip tasks.', flush=True)
-    for f in as_completed(zul_futures):
-        result = f.result()
-        if result[0] is not None:
-            upload_futures.append(result[0])
-            to_collate = to_collate[to_collate.object_names != result[1]]
-            print(f'Zip {result[1]} created and added to upload queue.', flush=True)
-            del f
-        else:
-            print(f'No files to zip as {result[1]}. Skipping upload.', flush=True)
-            del f
+    # print('Monitoring zip tasks.', flush=True)
+    #just upload futures
 
-    # fire_and_forget(upload_futures)
-    for f in as_completed(upload_futures):
-        if 'exception' in f.status or 'error' in f.status:
-            f_tuple = f.exception(), f.traceback()
-            failed.append(f_tuple)
-            del f
-        elif 'finished' in f.status:
-            del f
+
+            # del f
+        # elif 'finished' in f.status:
+        #     del f
+    # del upload_futures
+
+    # upload_futures and zul_futures
+    # while len(upload_futures) > 0 or len(zul_futures) > 0:
+    #     for f in as_completed(upload_futures+zul_futures):
+    #         if f in zul_futures: # is a zip_and_upload_future
+    #             result = f.result()
+    #             if result[0] is not None:
+    #                 upload_futures.append(result[0])
+    #                 to_collate.loc[to_collate['object_names'] == result[1], 'upload'] = False
+    #                 print(f'Zip {result[1]} created and added to upload queue.', flush=True)
+    #                 print(f'To upload: {len(to_collate[to_collate.upload == True])} zips remaining.', flush=True)
+    #                 del f
+    #             else:
+    #                 print(f'No files to zip as {result[1]}. Skipping upload.', flush=True)
+    #                 del f
+    #         else: # is an upload_future
+    #             if 'exception' in f.status or 'error' in f.status:
+    #                 f_tuple = f.exception(), f.traceback()
+    #                 failed.append(f_tuple)
+    #                 del f
+    #             elif 'finished' in f.status:
+    #                 del f
 
     if failed:
         for i, failed_upload in enumerate(failed):
@@ -1274,6 +1512,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
 
     # Re-save collate list to reflect uploads
     if save_collate_file:
+        print(f'Saving updated collate list to {collate_list_file}.', flush=True)
         to_collate.to_csv(collate_list_file, index=False)
     else:
         print(f'Collate list not saved.')
@@ -1310,7 +1549,7 @@ if __name__ == '__main__':
     parser.add_argument('--no-file-count-stop', default=False, action='store_true', help='Do not stop if count of local files equals count of S3 objects.')
     args = parser.parse_args()
 
-    if not args.config_file and not (args.bucket_name and args.local_path and args.S3_prefix):
+    if not args.config_file and not (args.bucket_namse and args.local_path and args.S3_prefix):
         parser.error('If a config file is not provided, the bucket name, local path, and S3 prefix must be provided.')
     if args.config_file and (args.api or args.bucket_name or args.local_path or args.S3_prefix or args.S3_folder or args.exclude or args.nprocs or args.threads_per_worker or args.no_collate or args.dryrun or args.no_compression or args.save_config or args.no_save_collate_list or args.no_file_count_stop):
         print(f'WARNING: Options provide on command line override options in {args.config_file}.')
