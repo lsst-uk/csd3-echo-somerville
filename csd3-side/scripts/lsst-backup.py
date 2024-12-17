@@ -1508,7 +1508,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
 
     if failed:
         for i, failed_upload in enumerate(failed):
-            print(f'Error upload {i}:\nException: {failed_upload[0]}\nTraceback: {failed_upload[1]}')
+            print(f'Error upload {i}:\nException: {failed_upload[0]}\nTraceback: {failed_upload[1]}', flush=True)
 
     # Re-save collate list to reflect uploads
     if save_collate_file:
@@ -1516,8 +1516,6 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         to_collate.to_csv(collate_list_file, index=False)
     else:
         print(f'Collate list not saved.')
-
-    wait()
 
 # # Go!
 if __name__ == '__main__':
@@ -1841,6 +1839,15 @@ if __name__ == '__main__':
                 process_files(s3, bucket_name, api, current_objects, exclude, local_dir, destination_dir, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_list, file_count_stop)
             elif api == 'swift':
                 process_files(s3, bucket_name, api, current_objects, exclude, local_dir, destination_dir, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_list, file_count_stop)
+
+        def get_all_tasks(dask_scheduler=None):
+            return dask_scheduler.tasks
+
+        stream = client.run_on_scheduler(get_all_tasks)
+        print(stream)
+        if len(stream) > 0:
+            print('Waiting for tasks to complete.')
+            client.wait(stream)
         # success = True
     # except Exception as e:
     #     print(e)
