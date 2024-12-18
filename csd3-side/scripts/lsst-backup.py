@@ -1832,10 +1832,11 @@ if __name__ == '__main__':
             local_dir = local_dir[:-1]
 
         zips_to_upload = True
+        retries = 1
         while zips_to_upload:
+            print(f'Processing files in {local_dir}, elapsed time = {datetime.now() - start}, try number: {retries}', flush=True)
             with warnings.catch_warnings():
                 warnings.filterwarnings('ignore')
-                print(f'Processing files in {local_dir}, elapsed time = {datetime.now() - start}', flush=True)
                 if api == 's3':
                     process_files(s3, bucket_name, api, current_objects, exclude, local_dir, destination_dir, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_list, file_count_stop)
                 elif api == 'swift':
@@ -1848,7 +1849,8 @@ if __name__ == '__main__':
                         upload_checks.append(True)
                     else:
                         upload_checks.append(False)
-                zips_to_upload = any(upload_checks)
+            zips_to_upload = any(upload_checks)
+            retries += 1
 
         # def get_all_tasks(dask_scheduler=None):
         #     return dask_scheduler.tasks
