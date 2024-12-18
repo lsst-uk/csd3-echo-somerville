@@ -1402,7 +1402,9 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
     else:
         print(f'Collate list not saved.')
 
-# # Go!
+##########################################
+#              Main Function             #
+##########################################
 if __name__ == '__main__':
     epilog = ''
     class MyParser(argparse.ArgumentParser):
