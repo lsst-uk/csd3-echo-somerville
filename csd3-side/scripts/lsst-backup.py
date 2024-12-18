@@ -1533,7 +1533,6 @@ if __name__ == '__main__':
     )
     parser.add_argument('--config-file', type=str, help='Path to the configuration YAML file.')
     parser.add_argument('--api', type=str, help='API to use; "S3" or "Swift". Case insensitive.')
-    parser.add_argument('--collate-list-file', type=str, help='The path to a CSV file containing a list of dicts describing files and folders to collate.')
     parser.add_argument('--bucket-name', type=str, help='Name of the S3 bucket.')
     parser.add_argument('--local-path', type=str, help='Absolute path to the folder to be uploaded.')
     parser.add_argument('--S3-prefix', type=str, help='Prefix to be used in S3 object keys.')
@@ -1546,13 +1545,24 @@ if __name__ == '__main__':
     parser.add_argument('--dryrun', default=False, action='store_true', help='Perform a dry run without uploading files.')
     parser.add_argument('--no-compression', default=False, action='store_true', help='Do not use compression when collating files.')
     parser.add_argument('--save-config', default=False, action='store_true', help='Save the configuration to the provided config file path and exit.')
-    parser.add_argument('--no-save-collate-list', default=False, action='store_true', help='Save collate-list-file. Use to skip folder scanning.')
     parser.add_argument('--no-file-count-stop', default=False, action='store_true', help='Do not stop if count of local files equals count of S3 objects.')
     args = parser.parse_args()
 
     if not args.config_file and not (args.bucket_namse and args.local_path and args.S3_prefix):
         parser.error('If a config file is not provided, the bucket name, local path, and S3 prefix must be provided.')
-    if args.config_file and (args.api or args.bucket_name or args.local_path or args.S3_prefix or args.S3_folder or args.exclude or args.nprocs or args.threads_per_worker or args.no_collate or args.dryrun or args.no_compression or args.save_config or args.no_save_collate_list or args.no_file_count_stop):
+    if args.config_file and (args.api or
+                             args.bucket_name or
+                             args.local_path or
+                             args.S3_prefix or
+                             args.S3_folder or
+                             args.exclude or
+                             args.nprocs or
+                             args.threads_per_worker or
+                             args.no_collate or
+                             args.dryrun or
+                             args.no_compression or
+                             args.save_config or
+                             args.no_file_count_stop):
         print(f'WARNING: Options provide on command line override options in {args.config_file}.')
     if args.config_file:
         config_file = args.config_file
@@ -1588,10 +1598,6 @@ if __name__ == '__main__':
                     args.dryrun = config['dryrun']
                 if 'no_compression' in config.keys() and not args.no_compression:
                     args.no_compression = config['no_compression']
-                if 'collate_list_file' in config.keys() and not args.collate_list_file:
-                    args.collate_list_file = config['collate_list_file']
-                if 'no_save_collate_list' in config.keys() and not args.no_save_collate_list:
-                    args.no_save_collate_list = config['no_save_collate_list']
                 if 'no_file_count_stop' in config.keys() and not args.no_file_count_stop:
                     args.no_file_count_stop = config['no_file_count_stop']
                 if 'api' in config.keys() and not args.api:
@@ -1624,19 +1630,13 @@ if __name__ == '__main__':
     dryrun = args.dryrun
     use_compression = not args.no_compression # internally, flag turns *on* compression, but for user no-compression turns it off - makes flag more intuitive
 
-    collate_list_file = args.collate_list_file
-    if not collate_list_file:
-        save_collate_list = False
-    else:
-        save_collate_list = not args.no_save_collate_list  # internally, flag turns *on* save_collate_list, but for user no-save-collate-list turns it off - makes flag more intuitive
-    if save_collate_list and not collate_list_file:
-        parser.error('A collate list file must be provided to save the collate list.')
-    if save_collate_list and not os.path.exists(collate_list_file):
-        print(f'Collate list will be generated and saved to {collate_list_file}.')
-    elif save_collate_list and os.path.exists(collate_list_file):
-        print(f'Collate list will be read from and re-saved to {collate_list_file}.')
-    if (save_collate_list or collate_list_file) and not global_collate:
-        parser.error('Collate list file provided but collation is turned off. Please enable collation to use the collate list file.')
+    if global_collate:
+        collate_list_file = prefix + '-collate-list.csv' # now automatically generated
+        save_collate_list = True # no longer optional
+        if save_collate_list and not os.path.exists(collate_list_file):
+            print(f'Collate list will be generated and saved to {collate_list_file}.')
+        elif save_collate_list and os.path.exists(collate_list_file):
+            print(f'Collate list will be read from and re-saved to {collate_list_file}.')
 
     file_count_stop = not args.no_file_count_stop  # internally, flag turns *on* file-count-stop, but for user no-file-count-stop turns it off - makes flag more intuitive
 
@@ -1660,8 +1660,6 @@ if __name__ == '__main__':
                 'no_collate': not global_collate,
                 'dryrun': dryrun,
                 'no_compression': not use_compression,
-                'collate_list_file': collate_list_file,
-                'no_save_collate_list': not save_collate_list,
                 'no_file_count_stop': not file_count_stop,
                 'exclude': exclude.to_list(),
                 }, f)
@@ -1833,13 +1831,24 @@ if __name__ == '__main__':
         while local_dir[-1] == '/':
             local_dir = local_dir[:-1]
 
-        with warnings.catch_warnings():
-            warnings.filterwarnings('ignore')
-            print(f'Processing files in {local_dir}, elapsed time = {datetime.now() - start}', flush=True)
-            if api == 's3':
-                process_files(s3, bucket_name, api, current_objects, exclude, local_dir, destination_dir, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_list, file_count_stop)
-            elif api == 'swift':
-                process_files(s3, bucket_name, api, current_objects, exclude, local_dir, destination_dir, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_list, file_count_stop)
+        zips_to_upload = True
+        while zips_to_upload:
+            with warnings.catch_warnings():
+                warnings.filterwarnings('ignore')
+                print(f'Processing files in {local_dir}, elapsed time = {datetime.now() - start}', flush=True)
+                if api == 's3':
+                    process_files(s3, bucket_name, api, current_objects, exclude, local_dir, destination_dir, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_list, file_count_stop)
+                elif api == 'swift':
+                    process_files(s3, bucket_name, api, current_objects, exclude, local_dir, destination_dir, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_list, file_count_stop)
+
+            with open(collate_list_file, 'r') as clf:
+                upload_checks = []
+                for l in clf.readlines():
+                    if l.split(',')[-1] == 'True':
+                        upload_checks.append(True)
+                    else:
+                        upload_checks.append(False)
+                zips_to_upload = any(upload_checks)
 
         # def get_all_tasks(dask_scheduler=None):
         #     return dask_scheduler.tasks
