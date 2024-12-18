@@ -1630,14 +1630,6 @@ if __name__ == '__main__':
     dryrun = args.dryrun
     use_compression = not args.no_compression # internally, flag turns *on* compression, but for user no-compression turns it off - makes flag more intuitive
 
-    if global_collate:
-        collate_list_file = prefix + '-collate-list.csv' # now automatically generated
-        save_collate_list = True # no longer optional
-        if save_collate_list and not os.path.exists(collate_list_file):
-            print(f'Collate list will be generated and saved to {collate_list_file}.')
-        elif save_collate_list and os.path.exists(collate_list_file):
-            print(f'Collate list will be read from and re-saved to {collate_list_file}.')
-
     file_count_stop = not args.no_file_count_stop  # internally, flag turns *on* file-count-stop, but for user no-file-count-stop turns it off - makes flag more intuitive
 
     if args.exclude:
@@ -1693,6 +1685,15 @@ if __name__ == '__main__':
         previous_suffix = 'files.csv'
         previous_log = f"{prefix}-{'-'.join(sub_dirs.split('/'))}-{previous_suffix}"
         destination_dir = f"{prefix}/{sub_dirs}"
+
+    if global_collate:
+        collate_list_suffix = 'collate-list.csv'
+        collate_list_file = log.replace(log_suffix,collate_list_suffix) # now automatically generated
+        save_collate_list = True # no longer optional
+        if save_collate_list and not os.path.exists(collate_list_file):
+            print(f'Collate list will be generated and saved to {collate_list_file}.')
+        elif save_collate_list and os.path.exists(collate_list_file):
+            print(f'Collate list will be read from and re-saved to {collate_list_file}.')
 
     # Add titles to log file
     if not os.path.exists(log):
@@ -1838,9 +1839,41 @@ if __name__ == '__main__':
             with warnings.catch_warnings():
                 warnings.filterwarnings('ignore')
                 if api == 's3':
-                    process_files(s3, bucket_name, api, current_objects, exclude, local_dir, destination_dir, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_list, file_count_stop)
+                    process_files(s3,
+                                bucket_name,
+                                api,
+                                current_objects,
+                                exclude,
+                                local_dir,
+                                destination_dir,
+                                dryrun,
+                                log,
+                                global_collate,
+                                use_compression,
+                                client,
+                                mem_per_worker,
+                                collate_list_file,
+                                save_collate_list,
+                                file_count_stop
+                            )
                 elif api == 'swift':
-                    process_files(s3, bucket_name, api, current_objects, exclude, local_dir, destination_dir, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_list, file_count_stop)
+                    process_files(s3,
+                                bucket_name,
+                                api,
+                                current_objects,
+                                exclude,
+                                local_dir,
+                                destination_dir,
+                                dryrun,
+                                log,
+                                global_collate,
+                                use_compression,
+                                client,
+                                mem_per_worker,
+                                collate_list_file,
+                                save_collate_list,
+                                file_count_stop
+                            )
 
             with open(collate_list_file, 'r') as clf:
                 upload_checks = []
