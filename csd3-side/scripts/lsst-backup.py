@@ -1265,7 +1265,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
 
                     folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
                     print(f'Number of zip files: {len(zip_batch_files)}', flush=True)
-            print('', flush=True)
+            print(f'Done traversing {local_dir}.', flush=True)
 
     if global_collate:
         ###############################
