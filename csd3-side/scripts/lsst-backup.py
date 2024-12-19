@@ -714,9 +714,9 @@ def upload_to_bucket_collated(s3, bucket_name, api, folder, file_data, zip_conte
 
                 metadata_object_key = object_key + '.metadata'
                 print(f'Writing zip contents to {metadata_object_key}.', flush=True)
-                s3.put_object(container=bucket_name, contents=metadata_value, content_type='text/plain', obj=metadata_object_key, headers={'x-object-meta-corresponding-zip': object_key})
+                meta_response = s3.put_object(container=bucket_name, contents=metadata_value, content_type='text/plain', obj=metadata_object_key, headers={'x-object-meta-corresponding-zip': object_key})
                 #bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64, Metadata=metadata)
-                s3.put_object(container=bucket_name, contents=file_data, content_type='multipart/mixed', obj=object_key, etag=checksum_string, headers={'x-object-meta-zip-contents-object':metadata_object_key}) # NEED TO ADD METADATA HERE
+                response = s3.put_object(container=bucket_name, contents=file_data, content_type='multipart/mixed', obj=object_key, etag=checksum_string, headers={'x-object-meta-zip-contents-object':metadata_object_key})
             except Exception as e:
                 print(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
                 exit(1)
@@ -729,6 +729,8 @@ def upload_to_bucket_collated(s3, bucket_name, api, folder, file_data, zip_conte
             header: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS
         """
         return_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}","{checksum_string}","{",".join(zip_contents)}"'
+        while True:
+            print(response)
 
         return return_string
 
