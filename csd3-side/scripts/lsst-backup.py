@@ -730,10 +730,10 @@ def upload_to_bucket_collated(s3, bucket_name, api, folder, file_data, zip_conte
             header: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS
         """
         return_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}","{checksum_string}","{",".join(zip_contents)}"'
-        while True:
-            print(responses[0])
-            print(responses[1])
-            sys.exit()
+        # while True:
+        print(responses[0]['status'])
+        print(responses[1]['status'])
+        sys.exit()
 
         return return_string
 
