@@ -732,7 +732,8 @@ def upload_to_bucket_collated(s3, bucket_name, api, folder, file_data, zip_conte
         return_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}","{checksum_string}","{",".join(zip_contents)}"'
         while True:
             if responses[0] and responses[1]:
-                break
+                if responses[0]['status'] == 201 and responses[1]['status'] == 201:
+                    break
 
         return return_string
 
