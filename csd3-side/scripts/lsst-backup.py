@@ -1772,6 +1772,7 @@ if __name__ == '__main__':
                         upload_checks.append(True)
                     else:
                         upload_checks.append(False)
+            print(upload_checks)
             zips_to_upload = any(upload_checks)
             retries += 1
 
