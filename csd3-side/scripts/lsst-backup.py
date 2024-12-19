@@ -1390,6 +1390,9 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         else:
             upload_futures.remove(ulf)
             to_collate.loc[to_collate['id'] == id, 'upload'] = False
+        if len(upload_futures) == 0:
+            print('All zip uploads complete.', flush=True)
+            sleep(30)
 
     if failed:
         for i, failed_upload in enumerate(failed):
