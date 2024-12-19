@@ -91,7 +91,7 @@ def compare_zip_contents(collate_objects: list[str] | pd.DataFrame, current_obje
                     else:
                         zips_to_upload.append(i)
             else:
-                print(f'Zip file {destination_dir}/collated_{i}.zip does not exist uploading.', flush=True)
+                print(f'Zip file {destination_dir}/collated_{i}.zip does not exist - uploading.', flush=True)
                 if df:
                     if not collate_objects.iloc[i]['upload']:
                         collate_objects.iloc[i]['upload'] = True
@@ -99,7 +99,7 @@ def compare_zip_contents(collate_objects: list[str] | pd.DataFrame, current_obje
                 else:
                     zips_to_upload.append(i)
         else:
-            print(f'Zip file {destination_dir}/collated_{i}.zip does not exist uploading.', flush=True)
+            print(f'Zip file {destination_dir}/collated_{i}.zip does not exist - uploading.', flush=True)
             if df:
                 collate_objects.iloc[i]['upload'] = True
             else:
