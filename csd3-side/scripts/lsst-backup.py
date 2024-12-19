@@ -733,6 +733,7 @@ def upload_to_bucket_collated(s3, bucket_name, api, folder, file_data, zip_conte
         while True:
             print(responses[0])
             print(responses[1])
+            sys.exit()
 
         return return_string
 
