@@ -154,7 +154,7 @@ def extract_and_upload_mp(bucket_name, debug, zipfile_key):
                 pbar.update(zf.getinfo(content_file).file_size)
 
 def extract_and_upload_zipfiles(extract_list, bucket_name, pool_size, debug):
-    print(f'Extracting zip files and uploading contents using {pool_size} processes...') 
+    print(f'Extracting zip files and uploading contents using {pool_size} processes...')
     with Pool(pool_size) as p:
         p.map(partial(extract_and_upload_mp, bucket_name, debug), extract_list)#, chunksize=len(extract_list)//pool_size)
 
@@ -227,12 +227,12 @@ def main():
         debug = True
     else:
         debug = False
-    
+
     if args.extract:
         extract = True
     else:
         extract = False
-    
+
     if args.nprocs:
         nprocs = args.nprocs
         if nprocs < 1:
@@ -247,13 +247,12 @@ def main():
         get_contents_metadata = True
 
     # Setup bucket object
-    
     try:
         assert bm.check_keys()
     except AssertionError as e:
         print(e)
         sys.exit()
-    
+
     s3 = bm.get_resource()
     bucket_list = bm.bucket_list(s3)
 
@@ -266,7 +265,7 @@ def main():
     if list_contents:
         for i in range(len(zipfiles_df)):
             print(f'{zipfiles_df.iloc[i]["zipfile"]}: {zipfiles_df.iloc[i]["contents"]}')
-    
+
     if verify_contents:
         print('Verifying zip file contents...')
         zipfiles_df = prepend_zipfile_path_to_contents(zipfiles_df, debug)
@@ -276,9 +275,7 @@ def main():
             print(extract_list)
         else:
             print('All zip files previously extracted.')
-        # for zipfile in extract_list:
-        #     print(zipfile)
-    
+
     if extract:
         print('Extracting zip files...')
         zipfiles_df = prepend_zipfile_path_to_contents(zipfiles_df, debug)
@@ -291,9 +288,7 @@ def main():
         else:
             print('All zip files previously extracted.')
 
-    
     print('Done.')
-        
 
 if __name__ == '__main__':
     main()

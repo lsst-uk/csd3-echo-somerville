@@ -1,10 +1,8 @@
-FROM continuumio/miniconda3
+FROM condaforge/miniforge3
 
 LABEL org.opencontainers.image.source https://github.com/lsst-uk/csd3-echo-somerville
 LABEL org.opencontainers.image.description="Code to backup and curate LSST-UK data from CSD3 to Echo."
 LABEL org.opencontainers.image.licenses="Apache-2.0"
-
-RUN conda install -y -c conda-forge mamba && mamba init
 
 COPY environment.yaml /environment.yaml
 
