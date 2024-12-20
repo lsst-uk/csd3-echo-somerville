@@ -1,16 +1,19 @@
-FROM mambaorg/micromamba
+FROM ubuntu
 
 LABEL org.opencontainers.image.source https://github.com/lsst-uk/csd3-echo-somerville
 LABEL org.opencontainers.image.description="Code to backup and curate LSST-UK data from CSD3 to Echo."
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 
-COPY environment.yaml /environment.yaml
 
+COPY environment.yaml /environment.yaml
+USER root
+RUN apt-get update && apt-get install -y git
+USER mambauser
 RUN micromamba --version
 
 RUN micromamba env create --name lsst-uk --file=/environment.yaml
 
-SHELL ["conda", "run", "-n", "lsst-uk", "/bin/bash", "-c"]
+SHELL ["micromamba", "run", "-n", "lsst-uk", "/bin/bash", "-c"]
 
 RUN git clone https://github.com/lsst-uk/csd3-echo-somerville.git
 
