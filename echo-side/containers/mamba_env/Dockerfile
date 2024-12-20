@@ -8,6 +8,8 @@ COPY environment.yaml /environment.yaml
 
 RUN mamba env create --name lsst-uk --file=/environment.yaml
 
+RUN mamba init
+
 SHELL ["conda", "run", "-n", "lsst-uk", "/bin/bash", "-c"]
 
 RUN git clone https://github.com/lsst-uk/csd3-echo-somerville.git
