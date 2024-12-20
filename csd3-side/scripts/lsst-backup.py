@@ -91,7 +91,7 @@ def compare_zip_contents(collate_objects: list[str] | pd.DataFrame, current_obje
                     else:
                         zips_to_upload.append(i)
             else:
-                print(f'Zip file {destination_dir}/collated_{i}.zip does not exist uploading.', flush=True)
+                print(f'Zip file {destination_dir}/collated_{i}.zip does not exist - uploading.', flush=True)
                 if df:
                     if not collate_objects.iloc[i]['upload']:
                         collate_objects.iloc[i]['upload'] = True
@@ -99,7 +99,7 @@ def compare_zip_contents(collate_objects: list[str] | pd.DataFrame, current_obje
                 else:
                     zips_to_upload.append(i)
         else:
-            print(f'Zip file {destination_dir}/collated_{i}.zip does not exist uploading.', flush=True)
+            print(f'Zip file {destination_dir}/collated_{i}.zip does not exist - uploading.', flush=True)
             if df:
                 collate_objects.iloc[i]['upload'] = True
             else:
@@ -714,9 +714,10 @@ def upload_to_bucket_collated(s3, bucket_name, api, folder, file_data, zip_conte
 
                 metadata_object_key = object_key + '.metadata'
                 print(f'Writing zip contents to {metadata_object_key}.', flush=True)
-                s3.put_object(container=bucket_name, contents=metadata_value, content_type='text/plain', obj=metadata_object_key, headers={'x-object-meta-corresponding-zip': object_key})
+                responses = [{},{}]
+                s3.put_object(container=bucket_name, contents=metadata_value, content_type='text/plain', obj=metadata_object_key, headers={'x-object-meta-corresponding-zip': object_key}, response_dict=responses[0])
                 #bucket.put_object(Body=file_data, Key=object_key, ContentMD5=checksum_base64, Metadata=metadata)
-                s3.put_object(container=bucket_name, contents=file_data, content_type='multipart/mixed', obj=object_key, etag=checksum_string, headers={'x-object-meta-zip-contents-object':metadata_object_key}) # NEED TO ADD METADATA HERE
+                s3.put_object(container=bucket_name, contents=file_data, content_type='multipart/mixed', obj=object_key, etag=checksum_string, headers={'x-object-meta-zip-contents-object':metadata_object_key}, response_dict=responses[1])
             except Exception as e:
                 print(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
                 exit(1)
@@ -729,6 +730,10 @@ def upload_to_bucket_collated(s3, bucket_name, api, folder, file_data, zip_conte
             header: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS
         """
         return_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}","{checksum_string}","{",".join(zip_contents)}"'
+        while True:
+            if responses[0] and responses[1]:
+                if responses[0]['status'] == 201 and responses[1]['status'] == 201:
+                    break
 
         return return_string
 
@@ -1172,7 +1177,6 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         for id in to_collate_uploads['id']:
             if len(upload_futures) >= len(client.scheduler_info()['workers'])*2:
                 while len(upload_futures) >= len(client.scheduler_info()['workers'])*2:
-                    print(len(upload_futures), flush=True)
                     for ulf in upload_futures:
                         if 'exception' in ulf.status or 'error' in ulf.status:
                             f_tuple = ulf.exception(), ulf.traceback()

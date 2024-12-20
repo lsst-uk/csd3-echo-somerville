@@ -22,7 +22,7 @@ bucket_names = dl_bucket_names('https://raw.githubusercontent.com/lsst-uk/csd3-e
 
 def print_bucket_name(bucket_name):
     print(bucket_name)
-    
+
 # Define default arguments for the DAG
 default_args = {
     'owner': 'airflow',
@@ -37,7 +37,7 @@ with DAG(
         'process_zips',
         default_args=default_args,
         description='Runs process_collated_zips.py',
-        schedule_interval=timedelta(days=1),
+        schedule=timedelta(days=1),
         start_date=datetime(2024, 1, 1),
         catchup=False,
     ) as dag:
@@ -69,4 +69,3 @@ with DAG(
 
     print_bucket_name_task
     process_zips_task
-            
