@@ -1177,7 +1177,6 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         for id in to_collate_uploads['id']:
             if len(upload_futures) >= len(client.scheduler_info()['workers'])*2:
                 while len(upload_futures) >= len(client.scheduler_info()['workers'])*2:
-                    print(len(upload_futures), flush=True)
                     for ulf in upload_futures:
                         if 'exception' in ulf.status or 'error' in ulf.status:
                             f_tuple = ulf.exception(), ulf.traceback()
