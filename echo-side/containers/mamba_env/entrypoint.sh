@@ -1,7 +1,9 @@
 #!/bin/bash
 
+# micromamba init bash
+
 source /root/.bashrc
 
-mamba activate lsst-uk
+micromamba activate lsst-uk
 
 $*
