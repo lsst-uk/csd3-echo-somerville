@@ -3,10 +3,24 @@
 # This script will run the backup script until all the files are backed up
 # It's kind of brute force.
 config_file=$1
-collate_list_file=$2
+
 
 date
 echo 'Looping backup...'
+
+butler_prefix=$(grep 'S3_prefix:' $config_file | awk '{print $2}')
+local_path=$(grep 'local_path:' $config_file | awk '{print $2}')
+local_path_from_butler_prefix=${local_path#*${butler_prefix}/}
+local_path_hyphens=$(echo $local_path | sed 's/\//\-/g')
+collate_list_file=${butler_prefix}-${local_path_hyphens}-collate-list.csv
+
+echo 'Using collate list file: ' $collate_list_file
+echo 'Continue? (y/n)'
+read continue
+if [ $continue != 'y' ]; then
+    echo 'Exiting...'
+    exit
+fi
 if [ -f $collate_list_file ]; then
     test_zips=$(grep -c True $collate_list_file)
     echo 'Continuing previous looped backup...'
