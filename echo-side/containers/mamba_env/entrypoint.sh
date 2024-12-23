@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# micromamba init bash
+eval "$(micromamba shell hook --shell bash)"
 
 source ~/.bashrc
 
