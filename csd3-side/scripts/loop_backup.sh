@@ -4,14 +4,21 @@
 # It's kind of brute force.
 config_file=$1
 collate_list_file=$2
-first_run=true
+
 date
 echo 'Looping backup...'
-while [ $(grep -c True $collate_list_file) -gt 0 ] || [ $first_run = true ];
+if [ -f $collate_list_file ]; then
+    test_zips=$(grep -c True $collate_list_file)
+    echo 'Continuing previous looped backup...'
+else
+    test_zips=1 # dummy value to start the loop for a first run
+    echo 'Starting new looped backup...'
+fi
+
+while [ $test_zips -gt 0 ];
 do
-    echo 'while'
     python ../../scripts/lsst-backup.py --config-file $config_file
-    first_run=false
+    test_zips=$(grep -c True $collate_list_file)
 done
 date
 echo 'Looped backup completed.'
