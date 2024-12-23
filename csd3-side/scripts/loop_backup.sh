@@ -56,7 +56,7 @@ if [ $continue != 'cli-y' ]; then
         echo 'Exiting...'
         exit 0
     fi
-if
+fi
 
 if [ -f $collate_list_file ]; then
     test_zips=$(grep -c True $collate_list_file)
