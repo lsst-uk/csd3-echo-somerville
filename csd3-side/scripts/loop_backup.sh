@@ -28,7 +28,7 @@ while [[ "$#" -gt 0 ]]; do
     case $1 in
         --config-file|-c) config_file="$2"; shift ;;
         -y) continue='cli-y' ;;
-        *) echo "Unknown parameter passed: $1"; exit 1 ;;
+        *) echo "Unknown parameter passed: $1"; display_help; exit 1 ;;
     esac
     shift
 done
