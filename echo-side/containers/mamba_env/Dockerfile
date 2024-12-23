@@ -13,6 +13,10 @@ RUN micromamba --version
 
 RUN micromamba env create --name lsst-uk --file=/environment.yaml
 
+RUN echo "source activate lsst-uk" >> ~/.bashrc
+
+RUN echo "alias mamba='micromamba'" >> ~/.bashrc
+
 SHELL ["micromamba", "run", "-n", "lsst-uk", "/bin/bash", "-c"]
 
 RUN git clone https://github.com/lsst-uk/csd3-echo-somerville.git
