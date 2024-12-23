@@ -257,7 +257,7 @@ def main():
     bucket_list = bm.bucket_list(s3)
 
     if bucket_name not in bucket_list:
-        print(f'Bucket {bucket_name} not found in {os.environ['S3_HOST_URL']}.')
+        print(f'Bucket {bucket_name} not found in {os.environ["S3_HOST_URL"]}.')
         sys.exit()
 
     zipfiles_df, all_keys = get_key_lists(bucket_name, get_contents_metadata, debug)
