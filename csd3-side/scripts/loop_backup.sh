@@ -27,7 +27,7 @@ done
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --config-file|-c) config_file="$2"; shift ;;
-        -y) continue='y' ;;
+        -y) continue='cli-y' ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
     esac
     shift
@@ -49,12 +49,15 @@ local_path_hyphens=$(echo $local_path_from_butler_prefix | sed 's/\//\-/g')
 collate_list_file=${butler_prefix}-${local_path_hyphens}-collate-list.csv
 
 echo 'Using collate list file: ' $collate_list_file
-echo 'Continue? (y/n)'
-read continue
-if [ $continue != 'y' ]; then
-    echo 'Exiting...'
-    exit
-fi
+if [ $continue != 'cli-y' ]; then
+    echo 'Continue? (y/n)'
+    read continue
+    if [ $continue != 'y' ]; then
+        echo 'Exiting...'
+        exit 0
+    fi
+if
+
 if [ -f $collate_list_file ]; then
     test_zips=$(grep -c True $collate_list_file)
     echo 'Continuing previous looped backup...'
