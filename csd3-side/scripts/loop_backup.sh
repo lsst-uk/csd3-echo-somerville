@@ -14,7 +14,7 @@ local_path=$(grep 'local_path:' $config_file | awk '{print $2}')
 echo 'Using local path: ' $local_path
 local_path_from_butler_prefix=${local_path#*${butler_prefix}/}
 echo 'Local path from Butler prefix: ' $local_path_from_butler_prefix
-local_path_hyphens=$(echo $local_path | sed 's/\//\-/g')
+local_path_hyphens=$(echo $local_path_from_butler_prefix | sed 's/\//\-/g')
 echo 'Local path with hyphens: ' $local_path_hyphens
 collate_list_file=${butler_prefix}-${local_path_hyphens}-collate-list.csv
 
