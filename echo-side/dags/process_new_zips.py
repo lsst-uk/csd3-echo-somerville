@@ -61,6 +61,9 @@ with DAG(
             'S3_ACCESS_KEY': Variable.get("S3_ACCESS_KEY"),
             'S3_SECRET_KEY': Variable.get("S3_SECRET_KEY"),
             'S3_HOST_URL': Variable.get("S3_HOST_URL"),
+            'ST_AUTH': Variable.get("ST_AUTH"),
+            'ST_USER': Variable.get("ST_USER"),
+            'ST_KEY': Variable.get("ST_KEY"),
         },
         get_logs=True,
     ) for bucket_name in bucket_names]
