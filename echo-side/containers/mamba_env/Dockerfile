@@ -1,4 +1,4 @@
-FROM ubuntu
+FROM mambaorg/micromamba
 
 LABEL org.opencontainers.image.source https://github.com/lsst-uk/csd3-echo-somerville
 LABEL org.opencontainers.image.description="Code to backup and curate LSST-UK data from CSD3 to Echo."
