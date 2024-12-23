@@ -248,7 +248,7 @@ def main():
 
     # Setup bucket object
     try:
-        assert bm.check_keys()
+        assert bm.check_keys(api='s3')
     except AssertionError as e:
         print(e)
         sys.exit()
