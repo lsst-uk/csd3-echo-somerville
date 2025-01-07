@@ -132,25 +132,27 @@ def compare_zip_contents_bool(collate_object, current_objects: pd.DataFrame, des
         if current_objects['METADATA'].isin([cmp]).any():
             existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
             if all([x in existing_zip_contents for x in cmp]):
-                print(f'Zip file {destination_dir}/collated_{i}.zip already exists and file lists match - skipping.', flush=True)
+                # print(f'Zip file {destination_dir}/collated_{i}.zip already exists and file lists match - skipping.', flush=True)
                 return_bool = False
 
             else:
-                print(f'Zip file {destination_dir}/collated_{i}.zip already exists but file lists do not match - reuploading.', flush=True)
+                # print(f'Zip file {destination_dir}/collated_{i}.zip already exists but file lists do not match - reuploading.', flush=True)
                 if not collate_object['upload']:
                     return_bool = True
 
         else:
-            print(f'Zip file {destination_dir}/collated_{i}.zip does not exist - uploading.', flush=True)
+            # print(f'Zip file {destination_dir}/collated_{i}.zip does not exist - uploading.', flush=True)
 
             if not collate_object['upload']:
                 return_bool = True
                 skipping -= 1
 
     else:
-        print(f'Zip file {destination_dir}/collated_{i}.zip does not exist - uploading.', flush=True)
+        # print(f'Zip file {destination_dir}/collated_{i}.zip does not exist - uploading.', flush=True)
 
         return_bool = True
+
+    print(f'Uploading: {return_bool}', flush=True, end=' ')
     return return_bool
 
 
