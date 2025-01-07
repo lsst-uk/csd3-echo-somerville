@@ -50,7 +50,6 @@ if __name__ == '__main__':
 
     s3 = bm.get_resource()
 
-    bucket_name = sys.argv[1]
     bucket = s3.Bucket(bucket_name)
     total_size = 0
     try:
