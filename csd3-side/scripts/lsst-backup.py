@@ -147,12 +147,12 @@ def compare_zip_contents_bool(collate_object, current_objects: pd.DataFrame, des
             return_bool = True
                 # skipping -= 1
 
-    else:
+    # else:
         # print(f'Zip file {destination_dir}/collated_{i}.zip does not exist - uploading.', flush=True)
 
-        return_bool = True
+        # return_bool = True
 
-    print(f'Uploading: {return_bool}', flush=True, end=' ')
+    print(return_bool, flush=True)
     return return_bool
 
 
