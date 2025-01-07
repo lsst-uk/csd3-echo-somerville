@@ -1205,7 +1205,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 # now using pandas for both current_objects and to_collate - this could be re-written to using vectorised operations
                 client.scatter(current_objects)
                 to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers'])*10)
-                to_collate['upload'] = to_collate.apply(compare_zip_contents_bool, (current_objects, destination_dir), meta=pd.Series(), axis=1)
+                to_collate['upload'] = to_collate.apply(compare_zip_contents_bool, args=(current_objects, destination_dir), meta=('upload', bool), axis=1)
                 to_collate = to_collate.compute()
                 print('Comparison complete.', flush=True)
 
