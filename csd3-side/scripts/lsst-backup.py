@@ -1212,7 +1212,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             f_tuple = ulf.exception(), ulf.traceback()
             failed.append(f_tuple)
             upload_futures.remove(ulf)
-        else:
+        elif ulf.done():
             upload_futures.remove(ulf)
             to_collate.loc[to_collate['id'] == id, 'upload'] = False
         if len(upload_futures) == 0:
