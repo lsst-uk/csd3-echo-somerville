@@ -109,6 +109,50 @@ def compare_zip_contents(collate_objects: list[str] | pd.DataFrame, current_obje
     else:
         return zips_to_upload, skipping
 
+def compare_zip_contents_bool(collate_object, current_objects: pd.DataFrame, destination_dir: str) -> bool:
+    """
+    Compare the contents of zip files to determine which files need to be uploaded.
+
+    Parameters:
+    collate_object: DataFrame of file paths to be collated into zip files containing 'object_names' and 'upload' columns.
+    current_objects (pd.DataFrame): A DataFrame containing metadata of current zip files, including their contents.
+    destination_dir (str): The directory where the zip files will be stored.
+    skipping (int): The number of zip files that have been skipped.
+
+    Returns:
+    bool: A bool == True if the zip should be uploaded.
+    """
+    # try:
+    #     assert type(collate_objects) == pd.DataFrame
+    # except AssertionError:
+    #     raise AssertionError('collate_objects must be a DataFrame.')
+    return_bool = True
+    cmp = [x.replace(destination_dir+'/', '') for x in collate_object['object_names']]
+    if not current_objects.empty:
+        if current_objects['METADATA'].isin([cmp]).any():
+            existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
+            if all([x in existing_zip_contents for x in cmp]):
+                print(f'Zip file {destination_dir}/collated_{i}.zip already exists and file lists match - skipping.', flush=True)
+                return_bool = False
+
+            else:
+                print(f'Zip file {destination_dir}/collated_{i}.zip already exists but file lists do not match - reuploading.', flush=True)
+                if not collate_object['upload']:
+                    return_bool = True
+
+        else:
+            print(f'Zip file {destination_dir}/collated_{i}.zip does not exist - uploading.', flush=True)
+
+            if not collate_object['upload']:
+                return_bool = True
+                skipping -= 1
+
+    else:
+        print(f'Zip file {destination_dir}/collated_{i}.zip does not exist - uploading.', flush=True)
+
+        return_bool = True
+    return return_bool
+
 
 def to_rds_path(home_path: str, local_dir: str) -> str:
     # get base folder for rds- folders
@@ -1157,7 +1201,9 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             print(f'Loaded collate list from {collate_list_file}, len={len(to_collate)}.', flush=True)
             if not current_objects.empty:
                 # now using pandas for both current_objects and to_collate - this could be re-written to using vectorised operations
-                to_collate, skipping = compare_zip_contents(to_collate, current_objects, destination_dir, len(to_collate[to_collate.upload == False]))
+                client.scatter(current_objects)
+                to_collate['upload'] = client.submit(
+                    compare_zip_contents_bool, to_collate, current_objects=current_objects, destination_dir=destination_dir, meta=pd.Series.empty(columns=['upload'], dtype=bool), axis=1)
 
         if save_collate_file:
             print(f'Saving collate list to {collate_list_file}, len={len(to_collate)}.', flush=True)
