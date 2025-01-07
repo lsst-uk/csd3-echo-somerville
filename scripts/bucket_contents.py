@@ -4,8 +4,6 @@
 
 import argparse
 import sys
-if len(sys.argv) != 2:
-    sys.exit('Provide a bucket name as an argument.')
 import os
 import bucket_manager.bucket_manager as bm
 
