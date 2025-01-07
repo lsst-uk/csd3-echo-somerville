@@ -1202,8 +1202,9 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             if not current_objects.empty:
                 # now using pandas for both current_objects and to_collate - this could be re-written to using vectorised operations
                 client.scatter(current_objects)
-                to_collate['upload'] = client.submit(
-                    compare_zip_contents_bool, to_collate, current_objects=current_objects, destination_dir=destination_dir, meta=pd.Series.empty(columns=['upload'], dtype=bool), axis=1)
+                to_collate['upload'] = to_collate.apply(
+                    compare_zip_contents_bool, current_objects=current_objects, destination_dir=destination_dir, meta=pd.Series.empty(columns=['upload'], dtype=bool), axis=1)
+                to_collate = to_collate.compute()
 
         if save_collate_file:
             print(f'Saving collate list to {collate_list_file}, len={len(to_collate)}.', flush=True)
