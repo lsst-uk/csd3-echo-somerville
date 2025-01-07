@@ -8,6 +8,7 @@ import os
 import bucket_manager.bucket_manager as bm
 
 def list_all(bucket):
+    total_size = 0
     for ob in bucket.objects.all():
         if ob.key.endswith('zip'):
             try:
@@ -17,8 +18,10 @@ def list_all(bucket):
         else:
             print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}, n/a')
         total_size += ob.size
+    return total_size
 
 def list_prefix(bucket,prefix):
+    total_size = 0
     for ob in bucket.objects.filter(Prefix=prefix):
         if ob.key.endswith('zip'):
             try:
@@ -28,6 +31,7 @@ def list_prefix(bucket,prefix):
         else:
             print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}, n/a')
         total_size += ob.size
+    return total_size
 
 if __name__ == '__main__':
 
@@ -51,14 +55,14 @@ if __name__ == '__main__':
     s3 = bm.get_resource()
 
     bucket = s3.Bucket(bucket_name)
-    total_size = 0
+
     try:
         print('Contents of bucket: ',bucket_name)
         print('Object, Size / MiB, LastModified, Zip Contents')
         if prefix:
-            list_prefix(bucket,prefix)
+            total_size = list_prefix(bucket,prefix)
         else:
-            list_all(bucket)
+            total_size = list_all(bucket)
     except Exception as e:
         if '(NoSuchBucket)' in str(e).split():
             print('NoSuchBucket')
