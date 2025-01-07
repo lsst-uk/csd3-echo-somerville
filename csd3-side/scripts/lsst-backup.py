@@ -1204,6 +1204,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 client.scatter(current_objects)
                 to_collate['upload'] = to_collate.apply(
                     compare_zip_contents_bool, current_objects=current_objects, destination_dir=destination_dir, meta=pd.Series.empty(columns=['upload'], dtype=bool), axis=1)
+                print('Comparison complete.', flush=True)
                 to_collate = to_collate.compute()
 
         if save_collate_file:
