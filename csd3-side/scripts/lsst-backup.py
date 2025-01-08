@@ -126,6 +126,7 @@ def compare_zip_contents_bool(collate_object, current_objects: pd.DataFrame, des
     #     assert type(collate_objects) == pd.DataFrame
     # except AssertionError:
     #     raise AssertionError('collate_objects must be a DataFrame.')
+    print('Begin compare_zip_contents_bool', flush=True)
     return_bool = True
     cmp = [x.replace(destination_dir+'/', '') for x in collate_object['object_names']]
     print(f'cmp: {cmp}', flush=True)
