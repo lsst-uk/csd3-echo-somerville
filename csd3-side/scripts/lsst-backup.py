@@ -126,14 +126,14 @@ def compare_zip_contents_bool(collate_object, current_objects: pd.DataFrame, des
     #     assert type(collate_objects) == pd.DataFrame
     # except AssertionError:
     #     raise AssertionError('collate_objects must be a DataFrame.')
-    print('Begin compare_zip_contents_bool', flush=True)
+    # print('Begin compare_zip_contents_bool', flush=True)
     return_bool = True
     cmp = [x.replace(destination_dir+'/', '') for x in collate_object['object_names']]
-    print(f'cmp: {cmp}', flush=True)
+    # print(f'cmp: {cmp}', flush=True)
     if not current_objects.empty:
         if current_objects['METADATA'].isin([cmp]).any():
             existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
-            print(f'existing_zip_contents: {existing_zip_contents}', flush=True)
+            # print(f'existing_zip_contents: {existing_zip_contents}', flush=True)
             if all([x in existing_zip_contents for x in cmp]):
                 # print(f'Zip file {destination_dir}/collated_{i}.zip already exists and file lists match - skipping.', flush=True)
                 return_bool = False
@@ -155,7 +155,7 @@ def compare_zip_contents_bool(collate_object, current_objects: pd.DataFrame, des
 
         # return_bool = True
 
-    print(return_bool, flush=True)
+    print(f'return bool {return_bool}', flush=True)
     return return_bool
 
 
