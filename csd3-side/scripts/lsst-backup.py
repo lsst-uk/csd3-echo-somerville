@@ -1198,7 +1198,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             del zip_batch_files, zip_batch_object_names, zip_batch_sizes
 
         else:
-            to_collate = dd.read_csv(collate_list_file,npartitions=len(client.scheduler_info()['workers'])*10)
+            to_collate = dd.read_csv(collate_list_file)
             to_collate.object_names = to_collate.object_names.apply(literal_eval)
             to_collate.file_paths = to_collate.file_paths.apply(literal_eval)
             print(f'Loaded collate list from {collate_list_file}, len={len(to_collate)}.', flush=True)
