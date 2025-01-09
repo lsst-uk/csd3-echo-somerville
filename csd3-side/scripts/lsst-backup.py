@@ -44,6 +44,7 @@ import os
 import argparse
 from dask import dataframe as dd
 from dask.distributed import Client, get_client, wait, as_completed, Future, fire_and_forget
+from dask.distributed import print as dprint
 import subprocess
 
 from typing import List
@@ -122,29 +123,26 @@ def compare_zip_contents_bool(collate_object, current_objects: pd.DataFrame, des
     Returns:
     return_bool: A bool == True if the zip should be uploaded.
     """
-    # try:
-    #     assert type(collate_objects) == pd.DataFrame
-    # except AssertionError:
-    #     raise AssertionError('collate_objects must be a DataFrame.')
-    # print('Begin compare_zip_contents_bool', flush=True)
+
+    dprint('Begin compare_zip_contents_bool', flush=True)
     return_bool = True
     cmp = [x.replace(destination_dir+'/', '') for x in collate_object['object_names']]
-    # print(f'cmp: {cmp}', flush=True)
+    dprint(f'cmp: {cmp}', flush=True)
     if not current_objects.empty:
         if current_objects['METADATA'].isin([cmp]).any():
             existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
-            # print(f'existing_zip_contents: {existing_zip_contents}', flush=True)
+            dprint(f'existing_zip_contents: {existing_zip_contents}', flush=True)
             if all([x in existing_zip_contents for x in cmp]):
-                # print(f'Zip file {destination_dir}/collated_{i}.zip already exists and file lists match - skipping.', flush=True)
+                dprint(f'Zip file {destination_dir}/collated_{i}.zip already exists and file lists match - skipping.', flush=True)
                 return_bool = False
 
             else:
-                # print(f'Zip file {destination_dir}/collated_{i}.zip already exists but file lists do not match - reuploading.', flush=True)
+                dprint(f'Zip file {destination_dir}/collated_{i}.zip already exists but file lists do not match - reuploading.', flush=True)
                 #if not collate_object['upload']:
                 return_bool = True
 
         else:
-            # print(f'Zip file {destination_dir}/collated_{i}.zip does not exist - uploading.', flush=True)
+            dprint(f'Zip file {destination_dir}/collated_{i}.zip does not exist - uploading.', flush=True)
 
             # if not collate_object['upload']:
             return_bool = True
@@ -155,7 +153,7 @@ def compare_zip_contents_bool(collate_object, current_objects: pd.DataFrame, des
 
         # return_bool = True
 
-    print(f'return bool {return_bool}', flush=True)
+    dprint(f'return bool {return_bool}', flush=True)
     return return_bool
 
 
