@@ -1199,8 +1199,9 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
 
         else:
             to_collate = dd.read_csv(collate_list_file)
-            to_collate.object_names = to_collate.object_names.apply(literal_eval)
-            to_collate.file_paths = to_collate.file_paths.apply(literal_eval)
+            p = to_collate.partitions
+            to_collate.object_names = dd.from_pandas(to_collate.object_names.compute().apply(literal_eval),npartitions=p)
+            to_collate.file_paths = dd.from_pandas(to_collate.file_paths.compute().apply(literal_eval),npartitions=p)
             print(f'Loaded collate list from {collate_list_file}, len={len(to_collate)}.', flush=True)
             if not current_objects.empty:
                 # now using pandas for both current_objects and to_collate - this could be re-written to using vectorised operations
