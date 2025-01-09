@@ -1207,7 +1207,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 client.scatter([current_objects,to_collate])
                 to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers'])*10)
                 print('Created Dask dataframe for to_collate.', flush=True)
-                to_collate['upload'] = to_collate.apply(compare_zip_contents_bool, args=(current_objects, destination_dir), meta=('upload', bool), axis=1).compute()
+                to_collate['upload'] = to_collate.apply(compare_zip_contents_bool, args=(current_objects, destination_dir), meta={'upload':'bool'}, axis=1).compute()
                 print('Comparison complete.', flush=True)
                 exit()
 
