@@ -1202,7 +1202,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             p = to_collate.npartitions
             to_collate.object_names = dd.from_pandas(to_collate.object_names.compute().apply(literal_eval),npartitions=p)
             to_collate.file_paths = dd.from_pandas(to_collate.file_paths.compute().apply(literal_eval),npartitions=p)
-            print(f'Loaded collate list from {collate_list_file}, len={len(to_collate)}.', flush=True)
+            print(f'Loaded collate list from {collate_list_file}.', flush=True)
             if not current_objects.empty:
                 # now using pandas for both current_objects and to_collate - this could be re-written to using vectorised operations
                 # client.scatter([current_objects,to_collate])
