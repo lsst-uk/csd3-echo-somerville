@@ -1209,7 +1209,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 # to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers'])*10)
                 print('Created Dask dataframe for to_collate.', flush=True)
                 to_collate = to_collate.drop(columns=['upload'])
-                to_collate['upload'] = to_collate['object_names'].apply(compare_zip_contents_bool, args=(current_objects, destination_dir), meta={'upload':'bool'}, axis=1)
+                to_collate['upload'] = to_collate['object_names'].apply(compare_zip_contents_bool, args=(current_objects, destination_dir))
                 # to_collate = to_collate.rename(columns={'_upload':'upload'})
                 print('Comparison setup.', flush=True)
                 to_collate = to_collate.compute()
