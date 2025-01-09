@@ -110,7 +110,7 @@ def compare_zip_contents(collate_objects: list[str] | pd.DataFrame, current_obje
     else:
         return zips_to_upload, skipping
 
-def compare_zip_contents_bool(collate_object, current_objects: pd.DataFrame, destination_dir: str) -> bool:
+def compare_zip_contents_bool(collate_object_names, current_objects: pd.DataFrame, destination_dir: str) -> bool:
     """
     Compare the contents of zip files to determine which files need to be uploaded.
 
@@ -126,30 +126,30 @@ def compare_zip_contents_bool(collate_object, current_objects: pd.DataFrame, des
 
     dprint('Begin compare_zip_contents_bool', flush=True)
     return_bool = True
-    cmp = [x.replace(destination_dir+'/', '') for x in collate_object['object_names']]
+    cmp = [x.replace(destination_dir+'/', '') for x in collate_object_names]]
     dprint(f'cmp: {cmp}', flush=True)
     if not current_objects.empty:
         if current_objects['METADATA'].isin([cmp]).any():
             existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
             dprint(f'existing_zip_contents: {existing_zip_contents}', flush=True)
             if all([x in existing_zip_contents for x in cmp]):
-                dprint(f'Zip file {destination_dir}/collated_{i}.zip already exists and file lists match - skipping.', flush=True)
+                dprint(f'Zip file {destination_dir}/collated_i.zip already exists and file lists match - skipping.', flush=True)
                 return_bool = False
 
             else:
-                dprint(f'Zip file {destination_dir}/collated_{i}.zip already exists but file lists do not match - reuploading.', flush=True)
+                dprint(f'Zip file {destination_dir}/collated_i.zip already exists but file lists do not match - reuploading.', flush=True)
                 #if not collate_object['upload']:
                 return_bool = True
 
         else:
-            dprint(f'Zip file {destination_dir}/collated_{i}.zip does not exist - uploading.', flush=True)
+            dprint(f'Zip file {destination_dir}/collated_i.zip does not exist - uploading.', flush=True)
 
             # if not collate_object['upload']:
             return_bool = True
                 # skipping -= 1
 
     # else:
-        # print(f'Zip file {destination_dir}/collated_{i}.zip does not exist - uploading.', flush=True)
+        # print(f'Zip file {destination_dir}/collated_i.zip does not exist - uploading.', flush=True)
 
         # return_bool = True
 
@@ -1208,9 +1208,9 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 # client.scatter([current_objects,to_collate])
                 # to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers'])*10)
                 print('Created Dask dataframe for to_collate.', flush=True)
-                to_collate['_upload'] = to_collate.apply(compare_zip_contents_bool, args=(current_objects, destination_dir), meta={'upload':'bool'}, axis=1)
                 to_collate = to_collate.drop(columns=['upload'])
-                to_collate = to_collate.rename(columns={'_upload':'upload'})
+                to_collate['upload'] = to_collate['object_names'].apply(compare_zip_contents_bool, args=(current_objects, destination_dir), meta={'upload':'bool'}, axis=1)
+                # to_collate = to_collate.rename(columns={'_upload':'upload'})
                 print('Comparison setup.', flush=True)
                 to_collate = to_collate.compute()
                 print('Comparison complete.', flush=True)
