@@ -1199,7 +1199,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
 
         else:
             npart = len(client.scheduler_info()['workers'])*10
-            to_collate = dd.from_pandas(pd.read_csv(collate_list_file).drop(['upload']), npartitions=npart)
+            to_collate = dd.from_pandas(pd.read_csv(collate_list_file).drop('upload', axis=1), npartitions=npart)
             to_collate.object_names = dd.from_pandas(to_collate.object_names.compute().apply(literal_eval),npartitions=npart)
             to_collate.file_paths = dd.from_pandas(to_collate.file_paths.compute().apply(literal_eval),npartitions=npart)
             print(f'Loaded collate list from {collate_list_file}.', flush=True)
