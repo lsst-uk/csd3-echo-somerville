@@ -1198,11 +1198,11 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             del zip_batch_files, zip_batch_object_names, zip_batch_sizes
 
         else:
-            npart = len(client.scheduler_info()['workers'])*10
-            to_collate = dd.read_csv(collate_list_file)
-            # to_collate = dd.from_pandas(pd.read_csv(collate_list_file), npartitions=npart)
-            to_collate.object_names = dd.from_pandas(to_collate.object_names.compute().apply(literal_eval),npartitions=npart)
-            to_collate.file_paths = dd.from_pandas(to_collate.file_paths.compute().apply(literal_eval),npartitions=npart)
+            nparts = len(client.scheduler_info()['workers'])*10
+            # to_collate = dd.read_csv(collate_list_file)
+            to_collate = dd.from_pandas(pd.read_csv(collate_list_file), npartitions=nparts)
+            to_collate.object_names = dd.from_pandas(to_collate.object_names.compute().apply(literal_eval),npartitions=nparts)
+            to_collate.file_paths = dd.from_pandas(to_collate.file_paths.compute().apply(literal_eval),npartitions=nparts)
             print(f'Loaded collate list from {collate_list_file}.', flush=True)
             if not current_objects.empty:
                 # now using pandas for both current_objects and to_collate - this could be re-written to using vectorised operations
@@ -1218,6 +1218,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 print('Comparison setup.', flush=True)
                 to_collate = to_collate.compute()
                 print('Comparison complete.', flush=True)
+                print(to_collate)
                 exit()
 
         if save_collate_file:
