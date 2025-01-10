@@ -1198,18 +1198,18 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             del zip_batch_files, zip_batch_object_names, zip_batch_sizes
 
         else:
-            nparts = len(client.scheduler_info()['workers'])*10
-            # to_collate = dd.read_csv(collate_list_file)
-            to_collate = dd.from_pandas(pd.read_csv(collate_list_file), npartitions=nparts)
-            to_collate.object_names = dd.from_pandas(to_collate.object_names.compute().apply(literal_eval),npartitions=nparts)
-            to_collate.file_paths = dd.from_pandas(to_collate.file_paths.compute().apply(literal_eval),npartitions=nparts)
-            print(f'Loaded collate list from {collate_list_file}.', flush=True)
             if not current_objects.empty:
+                nparts = len(client.scheduler_info()['workers'])*10
+                # to_collate = dd.read_csv(collate_list_file)
+                to_collate = dd.from_pandas(pd.read_csv(collate_list_file).drop('upload', axis=1), npartitions=nparts)
+                to_collate.object_names = dd.from_pandas(to_collate.object_names.compute().apply(literal_eval),npartitions=nparts)
+                to_collate.file_paths = dd.from_pandas(to_collate.file_paths.compute().apply(literal_eval),npartitions=nparts)
+                print(f'Loaded collate list from {collate_list_file}.', flush=True)
                 # now using pandas for both current_objects and to_collate - this could be re-written to using vectorised operations
                 # client.scatter([current_objects,to_collate])
                 # to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers'])*10)
                 print('Created Dask dataframe for to_collate.', flush=True)
-                to_collate = to_collate.drop(columns='upload')
+                # to_collate = to_collate.drop(columns='upload')
                 print(to_collate.index)
                 print(to_collate.columns)
                 print(to_collate.dtypes)
@@ -1220,6 +1220,8 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 print('Comparison complete.', flush=True)
                 print(to_collate)
                 exit()
+            else:
+                pass
 
         if save_collate_file:
             print(f'Saving collate list to {collate_list_file}, len={len(to_collate)}.', flush=True)
