@@ -134,6 +134,7 @@ def compare_zip_contents_bool(collate_object_names, id: int, current_objects: pd
         if current_objects['METADATA'].isin([cmp]).any():
             existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
             dprint(f'existing_zip_contents: {existing_zip_contents}', flush=True)
+            dprint(f'example: {existing_zip_contents.iloc[362681]}')
             if all([x in existing_zip_contents for x in cmp]):
                 dprint(f'Zip file {destination_dir}/collated_{id}.zip already exists and file lists match - skipping.', flush=True)
                 return_bool = False
