@@ -110,7 +110,7 @@ def compare_zip_contents(collate_objects: list[str] | pd.DataFrame, current_obje
     else:
         return zips_to_upload, skipping
 
-def compare_zip_contents_bool(collate_object_names, current_objects: pd.DataFrame, destination_dir: str) -> bool:
+def compare_zip_contents_bool(collate_object_names, id: int, current_objects: pd.DataFrame, destination_dir: str) -> bool:
     """
     Compare the contents of zip files to determine which files need to be uploaded.
 
@@ -129,20 +129,21 @@ def compare_zip_contents_bool(collate_object_names, current_objects: pd.DataFram
     cmp = collate_object_names.replace(destination_dir+'/', '')
     dprint(f'cmp: {cmp}', flush=True)
     if not current_objects.empty:
+        dprint(current_objects['METADATA'])
         if current_objects['METADATA'].isin([cmp]).any():
             existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
             dprint(f'existing_zip_contents: {existing_zip_contents}', flush=True)
             if all([x in existing_zip_contents for x in cmp]):
-                dprint(f'Zip file {destination_dir}/collated_i.zip already exists and file lists match - skipping.', flush=True)
+                dprint(f'Zip file {destination_dir}/collated_{id}.zip already exists and file lists match - skipping.', flush=True)
                 return_bool = False
 
             else:
-                dprint(f'Zip file {destination_dir}/collated_i.zip already exists but file lists do not match - reuploading.', flush=True)
+                dprint(f'Zip file {destination_dir}/collated_{id}.zip already exists but file lists do not match - reuploading.', flush=True)
                 #if not collate_object['upload']:
                 return_bool = True
 
         else:
-            dprint(f'Zip file {destination_dir}/collated_i.zip does not exist - uploading.', flush=True)
+            dprint(f'Zip file {destination_dir}/collated_{id}.zip does not exist - uploading.', flush=True)
 
             # if not collate_object['upload']:
             return_bool = True
