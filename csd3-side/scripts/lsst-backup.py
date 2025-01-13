@@ -126,6 +126,8 @@ def compare_zip_contents_bool(collate_object_names, id: int, current_objects: pd
 
     dprint('Begin compare_zip_contents_bool', flush=True)
     return_bool = True
+    print(f'collate_object_names: {collate_object_names}', flush=True)
+    print(f'type: {type(collate_object_names)}', flush=True)
     cmp = collate_object_names.replace(destination_dir+'/', '')
     dprint(f'cmp: {cmp}', flush=True)
     if not current_objects.empty:
