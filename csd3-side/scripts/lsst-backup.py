@@ -1214,11 +1214,14 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 print(to_collate.index)
                 print(to_collate.columns)
                 print(to_collate.dtypes)
-                to_collate['upload'] = to_collate['object_names'].apply(compare_zip_contents_bool, args=(current_objects, destination_dir), meta=('return_bool', 'bool'))
-                # to_collate = to_collate.rename(columns={'_upload':'upload'})
-                print('Comparison setup.', flush=True)
-                to_collate = to_collate.compute()
-                print('Comparison complete.', flush=True)
+                comp_futures = []
+
+                for i, on in enumerate(to_collate['object_names']):
+                    comp_futures.append(
+                        client.submit(compare_zip_contents_bool, on, i, repeat(current_objects), repeat(destination_dir))
+                    )
+                wait(comp_futures)
+                to_collate['upload'] = [f.result() for f in comp_futures]
                 print(to_collate)
                 exit()
             else:
