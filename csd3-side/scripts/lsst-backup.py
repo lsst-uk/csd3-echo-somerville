@@ -1203,22 +1203,29 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         else:
             if not current_objects.empty:
                 nparts = len(client.scheduler_info()['workers'])*10
-                # to_collate = dd.read_csv(collate_list_file)
-                to_collate = dd.from_pandas(pd.read_csv(collate_list_file).drop('upload', axis=1), npartitions=nparts)
-                to_collate.object_names = dd.from_pandas(to_collate.object_names.compute().apply(literal_eval),npartitions=nparts)
-                to_collate.file_paths = dd.from_pandas(to_collate.file_paths.compute().apply(literal_eval),npartitions=nparts)
+                # Pandas
+                to_collate = pd.read_csv(collate_list_file).drop('upload', axis=1)
+                to_collate.object_names = to_collate.object_names.apply(literal_eval)
+                to_collate.file_paths = to_collate.file_paths.apply(literal_eval)
+                # Dask
+                # to_collate = dd.from_pandas(pd.read_csv(collate_list_file).drop('upload', axis=1), npartitions=nparts)
+                # to_collate.object_names = dd.from_pandas(to_collate.object_names.compute().apply(literal_eval),npartitions=nparts)
+                # to_collate.file_paths = dd.from_pandas(to_collate.file_paths.compute().apply(literal_eval),npartitions=nparts)
                 print(f'Loaded collate list from {collate_list_file}.', flush=True)
                 # now using pandas for both current_objects and to_collate - this could be re-written to using vectorised operations
                 # client.scatter([current_objects,to_collate])
                 # to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers'])*10)
-                print('Created Dask dataframe for to_collate.', flush=True)
+                # print('Created Dask dataframe for to_collate.', flush=True)
+                print('Created Pandas dataframe for to_collate.', flush=True)
                 # to_collate = to_collate.drop(columns='upload')
                 print(to_collate.index)
                 print(to_collate.columns)
                 print(to_collate.dtypes)
-                to_collate = to_collate.compute()
+                client.scatter(to_collate)
+                # to_collate = to_collate.compute()
 
                 comp_futures = []
+                dprint(to_collate[to_collate.id == 0]['object_names'].values[0])
                 # for i, on in enumerate(to_collate['object_names']):
                 for id in to_collate['id']:
                 # for i,args in enumerate(zip(
