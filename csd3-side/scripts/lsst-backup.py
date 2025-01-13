@@ -1216,10 +1216,14 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 print(to_collate.dtypes)
                 comp_futures = []
 
-                for i, on in enumerate(to_collate['object_names']):
-                    comp_futures.append(
-                        client.submit(compare_zip_contents_bool, on, i, repeat(current_objects), repeat(destination_dir))
-                    )
+                # for i, on in enumerate(to_collate['object_names']):
+                for i,args in enumerate(zip(
+                    to_collate['object_names'],
+                    [i for i in range(len(to_collate))],
+                    repeat(current_objects),
+                    repeat(destination_dir),
+                    )):
+                    comp_futures.append(client.submit(compare_zip_contents_bool, *args))
                 wait(comp_futures)
                 to_collate['upload'] = [f.result() for f in comp_futures]
                 print(to_collate)
