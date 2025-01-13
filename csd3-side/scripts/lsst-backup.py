@@ -126,7 +126,7 @@ def compare_zip_contents_bool(collate_object_names, current_objects: pd.DataFram
 
     dprint('Begin compare_zip_contents_bool', flush=True)
     return_bool = True
-    cmp = [x.replace(destination_dir+'/', '') for x in collate_object_names]
+    cmp = collate_object_names.replace(destination_dir+'/', '')
     dprint(f'cmp: {cmp}', flush=True)
     if not current_objects.empty:
         if current_objects['METADATA'].isin([cmp]).any():
