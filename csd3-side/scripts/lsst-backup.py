@@ -1216,8 +1216,9 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 print(to_collate.index)
                 print(to_collate.columns)
                 print(to_collate.dtypes)
-                comp_futures = []
+                to_collate = to_collate.compute()
 
+                comp_futures = []
                 # for i, on in enumerate(to_collate['object_names']):
                 for id in to_collate['id']:
                 # for i,args in enumerate(zip(
