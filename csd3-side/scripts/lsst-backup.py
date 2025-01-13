@@ -130,7 +130,7 @@ def compare_zip_contents_bool(collate_object_names, id: int, current_objects: pd
     dprint(f'cmp: {cmp}', flush=True)
     if not current_objects.empty:
         dprint(current_objects['METADATA'])
-        dprint(f'cmp bool: {current_objects['METADATA'].isin([cmp]).any()}')
+        dprint(f'cmp bool: {current_objects["METADATA"].isin([cmp]).any()}')
         if current_objects['METADATA'].isin([cmp]).any():
             existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
             dprint(f'existing_zip_contents: {existing_zip_contents}', flush=True)
