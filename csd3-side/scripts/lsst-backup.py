@@ -142,9 +142,10 @@ def compare_zip_contents_bool(collate_object_names, id: int, current_objects: pd
         dprint(current_objects['METADATA'], flush=True)
         dprint(f'cmp bool: {current_objects["METADATA"].isin([cmp]).any()}', flush=True)
         if current_objects['METADATA'].isin([cmp]).any():
+            dprint('in if', flush=True)
             existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
             dprint(f'existing_zip_contents: {existing_zip_contents}', flush=True)
-            dprint(f'example: {existing_zip_contents.iloc[362681]}', flush=True)
+            dprint(f'example: {existing_zip_contents}', flush=True)
             if all([x in existing_zip_contents for x in cmp]):
                 dprint(f'Zip file {destination_dir}/collated_{id}.zip already exists and file lists match - skipping.', flush=True)
                 return_bool = False
@@ -1246,10 +1247,10 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                     # repeat(current_objects),
                     # repeat(destination_dir),
                     # )):
-                    print(f'to_collate on id {id}: {to_collate[to_collate.id == id]["object_names"].values}')
+                    print(f'to_collate on id {id}: {to_collate[to_collate.id == id]["object_names"].values[0]}')
                     comp_futures.append(client.submit(
                         compare_zip_contents_bool,
-                        to_collate[to_collate.id == id]['object_names'].values,
+                        to_collate[to_collate.id == id]['object_names'].values[0],
                         id,
                         current_objects,
                         destination_dir,
