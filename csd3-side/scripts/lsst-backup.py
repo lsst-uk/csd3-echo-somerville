@@ -128,6 +128,8 @@ def compare_zip_contents_bool(collate_object_names, id: int, current_objects: pd
     return_bool = True
     print(f'collate_object_names: {collate_object_names}', flush=True)
     print(f'type: {type(collate_object_names)}', flush=True)
+    dprint(f'current_objects metadata: {current_objects["METADATA"]}', flush=True)
+    print(f'type current_objects["METADATA"].values[0]: {type(current_objects["METADATA"].values[0])}', flush=True)
     cmp = collate_object_names.replace(destination_dir+'/', '')
     dprint(f'cmp: {cmp}', flush=True)
     if not current_objects.empty:
