@@ -1233,6 +1233,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 print(to_collate.columns)
                 print(to_collate.dtypes)
                 client.scatter(to_collate)
+                print('Scattered dataframe to distributed memory.', flush=True)
                 # to_collate = to_collate.compute()
 
                 comp_futures = []
