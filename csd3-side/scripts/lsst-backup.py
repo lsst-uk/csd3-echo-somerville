@@ -128,9 +128,11 @@ def compare_zip_contents_bool(collate_object_names, id: int, current_objects: pd
     return_bool = True
     dprint(f'collate_object_names: {collate_object_names}', flush=True)
     dprint(f'type: {type(collate_object_names)}', flush=True)
+    dprint(f'len collate_object_names: {len(collate_object_names)}', flush=True)
     dprint(f'current_objects metadata: {current_objects["METADATA"]}', flush=True)
     dprint(f'type current_objects["METADATA"].values[362681]: {type(current_objects["METADATA"].values[362681])}', flush=True)
     dprint(f'current_objects["METADATA"].values[362681]: {current_objects["METADATA"].values[362681]}', flush=True)
+    dprint(f'len current_objects["METADATA"].values[362681]: {len(current_objects["METADATA"].values[362681])}', flush=True)
     dprint(f'current_objects["METADATA"].values[362681][0]: {current_objects["METADATA"].values[362681][0]}', flush=True)
     dprint(f'type current_objects["METADATA"].values[362681][0]: {type(current_objects["METADATA"].values[362681][0])}', flush=True)
     cmp = [ x.replace(destination_dir+'/', '') for x in collate_object_names]
