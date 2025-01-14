@@ -124,14 +124,17 @@ def compare_zip_contents_bool(collate_object_names, id: int, current_objects: pd
     return_bool: A bool == True if the zip should be uploaded.
     """
 
-    dprint('Begin compare_zip_contents_bool', flush=True)
+    dprint('Begin compare_zip_contents_bool')
     return_bool = True
-    print(f'collate_object_names: {collate_object_names}', flush=True)
-    print(f'type: {type(collate_object_names)}', flush=True)
-    dprint(f'current_objects metadata: {current_objects["METADATA"]}', flush=True)
-    print(f'type current_objects["METADATA"].values[362681]: {type(current_objects["METADATA"].values[362681])}', flush=True)
+    dprint(f'collate_object_names: {collate_object_names}')
+    dprint(f'type: {type(collate_object_names)}')
+    dprint(f'current_objects metadata: {current_objects["METADATA"]}')
+    dprint(f'type current_objects["METADATA"].values[362681]: {type(current_objects["METADATA"].values[362681])}')
+    dprint(f'current_objects["METADATA"].values[362681]: {current_objects["METADATA"].values[362681]}')
+    dprint(f'current_objects["METADATA"].values[362681][0]: {current_objects["METADATA"].values[362681][0]}')
+    dprint(f'type current_objects["METADATA"].values[362681][0]: {type(current_objects["METADATA"].values[362681][0])}')
     cmp = collate_object_names.replace(destination_dir+'/', '')
-    dprint(f'cmp: {cmp}', flush=True)
+    dprint(f'cmp: {cmp}')
     if not current_objects.empty:
         dprint(current_objects['METADATA'])
         dprint(f'cmp bool: {current_objects["METADATA"].isin([cmp]).any()}')
