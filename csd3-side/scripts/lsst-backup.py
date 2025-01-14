@@ -167,6 +167,7 @@ def compare_zip_contents_bool(collate_object_names, id: int, current_objects: pd
         # return_bool = True
 
     dprint(f'return bool {return_bool}', flush=True)
+    exit()
     return return_bool
 
 
@@ -1244,6 +1245,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                     # repeat(current_objects),
                     # repeat(destination_dir),
                     # )):
+                    print(f'to_collate on id {id}: {to_collate[to_collate.id == id]["object_names"].values}')
                     comp_futures.append(client.submit(
                         compare_zip_contents_bool,
                         to_collate[to_collate.id == id]['object_names'].values[0],
