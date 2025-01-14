@@ -124,24 +124,24 @@ def compare_zip_contents_bool(collate_object_names, id: int, current_objects: pd
     return_bool: A bool == True if the zip should be uploaded.
     """
 
-    dprint('Begin compare_zip_contents_bool')
+    dprint('Begin compare_zip_contents_bool', flush=True)
     return_bool = True
-    dprint(f'collate_object_names: {collate_object_names}')
-    dprint(f'type: {type(collate_object_names)}')
-    dprint(f'current_objects metadata: {current_objects["METADATA"]}')
-    dprint(f'type current_objects["METADATA"].values[362681]: {type(current_objects["METADATA"].values[362681])}')
-    dprint(f'current_objects["METADATA"].values[362681]: {current_objects["METADATA"].values[362681]}')
-    dprint(f'current_objects["METADATA"].values[362681][0]: {current_objects["METADATA"].values[362681][0]}')
-    dprint(f'type current_objects["METADATA"].values[362681][0]: {type(current_objects["METADATA"].values[362681][0])}')
+    dprint(f'collate_object_names: {collate_object_names}', flush=True)
+    dprint(f'type: {type(collate_object_names)}', flush=True)
+    dprint(f'current_objects metadata: {current_objects["METADATA"]}', flush=True)
+    dprint(f'type current_objects["METADATA"].values[362681]: {type(current_objects["METADATA"].values[362681])}', flush=True)
+    dprint(f'current_objects["METADATA"].values[362681]: {current_objects["METADATA"].values[362681]}', flush=True)
+    dprint(f'current_objects["METADATA"].values[362681][0]: {current_objects["METADATA"].values[362681][0]}', flush=True)
+    dprint(f'type current_objects["METADATA"].values[362681][0]: {type(current_objects["METADATA"].values[362681][0])}', flush=True)
     cmp = collate_object_names.replace(destination_dir+'/', '')
-    dprint(f'cmp: {cmp}')
+    dprint(f'cmp: {cmp}', flush=True)
     if not current_objects.empty:
-        dprint(current_objects['METADATA'])
-        dprint(f'cmp bool: {current_objects["METADATA"].isin([cmp]).any()}')
+        dprint(current_objects['METADATA'], flush=True)
+        dprint(f'cmp bool: {current_objects["METADATA"].isin([cmp]).any()}', flush=True)
         if current_objects['METADATA'].isin([cmp]).any():
             existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
             dprint(f'existing_zip_contents: {existing_zip_contents}', flush=True)
-            dprint(f'example: {existing_zip_contents.iloc[362681]}')
+            dprint(f'example: {existing_zip_contents.iloc[362681]}', flush=True)
             if all([x in existing_zip_contents for x in cmp]):
                 dprint(f'Zip file {destination_dir}/collated_{id}.zip already exists and file lists match - skipping.', flush=True)
                 return_bool = False
