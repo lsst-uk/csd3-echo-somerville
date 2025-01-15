@@ -126,15 +126,15 @@ def compare_zip_contents_bool(collate_object_names, id: int, current_objects: pd
 
     dprint('Begin compare_zip_contents_bool', flush=True)
     return_bool = True
-    dprint(f'collate_object_names: {collate_object_names}', flush=True)
+    # dprint(f'collate_object_names: {collate_object_names}', flush=True)
     dprint(f'type: {type(collate_object_names)}', flush=True)
     dprint(f'len collate_object_names: {len(collate_object_names)}', flush=True)
-    dprint(f'current_objects metadata: {current_objects["METADATA"]}', flush=True)
-    dprint(f'type current_objects["METADATA"].values[362681]: {type(current_objects["METADATA"].values[362681])}', flush=True)
-    dprint(f'current_objects["METADATA"].values[362681]: {current_objects["METADATA"].values[362681]}', flush=True)
-    dprint(f'len current_objects["METADATA"].values[362681]: {len(current_objects["METADATA"].values[362681])}', flush=True)
-    dprint(f'current_objects["METADATA"].values[362681][0]: {current_objects["METADATA"].values[362681][0]}', flush=True)
-    dprint(f'type current_objects["METADATA"].values[362681][0]: {type(current_objects["METADATA"].values[362681][0])}', flush=True)
+    # dprint(f'current_objects metadata: {current_objects["METADATA"]}', flush=True)
+    # dprint(f'type current_objects["METADATA"].values[362681]: {type(current_objects["METADATA"].values[362681])}', flush=True)
+    # dprint(f'current_objects["METADATA"].values[362681]: {current_objects["METADATA"].values[362681]}', flush=True)
+    # dprint(f'len current_objects["METADATA"].values[362681]: {len(current_objects["METADATA"].values[362681])}', flush=True)
+    # dprint(f'current_objects["METADATA"].values[362681][0]: {current_objects["METADATA"].values[362681][0]}', flush=True)
+    # dprint(f'type current_objects["METADATA"].values[362681][0]: {type(current_objects["METADATA"].values[362681][0])}', flush=True)
     cmp = [ x.replace(destination_dir+'/', '') for x in collate_object_names]
     dprint(f'cmp: {cmp}', flush=True)
     dprint(f'len cmp: {len(cmp)}', flush=True)
@@ -144,8 +144,8 @@ def compare_zip_contents_bool(collate_object_names, id: int, current_objects: pd
         if current_objects['METADATA'].isin([cmp]).any():
             dprint('in if', flush=True)
             existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
-            dprint(f'existing_zip_contents: {existing_zip_contents}', flush=True)
-            dprint(f'example: {existing_zip_contents}', flush=True)
+            # dprint(f'existing_zip_contents: {existing_zip_contents}', flush=True)
+            # dprint(f'example: {existing_zip_contents}', flush=True)
             if all([x in existing_zip_contents for x in cmp]):
                 dprint(f'Zip file {destination_dir}/collated_{id}.zip already exists and file lists match - skipping.', flush=True)
                 return_bool = False
@@ -168,7 +168,7 @@ def compare_zip_contents_bool(collate_object_names, id: int, current_objects: pd
         # return_bool = True
 
     dprint(f'return bool {return_bool}', flush=True)
-    exit()
+    # exit()
     return return_bool
 
 
@@ -1230,15 +1230,15 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 # print('Created Dask dataframe for to_collate.', flush=True)
                 print('Created Pandas dataframe for to_collate.', flush=True)
                 # to_collate = to_collate.drop(columns='upload')
-                print(to_collate.index)
-                print(to_collate.columns)
-                print(to_collate.dtypes)
+                # print(to_collate.index)
+                # print(to_collate.columns)
+                # print(to_collate.dtypes)
                 client.scatter(to_collate)
                 print('Scattered dataframe to distributed memory.', flush=True)
                 # to_collate = to_collate.compute()
 
                 comp_futures = []
-                dprint(to_collate[to_collate.id == 0]['object_names'].values[0])
+                # dprint(to_collate[to_collate.id == 0]['object_names'].values[0])
                 # for i, on in enumerate(to_collate['object_names']):
                 for id in to_collate['id']:
                 # for i,args in enumerate(zip(
@@ -1247,7 +1247,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                     # repeat(current_objects),
                     # repeat(destination_dir),
                     # )):
-                    print(f'to_collate on id {id}: {to_collate[to_collate.id == id]["object_names"].values[0]}')
+                    print(f'len to_collate on id {id}: {len(to_collate[to_collate.id == id]["object_names"].values[0])}')
                     comp_futures.append(client.submit(
                         compare_zip_contents_bool,
                         to_collate[to_collate.id == id]['object_names'].values[0],
@@ -1257,8 +1257,8 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                         ))
                 wait(comp_futures)
                 to_collate['upload'] = [f.result() for f in comp_futures]
-                print(to_collate)
-                exit()
+                # print(to_collate)
+                # exit()
             else:
                 pass
 
