@@ -110,7 +110,7 @@ def compare_zip_contents(collate_objects: list[str] | pd.DataFrame, current_obje
     else:
         return zips_to_upload, skipping
 
-def compare_zip_contents_bool(to_collate, id: int, current_objects: pd.DataFrame, destination_dir: str) -> bool:
+def compare_zip_contents_bool(collate_object_names, id: int, current_objects: pd.DataFrame, destination_dir: str) -> bool:
     """
     Compare the contents of zip files to determine which files need to be uploaded.
 
@@ -123,8 +123,6 @@ def compare_zip_contents_bool(to_collate, id: int, current_objects: pd.DataFrame
     Returns:
     return_bool: A bool == True if the zip should be uploaded.
     """
-    ids = to_collate['id'].compute()
-    collate_object_names = to_collate[[ids == id]]['object_names'].compute().values[0]
     return_bool = True
     # dprint(f'collate_object_names: {collate_object_names}', flush=True)
     # dprint(f'type: {type(collate_object_names)}', flush=True)
@@ -1226,7 +1224,8 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 print(f'Loaded collate list from {collate_list_file}.', flush=True)
                 # now using pandas for both current_objects and to_collate - this could be re-written to using vectorised operations
                 # client.scatter([current_objects,to_collate])
-                to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers'])*2)
+                ids = to_collate['id'].copy()
+                # to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers'])*2)
                 # print('Created Dask dataframe for to_collate.', flush=True)
                 print('Created Pandas dataframe for to_collate.', flush=True)
 
@@ -1241,7 +1240,6 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 # dprint(to_collate[to_collate.id == 0]['object_names'].values[0])
                 # for i, on in enumerate(to_collate['object_names']):
                 dprint('Comparing existing zips to collate list.', flush=True)
-                ids = to_collate['id'].compute()
                 for id in ids:
                 # for i,args in enumerate(zip(
                     # to_collate['object_names'],
@@ -1250,9 +1248,10 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                     # repeat(destination_dir),
                     # )):
                     # print(f'len to_collate on id {id}: {len(to_collate[to_collate.id == id]["object_names"].values[0])}')
+                    ons = to_collate[to_collate.id == id]['object_names'].values[0]
                     comp_futures.append(client.submit(
                         compare_zip_contents_bool,
-                        to_collate,
+                        ons,
                         id,
                         current_objects,
                         destination_dir,
