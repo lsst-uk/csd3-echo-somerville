@@ -1214,7 +1214,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
 
         else:
             if not current_objects.empty:
-                nparts = len(client.scheduler_info()['workers'])*10
+                # nparts = len(client.scheduler_info()['workers'])*10
                 # Pandas
                 to_collate = pd.read_csv(collate_list_file).drop('upload', axis=1)
                 to_collate.object_names = to_collate.object_names.apply(literal_eval)
@@ -1226,7 +1226,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 print(f'Loaded collate list from {collate_list_file}.', flush=True)
                 # now using pandas for both current_objects and to_collate - this could be re-written to using vectorised operations
                 # client.scatter([current_objects,to_collate])
-                to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers'])*10)
+                to_collate = dd.from_pandas(to_collate, npartitions='auto')
                 # print('Created Dask dataframe for to_collate.', flush=True)
                 print('Created Pandas dataframe for to_collate.', flush=True)
 
