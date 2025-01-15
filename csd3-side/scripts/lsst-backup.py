@@ -123,7 +123,7 @@ def compare_zip_contents_bool(to_collate, id: int, current_objects: pd.DataFrame
     Returns:
     return_bool: A bool == True if the zip should be uploaded.
     """
-    collate_object_names = [to_collate.id == id]['object_names'].values[0]
+    collate_object_names = to_collate[[to_collate.id == id]]['object_names'].values[0]
     return_bool = True
     # dprint(f'collate_object_names: {collate_object_names}', flush=True)
     # dprint(f'type: {type(collate_object_names)}', flush=True)
