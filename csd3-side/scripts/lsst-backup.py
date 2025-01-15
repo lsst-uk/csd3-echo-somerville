@@ -110,7 +110,7 @@ def compare_zip_contents(collate_objects: list[str] | pd.DataFrame, current_obje
     else:
         return zips_to_upload, skipping
 
-def compare_zip_contents_bool(collate_object_names, id: int, current_objects: pd.DataFrame, destination_dir: str) -> bool:
+def compare_zip_contents_bool(to_collate, id: int, current_objects: pd.DataFrame, destination_dir: str) -> bool:
     """
     Compare the contents of zip files to determine which files need to be uploaded.
 
@@ -123,7 +123,7 @@ def compare_zip_contents_bool(collate_object_names, id: int, current_objects: pd
     Returns:
     return_bool: A bool == True if the zip should be uploaded.
     """
-
+    collate_object_names = [to_collate.id == id]['object_names'].values[0]
     return_bool = True
     # dprint(f'collate_object_names: {collate_object_names}', flush=True)
     # dprint(f'type: {type(collate_object_names)}', flush=True)
@@ -1250,7 +1250,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                     # print(f'len to_collate on id {id}: {len(to_collate[to_collate.id == id]["object_names"].values[0])}')
                     comp_futures.append(client.submit(
                         compare_zip_contents_bool,
-                        to_collate[to_collate.id == id]['object_names'].values[0],
+                        to_collate,
                         id,
                         current_objects,
                         destination_dir,
