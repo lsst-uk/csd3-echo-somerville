@@ -1226,7 +1226,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 print(f'Loaded collate list from {collate_list_file}.', flush=True)
                 # now using pandas for both current_objects and to_collate - this could be re-written to using vectorised operations
                 # client.scatter([current_objects,to_collate])
-                to_collate = dd.from_pandas(to_collate, npartitions=None, chucksize=1)
+                to_collate = dd.from_pandas(to_collate, npartitions=None, chunksize=1)
                 # print('Created Dask dataframe for to_collate.', flush=True)
                 print('Created Pandas dataframe for to_collate.', flush=True)
 
