@@ -1254,13 +1254,12 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                     comp_futures.append(client.submit(
                         compare_zip_contents_bool,
                         ons,
-                        id,
+                        int(id),
                         current_objects,
                         destination_dir,
                         ))
-                wait(comp_futures)
-                to_collate = to_collate.compute()
-                to_collate['upload'] = [f.result() for f in comp_futures]
+                upload_zips = client.gather(comp_futures)
+                to_collate['upload'] = upload_zips
                 # print(to_collate)
                 # exit()
             else:
