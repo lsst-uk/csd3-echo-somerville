@@ -1241,6 +1241,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 # for i, on in enumerate(to_collate['object_names']):
                 dprint('Comparing existing zips to collate list.', flush=True)
                 for id in ids:
+                    dprint(id, flush=True)
                 # for i,args in enumerate(zip(
                     # to_collate['object_names'],
                     # [i for i in range(len(to_collate))],
