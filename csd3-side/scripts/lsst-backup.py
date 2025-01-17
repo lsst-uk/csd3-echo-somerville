@@ -112,17 +112,16 @@ def compare_zip_contents(collate_objects: list[str] | pd.DataFrame, current_obje
 
 def compare_zip_contents_bool(collate_object_names, id: int, current_objects: pd.DataFrame, destination_dir: str) -> bool:
     """
-    Compare the contents of zip files to determine which files need to be uploaded.
-
-    Parameters:
-    collate_object: DataFrame of file paths to be collated into zip files containing 'object_names' and 'upload' columns.
-    current_objects (pd.DataFrame): A DataFrame containing metadata of current zip files, including their contents.
-    destination_dir (str): The directory where the zip files will be stored.
-    skipping (int): The number of zip files that have been skipped.
-
+    Compares the contents of a zip file with the current objects and determines if the zip file needs to be reuploaded.
+    Args:
+        collate_object_names (list): List of object names to be collated.
+        id (int): Identifier for the zip file (a sequence number).
+        current_objects (pd.DataFrame): DataFrame containing metadata of current objects.
+        destination_dir (str): S3 prefix to be used for a directory-like structure.
     Returns:
-    return_bool: A bool == True if the zip should be uploaded.
+        bool: True if the zip file needs to be uploaded or reuploaded, False if the zip file already exists and the file lists match.
     """
+
     return_bool = True
     dprint(f'id in function: {id}', flush=True)
     # dprint(f'collate_object_names: {collate_object_names}', flush=True)
@@ -1241,7 +1240,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 # dprint(to_collate[to_collate.id == 0]['object_names'].values[0])
                 # for i, on in enumerate(to_collate['object_names']):
                 dprint('Comparing existing zips to collate list.', flush=True)
-                for id in ids:
+                for id in int(ids.values[0]):
                     dprint(id, flush=True)
                 # for i,args in enumerate(zip(
                     # to_collate['object_names'],
