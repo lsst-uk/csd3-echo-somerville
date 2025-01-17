@@ -124,6 +124,7 @@ def compare_zip_contents_bool(collate_object_names, id: int, current_objects: pd
     return_bool: A bool == True if the zip should be uploaded.
     """
     return_bool = True
+    dprint(f'id in function: {id}', flush=True)
     # dprint(f'collate_object_names: {collate_object_names}', flush=True)
     # dprint(f'type: {type(collate_object_names)}', flush=True)
     # dprint(f'len collate_object_names: {len(collate_object_names)}', flush=True)
