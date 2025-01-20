@@ -1257,7 +1257,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                         int(id),
                         current_objects,
                         destination_dir,
-                        ))
+                        pure=False))
                 upload_zips = client.gather(comp_futures)
                 to_collate['upload'] = upload_zips
                 # print(to_collate)
