@@ -1212,6 +1212,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
 
         else:
             if not current_objects.empty:
+                client.scatter(current_objects)
                 # nparts = len(client.scheduler_info()['workers'])*10
                 # Pandas
                 to_collate = pd.read_csv(collate_list_file).drop('upload', axis=1)
