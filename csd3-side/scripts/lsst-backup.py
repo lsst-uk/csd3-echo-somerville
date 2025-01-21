@@ -124,6 +124,9 @@ def compare_zip_contents_bool(collate_object_names, id: int, current_objects: pd
 
     return_bool = True
     print(f'id in function: {id}', flush=True)
+    print(f'collate_object_names: {collate_object_names}', flush=True)
+    print(f'current_objects: {current_objects}', flush=True)
+    print(f'destination_dir: {destination_dir}', flush=True)
     # dprint(f'collate_object_names: {collate_object_names}', flush=True)
     # dprint(f'type: {type(collate_object_names)}', flush=True)
     # dprint(f'len collate_object_names: {len(collate_object_names)}', flush=True)
@@ -1226,6 +1229,9 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 # now using pandas for both current_objects and to_collate - this could be re-written to using vectorised operations
                 # client.scatter([current_objects,to_collate])
                 ids = to_collate['id'].copy()
+                # Check for duplicates in ids
+                if ids.duplicated().any():
+                    print("Warning: Duplicate ids found in to_collate['id']", flush=True)
                 # to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers'])*2)
                 # print('Created Dask dataframe for to_collate.', flush=True)
                 print('Created Pandas dataframe for to_collate.', flush=True)
@@ -1255,7 +1261,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                     comp_futures.append(client.submit(
                         compare_zip_contents_bool,
                         ons,
-                        int(id),
+                        id,
                         current_objects,
                         destination_dir,
                         pure=False))
