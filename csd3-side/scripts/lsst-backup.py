@@ -1216,14 +1216,13 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 to_collate = pd.read_csv(collate_list_file).drop('upload', axis=1)
                 to_collate.object_names = to_collate.object_names.apply(literal_eval)
                 to_collate.file_paths = to_collate.file_paths.apply(literal_eval)
+                to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers'])*2)
                 # Dask
                 # to_collate = dd.from_pandas(pd.read_csv(collate_list_file).drop('upload', axis=1), npartitions=nparts)
                 # to_collate.object_names = dd.from_pandas(to_collate.object_names.compute().apply(literal_eval),npartitions=nparts)
                 # to_collate.file_paths = dd.from_pandas(to_collate.file_paths.compute().apply(literal_eval),npartitions=nparts)
                 print(f'Loaded collate list from {collate_list_file}.', flush=True)
                 # now using pandas for both current_objects and to_collate - this could be re-written to using vectorised operations
-                ids = list(to_collate['id'].values)
-                client.scatter(to_collate)
                 # to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers'])*2)
                 # print('Created Dask dataframe for to_collate.', flush=True)
                 print('Created Pandas dataframe for to_collate.', flush=True)
@@ -1240,23 +1239,25 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 # for i, on in enumerate(to_collate['object_names']):
                 dprint('Comparing existing zips to collate list.', flush=True)
 
-                for ons in to_collate['object_names']:
-                    dprint(id, flush=True)
-                # for i,args in enumerate(zip(
-                    # to_collate['object_names'],
-                    # [i for i in range(len(to_collate))],
-                    # repeat(current_objects),
-                    # repeat(destination_dir),
-                    # )):
-                    # print(f'len to_collate on id {id}: {len(to_collate[to_collate.id == id]["object_names"].values[0])}')
-                    cmp_futures.append(client.submit(
-                        compare_zip_contents_bool,
-                        ons,
-                        current_objects,
-                        destination_dir,
-                        ))
-                wait(cmp_futures)
-                to_collate['upload'] = client.gather(cmp_futures)
+                to_collate['upload'] = to_collate['object_names'].apply(lambda x: compare_zip_contents_bool(x, current_objects, destination_dir))
+                to_collate = to_collate.compute()
+                # for ons in to_collate['object_names']:
+                #     dprint(id, flush=True)
+                # # for i,args in enumerate(zip(
+                #     # to_collate['object_names'],
+                #     # [i for i in range(len(to_collate))],
+                #     # repeat(current_objects),
+                #     # repeat(destination_dir),
+                #     # )):
+                #     # print(f'len to_collate on id {id}: {len(to_collate[to_collate.id == id]["object_names"].values[0])}')
+                #     cmp_futures.append(client.submit(
+                #         compare_zip_contents_bool,
+                #         ons,
+                #         current_objects,
+                #         destination_dir,
+                #         ))
+                # wait(cmp_futures)
+                # to_collate['upload'] = client.gather(cmp_futures)
                 print(to_collate['upload'])
                 # exit()
             else:
