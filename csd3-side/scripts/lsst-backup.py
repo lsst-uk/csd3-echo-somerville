@@ -1239,7 +1239,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 # for i, on in enumerate(to_collate['object_names']):
                 dprint('Comparing existing zips to collate list.', flush=True)
 
-                to_collate['upload'] = to_collate['object_names'].apply(lambda x: compare_zip_contents_bool(x, current_objects, destination_dir))
+                to_collate['upload'] = to_collate['object_names'].apply(compare_zip_contents_bool(current_objects=current_objects, destination_dir=destination_dir))
                 to_collate = to_collate.compute()
                 # for ons in to_collate['object_names']:
                 #     dprint(id, flush=True)
