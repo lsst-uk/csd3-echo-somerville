@@ -124,22 +124,22 @@ def compare_zip_contents_bool(collate_object_names, current_objects: pd.DataFram
 
     return_bool = True
 
-    print(f'collate_object_names: {collate_object_names}', flush=True)
-    print(f'current_objects: {current_objects}', flush=True)
-    print(f'destination_dir: {destination_dir}', flush=True)
+    # print(f'collate_object_names: {collate_object_names}', flush=True)
+    # print(f'current_objects: {current_objects}', flush=True)
+    # print(f'destination_dir: {destination_dir}', flush=True)
 
     if not current_objects.empty:
         cmp = [ x.replace(destination_dir+'/', '') for x in collate_object_names]
-        print(f'cmp: {cmp}', flush=True)
+        # print(f'cmp: {cmp}', flush=True)
         isin = current_objects['METADATA'].isin([cmp])
-        print(f'isin: {isin}', flush=True)
+        # print(f'isin: {isin}', flush=True)
         search_res = current_objects[current_objects['METADATA'].isin([cmp])]
-        print(f'search_res: {search_res}', flush=True)
+        # print(f'search_res: {search_res}', flush=True)
         if isin.any():
             id = search_res.index[0]
-            print(f'id in function: {id}', flush=True)
+            # print(f'id in function: {id}', flush=True)
             existing_zip_contents = current_objects[isin]['METADATA'].values[0]
-            print(f'existing_zip_contents: {existing_zip_contents}', flush=True)
+            # print(f'existing_zip_contents: {existing_zip_contents}', flush=True)
 
             if all([x in existing_zip_contents for x in cmp]):
                 dprint(f'Zip file {destination_dir}/collated_{id}.zip already exists and file lists match - skipping.', flush=True)
@@ -1215,7 +1215,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 to_collate = pd.read_csv(collate_list_file).drop('upload', axis=1)
                 to_collate.object_names = to_collate.object_names.apply(literal_eval)
                 to_collate.file_paths = to_collate.file_paths.apply(literal_eval)
-                # to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers'])*2)
+                to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers'])*2)
                 # Dask
                 # to_collate = dd.from_pandas(pd.read_csv(collate_list_file).drop('upload', axis=1), npartitions=nparts)
                 # to_collate.object_names = dd.from_pandas(to_collate.object_names.compute().apply(literal_eval),npartitions=nparts)
@@ -1239,7 +1239,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 dprint('Comparing existing zips to collate list.', flush=True)
 
                 to_collate['upload'] = to_collate['object_names'].apply(lambda x: compare_zip_contents_bool(x, current_objects, destination_dir))
-                # to_collate = to_collate.compute()
+                to_collate = to_collate.compute()
 
                 # for ons in to_collate['object_names']:
                 #     dprint(id, flush=True)
