@@ -135,9 +135,9 @@ def compare_zip_contents_bool(collate_object_names, current_objects: pd.DataFram
         print(f'isin: {isin}', flush=True)
         search_res = current_objects[current_objects['METADATA'].isin([cmp])]
         print(f'search_res: {search_res}', flush=True)
-
+        id = search_res.index[0]
+        print(f'id: {id}', flush=True)
         if isin.any():
-            id = search_res.index[0]
             print(f'id in function: {id}', flush=True)
             existing_zip_contents = current_objects[isin]['METADATA'].values[0]
             print(f'existing_zip_contents: {existing_zip_contents}', flush=True)
