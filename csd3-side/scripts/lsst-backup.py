@@ -128,6 +128,8 @@ def compare_zip_contents_bool(collate_object_names, current_objects: pd.DataFram
     print(f'collate_object_names: {type(collate_object_names)}', flush=True)
     # print(f'current_objects: {current_objects}', flush=True)
     # print(f'destination_dir: {destination_dir}', flush=True)
+    if type(collate_object_names) == str:
+        collate_object_names = literal_eval(collate_object_names)
 
     if not current_objects.empty:
         cmp = [ x.replace(destination_dir+'/', '') for x in collate_object_names]
