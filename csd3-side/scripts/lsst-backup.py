@@ -140,6 +140,8 @@ def compare_zip_contents_bool(collate_object_names, id: int, current_objects: pd
     print(f'cmp: {cmp}', flush=True)
     isin = current_objects['METADATA'].isin([cmp])
     print(f'isin: {isin}', flush=True)
+    search_res = current_objects[current_objects['METADATA'].isin([cmp])]
+    print(f'search_res: {search_res}', flush=True)
     # dprint(f'cmp: {cmp}', flush=True)
     # dprint(f'len cmp: {len(cmp)}', flush=True)
     if not current_objects.empty:
