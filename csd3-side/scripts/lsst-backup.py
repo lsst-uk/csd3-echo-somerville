@@ -137,14 +137,17 @@ def compare_zip_contents_bool(collate_object_names, id: int, current_objects: pd
     # dprint(f'current_objects["METADATA"].values[362681][0]: {current_objects["METADATA"].values[362681][0]}', flush=True)
     # dprint(f'type current_objects["METADATA"].values[362681][0]: {type(current_objects["METADATA"].values[362681][0])}', flush=True)
     cmp = [ x.replace(destination_dir+'/', '') for x in collate_object_names]
+    isin = current_objects['METADATA'].isin([cmp])
     # dprint(f'cmp: {cmp}', flush=True)
     # dprint(f'len cmp: {len(cmp)}', flush=True)
     if not current_objects.empty:
         # dprint(current_objects['METADATA'], flush=True)
         # dprint(f'cmp bool: {current_objects["METADATA"].isin([cmp]).any()}', flush=True)
-        if current_objects['METADATA'].isin([cmp]).any():
+        if isin.any():
             # dprint('in if', flush=True)
-            existing_zip_contents = current_objects[current_objects['METADATA'].isin([cmp])]['METADATA'].values[0]
+            existing_zip_contents = current_objects[isin]['METADATA'].values
+            print(f'existing_zip_contents: {existing_zip_contents}', flush=True)
+            existing_zip_contents = existing_zip_contents[0]
             # dprint(f'existing_zip_contents: {existing_zip_contents}', flush=True)
             # dprint(f'example: {existing_zip_contents}', flush=True)
             if all([x in existing_zip_contents for x in cmp]):
@@ -1257,10 +1260,9 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                     # repeat(destination_dir),
                     # )):
                     # print(f'len to_collate on id {id}: {len(to_collate[to_collate.id == id]["object_names"].values[0])}')
-                    ons = to_collate[to_collate.id == id]['object_names'].values[0]
                     comp_futures.append(client.submit(
                         compare_zip_contents_bool,
-                        ons,
+                        to_collate[to_collate.id == id]['object_names'].values[0],
                         id,
                         current_objects,
                         destination_dir,
