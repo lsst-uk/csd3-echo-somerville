@@ -124,7 +124,8 @@ def compare_zip_contents_bool(collate_object_names, current_objects: pd.DataFram
 
     return_bool = True
 
-    # print(f'collate_object_names: {collate_object_names}', flush=True)
+    print(f'collate_object_names: {collate_object_names}', flush=True)
+    print(f'collate_object_names: {type(collate_object_names)}', flush=True)
     # print(f'current_objects: {current_objects}', flush=True)
     # print(f'destination_dir: {destination_dir}', flush=True)
 
@@ -1238,7 +1239,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 # for i, on in enumerate(to_collate['object_names']):
                 dprint('Comparing existing zips to collate list.', flush=True)
 
-                to_collate['upload'] = to_collate['object_names'].apply(lambda x: compare_zip_contents_bool(x, current_objects, destination_dir))
+                to_collate['upload'] = to_collate['object_names'].apply(lambda x: compare_zip_contents_bool(x, current_objects, destination_dir), meta=('upload', pd.Series(dtype=bool)))
                 to_collate = to_collate.compute()
 
                 # for ons in to_collate['object_names']:
