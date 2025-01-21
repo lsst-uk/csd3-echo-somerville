@@ -1226,7 +1226,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 to_collate = pd.read_csv(collate_list_file).drop('upload', axis=1)
                 to_collate.object_names = to_collate.object_names.apply(literal_eval)
                 to_collate.file_paths = to_collate.file_paths.apply(literal_eval)
-                to_collate = dd.from_pandas(to_collate.drop_duplicates(axis=1), npartitions=len(client.scheduler_info()['workers'])*2)
+                to_collate = dd.from_pandas(to_collate.drop_duplicates, npartitions=len(client.scheduler_info()['workers'])*2)
                 # Dask
                 # to_collate = dd.from_pandas(pd.read_csv(collate_list_file).drop('upload', axis=1), npartitions=nparts)
                 # to_collate.object_names = dd.from_pandas(to_collate.object_names.compute().apply(literal_eval),npartitions=nparts)
