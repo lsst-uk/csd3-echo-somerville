@@ -135,6 +135,7 @@ def compare_zip_contents_bool(collate_object_names, current_objects: pd.DataFram
             print(f'Warning: literal_eval failed with error: {e}', flush=True)
             print('Defaulting to upload for this file list.', flush=True)
             return True
+    assert type(collate_object_names) == list, f'collate_object_names is not a list: type=={type(collate_object_names)}'
 
     # print(f'collate_object_names type after literal_eval: {type(collate_object_names)}', flush=True)
 
