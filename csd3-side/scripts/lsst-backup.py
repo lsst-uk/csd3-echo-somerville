@@ -129,7 +129,12 @@ def compare_zip_contents_bool(collate_object_names, current_objects: pd.DataFram
     # print(f'current_objects: {current_objects}', flush=True)
     # print(f'destination_dir: {destination_dir}', flush=True)
     if type(collate_object_names) == str:
-        collate_object_names = literal_eval(collate_object_names)
+        try:
+            collate_object_names = literal_eval(collate_object_names)
+        except Exception as e:
+            print(f'Warning: literal_eval failed with error: {e}', flush=True)
+            print('Defaulting to upload for this file list.', flush=True)
+            return True
 
     # print(f'collate_object_names type after literal_eval: {type(collate_object_names)}', flush=True)
 
@@ -1263,8 +1268,8 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 #         ))
                 # wait(cmp_futures)
                 # to_collate['upload'] = client.gather(cmp_futures)
-                print(to_collate['upload'])
-                # exit()
+                print(to_collate['upload'], flush=True)
+                exit()
             else:
                 pass
 
