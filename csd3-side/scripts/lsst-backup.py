@@ -123,7 +123,6 @@ def compare_zip_contents_bool(collate_object_names, current_objects: pd.DataFram
     """
 
     return_bool = True
-    print(f'id in function: {id}', flush=True)
     print(f'collate_object_names: {collate_object_names}', flush=True)
     print(f'current_objects: {current_objects}', flush=True)
     print(f'destination_dir: {destination_dir}', flush=True)
@@ -138,7 +137,7 @@ def compare_zip_contents_bool(collate_object_names, current_objects: pd.DataFram
 
         if isin.any():
             id = search_res.index[0]
-
+            print(f'id in function: {id}', flush=True)
             existing_zip_contents = current_objects[isin]['METADATA'].values[0]
             print(f'existing_zip_contents: {existing_zip_contents}', flush=True)
 
@@ -1222,6 +1221,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 # to_collate.file_paths = dd.from_pandas(to_collate.file_paths.compute().apply(literal_eval),npartitions=nparts)
                 print(f'Loaded collate list from {collate_list_file}.', flush=True)
                 # now using pandas for both current_objects and to_collate - this could be re-written to using vectorised operations
+                ids = list(to_collate['id'].values)
                 client.scatter(to_collate)
                 # to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers'])*2)
                 # print('Created Dask dataframe for to_collate.', flush=True)
@@ -1238,7 +1238,8 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 # dprint(to_collate[to_collate.id == 0]['object_names'].values[0])
                 # for i, on in enumerate(to_collate['object_names']):
                 dprint('Comparing existing zips to collate list.', flush=True)
-                for id in to_collate['id']:
+
+                for id in ids:
                     dprint(id, flush=True)
                 # for i,args in enumerate(zip(
                     # to_collate['object_names'],
