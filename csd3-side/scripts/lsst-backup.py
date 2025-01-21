@@ -123,6 +123,7 @@ def compare_zip_contents_bool(collate_object_names, current_objects: pd.DataFram
     """
 
     return_bool = True
+
     print(f'collate_object_names: {collate_object_names}', flush=True)
     print(f'current_objects: {current_objects}', flush=True)
     print(f'destination_dir: {destination_dir}', flush=True)
@@ -1234,12 +1235,12 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 print('Scattered dataframe to distributed memory.', flush=True)
                 # to_collate = to_collate.compute()
 
-                comp_futures = []
+                cmp_futures = []
                 # dprint(to_collate[to_collate.id == 0]['object_names'].values[0])
                 # for i, on in enumerate(to_collate['object_names']):
                 dprint('Comparing existing zips to collate list.', flush=True)
 
-                for id in ids:
+                for ons in to_collate[to_collate.id == id]['object_names']:
                     dprint(id, flush=True)
                 # for i,args in enumerate(zip(
                     # to_collate['object_names'],
@@ -1248,14 +1249,14 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                     # repeat(destination_dir),
                     # )):
                     # print(f'len to_collate on id {id}: {len(to_collate[to_collate.id == id]["object_names"].values[0])}')
-                    comp_futures.append(client.submit(
+                    cmp_futures.append(client.submit(
                         compare_zip_contents_bool,
-                        to_collate[to_collate.id == id]['object_names'].values[0],
+                        ons,
                         current_objects,
                         destination_dir,
                         ))
-                wait(comp_futures)
-                to_collate['upload'] = client.gather(comp_futures)
+                wait(cmp_futures)
+                to_collate['upload'] = client.gather(cmp_futures)
                 print(to_collate['upload'])
                 # exit()
             else:
