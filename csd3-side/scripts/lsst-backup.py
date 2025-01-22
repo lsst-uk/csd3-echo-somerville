@@ -1203,8 +1203,8 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                         current_objects,
                         destination_dir),
                     meta=('upload', pd.Series(dtype=bool))
-                ).compute()
-
+                )
+            to_collate = to_collate.compute()
             client.scatter(to_collate)
             print(type(to_collate), flush=True)
             del zip_batch_files, zip_batch_object_names, zip_batch_sizes
@@ -1278,7 +1278,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         # call zip_folder in parallel
         print(f'Zipping {len(to_collate)} batches.', flush=True)
         print(to_collate[to_collate.upload == False][['file_paths','id', 'upload']])
-        print(f'len(to_collate[to_collate.upload == False]): {len(to_collate[to_collate.upload == False])}, skipping: {skipping}')
+        print(f'len(to_collate[to_collate.upload == False]): {len(to_collate[to_collate.upload == False])}')
         to_collate_uploads = to_collate[to_collate.upload == True][['file_paths','id', 'upload']]
         print(f'to_collate: {to_collate}, {len(to_collate)}')
         print(f'to_collate_uploads: {to_collate_uploads}, {len(to_collate_uploads)}')
