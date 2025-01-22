@@ -1205,6 +1205,8 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                     meta=('upload', pd.Series(dtype=bool))
                 )
             to_collate = to_collate.compute()
+            to_collate.object_names = to_collate.object_names.apply(literal_eval)
+            to_collate.file_paths = to_collate.file_paths.apply(literal_eval)
             client.scatter(to_collate)
             print(type(to_collate), flush=True)
             print(to_collate.dtypes, flush=True)
