@@ -1019,7 +1019,8 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                     if len(folder_files) == 0:
                         print(f'Skipping subfolder - no files - see exclusions.', flush=True)
                     continue
-            sizes = [ client.submit(filesize, filename) for filename in folder_files ]
+            sizes_futures = [ client.submit(filesize, filename) for filename in folder_files ]
+            sizes = client.gather(sizes_futures)
             total_filesize = sum(sizes)
             if total_filesize > 0:
                 mean_filesize = total_filesize / len(files)
@@ -1095,7 +1096,10 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 object_names.extend(symlink_obj_names)
 
                 file_count = len(object_names)
-                folder_files_size = np.sum(np.array([os.stat(filename).st_size for filename in folder_files]))
+                # folder_files_sizes = np.sum(np.array([os.stat(filename).st_size for filename in folder_files]))
+                folder_files_sizes_futures = [ client.submit(filesize, filename) for filename in folder_files ]
+                folder_files_sizes = client.gather(folder_files_sizes_futures)
+                folder_files_size = np.sum(np.array(folder_files_sizes))
                 total_size_uploaded += folder_files_size
                 total_files_uploaded += file_count
                 print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks renamed to <filename>.symlink', flush=True)
@@ -1123,7 +1127,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                             repeat(mem_per_worker),
                         )):
                         upload_futures.append(client.submit(upload_and_callback, *args))
-                        uploads.append({'folder':args[4],'folder_size':args[12],'file_size':os.lstat(folder_files[i]).st_size,'file':args[5],'object':args[7],'uploaded':False})
+                        uploads.append({'folder':args[4],'folder_size':args[12],'file_size':folder_files_sizes[i],'file':args[5],'object':args[7],'uploaded':False})
                 except BrokenPipeError as e:
                     print(f'Caught BrokenPipeError: {e}')
                     # Record the failure
