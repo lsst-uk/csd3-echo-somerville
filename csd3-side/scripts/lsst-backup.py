@@ -59,6 +59,13 @@ def filesize(path: str):
     Returns:
         int: The size of the file in bytes.
     """
+    try:
+        size = os.lstat(path).st_size
+    except PermissionError:
+        print(f'WARNING: Permission error reading {path}. File will not be backed up.', flush=True)
+        return 0
+    except ValueError:
+        return 0
     return os.lstat(path).st_size
 
 def compare_zip_contents(collate_objects: list[str] | pd.DataFrame, current_objects: pd.DataFrame, destination_dir: str, skipping: int) -> list[str] | pd.DataFrame:
@@ -998,11 +1005,13 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
 
             folder_files = [os.sep.join([folder, filename]) for filename in files]
 
-            sizes = []
             for f in zul_futures+upload_futures:
                 if isinstance(f, Future):
                     if f.status == 'finished':
                         del f
+            if len(folder_files) == 0:
+                print(f'Skipping subfolder - no files - see permissions warning(s).', flush=True)
+                continue
             for filename in folder_files:
                 if exclude.isin([os.path.relpath(filename, local_dir)]).any():
                     print(f'Skipping file {filename} - excluded.', flush=True)
@@ -1010,17 +1019,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                     if len(folder_files) == 0:
                         print(f'Skipping subfolder - no files - see exclusions.', flush=True)
                     continue
-                try:
-                    sizes.append(os.stat(filename).st_size)
-                except PermissionError:
-                    print(f'WARNING: Permission error reading {filename}. File will not be backed up.', flush=True)
-                    try:
-                        folder_files.remove(filename)
-                    except ValueError:
-                        pass
-                    if len(folder_files) == 0:
-                        print(f'Skipping subfolder - no files - see permissions warning(s).', flush=True)
-                        continue
+            sizes = [ client.submit(filesize, filename) for filename in folder_files ]
             total_filesize = sum(sizes)
             if total_filesize > 0:
                 mean_filesize = total_filesize / len(files)
@@ -1033,16 +1032,17 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                     sub_folder_path = os.path.join(folder, sub_folder)
                     _, sub_sub_folders, sub_files = next(os.walk(sub_folder_path), ([], [], []))
                     subfolder_files = [os.sep.join([sub_folder_path, filename]) for filename in sub_files]
-                    subfiles_sizes = []
-                    for filename in subfolder_files:
-                        try:
-                            subfiles_sizes.append(os.stat(filename).st_size)
-                        except PermissionError:
-                            print(f'WARNING: Permission error reading {filename}. File will not be backed up.', flush=True)
-                            subfolder_files.remove(filename)
-                            if len(subfolder_files) == 0:
-                                print(f'Skipping subfolder - no files - see permissions warning(s).', flush=True)
-                                continue
+                    # subfiles_sizes = []
+                        # try:
+                    subsize_futures = [ client.submit(filesize, filename) for filename in subfolder_files ]
+                    subfiles_sizes = client.gather(subsize_futures)
+                            # subfiles_sizes.append(os.stat(filename).st_size)
+                        # except PermissionError:
+                        #     print(f'WARNING: Permission error reading {filename}. File will not be backed up.', flush=True)
+                        #     subfolder_files.remove(filename)
+                        #     if len(subfolder_files) == 0:
+                        #         print(f'Skipping subfolder - no files - see permissions warning(s).', flush=True)
+                        #         continue
                     total_subfilesize = sum(subfiles_sizes)
                     if not sub_sub_folders and len(sub_files) < 4 and total_subfilesize < 96*1024**2:
                         sub_folders.remove(sub_folder) # not sure what the effect of this is
@@ -1186,7 +1186,6 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                     for i, filename in enumerate(folder_files):
                         s = sizes[i]
                         size += s
-                        print(f"{size},{s}",flush=True)
                         if size <= max_zip_batch_size:
                             zip_batch_files[-1].append(filename)
                             zip_batch_object_names[-1].append(object_names[i])
