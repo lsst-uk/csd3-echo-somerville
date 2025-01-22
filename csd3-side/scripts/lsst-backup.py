@@ -1043,11 +1043,12 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             object_names = [os.sep.join([destination_dir, os.path.relpath(filename, local_dir)]) for filename in folder_files]
             init_len = len(object_names)
 
-            if not current_objects.empty:
-                if set(object_names).issubset(current_objects['CURRENT_OBJECTS']):
-                    #all files in this subfolder already in bucket
-                    print(f'Skipping subfolder - all files exist.', flush=True)
-                    continue
+            if not global_collate:
+                if not current_objects.empty:
+                    if set(object_names).issubset(current_objects['CURRENT_OBJECTS']):
+                        #all files in this subfolder already in bucket
+                        print(f'Skipping subfolder - all files exist.', flush=True)
+                        continue
 
 
             if mean_filesize > max_zip_batch_size or not global_collate:
