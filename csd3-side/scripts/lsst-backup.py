@@ -1206,6 +1206,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 ).compute()
 
             client.scatter(to_collate)
+            print(type(to_collate), flush=True)
             del zip_batch_files, zip_batch_object_names, zip_batch_sizes
 
         else:
@@ -1263,7 +1264,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 # wait(cmp_futures)
                 # to_collate['upload'] = client.gather(cmp_futures)
                 print(to_collate['upload'], flush=True)
-                exit()
+                # exit()
             else:
                 pass
 
