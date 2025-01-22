@@ -1131,16 +1131,17 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             elif len(folder_files) > 0 and global_collate: # small files in folder
                 print('Collated upload.', flush=True)
                 if not os.path.exists(collate_list_file):
+                    # No file removal for collated uploads - whole zip files will be removed for consistency in their contents
                     # Existing object removal
-                    if not current_objects.empty:
-                        for oni, on in enumerate(object_names):
-                            if current_objects['CURRENT_OBJECTS'].isin([on]).any() or current_objects['CURRENT_OBJECTS'].isin([f'{on}.symlink']).any():
-                                object_names.remove(on)
-                                del folder_files[oni]
+                    # if not current_objects.empty:
+                    #     for oni, on in enumerate(object_names):
+                    #         if current_objects['CURRENT_OBJECTS'].isin([on]).any() or current_objects['CURRENT_OBJECTS'].isin([f'{on}.symlink']).any():
+                    #             object_names.remove(on)
+                    #             del folder_files[oni]
 
-                    pre_linkcheck_file_count = len(object_names)
-                    if init_len - pre_linkcheck_file_count > 0:
-                        print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.', flush=True)
+                    # pre_linkcheck_file_count = len(object_names)
+                    # if init_len - pre_linkcheck_file_count > 0:
+                    #     print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.', flush=True)
 
                     symlink_targets = []
                     symlink_obj_names = []
@@ -1189,32 +1190,21 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         # CHECK HERE FOR ZIP CONTENTS #
         ###############################
         if not os.path.exists(collate_list_file):
-            zips_to_upload, skipping = compare_zip_contents(zip_batch_object_names, current_objects, destination_dir, 0)
+            to_collate = pd.DataFrame.from_dict({
+                'id':[i for i in range(len(zip_batch_object_names))],
+                'object_names':zip_batch_object_names,
+                'file_paths':zip_batch_files,
+                'size':zip_batch_sizes,
+                })
+            to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers'])*2)
+            to_collate['upload'] = to_collate['object_names'].apply(
+                    lambda x: compare_zip_contents_bool(
+                        x,
+                        current_objects,
+                        destination_dir),
+                    meta=('upload', pd.Series(dtype=bool))
+                ).compute()
 
-            # Create dict for zip files
-            for i in range(len(zip_batch_files)):
-                if i in zips_to_upload:
-                    to_collate_list.append(
-                        {
-                            'id': i,
-                            'object_names': zip_batch_object_names[i],
-                            'file_paths': zip_batch_files[i],
-                            'size': zip_batch_sizes[i],
-                            'upload': True
-                        }
-                    )
-                else:
-                    to_collate_list.append(
-                        {
-                            'id': i,
-                            'object_names': zip_batch_object_names[i],
-                            'file_paths': zip_batch_files[i],
-                            'size': zip_batch_sizes[i],
-                            'upload': False
-                        }
-                    )
-
-            to_collate = pd.DataFrame.from_dict(to_collate_list)
             client.scatter(to_collate)
             del zip_batch_files, zip_batch_object_names, zip_batch_sizes
 
