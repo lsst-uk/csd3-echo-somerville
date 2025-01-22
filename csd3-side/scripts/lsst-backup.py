@@ -1052,7 +1052,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                         # upload files in subfolder "as is" i.e., no zipping
 
             # check folder isn't empty
-            print(f'Processing {len(folder_files)} files (total size: {total_filesize/1024**2:.0f} MiB) in {folder} with {len(sub_folders)} subfolders.', flush=True)
+            print(f'Processing {len(folder_files)} files (total size: {total_filesize:.0f} B) in {folder} with {len(sub_folders)} subfolders.', flush=True)
 
             # keys to files on s3
             object_names = [os.sep.join([destination_dir, os.path.relpath(filename, local_dir)]) for filename in folder_files]
