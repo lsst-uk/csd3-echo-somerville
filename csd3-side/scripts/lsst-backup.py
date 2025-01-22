@@ -1021,7 +1021,9 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                     continue
             sizes_futures = [ client.submit(filesize, filename) for filename in folder_files ]
             sizes = client.gather(sizes_futures)
+            print(f'sizes: {sizes}', flush=True)
             total_filesize = sum(sizes)
+            print(f'total_filesize: {total_filesize}', flush=True)
             if total_filesize > 0:
                 mean_filesize = total_filesize / len(files)
             else:
