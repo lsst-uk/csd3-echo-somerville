@@ -1164,13 +1164,16 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
 
                     file_count = len(object_names)
                     #always do this AFTER removing "current_objects" to avoid re-uploading
+                    #Find sizes
+                    size_futures = [ client.submit(os.lstat(x).st_size) for x in folder_files ]
+                    sizes = client.gather(size_futures)
 
                     # Level n collation
-                    size = zip_batch_sizes[-1]
-                    print(f'Size: {size}')
+                    size = 0
                     for i, filename in enumerate(folder_files):
-                        s = os.lstat(filename).st_size
+                        s = sizes[i]
                         size += s
+                        print(f"{size},{s}",flush=True)
                         if size <= max_zip_batch_size:
                             zip_batch_files[-1].append(filename)
                             zip_batch_object_names[-1].append(object_names[i])
@@ -1181,7 +1184,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                             zip_batch_sizes.append(s)
                             size = s
 
-                    folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
+                    # folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
                     print(f'Number of zip files: {len(zip_batch_files)}', flush=True)
             print(f'Done traversing {local_dir}.', flush=True)
 
@@ -1189,6 +1192,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         ###############################
         # CHECK HERE FOR ZIP CONTENTS #
         ###############################
+
         if not os.path.exists(collate_list_file):
             to_collate = pd.DataFrame.from_dict({
                 'id':[i for i in range(len(zip_batch_object_names))],
