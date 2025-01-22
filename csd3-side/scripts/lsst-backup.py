@@ -49,6 +49,18 @@ import subprocess
 
 from typing import List
 
+def filesize(path: str):
+    """
+    Returns the size of a file in bytes.
+
+    Args:
+        path (str): The path to the file.
+
+    Returns:
+        int: The size of the file in bytes.
+    """
+    return os.lstat(path).st_size
+
 def compare_zip_contents(collate_objects: list[str] | pd.DataFrame, current_objects: pd.DataFrame, destination_dir: str, skipping: int) -> list[str] | pd.DataFrame:
     """
     Compare the contents of zip files to determine which files need to be uploaded.
@@ -1166,7 +1178,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                     file_count = len(object_names)
                     #always do this AFTER removing "current_objects" to avoid re-uploading
                     #Find sizes
-                    size_futures = [ client.submit(os.lstat(x).st_size) for x in folder_files ]
+                    size_futures = [ client.submit(filesize, x) for x in folder_files ]
                     sizes = client.gather(size_futures)
 
                     # Level n collation
