@@ -1207,6 +1207,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             to_collate = to_collate.compute()
             client.scatter(to_collate)
             print(type(to_collate), flush=True)
+            print(to_collate.dtypes, flush=True)
             del zip_batch_files, zip_batch_object_names, zip_batch_sizes
 
         else:
