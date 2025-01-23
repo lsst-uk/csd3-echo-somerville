@@ -1668,6 +1668,9 @@ if __name__ == '__main__':
                 bm.download_file_swift(s3, bucket_name, previous_log, log)
         print(f'Done, elapsed time = {datetime.now() - start}', flush=True)
 
+        # quick check delete
+        print(sorted(current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_') == True].apply(lambda x: x.split('_')[1].split('.')[0], axis=1).to_list())[-50:])
+
         # boto3 does not allow for objects to be serialised
         if api == 's3':
             s3 = None
