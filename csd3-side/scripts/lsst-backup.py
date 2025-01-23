@@ -1150,13 +1150,13 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             elif len(folder_files) > 0 and global_collate: # small files in folder
                 print('Collated upload.', flush=True)
                 if not os.path.exists(collate_list_file):
-                    # No file removal for collated uploads - whole zip files will be removed for consistency in their contents
+                    # Put this back in - need to extract all zips before continuation.
                     # Existing object removal
-                    # if not current_objects.empty:
-                    #     for oni, on in enumerate(object_names):
-                    #         if current_objects['CURRENT_OBJECTS'].isin([on]).any() or current_objects['CURRENT_OBJECTS'].isin([f'{on}.symlink']).any():
-                    #             object_names.remove(on)
-                    #             del folder_files[oni]
+                    if not current_objects.empty:
+                        for oni, on in enumerate(object_names):
+                            if current_objects['CURRENT_OBJECTS'].isin([on]).any() or current_objects['CURRENT_OBJECTS'].isin([f'{on}.symlink']).any():
+                                object_names.remove(on)
+                                del folder_files[oni]
 
                     # pre_linkcheck_file_count = len(object_names)
                     # if init_len - pre_linkcheck_file_count > 0:
