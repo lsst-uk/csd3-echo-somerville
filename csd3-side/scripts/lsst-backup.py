@@ -1201,10 +1201,10 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                             zip_batch_object_names.append([object_names[i]])
                             zip_batch_sizes.append(s)
                             size = s
-                        print(f'Batch {len(zip_batch_files)}: {len(zip_batch_files[-1])} files, {zip_batch_sizes[-1]/1024**2:.0f} MiB', flush=True)
-                        print(zip_batch_files, flush=True)
-                        print(zip_batch_object_names, flush=True)
-                        print(zip_batch_sizes, flush=True)
+                    print(f'Batch {len(zip_batch_files)}: {len(zip_batch_files[-1])} files, {zip_batch_sizes[-1]/1024**2:.0f} MiB', flush=True)
+                    print(zip_batch_files, flush=True)
+                    print(zip_batch_object_names, flush=True)
+                    print(zip_batch_sizes, flush=True)
 
                     # folder_files_size = np.sum(np.array([os.lstat(filename).st_size for filename in folder_files]))
                     print(f'Number of zip files: {len(zip_batch_files)}', flush=True)
