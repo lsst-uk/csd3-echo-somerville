@@ -1399,7 +1399,7 @@ if __name__ == '__main__':
     parser.add_argument('--no-file-count-stop', default=False, action='store_true', help='Do not stop if count of local files equals count of S3 objects.')
     args = parser.parse_args()
 
-    if not args.config_file and not (args.bucket_namse and args.local_path and args.S3_prefix):
+    if not args.config_file and not (args.bucket_name and args.local_path and args.S3_prefix):
         parser.error('If a config file is not provided, the bucket name, local path, and S3 prefix must be provided.')
     if args.config_file and (args.api or
                              args.bucket_name or
