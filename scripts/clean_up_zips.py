@@ -31,6 +31,10 @@ import subprocess
 
 from typing import List
 
+def logprint(msg,log):
+    with open(log, 'a') as logfile:
+        logfile.write(f'{msg}\n')
+
 if __name__ == '__main__':
     epilog = ''
     class MyParser(argparse.ArgumentParser):
@@ -43,171 +47,55 @@ if __name__ == '__main__':
         epilog=epilog,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument('--api', type=str, help='API to use; "S3" or "Swift". Case insensitive.')
+    parser.add_argument('--api', type=str, help='API to use; "S3" or "Swift". Case insensitive. Note: Swift is required for parallelism with Dask.')
     parser.add_argument('--bucket-name', type=str, help='Name of the S3 bucket.')
     parser.add_argument('--S3-prefix', type=str, help='Prefix to be used in S3 object keys.')
     parser.add_argument('--nprocs', type=int, help='Number of CPU cores to use for parallel upload.')
     parser.add_argument('--dryrun', default=False, action='store_true', help='Perform a dry run without uploading files.')
+    parser.add_argument('--log-to-file', default=False, action='store_true', help='Log output to file.')
+    parser.add_argument('--yes', '-y', default=False, action='store_true', help='Answer yes to all prompts.')
     args = parser.parse_args()
 
-    if not args.config_file and not (args.bucket_namse and args.local_path and args.S3_prefix):
-        parser.error('If a config file is not provided, the bucket name, local path, and S3 prefix must be provided.')
-    if args.config_file and (args.api or
-                             args.bucket_name or
-                             args.local_path or
-                             args.S3_prefix or
-                             args.S3_folder or
-                             args.exclude or
-                             args.nprocs or
-                             args.threads_per_worker or
-                             args.no_collate or
-                             args.dryrun or
-                             args.no_compression or
-                             args.save_config or
-                             args.no_file_count_stop):
-        print(f'WARNING: Options provide on command line override options in {args.config_file}.')
-    if args.config_file:
-        config_file = args.config_file
-        if not os.path.exists(config_file) and not args.save_config:
-            sys.exit(f'Config file {config_file} does not exist.')
-        if os.path.exists(config_file):
-            with open(config_file, 'r') as f:
-                config = yaml.safe_load(f)
-                print(config)
-                if 'bucket_name' in config.keys() and not args.bucket_name:
-                    args.bucket_name = config['bucket_name']
-                if 'local_path' in config.keys() and not args.local_path:
-                    args.local_path = config['local_path']
-                if 'S3_prefix' in config.keys() and not args.S3_prefix:
-                    args.S3_prefix = config['S3_prefix']
-                if 'S3_folder' in config.keys() and not args.S3_folder:
-                    args.S3_folder = config['S3_folder']
-                if 'exclude' in config.keys() and not args.exclude:
-                    args.exclude = config['exclude']
-                if 'nprocs' in config.keys() and not args.nprocs:
-                    args.nprocs = config['nprocs']
-                if 'nprocs' not in config.keys() and not args.nprocs: # required to allow default value of 4 as this overrides "default" in add_argument
-                    args.nprocs = 4
-                if 'threads_per_worker' in config.keys() and not args.threads_per_worker:
-                    args.threads_per_worker = config['threads_per_worker']
-                if 'threads_per_worker' not in config.keys() and not args.threads_per_worker: # required to allow default value of 4 as this overrides "default" in add_argument
-                    args.threads_per_worker = 2
-                if 'no_checksum' in config.keys() and not args.no_checksum:
-                    args.no_checksum = config['no_checksum']
-                if 'no_collate' in config.keys() and not args.no_collate:
-                    args.no_collate = config['no_collate']
-                if 'dryrun' in config.keys() and not args.dryrun:
-                    args.dryrun = config['dryrun']
-                if 'no_compression' in config.keys() and not args.no_compression:
-                    args.no_compression = config['no_compression']
-                if 'no_file_count_stop' in config.keys() and not args.no_file_count_stop:
-                    args.no_file_count_stop = config['no_file_count_stop']
-                if 'api' in config.keys() and not args.api:
-                    args.api = config['api']
-                if 'api' not in config.keys() and not args.api:
-                    args.api = 's3'
-
-    if args.save_config and not args.config_file:
-        parser.error('A config file must be provided to save the configuration.')
-
-    no_checksum = args.no_checksum
-    if no_checksum:
-        parser.error('Please note: the optin to disable file checksum has been deprecated.')
-
-    save_config = args.save_config
+    # Parse arguments
     api = args.api.lower()
     if api not in ['s3', 'swift']:
         parser.error('API must be "S3" or "Swift" (case insensitive).')
     bucket_name = args.bucket_name
-    local_dir = args.local_path
-    if not os.path.exists(local_dir):
-        sys.exit(f'Local path {local_dir} does not exist.')
     prefix = args.S3_prefix
-    sub_dirs = args.S3_folder
-    print(f'sub_dirs {sub_dirs}')
     nprocs = args.nprocs
-    threads_per_worker = args.threads_per_worker
-    print(f'threads per worker: {threads_per_worker}')
-    global_collate = not args.no_collate # internally, flag turns *on* collate, but for user no-collate turns it off - makes flag more intuitive
     dryrun = args.dryrun
-    use_compression = not args.no_compression # internally, flag turns *on* compression, but for user no-compression turns it off - makes flag more intuitive
+    yes = args.yes
+    log_to_file = args.log_to_file
 
-    file_count_stop = not args.no_file_count_stop  # internally, flag turns *on* file-count-stop, but for user no-file-count-stop turns it off - makes flag more intuitive
-
-    if args.exclude:
-        exclude = pd.Series(args.exclude)
-    else:
-        exclude = pd.Series([])
-
-    print(f'Config: {args}')
-
-    if save_config:
-        with open(config_file, 'w') as f:
-            yaml.dump({
-                'bucket_name': bucket_name,
-                'api': api,
-                'local_path': local_dir,
-                'S3_prefix': prefix,
-                'S3_folder': sub_dirs,
-                'nprocs': nprocs,
-                'threads_per_process': threads_per_worker,
-                'no_collate': not global_collate,
-                'dryrun': dryrun,
-                'no_compression': not use_compression,
-                'no_file_count_stop': not file_count_stop,
-                'exclude': exclude.to_list(),
-                }, f)
-        sys.exit(0)
-
-    print(f'Symlinks will be replaced with the target file. A new file <simlink_file>.symlink will contain the symlink target path.')
-
-    if not local_dir or not prefix or not bucket_name:
+    if not prefix or not bucket_name:
         parser.print_help()
         sys.exit(1)
 
+    print(f'API: {api}, Bucket name: {bucket_name}, Prefix: {prefix}, nprocs: {nprocs}, dryrun: {dryrun}')
+    if not dryrun:
+        print('WARNING! This is not a dry run. Files will be deleted.')
+        if not yes:
+            print('Continue [y/n]?')
+            if input().lower() != 'y':
+                parser.print_help()
+                sys.exit()
+
+    # Set up logging
+    if log_to_file:
+        if not os.path.exists(log):
+            print(f'Created log file {log}')
+        log = f'clean_zips_{bucket_name}_{prefix}_{datetime.now().strftime("%Y%m%d%H%M%S")}.log'
+    else:
+        log = sys.stdout
+    logprint(f'clean_zips_{bucket_name}_{prefix}_{datetime.now().strftime("%Y%m%d%H%M%S")}.log', log)
+
+
     #print hostname
     uname = subprocess.run(['uname', '-n'], capture_output=True)
-    print(f'Running on {uname.stdout.decode().strip()}')
+    logprint(f'Running on {uname.stdout.decode().strip()}', log)
 
     # Initiate timing
     start = datetime.now()
-
-    ##allow top-level folder to be provided with S3-folder == ''
-    if sub_dirs == '':
-        log_suffix = 'lsst-backup.csv' # DO NOT CHANGE
-        log = f"{prefix}-{log_suffix}"
-        # check for previous suffix (remove after testing)
-        previous_suffix = 'files.csv'
-        previous_log = f"{prefix}-{previous_suffix}"
-        destination_dir = f"{prefix}"
-    else:
-        log_suffix = 'lsst-backup.csv' # DO NOT CHANGE
-        log = f"{prefix}-{'-'.join(sub_dirs.split('/'))}-{log_suffix}"
-        # check for previous suffix (remove after testing)
-        previous_suffix = 'files.csv'
-        previous_log = f"{prefix}-{'-'.join(sub_dirs.split('/'))}-{previous_suffix}"
-        destination_dir = f"{prefix}/{sub_dirs}"
-
-    if global_collate:
-        collate_list_suffix = 'collate-list.csv'
-        collate_list_file = log.replace(log_suffix,collate_list_suffix) # now automatically generated
-        save_collate_list = True # no longer optional
-        if save_collate_list and not os.path.exists(collate_list_file):
-            print(f'Collate list will be generated and saved to {collate_list_file}.')
-        elif save_collate_list and os.path.exists(collate_list_file):
-            print(f'Collate list will be read from and re-saved to {collate_list_file}.')
-
-    # Add titles to log file
-    if not os.path.exists(log):
-        if os.path.exists(previous_log):
-            # rename previous log
-            os.rename(previous_log, log)
-            print(f'Renamed {previous_log} to {log}')
-        else:
-            # create new log
-            print(f'Created backup log file {log}')
-            with open(log, 'a') as logfile: # don't open as 'w' in case this is a continuation
-                logfile.write('LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS\n')
 
     # Setup bucket
     try:
@@ -229,6 +117,8 @@ if __name__ == '__main__':
     except ValueError as e:
         print(f'ValueError {e}', file=sys.stderr)
         sys.exit()
+
+    #### start here
 
     print(f'Using {api.capitalize()} API with host {s3_host}')
 
