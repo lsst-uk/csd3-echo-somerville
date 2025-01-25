@@ -78,7 +78,7 @@ if __name__ == '__main__':
         print('S3 prefix not provided. Exiting.', file=sys.stderr)
         sys.exit(1)
     else:
-        prefix = args.S3_prefix
+        prefix = args.prefix
     nprocs = args.nprocs
     dryrun = args.dryrun
     yes = args.yes
