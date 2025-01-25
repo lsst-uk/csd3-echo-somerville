@@ -31,17 +31,18 @@ import subprocess
 
 from typing import List
 
-def logprint(msg,log):
+def logprint(msg,log=None):
     if log is not None:
         with open(log, 'a') as logfile:
             logfile.write(f'{msg}\n')
     else:
         print(msg)
 
-def delete_object_swift(obj):
-    delted = False
+def delete_object_swift(obj, log=None):
+    deleted = False
     try:
         s3.delete_object(bucket_name, obj)
+        logprint(f'Deleted {obj}',log)
         deleted = True
     except Exception as e:
         print(f'Error deleting {obj}: {e}', file=sys.stderr)
@@ -196,7 +197,7 @@ if __name__ == '__main__':
             if input().lower() != 'y':
                 sys.exit()
 
-        current_zips['deleted'] = current_zips.map_partitions(lambda df: df.apply(lambda x: delete_object_swift(x), axis=1), meta=('deleted', 'bool'))
+        current_zips['deleted'] = current_zips.map_partitions(lambda df: df.apply(lambda x: delete_object_swift(x, log), axis=1), meta=('deleted', 'bool'))
         current_zips.compute()
         if current_zips['deleted'].all():
             print(f'All zip files deleted.', flush=True, file=log)
