@@ -56,7 +56,7 @@ if __name__ == '__main__':
         epilog=epilog,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument('--api', type=str, help='API to use; "S3" or "Swift". Case insensitive. Note: Swift is required for parallelism with Dask.')
+    parser.add_argument('--api', type=str, help='API to use; "S3" or "Swift". Case insensitive. Note: S3 currently not implemented as only Swift is parallelisable through Dask.', default='Swift')
     parser.add_argument('--bucket-name', type=str, help='Name of the S3 bucket.')
     parser.add_argument('--S3-prefix', type=str, help='Prefix to be used in S3 object keys.')
     parser.add_argument('--nprocs', type=int, help='Number of CPU cores to use for parallel upload.')
@@ -69,9 +69,20 @@ if __name__ == '__main__':
     api = args.api.lower()
     if api not in ['s3', 'swift']:
         parser.error('API must be "S3" or "Swift" (case insensitive).')
-    bucket_name = args.bucket_name
-    prefix = args.S3_prefix
-    nprocs = args.nprocs
+    if not args.bucket_name:
+        print('Bucket name not provided. Exiting.', file=sys.stderr)
+        sys.exit(1)
+    else:
+        bucket_name = args.bucket_name
+    if not args.s3_prefix:
+        print('S3 prefix not provided. Exiting.', file=sys.stderr)
+        sys.exit(1)
+    else:
+        prefix = args.S3_prefix
+    if args.nprocs:
+        nprocs = args.nprocs
+    else:
+        nprocs = 4
     dryrun = args.dryrun
     yes = args.yes
     log_to_file = args.log_to_file
@@ -91,9 +102,9 @@ if __name__ == '__main__':
 
     # Set up logging
     if log_to_file:
+        log = f'clean_zips_{bucket_name}_{prefix}_{datetime.now().strftime("%Y%m%d%H%M%S")}.log'
         if not os.path.exists(log):
             print(f'Created log file {log}')
-        log = f'clean_zips_{bucket_name}_{prefix}_{datetime.now().strftime("%Y%m%d%H%M%S")}.log'
     else:
         log = sys.stdout
     logprint(f'clean_zips_{bucket_name}_{prefix}_{datetime.now().strftime("%Y%m%d%H%M%S")}.log', log)
