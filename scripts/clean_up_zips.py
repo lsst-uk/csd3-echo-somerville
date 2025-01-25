@@ -99,6 +99,9 @@ if __name__ == '__main__':
             print('Continue [y/n]?')
             if input().lower() != 'y':
                 sys.exit()
+        else:
+            print('Continue [y/n]?')
+            print('auto y')
 
     # Set up logging
     if log_to_file:
@@ -197,6 +200,9 @@ if __name__ == '__main__':
             print('Continue [y/n]?')
             if input().lower() != 'y':
                 sys.exit()
+            else:
+                print('Continue [y/n]?')
+                print('auto y')
 
         current_zips['deleted'] = current_zips.map_partitions(lambda df: df.apply(lambda x: delete_object_swift(x, log), axis=1), meta=('deleted', 'bool'))
         current_zips.compute()
