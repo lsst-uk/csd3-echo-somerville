@@ -95,12 +95,11 @@ if __name__ == '__main__':
     print(f'API: {api}, Bucket name: {bucket_name}, Prefix: {prefix}, nprocs: {nprocs}, dryrun: {dryrun}')
     if not dryrun:
         print('WARNING! This is not a dry run. Files will be deleted.')
+        print('Continue [y/n]?')
         if not yes:
-            print('Continue [y/n]?')
             if input().lower() != 'y':
                 sys.exit()
         else:
-            print('Continue [y/n]?')
             print('auto y')
 
     # Set up logging
@@ -198,10 +197,10 @@ if __name__ == '__main__':
             print(f'Current objects (with matching prefix): {len(current_objects)}', flush=True)
             print(f'Current zip objects (with matching prefix): {len(current_zips)} will be deleted.', flush=True)
             print('Continue [y/n]?')
-            if input().lower() != 'y':
-                sys.exit()
+            if not yes:
+                if input().lower() != 'y':
+                    sys.exit()
             else:
-                print('Continue [y/n]?')
                 print('auto y')
 
         current_zips['deleted'] = current_zips.apply(lambda x: delete_object_swift(x, log), axis=1, meta=('deleted', 'bool'))
