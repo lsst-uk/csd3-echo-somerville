@@ -57,12 +57,12 @@ if __name__ == '__main__':
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument('--api', type=str, help='API to use; "S3" or "Swift". Case insensitive. Note: S3 currently not implemented as only Swift is parallelisable through Dask.', default='Swift')
-    parser.add_argument('--bucket-name', type=str, help='Name of the S3 bucket.')
-    parser.add_argument('--S3-prefix', type=str, help='Prefix to be used in S3 object keys.')
-    parser.add_argument('--nprocs', type=int, help='Number of CPU cores to use for parallel upload.')
-    parser.add_argument('--dryrun', default=False, action='store_true', help='Perform a dry run without uploading files.')
-    parser.add_argument('--log-to-file', default=False, action='store_true', help='Log output to file.')
-    parser.add_argument('--yes', '-y', default=False, action='store_true', help='Answer yes to all prompts.')
+    parser.add_argument('--bucket-name', type=str, help='Name of the S3 bucket. Required.')
+    parser.add_argument('--prefix', type=str, help='Prefix to be used in S3 object keys. Required.')
+    parser.add_argument('--nprocs', type=int, help='Number of CPU cores to use for parallel upload. Default is 4.', default=4)
+    parser.add_argument('--dryrun', default=False, action='store_true', help='Perform a dry run without uploading files. Default is False.')
+    parser.add_argument('--log-to-file', default=False, action='store_true', help='Log output to file. Default is False, i.e., stdout.')
+    parser.add_argument('--yes', '-y', default=False, action='store_true', help='Answer yes to all prompts. Default is False.')
     args = parser.parse_args()
 
     # Parse arguments
@@ -74,15 +74,12 @@ if __name__ == '__main__':
         sys.exit(1)
     else:
         bucket_name = args.bucket_name
-    if not args.s3_prefix:
+    if not args.prefix:
         print('S3 prefix not provided. Exiting.', file=sys.stderr)
         sys.exit(1)
     else:
         prefix = args.S3_prefix
-    if args.nprocs:
-        nprocs = args.nprocs
-    else:
-        nprocs = 4
+    nprocs = args.nprocs
     dryrun = args.dryrun
     yes = args.yes
     log_to_file = args.log_to_file
