@@ -203,12 +203,12 @@ if __name__ == '__main__':
             else:
                 print('auto y')
 
-        current_zips['deleted'] = current_zips.apply(lambda x: delete_object_swift(x, log), meta=('deleted', 'bool'))
+        current_zips['DELETED'] = current_zips['CURRENT_OBJECTS'].apply(lambda x: delete_object_swift(x, log), meta=('deleted', pd.Series(dtype=bool)))
         current_zips.compute()
-        if current_zips['deleted'].all():
+        if current_zips['DELETED'].all():
             print(f'All zip files deleted.', flush=True, file=log)
             sys.exit(0)
         else:
             print(f'Error deleting zip files.', flush=True, file=log)
-            print(f"{len(current_zips['deleted' == False]['CURRENT_OBJECTS'])} / {len(current_zips)} deleted.", flush=True, file=log)
+            print(f"{len(current_zips['DELETED' == False]['CURRENT_OBJECTS'])} / {len(current_zips)} deleted.", flush=True, file=log)
             sys.exit(1)
