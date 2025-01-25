@@ -97,7 +97,6 @@ if __name__ == '__main__':
         if not yes:
             print('Continue [y/n]?')
             if input().lower() != 'y':
-                parser.print_help()
                 sys.exit()
 
     # Set up logging
