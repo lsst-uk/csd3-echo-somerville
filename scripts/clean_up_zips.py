@@ -32,8 +32,11 @@ import subprocess
 from typing import List
 
 def logprint(msg,log):
-    with open(log, 'a') as logfile:
-        logfile.write(f'{msg}\n')
+    if log is not None:
+        with open(log, 'a') as logfile:
+            logfile.write(f'{msg}\n')
+    else:
+        print(msg)
 
 def delete_object_swift(obj):
     success = False
@@ -99,11 +102,11 @@ if __name__ == '__main__':
 
     # Set up logging
     if log_to_file:
-        log = str(f'clean_zips_{bucket_name}_{prefix}_{datetime.now().strftime("%Y%m%d%H%M%S")}.log')
+        log = f'clean_zips_{bucket_name}_{prefix}_{datetime.now().strftime("%Y%m%d%H%M%S")}.log'
         if not os.path.exists(log):
             print(f'Created log file {log}')
     else:
-        log = sys.stdout
+        log = None
     logprint(f'clean_zips_{bucket_name}_{prefix}_{datetime.now().strftime("%Y%m%d%H%M%S")}.log', log)
 
 
