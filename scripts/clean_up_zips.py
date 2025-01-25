@@ -141,7 +141,7 @@ if __name__ == '__main__':
         print(f'ValueError {e}', file=sys.stderr)
         sys.exit()
 
-    print(f'Using {api.capitalize()} API with host {s3_host}')
+    logprint(f'Using {api.capitalize()} API with host {s3_host}')
 
     if api == 's3':
         print('Currently only Swift is supported for parallelism with Dask. Exiting.', file=sys.stderr)
@@ -167,35 +167,35 @@ if __name__ == '__main__':
     total_memory = mem().total
     n_workers = nprocs
     mem_per_worker = mem().total//n_workers # e.g., 187 GiB / 48 * 2 = 7.8 GiB
-    print(f'nprocs: {nprocs}, Threads per worker: 1, Number of workers: {n_workers}, Total memory: {total_memory/1024**3:.2f} GiB, Memory per worker: {mem_per_worker/1024**3:.2f} GiB')
+    logprint(f'nprocs: {nprocs}, Threads per worker: 1, Number of workers: {n_workers}, Total memory: {total_memory/1024**3:.2f} GiB, Memory per worker: {mem_per_worker/1024**3:.2f} GiB')
 
     # Process the files
     with Client(n_workers=n_workers,threads_per_worker=1,memory_limit=mem_per_worker) as client:
-        print(f'Dask Client: {client}', flush=True)
-        print(f'Dashboard: {client.dashboard_link}', flush=True)
-        print(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}')
-        print(f'Using {nprocs} processes.')
-        print(f'Getting current object list for {bucket_name}. This may take some time.\nStarting at {datetime.now()}, elapsed time = {datetime.now() - start}', flush=True)
+        logprint(f'Dask Client: {client}', log=log)
+        logprint(f'Dashboard: {client.dashboard_link}', log=log)
+        logprint(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}',log=log)
+        logprint(f'Using {nprocs} processes.',log=log)
+        logprint(f'Getting current object list for {bucket_name}. This may take some time.\nStarting at {datetime.now()}, elapsed time = {datetime.now() - start}', log=log)
 
         if api == 's3':
             current_objects = bm.object_list(bucket, prefix=prefix, count=True)
         elif api == 'swift':
             current_objects = bm.object_list_swift(s3, bucket_name, prefix=prefix, count=True)
-        print()
-        print(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', flush=True)
+        logprint('',log=log)
+        logprint(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', log=log)
 
         current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
-        print(current_objects.head())
+        logprint(current_objects.head(),log=log)
 
         current_zips = dd.from_pandas(current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_\d+\.zip')]['CURRENT_OBJECTS'], npartitions=n_workers)
 
         if dryrun:
-            print(f'Current objects (with matching prefix): {len(current_objects)}', flush=True)
-            print(f'Current zip objects (with matching prefix): {len(current_zips)} would be deleted.', flush=True)
+            logprint(f'Current objects (with matching prefix): {len(current_objects)}', log=log)
+            logprint(f'Current zip objects (with matching prefix): {len(current_zips)} would be deleted.', log=log)
             sys.exit()
         else:
-            print(f'Current objects (with matching prefix): {len(current_objects)}', flush=True)
-            print(f'Current zip objects (with matching prefix): {len(current_zips)} will be deleted.', flush=True)
+            print(f'Current objects (with matching prefix): {len(current_objects)}')
+            print(f'Current zip objects (with matching prefix): {len(current_zips)} will be deleted.')
             print('Continue [y/n]?')
             if not yes:
                 if input().lower() != 'y':
@@ -206,9 +206,9 @@ if __name__ == '__main__':
         current_zips['DELETED'] = current_zips['CURRENT_OBJECTS'].apply(delete_object_swift(log=log), meta=('deleted', pd.Series(dtype=bool)))
         current_zips.compute()
         if current_zips['DELETED'].all():
-            print(f'All zip files deleted.', flush=True, file=log)
+            logprint(f'All zip files deleted.', log=log)
             sys.exit(0)
         else:
-            print(f'Error deleting zip files.', flush=True, file=log)
-            print(f"{len(current_zips['DELETED' == False]['CURRENT_OBJECTS'])} / {len(current_zips)} deleted.", flush=True, file=log)
+            logprint(f'Error deleting zip files.', log=log)
+            logprint(f"{len(current_zips['DELETED' == False]['CURRENT_OBJECTS'])} / {len(current_zips)} deleted.", log=log)
             sys.exit(1)
