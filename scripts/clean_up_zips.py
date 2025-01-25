@@ -39,13 +39,13 @@ def logprint(msg,log):
         print(msg)
 
 def delete_object_swift(obj):
-    success = False
+    delted = False
     try:
         s3.delete_object(bucket_name, obj)
-        success = True
+        deleted = True
     except Exception as e:
         print(f'Error deleting {obj}: {e}', file=sys.stderr)
-    return success
+    return deleted
 
 if __name__ == '__main__':
     epilog = ''
@@ -193,8 +193,11 @@ if __name__ == '__main__':
         else:
             print(f'Current objects (with matching prefix): {len(current_objects)}', flush=True)
             print(f'Current zip objects (with matching prefix): {len(current_zips)} will be deleted.', flush=True)
+            print('Continue [y/n]?')
+            if input().lower() != 'y':
+                sys.exit()
 
-        current_zips['deleted'] = current_zips.map_partitions(lambda df: df.apply(lambda x: delete_object_swift(x), axis=1), meta=('x', 'bool'))
+        current_zips['deleted'] = current_zips.map_partitions(lambda df: df.apply(lambda x: delete_object_swift(x), axis=1), meta=('deleted', 'bool'))
         current_zips.compute()
         if current_zips['deleted'].all():
             print(f'All zip files deleted.', flush=True, file=log)
