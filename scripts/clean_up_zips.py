@@ -189,5 +189,5 @@ if __name__ == '__main__':
             sys.exit(0)
         else:
             print(f'Error deleting zip files.', flush=True, file=log)
-            print(f'{len(current_zips['deleted' == False]['CURRENT_OBJECTS'])} / {len(current_zips)} deleted', flush=True, file=log)
+            print(f"{len(current_zips['deleted' == False]['CURRENT_OBJECTS'])} / {len(current_zips)} deleted.", flush=True, file=log)
             sys.exit(1)
