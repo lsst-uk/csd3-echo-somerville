@@ -203,7 +203,7 @@ if __name__ == '__main__':
             else:
                 print('auto y')
 
-        current_zips['deleted'] = current_zips.apply(lambda x: delete_object_swift(x, log), axis=1, meta=('deleted', 'bool'))
+        current_zips['deleted'] = current_zips.apply(lambda x: delete_object_swift(x, log), meta=('deleted', 'bool'))
         current_zips.compute()
         if current_zips['deleted'].all():
             print(f'All zip files deleted.', flush=True, file=log)
