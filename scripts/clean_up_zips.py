@@ -118,8 +118,6 @@ if __name__ == '__main__':
         print(f'ValueError {e}', file=sys.stderr)
         sys.exit()
 
-    #### start here
-
     print(f'Using {api.capitalize()} API with host {s3_host}')
 
     if api == 's3':
@@ -130,19 +128,8 @@ if __name__ == '__main__':
         bucket_list = bm.bucket_list_swift(s3)
 
     if bucket_name not in bucket_list:
-        if not dryrun:
-            if api == 's3':
-                s3.create_bucket(Bucket=bucket_name)
-            elif api == 'swift':
-                s3.put_container(bucket_name)
-            print(f'Added bucket: {bucket_name}')
-    else:
-        if not dryrun:
-            print(f'Bucket exists: {bucket_name}')
-            print('Existing files will be skipped.')
-        else:
-            print(f'Bucket exists: {bucket_name}')
-            print('dryrun == True, so continuing.')
+        print(f'Bucket {bucket_name} not found in {api} bucket list. Exiting.', file=sys.stderr)
+        sys.exit()
 
     if api == 's3':
         bucket = s3.Bucket(bucket_name)
