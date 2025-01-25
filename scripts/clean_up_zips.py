@@ -184,7 +184,7 @@ if __name__ == '__main__':
         current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
         print(current_objects.head())
 
-        current_zips = dd.from_pandas(current_objects[current_objects['CURRENT_OBJECTS'].str.endswith('collated_\d+\.zip')]['CURRENT_OBJECTS'], npartitions=n_workers)
+        current_zips = dd.from_pandas(current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_\d+\.zip')]['CURRENT_OBJECTS'], npartitions=n_workers)
 
         if dryrun:
             print(f'Current objects (with matching prefix): {len(current_objects)}', flush=True)
