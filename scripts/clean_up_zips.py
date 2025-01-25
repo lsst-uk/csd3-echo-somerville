@@ -182,6 +182,7 @@ if __name__ == '__main__':
         print(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', flush=True)
 
         current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
+        print(current_objects.head())
 
         current_zips = dd.from_pandas(current_objects[current_objects['CURRENT_OBJECTS'].str.endswith('collated_\d+\.zip')]['CURRENT_OBJECTS'], npartitions=n_workers)
 
