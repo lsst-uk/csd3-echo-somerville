@@ -182,7 +182,7 @@ if __name__ == '__main__':
         current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
         logprint(current_objects.head(),log=log)
 
-        current_zips = dd.from_pandas(current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_\d+\.zip')]['CURRENT_OBJECTS'], npartitions=n_workers)
+        # current_zips = dd.from_pandas(current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_\d+\.zip')]['CURRENT_OBJECTS'], npartitions=n_workers)
 
         if dryrun:
             logprint(f'Current objects (with matching prefix): {len(current_objects)}', log=log)
@@ -200,12 +200,11 @@ if __name__ == '__main__':
 
         futures = [client.submit(delete_object_swift, co, log) for co, log in zip(current_objects['CURRENT_OBJECTS'], repeat(log))]
         wait(futures)
-        current_zips['DELETED'] = [f.result() for f in futures]
-        current_zips.compute()
-        if current_zips['DELETED'].all():
+        current_objects['DELETED'] = [f.result() for f in futures]
+        if current_objects['DELETED'].all():
             logprint(f'All zip files deleted.', log=log)
             sys.exit(0)
         else:
             logprint(f'Error deleting zip files.', log=log)
-            logprint(f"{len(current_zips['DELETED' == False]['CURRENT_OBJECTS'])} / {len(current_zips)} deleted.", log=log)
+            logprint(f"{len(current_objects['DELETED' == False]['CURRENT_OBJECTS'])} / {len(current_objects)} deleted.", log=log)
             sys.exit(1)
