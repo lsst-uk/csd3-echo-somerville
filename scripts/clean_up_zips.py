@@ -199,7 +199,6 @@ if __name__ == '__main__':
                 print('auto y')
 
         futures = [client.submit(delete_object_swift, co, log) for co, log in zip(current_objects['CURRENT_OBJECTS'], repeat(log))]
-        futures.compute()
         wait(futures)
         current_zips['DELETED'] = [f.result() for f in futures]
         current_zips.compute()
