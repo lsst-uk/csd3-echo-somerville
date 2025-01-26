@@ -4,8 +4,6 @@ from itertools import repeat
 from time import sleep
 import warnings
 from datetime import datetime, timedelta
-import hashlib
-import base64
 import pandas as pd
 from ast import literal_eval
 import numpy as np
@@ -19,14 +17,10 @@ from logging import ERROR
 
 import bucket_manager.bucket_manager as bm
 
-import swiftclient
-
-import hashlib
 import os
 import argparse
 from dask import dataframe as dd
-from dask.distributed import Client, get_client, wait, as_completed, Future, fire_and_forget
-from dask.distributed import print as dprint
+
 import subprocess
 
 from typing import List
@@ -203,7 +197,7 @@ if __name__ == '__main__':
             else:
                 print('auto y')
 
-        futures = [ client.submit(delete_object_swift, args=[log]) for co in current_objects['CURRENT_OBJECTS'] ]
+        futures = [client.submit(delete_object_swift, co, log) for co, log in zip(current_objects['CURRENT_OBJECTS'], repeat(log))]
         current_zips['DELETED'] = dd.from_delayed(futures)
         current_zips.compute()
         if current_zips['DELETED'].all():
