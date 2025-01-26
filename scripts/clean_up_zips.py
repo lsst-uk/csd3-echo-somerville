@@ -180,32 +180,40 @@ if __name__ == '__main__':
         logprint(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', log=log)
 
         current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
-        logprint(current_objects.head(),log=log)
+        if not current_objects.empty():
+            logprint(current_objects.head(),log=log)
 
-        current_zips = len(current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_\d+\.zip')]['CURRENT_OBJECTS'])
+            current_zips = len(current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_\d+\.zip')]['CURRENT_OBJECTS'])
+            if current_zips > 0:
 
-        if dryrun:
-            logprint(f'Current objects (with matching prefix): {len(current_objects)}', log=log)
-            logprint(f'Current zip objects (with matching prefix): {current_zips} would be deleted.', log=log)
-            sys.exit()
-        else:
-            print(f'Current objects (with matching prefix): {len(current_objects)}')
-            print(f'Current zip objects (with matching prefix): {current_zips} will be deleted.')
-            print('WARNING! Files are about to be deleted!')
-            print('Continue [y/n]?')
-            if not yes:
-                if input().lower() != 'y':
+                if dryrun:
+                    logprint(f'Current objects (with matching prefix): {len(current_objects)}', log=log)
+                    logprint(f'Current zip objects (with matching prefix): {current_zips} would be deleted.', log=log)
                     sys.exit()
-            else:
-                print('auto y')
+                else:
+                    print(f'Current objects (with matching prefix): {len(current_objects)}')
+                    print(f'Current zip objects (with matching prefix): {current_zips} will be deleted.')
+                    print('WARNING! Files are about to be deleted!')
+                    print('Continue [y/n]?')
+                    if not yes:
+                        if input().lower() != 'y':
+                            sys.exit()
+                    else:
+                        print('auto y')
 
-        futures = [client.submit(delete_object_swift, co, log) for co, log in zip(current_objects['CURRENT_OBJECTS'], repeat(log))]
-        wait(futures)
-        current_objects['DELETED'] = [f.result() for f in futures]
-        if current_objects['DELETED'].all():
-            logprint(f'All zip files deleted.', log=log)
-            sys.exit(0)
+                futures = [client.submit(delete_object_swift, co, log) for co, log in zip(current_objects['CURRENT_OBJECTS'], repeat(log))]
+                wait(futures)
+                current_objects['DELETED'] = [f.result() for f in futures]
+                if current_objects['DELETED'].all():
+                    logprint(f'All zip files deleted.', log=log)
+                    sys.exit(0)
+                else:
+                    logprint(f'Error deleting zip files.', log=log)
+                    logprint(f"{len(current_objects['DELETED' == False]['CURRENT_OBJECTS'])} / {len(current_objects)} deleted.", log=log)
+                    sys.exit(1)
+            else:
+                print(f'No zip files in bucket {bucket_name}. Exiting.')
+                sys.exit(0)
         else:
-            logprint(f'Error deleting zip files.', log=log)
-            logprint(f"{len(current_objects['DELETED' == False]['CURRENT_OBJECTS'])} / {len(current_objects)} deleted.", log=log)
-            sys.exit(1)
+            print(f'No files in bucket {bucket_name}. Exiting.')
+            sys.exit(0)
