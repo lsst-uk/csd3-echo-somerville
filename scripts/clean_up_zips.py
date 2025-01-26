@@ -203,7 +203,8 @@ if __name__ == '__main__':
             else:
                 print('auto y')
 
-        current_zips['DELETED'] = current_zips['CURRENT_OBJECTS'].apply(delete_object_swift(args=[log]), meta=('deleted', pd.Series(dtype=bool)))
+        futures = [ client.submit(delete_object_swift, args=[log]) for co in current_objects['CURRENT_OBJECTS'] ]
+        current_zips['DELETED'] = dd.from_delayed(futures)
         current_zips.compute()
         if current_zips['DELETED'].all():
             logprint(f'All zip files deleted.', log=log)
