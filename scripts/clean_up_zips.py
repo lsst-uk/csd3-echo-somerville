@@ -20,7 +20,7 @@ import bucket_manager.bucket_manager as bm
 import os
 import argparse
 from dask import dataframe as dd
-from distributed import Client
+from distributed import Client, wait
 
 import subprocess
 
@@ -199,7 +199,9 @@ if __name__ == '__main__':
                 print('auto y')
 
         futures = [client.submit(delete_object_swift, co, log) for co, log in zip(current_objects['CURRENT_OBJECTS'], repeat(log))]
-        current_zips['DELETED'] = dd.from_delayed(futures)
+        futures.compute()
+        wait(futures)
+        current_zips['DELETED'] = [f.result() for f in futures]
         current_zips.compute()
         if current_zips['DELETED'].all():
             logprint(f'All zip files deleted.', log=log)
