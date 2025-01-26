@@ -180,7 +180,7 @@ if __name__ == '__main__':
         logprint(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', log=log)
 
         current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
-        if not current_objects.empty():
+        if not current_objects.empty:
             logprint(current_objects.head(),log=log)
 
             current_zips = len(current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_\d+\.zip')]['CURRENT_OBJECTS'])
