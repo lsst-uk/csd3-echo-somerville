@@ -88,14 +88,14 @@ if __name__ == '__main__':
         sys.exit(1)
 
     print(f'API: {api}, Bucket name: {bucket_name}, Prefix: {prefix}, nprocs: {nprocs}, dryrun: {dryrun}')
-    if not dryrun:
-        print('WARNING! This is not a dry run. Files will be deleted.')
-        print('Continue [y/n]?')
-        if not yes:
-            if input().lower() != 'y':
-                sys.exit()
-        else:
-            print('auto y')
+    # if not dryrun:
+    #     print('WARNING! This is not a dry run. Files will be deleted.')
+    #     print('Continue [y/n]?')
+    #     if not yes:
+    #         if input().lower() != 'y':
+    #             sys.exit()
+    #     else:
+    #         print('auto y')
 
     # Set up logging
     if log_to_file:
@@ -182,15 +182,16 @@ if __name__ == '__main__':
         current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
         logprint(current_objects.head(),log=log)
 
-        # current_zips = dd.from_pandas(current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_\d+\.zip')]['CURRENT_OBJECTS'], npartitions=n_workers)
+        current_zips = len(current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_\d+\.zip')]['CURRENT_OBJECTS'])
 
         if dryrun:
             logprint(f'Current objects (with matching prefix): {len(current_objects)}', log=log)
-            logprint(f'Current zip objects (with matching prefix): {len(current_zips)} would be deleted.', log=log)
+            logprint(f'Current zip objects (with matching prefix): {current_zips} would be deleted.', log=log)
             sys.exit()
         else:
             print(f'Current objects (with matching prefix): {len(current_objects)}')
-            print(f'Current zip objects (with matching prefix): {len(current_zips)} will be deleted.')
+            print(f'Current zip objects (with matching prefix): {current_zips} will be deleted.')
+            print('WARNING! Files are about to be deleted!')
             print('Continue [y/n]?')
             if not yes:
                 if input().lower() != 'y':
