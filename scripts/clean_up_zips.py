@@ -20,6 +20,7 @@ import bucket_manager.bucket_manager as bm
 import os
 import argparse
 from dask import dataframe as dd
+from distributed import Client
 
 import subprocess
 
