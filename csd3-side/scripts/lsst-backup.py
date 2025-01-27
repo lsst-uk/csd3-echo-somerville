@@ -961,6 +961,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
     zul_futures = []
     failed = []
     max_zip_batch_size = 128*1024**2
+    size = 0
     zip_batch_files = [[]]
     zip_batch_object_names = [[]]
     zip_batch_sizes = [0]
@@ -1188,14 +1189,14 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                     sizes = client.gather(size_futures)
 
                     # Level n collation
-                    size = 0
+                    # size = 0
                     for i, filename in enumerate(folder_files):
                         s = sizes[i]
                         size += s
                         if size <= max_zip_batch_size:
                             zip_batch_files[-1].append(filename)
                             zip_batch_object_names[-1].append(object_names[i])
-                            zip_batch_sizes[-1] += size
+                            zip_batch_sizes[-1] += s
                         else:
                             zip_batch_files.append([filename])
                             zip_batch_object_names.append([object_names[i]])
