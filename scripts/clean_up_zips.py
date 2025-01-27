@@ -14,16 +14,12 @@ import warnings
 from psutil import virtual_memory as mem
 warnings.filterwarnings('ignore')
 from logging import ERROR
-
 import bucket_manager.bucket_manager as bm
-
 import os
 import argparse
 from dask import dataframe as dd
 from distributed import Client, wait
-
 import subprocess
-
 from typing import List
 
 def logprint(msg,log=None):
@@ -55,6 +51,7 @@ if __name__ == '__main__':
         epilog=epilog,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+
     parser.add_argument('--api', type=str, help='API to use; "S3" or "Swift". Case insensitive. Note: S3 currently not implemented as only Swift is parallelisable through Dask.', default='Swift')
     parser.add_argument('--bucket-name', type=str, help='Name of the S3 bucket. Required.')
     parser.add_argument('--prefix', type=str, help='Prefix to be used in S3 object keys. Required.')
@@ -68,6 +65,7 @@ if __name__ == '__main__':
     api = args.api.lower()
     if api not in ['s3', 'swift']:
         parser.error('API must be "S3" or "Swift" (case insensitive).')
+
     if not args.bucket_name:
         print('Bucket name not provided. Exiting.', file=sys.stderr)
         sys.exit(1)
@@ -78,6 +76,7 @@ if __name__ == '__main__':
         sys.exit(1)
     else:
         prefix = args.prefix
+
     nprocs = args.nprocs
     dryrun = args.dryrun
     yes = args.yes
@@ -88,14 +87,6 @@ if __name__ == '__main__':
         sys.exit(1)
 
     print(f'API: {api}, Bucket name: {bucket_name}, Prefix: {prefix}, nprocs: {nprocs}, dryrun: {dryrun}')
-    # if not dryrun:
-    #     print('WARNING! This is not a dry run. Files will be deleted.')
-    #     print('Continue [y/n]?')
-    #     if not yes:
-    #         if input().lower() != 'y':
-    #             sys.exit()
-    #     else:
-    #         print('auto y')
 
     # Set up logging
     if log_to_file:
@@ -106,7 +97,6 @@ if __name__ == '__main__':
     else:
         log = None
         logprint('Logging to stdout.', log)
-
 
     #print hostname
     uname = subprocess.run(['uname', '-n'], capture_output=True)
@@ -141,6 +131,7 @@ if __name__ == '__main__':
     if api == 's3':
         print('Currently only Swift is supported for parallelism with Dask. Exiting.', file=sys.stderr)
         sys.exit()
+
     elif api == 'swift':
         s3 = bm.get_conn_swift()
         bucket_list = bm.bucket_list_swift(s3)
