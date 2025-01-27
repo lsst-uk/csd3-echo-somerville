@@ -1735,9 +1735,12 @@ if __name__ == '__main__':
             print(upload_checks)
             zips_to_upload = any(upload_checks)
             retries += 1
+            print(f'Client profile: {client.profile()}')
 
     print(f'Finished uploads at {datetime.now()}, elapsed time = {datetime.now() - start}')
     print(f'Dask Client closed at {datetime.now()}, elapsed time = {datetime.now() - start}')
+    print(f'Time for data processing: {datetime.now() - start}')
+    print(f'Time for data transfer: {datetime.now() - start}')
     print('Completing logging.')
 
     # Complete
@@ -1768,6 +1771,20 @@ if __name__ == '__main__':
         )
 
     final_size = logdf["FILE_SIZE"].sum() / 1024**2
+    file_count = len(logdf)
+    print('Final size: {final_size:.2f} MiB.')
+    print(f'Uploaded {file_count} files including zips.')
+    file_count_expand_zips = 0
+    for row in logdf:
+        if row['ZIP_CONTENTS']:
+            if type(row['ZIP_CONTENTS']) == list:
+                file_count_expand_zips += len(row['ZIP_CONTENTS'])
+            else:
+                file_count_expand_zips += len(literal_eval(row['ZIP_CONTENTS']))
+        else:
+            file_count_expand_zips += 1
+    print(f'Files on CSD3: {file_count_expand_zips}.')
+
     try:
         final_transfer_speed = final_size / final_time_seconds
 
