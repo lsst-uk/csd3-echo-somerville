@@ -1799,11 +1799,12 @@ if __name__ == '__main__':
 
     final_size = logdf["FILE_SIZE"].sum() / 1024**2
     file_count = len(logdf)
-    print('Final size: {final_size:.2f} MiB.')
+    print(f'Final size: {final_size:.2f} MiB.')
     print(f'Uploaded {file_count} files including zips.')
     file_count_expand_zips = 0
     for zc in logdf['ZIP_CONTENTS']:
         if zc:
+            print(zc)
             if type(zc) == list:
                 file_count_expand_zips += len(zc)
             else:
