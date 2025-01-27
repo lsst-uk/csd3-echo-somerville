@@ -1199,7 +1199,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                             print('in if', flush=True)
                             zip_batch_files[-1].append(filename)
                             zip_batch_object_names[-1].append(object_names[i])
-                            zip_batch_sizes[-1] += size
+                            zip_batch_sizes[-1] += s
                         else:
                             print('in else', flush=True)
                             zip_batch_files.append([filename])
