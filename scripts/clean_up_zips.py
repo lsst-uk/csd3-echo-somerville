@@ -181,9 +181,8 @@ if __name__ == '__main__':
 
         current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
         if not current_objects.empty:
-            logprint(current_objects.head(),log=log)
-
             current_zips = current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_\d+\.zip')]['CURRENT_OBJECTS'].copy()
+            logprint(current_zips.head(),log=log)
             if len(current_zips) > 0:
 
                 if dryrun:
