@@ -44,7 +44,7 @@ if __name__ == '__main__':
         secret_key = os.environ['S3_ACCESS_KEY']
         s3_host = os.environ['S3_HOST_URL']
 
-        s3 = bm.get_resource(access_key, secret_key, s3_host)
+        s3 = bm.get_resource()
 
         bucket = s3.Bucket(bucket_name)
 
