@@ -5,20 +5,16 @@
 
 import sys
 import os
-from multiprocessing import Pool
-from multiprocessing import cpu_count
+from distributed import Client, wait
 from itertools import repeat
-from functools import partial
-import warnings
-from datetime import datetime, timedelta
+from multiprocessing import cpu_count
+
+from datetime import datetime
 from time import sleep
-import hashlib
-import base64
+
 import pandas as pd
 import numpy as np
-import glob
-import subprocess
-import yaml
+
 import io
 import zipfile
 import warnings
@@ -27,20 +23,20 @@ from tqdm import tqdm
 
 import bucket_manager.bucket_manager as bm
 
-import hashlib
+
 import os
 import argparse
 
 import re
 
-def get_key_lists(bucket_name, get_contents_metadata, debug):
+def get_key_lists(swift, bucket_name, get_contents_metadata, debug):
     zipfile_list = []
     contents_list = []
     zipfile_sizes = []
     all_keys_list = []
-    s3 = bm.get_resource()
-    s3_client = bm.get_client()
-    bucket = s3.Bucket(bucket_name)
+    # s3 = bm.get_resource()
+    # s3_client = bm.get_client()
+    # bucket = s3.Bucket(bucket_name)
 
     pattern = re.compile(r'.*collated_\d+\.zip$')
 
@@ -248,17 +244,20 @@ def main():
 
     # Setup bucket object
     try:
-        assert bm.check_keys(api='s3')
+        assert bm.check_keys(api='swift')
     except AssertionError as e:
         print(e)
         sys.exit()
 
-    s3 = bm.get_resource()
-    bucket_list = bm.bucket_list(s3)
+    swift = bm.get_conn_swift()
+    bucket_list = bm.bucket_list_swift(swift)
 
     if bucket_name not in bucket_list:
-        print(f'Bucket {bucket_name} not found in {os.environ["S3_HOST_URL"]}.')
+        print(f'Bucket {bucket_name} not found in {os.environ["ST_AUTH"]}.')
         sys.exit()
+
+    print(f'Using bucket {bucket_name}.')
+    exit()
 
     zipfiles_df, all_keys = get_key_lists(bucket_name, get_contents_metadata, debug)
 
