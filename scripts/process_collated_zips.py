@@ -60,11 +60,11 @@ def get_key_lists(bucket_name, get_contents_metadata, debug):
                         try:
                             metadata = bucket.Object(key).get()['Metadata']
                             if 'zip-contents' in metadata:
-                                print('Using zip-contents metadata.')
+                                print(f'Using zip-contents metadata for {key}.')
                                 contents = metadata['zip-contents'].split('|') # use | as separator
                                 contents_list.append(contents)
                             elif 'zip-contents-object' in metadata:
-                                print('Using zip-contents-object.')
+                                print(f'Using zip-contents-object, {metadata['zip-contents-object']} for object {key}.')
                                 contents = metadata['zip-contents-object']
                                 contents_object = bucket.Object(contents).get()['Body'].read().decode('utf-8').split('|') # use | as separator
                                 contents_list.append(contents_object)
