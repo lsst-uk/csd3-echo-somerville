@@ -1811,7 +1811,7 @@ if __name__ == '__main__':
             if type(zc) == list:
                 file_count_expand_zips += len(zc)
             else:
-                file_count_expand_zips += len(literal_eval(zc))
+                file_count_expand_zips += len(zc.split(','))
         else:
             file_count_expand_zips += 1
     print(f'Files on CSD3: {file_count_expand_zips}.')
