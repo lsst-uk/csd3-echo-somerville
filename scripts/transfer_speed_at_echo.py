@@ -40,15 +40,9 @@ if __name__ == '__main__':
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore')
 
-        s3_host = 'echo.stfc.ac.uk'
-        try:
-            keys = bm.get_keys()
-        except KeyError as e:
-            print(e)
-            sys.exit()
-
-        access_key = keys['access_key']
-        secret_key = keys['secret_key']
+        access_key = os.environ['S3_ACCESS_KEY']
+        secret_key = os.environ['S3_ACCESS_KEY']
+        s3_host = os.environ['S3_HOST_URL']
 
         s3 = bm.get_resource(access_key, secret_key, s3_host)
 
