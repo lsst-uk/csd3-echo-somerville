@@ -1193,15 +1193,11 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                     for i, filename in enumerate(folder_files):
                         s = sizes[i]
                         size += s
-                        print(size, flush=True)
-                        print(max_zip_batch_size, flush=True)
                         if size <= max_zip_batch_size:
-                            print('in if', flush=True)
                             zip_batch_files[-1].append(filename)
                             zip_batch_object_names[-1].append(object_names[i])
                             zip_batch_sizes[-1] += s
                         else:
-                            print('in else', flush=True)
                             zip_batch_files.append([filename])
                             zip_batch_object_names.append([object_names[i]])
                             zip_batch_sizes.append(s)
