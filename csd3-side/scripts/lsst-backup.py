@@ -1802,12 +1802,12 @@ if __name__ == '__main__':
     print('Final size: {final_size:.2f} MiB.')
     print(f'Uploaded {file_count} files including zips.')
     file_count_expand_zips = 0
-    for row in logdf:
-        if row['ZIP_CONTENTS']:
-            if type(row['ZIP_CONTENTS']) == list:
-                file_count_expand_zips += len(row['ZIP_CONTENTS'])
+    for zc in logdf['ZIP_CONTENTS']:
+        if zc:
+            if type(zc) == list:
+                file_count_expand_zips += len(zc)
             else:
-                file_count_expand_zips += len(literal_eval(row['ZIP_CONTENTS']))
+                file_count_expand_zips += len(literal_eval(zc))
         else:
             file_count_expand_zips += 1
     print(f'Files on CSD3: {file_count_expand_zips}.')
