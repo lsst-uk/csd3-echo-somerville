@@ -1712,41 +1712,44 @@ if __name__ == '__main__':
             with warnings.catch_warnings():
                 warnings.filterwarnings('ignore')
                 if api == 's3':
-                    upload_times = process_files(s3,
-                                bucket_name,
-                                api,
-                                current_objects,
-                                exclude,
-                                local_dir,
-                                destination_dir,
-                                dryrun,
-                                log,
-                                global_collate,
-                                use_compression,
-                                client,
-                                mem_per_worker,
-                                collate_list_file,
-                                save_collate_list,
-                                file_count_stop
-                            )
+                    upload_times = process_files(
+                            s3,
+                            bucket_name,
+                            api,
+                            current_objects,
+                            exclude,
+                            local_dir,
+                            destination_dir,
+                            dryrun,
+                            log,
+                            global_collate,
+                            use_compression,
+                            client,
+                            mem_per_worker,
+                            collate_list_file,
+                            save_collate_list,
+                            file_count_stop
+                        )
                 elif api == 'swift':
-                    upload_times = process_files(s3,
-                                bucket_name,
-                                api,
-                                current_objects,
-                                exclude,
-                                local_dir,
-                                destination_dir,
-                                dryrun,
-                                log,
-                                global_collate,
-                                use_compression,
-                                client,
-                                mem_per_worker,
-                                collate_list_file,
-                                save_collate_list,
-                                file_count_stop
-                            )
+                    upload_times = process_files(
+                            s3,
+                            bucket_name,
+                            api,
+                            current_objects,
+                            exclude,
+                            local_dir,
+                            destination_dir,
+                            dryrun,
+                            log,
+                            global_collate,
+                            use_compression,
+                            client,
+                            mem_per_worker,
+                            collate_list_file,
+                            save_collate_list,
+                            file_count_stop
+                        )
+                print(upload_times)
 
             with open(collate_list_file, 'r') as clf:
                 upload_checks = []
