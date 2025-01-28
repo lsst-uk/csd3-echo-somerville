@@ -253,15 +253,19 @@ def find_metadata(key: str, bucket) -> List[str]:
 
 def find_metadata_swift(key: str, conn, container_name: str) -> List[str]:
     """
-    Finds the metadata for a given key in an S3 bucket.
-
+    Retrieve metadata for a given key from a Swift container.
+    This function attempts to retrieve metadata for a specified key from a Swift container.
+    It handles both '.zip' files and other types of files differently. If the key ends with
+    '.zip', it tries to fetch the metadata either by getting the object or by checking the
+    object's headers. The metadata is expected to be a string separated by '|' or ','.
     Args:
-        key (dd.core.Scalar or str): The key to search for metadata.
-        s3: The S3 object.
-
+        key (str): The key for which metadata is to be retrieved.
+        conn: The connection object to the Swift service.
+        container_name (str): The name of the container in the Swift service.
     Returns:
-        list[str]: A list of existing metadata contents if found, otherwise empty list.
+        List[str]: A list of metadata strings if found, otherwise None.
     """
+
     if type(key) == str:
         existing_zip_contents = None
         if key.endswith('.zip'):

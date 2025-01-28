@@ -5,184 +5,180 @@
 
 import sys
 import os
-from multiprocessing import Pool
+from distributed import Client, wait
+
 from multiprocessing import cpu_count
-from itertools import repeat
-from functools import partial
-import warnings
-from datetime import datetime, timedelta
+from distributed import Client
+from dask import dataframe as dd
+
 from time import sleep
-import hashlib
-import base64
+
 import pandas as pd
 import numpy as np
-import glob
-import subprocess
-import yaml
+
 import io
 import zipfile
 import warnings
 warnings.filterwarnings('ignore')
-from tqdm import tqdm
 
 import bucket_manager.bucket_manager as bm
-
-import hashlib
+import swiftclient
 import os
 import argparse
-
+from typing import List
 import re
 
-def get_key_lists(bucket_name, get_contents_metadata, debug):
-    zipfile_list = []
+def find_metadata_swift(key: str, conn, container_name: str) -> List[str]:
+    """
+    Retrieve metadata for a given key from a Swift container.
+    This function attempts to retrieve metadata for a specified key from a Swift container.
+    It handles both '.zip' files and other types of files differently. If the key ends with
+    '.zip', it tries to fetch the metadata either by getting the object or by checking the
+    object's headers. The metadata is expected to be a string separated by '|' or ','.
+    Args:
+        key (str): The key for which metadata is to be retrieved.
+        conn: The connection object to the Swift service.
+        container_name (str): The name of the container in the Swift service.
+    Returns:
+        List[str]: A list of metadata strings if found, otherwise None.
+    """
+
+    if type(key) == str:
+        existing_zip_contents = None
+        if key.endswith('.zip'):
+            try:
+                existing_zip_contents = str(conn.get_object(container_name,''.join([key,'.metadata']))[1].decode('UTF-8')).split('|') # use | as separator
+                print(f'Using zip-contents-object, {"".join([key,".metadata"])} for object {key}.')
+            except Exception as e:
+                try:
+                    existing_zip_contents = conn.head_object(container_name,key)['x-object-meta-zip-contents'].split('|') # use | as separator
+                    print(f'Using zip-contents metadata for {key}.')
+                except KeyError:
+                    return None
+                except Exception as e:
+                    return None
+            if existing_zip_contents:
+                if len(existing_zip_contents) == 1:
+                        existing_zip_contents = existing_zip_contents[0].split(',') # revert to comma if no | found
+                return existing_zip_contents
+        else:
+            return None
+    else:
+        return None
+
+def object_list_swift(conn: swiftclient.Connection, container_name: str, prefix : str = '', full_listing: bool = True, count: bool = False) -> list[str]:
+    """
+    Returns a list of keys of all objects in the specified bucket.
+
+    Parameters:
+    - conn: swiftlient.Connection object.
+    - container_name: The name of the Swift container.
+
+    Returns:
+    A list of object keys.
+    """
+    keys = []
+    if count:
+        o = 0
+    for obj in conn.get_container(container_name,prefix=prefix,full_listing=full_listing)[1]:
+        keys.append(obj['name'])
+        if count:
+            o += 1
+            if o % 10000 == 0:
+                print(f'Existing objects: {o}', end='\r', flush=True)
+    return keys
+
+def get_key_lists(conn, bucket_name, get_contents_metadata):
+    is_zipfile = []
     contents_list = []
-    zipfile_sizes = []
-    all_keys_list = []
-    s3 = bm.get_resource()
-    s3_client = bm.get_client()
-    bucket = s3.Bucket(bucket_name)
+    sizes = []
 
     pattern = re.compile(r'.*collated_\d+\.zip$')
 
-    paginator = s3_client.get_paginator('list_objects_v2')
-    page_iterator = paginator.paginate(Bucket=bucket_name)
-    key_count = 0
-    zipfile_count = 0
-    for page in page_iterator:
-        if 'Contents' in page:
-            for obj in page['Contents']:
-                key_count += 1
-                key = obj['Key']
-                if pattern.match(key):
-                    zipfile_count += 1
-                    zipfile_list.append(key)
-                    if get_contents_metadata:
-                        try:
-                            metadata = bucket.Object(key).get()['Metadata']
-                            if 'zip-contents' in metadata:
-                                print(f'Using zip-contents metadata for {key}.')
-                                contents = metadata['zip-contents'].split('|') # use | as separator
-                                contents_list.append(contents)
-                            elif 'zip-contents-object' in metadata:
-                                print(f'Using zip-contents-object, {metadata['zip-contents-object']} for object {key}.')
-                                contents = metadata['zip-contents-object']
-                                contents_object = bucket.Object(contents).get()['Body'].read().decode('utf-8').split('|') # use | as separator
-                                contents_list.append(contents_object)
-                            else:
-                                raise KeyError(f'Key {key} has no zip-contents metadata.')
+    keys = object_list_swift(conn, bucket_name, count=True)
 
-                        except KeyError as e:
-                            print(f'Key {key} has no zip-contents metadata.')
-                            contents_list.append([])
-                        zipfile_sizes.append(obj['Size'])
-                        # print(f'{key}: {contents}')
-                    # else:
-                else:
-                    all_keys_list.append(key)
-            print(f'Keys found: {key_count}, Zip files found: {zipfile_count}', end='\r')
-            # for debugging
-            if debug:
-                if key_count >= 200:
-                    break
-    print()
-    zipfile_df = pd.DataFrame(np.array([zipfile_list,zipfile_sizes,contents_list], dtype=object).T, columns=['zipfile','size','contents'])
-    if debug:
-        print(zipfile_df)
-    return zipfile_df, pd.Series(all_keys_list, name='all_keys')
+    for key in keys:
+        if pattern.match(key):
+            is_zipfile.append(True)
+            if get_contents_metadata:
+                try:
+                    contents_list.append(find_metadata_swift(key, conn, bucket_name))
+                except KeyError as e:
+                    print(f'Key {key} has no zip-contents metadata.')
+                    contents_list.append(None)
+                sizes.append(conn.head_object(bucket_name, key)['content-length'])
+        else:
+            is_zipfile.append(False)
+            sizes.append(np.nan)
+            contents_list.append(None)
 
-def verify_zip_contents(zipfiles_df, all_keys, debug):
+    print(f'Keys found: {len(keys)}, Zip files found: {len([x for x in is_zipfile if x])}')
+
+    df = pd.DataFrame.from_dict({
+        'key':keys,
+        'size':sizes,
+        'is_zipfile':is_zipfile,
+        'contents':contents_list
+        })
+    return df
+
+def verify_zip_contents(row, keys_df):
     """
     Verify the contents of a zipfile against a list of keys.
 
     Parameters:
-    - zipfile_df (pandas.DataFrame): The dataframe containing the zipfile information.
-    - all_keys_s (pandas.Series): The series containing all the keys to check against.
-    - debug (bool): Flag indicating whether to print debug information.
+    - row (pandas.Series): The row containing the zipfile information.
+    - keys_df (pandas.DataFrame): The dataframe containing the zipfile information.
 
     Returns:
-    None
+    - extract (bool): True if the zipfile contents are not found in the keys_df, otherwise False.
     """
-    extract_list = []
+    extract = None
     # print(zipfiles_df)
     # print(all_keys)
     print('Checking for zipfile contents in all_keys list...')
-    start = datetime.now()
-    for i in range(len(zipfiles_df)):
-        if debug:
-            extract_list.append(zipfiles_df.iloc[i]["zipfile"])
-            break
-        if sum(all_keys.isin(zipfiles_df['contents'].iloc[i])) != len(zipfiles_df['contents'].iloc[i]):
-            extract_list.append(zipfiles_df.iloc[i]["zipfile"])
-            print(f'{zipfiles_df.iloc[i]["zipfile"]} to be extracted.')
-        elif len(zipfiles_df['contents'].iloc[i]) == 0:
-            extract_list.append(zipfiles_df.iloc[i]["zipfile"])
-            print(f'{zipfiles_df.iloc[i]["zipfile"]} to be extracted (contents unknown).')
-        else:
-            print(f'{zipfiles_df.iloc[i]["zipfile"]} contents previously extracted.')
-    print((datetime.now()-start).microseconds, 'microseconds')
-    return extract_list
 
-def prepend_zipfile_path_to_contents(zipfile_df, debug):
+    if row['is_zipfile']:
+        if row['contents']:
+            if sum(keys_df['key'].isin([row['contents']])) != len(row['contents']):
+                extract = True
+                print(f'{row["key"]} to be extracted.')
+            else:
+                print(f'{row["key"]} contents previously extracted.')
+        else:
+            extract = True
+            print(f'{row["key"]} to be extracted (contents unknown).')
+
+    return extract
+
+def prepend_zipfile_path_to_contents(row):
     """
     Prepend the path to the zipfile to the contents column in the given DataFrame.
     Contents by default are relative to the zipfile location.
     Parameters:
     - zipfile_df (DataFrame): The DataFrame containing the zipfile information.
-    - debug (bool): A flag indicating whether to print debug information.
     Returns:
     - None
     """
-    zipfile_df['path_stubs'] = ['/'.join(x.split('/')[:-1]) for x in zipfile_df['zipfile']]
-    zipfile_df['contents'] = [[f'{zipfile_df.iloc[i]["path_stubs"]}/{x}' for x in zipfile_df.iloc[i]['contents']] for i in range(len(zipfile_df))]
-    return zipfile_df.drop(columns='path_stubs')
+    path_stub = '/'.join(row['key'].split('/')[:-1])
+    row['contents'] = f'{path_stub}/{row["contents"]}'
+    return row['contents']
 
-def extract_and_upload_mp(bucket_name, debug, zipfile_key):
-    s3 = bm.get_resource()
-    bucket = s3.Bucket(bucket_name)
-    print(f'Extracting {zipfile_key}...', flush=True)
-    path_stub = '/'.join(zipfile_key.split('/')[:-1])
-    zipfile_data = io.BytesIO(bucket.Object(zipfile_key).get()['Body'].read())
-    total_size = zipfile_data.getbuffer().nbytes
-    with zipfile.ZipFile(zipfile_data) as zf:
-        with tqdm(total=total_size, desc='Uploading', unit='B', unit_scale=True) as pbar:
+def extract_and_upload(row, conn, bucket_name):
+    if row['extract']:
+        print(f'Extracting {row["key"]}...', flush=True)
+        path_stub = '/'.join(row["key"].split('/')[:-1])
+        zipfile_data = io.BytesIO(conn.get_object(bucket_name,row['key'])[1])
+        with zipfile.ZipFile(zipfile_data) as zf:
             for content_file in zf.namelist():
                 print(content_file, flush=True)
                 content_file_data = zf.open(content_file)
                 key = path_stub + '/' + content_file
-                bucket.upload_fileobj(content_file_data, f'{key}')
+                conn.put_object(bucket_name,key,content_file_data)
                 print(f'Uploaded {content_file} to {key}', flush=True)
-                pbar.update(zf.getinfo(content_file).file_size)
-
-def extract_and_upload_zipfiles(extract_list, bucket_name, pool_size, debug):
-    print(f'Extracting zip files and uploading contents using {pool_size} processes...')
-    with Pool(pool_size) as p:
-        p.map(partial(extract_and_upload_mp, bucket_name, debug), extract_list)#, chunksize=len(extract_list)//pool_size)
-
-def calc_pool_size(zipfiles_df, extract_list, nprocs):
-    """
-    Calculate the number of processes to use for extraction and upload.
-    Ensures number of processors is maximised while not exceeding available memory.
-    Lower of nprocs and calculated max procs is returned.
-
-    Parameters:
-    - zipfiles_df (pandas.DataFrame): The DataFrame containing the zipfile information.
-    - extract_list (list): The list of zipfiles to extract.
-    - nprocs (int): The number of processes to use.
-
-    Returns:
-    - int: The number of processes to use.
-    """
-    from psutil import virtual_memory
-    largest_zipfile = zipfiles_df[zipfiles_df['zipfile'].isin(extract_list)]['size'].max()
-    available_memory = virtual_memory().available
-    if largest_zipfile > available_memory:
-        print('Largest zipfile exceeds available memory. Reducing number of processes.')
-        return 1
+        return True
     else:
-        memory_ratio = int(available_memory / largest_zipfile)
-        print(f'Largest zipfile ({largest_zipfile}) fits in available memory ({available_memory}) {memory_ratio} times.')
-        return min([nprocs * memory_ratio, nprocs])
-
+        return False
 
 def main():
     """
@@ -248,45 +244,61 @@ def main():
 
     # Setup bucket object
     try:
-        assert bm.check_keys(api='s3')
+        assert bm.check_keys(api='swift')
     except AssertionError as e:
         print(e)
         sys.exit()
 
-    s3 = bm.get_resource()
-    bucket_list = bm.bucket_list(s3)
+    conn = bm.get_conn_swift()
+    bucket_list = bm.bucket_list_swift(conn)
 
     if bucket_name not in bucket_list:
-        print(f'Bucket {bucket_name} not found in {os.environ["S3_HOST_URL"]}.')
+        print(f'Bucket {bucket_name} not found in {os.environ["ST_AUTH"]}.')
         sys.exit()
 
-    zipfiles_df, all_keys = get_key_lists(bucket_name, get_contents_metadata, debug)
+    print(f'Using bucket {bucket_name}.')
+    prepended = False
+    extact_list_made = False
+    with Client(n_workers=nprocs) as client:
+        print('Getting key lists...')
 
-    if list_contents:
-        for i in range(len(zipfiles_df)):
-            print(f'{zipfiles_df.iloc[i]["zipfile"]}: {zipfiles_df.iloc[i]["contents"]}')
+        keys_df = dd.from_pandas(get_key_lists(conn, bucket_name, get_contents_metadata), npartitions=nprocs)
 
-    if verify_contents:
-        print('Verifying zip file contents...')
-        zipfiles_df = prepend_zipfile_path_to_contents(zipfiles_df, debug)
-        extract_list = verify_zip_contents(zipfiles_df, all_keys, debug)
-        if len(extract_list) > 0:
-            print('Some zip files still to extract:')
-            print(extract_list)
-        else:
-            print('All zip files previously extracted.')
+        if list_contents:
+            pd.set_option('display.max_rows', None)
+            pd.set_option('display.max_colwidth', None)
+            keys_pdf = keys_df.compute()
+            print(keys_pdf[keys_pdf['is_zipfile'] == True][['key','contents']])
 
-    if extract:
-        print('Extracting zip files...')
-        zipfiles_df = prepend_zipfile_path_to_contents(zipfiles_df, debug)
-        extract_list = verify_zip_contents(zipfiles_df, all_keys, debug)
+        if verify_contents:
+            print('Verifying zip file contents...')
+            if not prepended:
+                keys_df['contents'] = keys_df.apply(prepend_zipfile_path_to_contents, meta=('contents', 'str'), axis=1)
+                prepended = True
+            if not extact_list_made:
+                keys_df['extract'] = keys_df.apply(verify_zip_contents, meta=('extract', 'bool'), keys_df=keys_df, axis=1)
+                extact_list_made = True
+            keys_pdf = keys_df.compute()
+            if keys_pdf['extract'].any():
+                print('Some zip files still to extract:')
+                print(keys_pdf[keys_pdf['extract'] == True]['key'])
+            else:
+                print('All zip files previously extracted.')
 
-        print(extract_list)
-        if len(extract_list) > 0:
-            pool_size = calc_pool_size(zipfiles_df, extract_list, nprocs)
-            extract_and_upload_zipfiles(extract_list, bucket_name, pool_size, debug)
-        else:
-            print('All zip files previously extracted.')
+        if extract:
+            print('Extracting zip files...')
+            if not prepended:
+                keys_df['contents'] = keys_df.apply(prepend_zipfile_path_to_contents, meta=('contents', 'str'), axis=1)
+                prepended = True
+            if not extact_list_made:
+                keys_df['extract'] = keys_df.apply(verify_zip_contents, meta=('extract', 'bool'), keys_df=keys_df, axis=1)
+                extact_list_made = True
+
+            keys_df['extracted and uploaded'] = keys_df.apply(extract_and_upload, conn=conn, bucket_name=bucket_name, meta=('extracted and uploaded', 'bool'), axis=1)
+
+            keys_pdf = keys_df.compute()
+            print('Zip files extracted and uploaded:')
+            print(keys_pdf[keys_pdf['extracted and uploaded'] == True]['key'])
 
     print('Done.')
 
