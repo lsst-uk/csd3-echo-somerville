@@ -1323,11 +1323,11 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
     if len(to_collate) > 0:
         # call zip_folder in parallel
         print(f'Zipping {len(to_collate)} batches.', flush=True)
-        print(to_collate[to_collate.upload == False][['file_paths','id', 'upload']])
-        print(f'len(to_collate[to_collate.upload == False]): {len(to_collate[to_collate.upload == False])}')
+        # print(to_collate[to_collate.upload == False][['file_paths','id', 'upload']])
+        # print(f'len(to_collate[to_collate.upload == False]): {len(to_collate[to_collate.upload == False])}')
         to_collate_uploads = to_collate[to_collate.upload == True][['file_paths','id', 'upload']]
-        print(f'to_collate: {to_collate}, {len(to_collate)}')
-        print(f'to_collate_uploads: {to_collate_uploads}, {len(to_collate_uploads)}')
+        # print(f'to_collate: {to_collate}, {len(to_collate)}')
+        # print(f'to_collate_uploads: {to_collate_uploads}, {len(to_collate_uploads)}')
         assert to_collate_uploads['upload'].all()
         for id in to_collate_uploads['id']:
             if len(upload_futures) >= len(client.scheduler_info()['workers'])*2:
@@ -1749,7 +1749,6 @@ if __name__ == '__main__':
                             save_collate_list,
                             file_count_stop
                         )
-                print(upload_times)
 
             with open(collate_list_file, 'r') as clf:
                 upload_checks = []
@@ -1758,14 +1757,11 @@ if __name__ == '__main__':
                         upload_checks.append(True)
                     else:
                         upload_checks.append(False)
-            print(upload_checks)
             zips_to_upload = any(upload_checks)
             retries += 1
 
     print(f'Finished uploads at {datetime.now()}')
     print(f'Dask Client closed at {datetime.now()}')
-    print(f'Time for data processing: {datetime.now() - start}')
-    print(f'Time for data transfer: {datetime.now() - start}')
     print('Completing logging.')
 
     # Complete
@@ -1773,8 +1769,8 @@ if __name__ == '__main__':
     final_time_seconds = final_time.seconds + final_time.microseconds / 1e6
     final_upload_time_seconds = sum([ut.seconds + ut.microseconds / 1e6 for ut in upload_times])
     print(f'Total time: {final_time_seconds} s')
-    print(f'Total upload time: {final_upload_time_seconds} s')
-    print(f'Total processing time: {final_time_seconds - final_upload_time_seconds} s')
+    print(f'Total time spent on data transfer: {final_upload_time_seconds:.2f} s')
+    print(f'Total time spent on data processing: {(final_time_seconds - final_upload_time_seconds):.2f} s')
 
     try:
         logdf = pd.read_csv(log)
