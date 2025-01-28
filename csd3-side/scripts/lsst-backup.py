@@ -1807,7 +1807,6 @@ if __name__ == '__main__':
     file_count_expand_zips = 0
     for zc in logdf['ZIP_CONTENTS']:
         if zc:
-            print(zc)
             if type(zc) == list:
                 file_count_expand_zips += len(zc)
             else:
