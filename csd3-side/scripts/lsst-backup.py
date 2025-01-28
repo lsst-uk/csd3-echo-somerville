@@ -316,7 +316,7 @@ def mem_check(futures):
 def remove_duplicates(l: list[dict]) -> list[dict]:
     return pd.DataFrame(l).drop_duplicates().to_dict(orient='records')
 
-def zip_and_upload(id, file_paths, s3, bucket_name, api, destination_dir, local_dir, total_size_uploaded, total_files_uploaded, use_compression, dryrun, processing_start, mem_per_worker) -> tuple[object, str]:
+def zip_and_upload(id, file_paths, s3, bucket_name, api, destination_dir, local_dir, total_size_uploaded, total_files_uploaded, use_compression, dryrun, processing_start, mem_per_worker) -> timedelta:
     """
     Zips a list of files and uploads the resulting zip file to an S3 bucket.
     Args:
@@ -354,7 +354,7 @@ def zip_and_upload(id, file_paths, s3, bucket_name, api, destination_dir, local_
         print(f'No files to upload in zip file.')
         return False
     else: # for no subtasks
-        upload_and_callback(
+        upload_time = upload_and_callback(
             s3,
             bucket_name,
             api,
@@ -372,7 +372,7 @@ def zip_and_upload(id, file_paths, s3, bucket_name, api, destination_dir, local_
             True,
             mem_per_worker
         )
-        return True
+        return upload_time
 
 def zip_folders(local_dir:str, file_paths:list[str], use_compression:bool, dryrun:bool, id:int, mem_per_worker:int) -> tuple[str, int, bytes]:
     """
@@ -865,7 +865,22 @@ def print_stats(file_name_or_data, file_count, total_size, file_start, file_end,
     except ZeroDivisionError:
         pass
 
-def upload_and_callback(s3, bucket_name, api, local_dir, folder, file_name_or_data, zip_contents, object_key, dryrun, processing_start, file_count, folder_files_size, total_size_uploaded, total_files_uploaded, collated, mem_per_worker) -> None:
+def upload_and_callback(s3,
+                        bucket_name,
+                        api,
+                        local_dir,
+                        folder,
+                        file_name_or_data,
+                        zip_contents,
+                        object_key,
+                        dryrun,
+                        processing_start,
+                        file_count,
+                        folder_files_size,
+                        total_size_uploaded,
+                        total_files_uploaded,
+                        collated,
+                        mem_per_worker) -> timedelta:
     """
     Uploads files to an S3 bucket and logs the output. Supports both collated (zipped) and individual file uploads.
     Args:
@@ -886,7 +901,7 @@ def upload_and_callback(s3, bucket_name, api, local_dir, folder, file_name_or_da
         collated (bool): If True, upload files as a single zipped file.
         mem_per_worker (int): The memory allocated per worker for the upload process.
     Returns:
-        None
+        (timedelta): Time taken to upload the files.
     """
     # upload files in parallel and log output
     file_start = datetime.now()
@@ -909,10 +924,10 @@ def upload_and_callback(s3, bucket_name, api, local_dir, folder, file_name_or_da
 
     del file_name_or_data
 
-    return None
+    return file_end - file_start
 
 ### KEY FUNCTION TO FIND ALL FILES AND ORGANISE UPLOADS ###
-def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, destination_dir, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_file, file_count_stop) -> None:
+def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, destination_dir, dryrun, log, global_collate, use_compression, client, mem_per_worker, collate_list_file, save_collate_file, file_count_stop) -> list[timedelta]:
     """
     Uploads files from a local directory to an S3 bucket in parallel.
 
@@ -948,6 +963,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
     processing_start = datetime.now()
     total_size_uploaded = 0
     total_files_uploaded = 0
+    upload_times = []
     i = 0
 
     #recursive loop over local folder
@@ -1307,11 +1323,11 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
     if len(to_collate) > 0:
         # call zip_folder in parallel
         print(f'Zipping {len(to_collate)} batches.', flush=True)
-        print(to_collate[to_collate.upload == False][['file_paths','id', 'upload']])
-        print(f'len(to_collate[to_collate.upload == False]): {len(to_collate[to_collate.upload == False])}')
+        # print(to_collate[to_collate.upload == False][['file_paths','id', 'upload']])
+        # print(f'len(to_collate[to_collate.upload == False]): {len(to_collate[to_collate.upload == False])}')
         to_collate_uploads = to_collate[to_collate.upload == True][['file_paths','id', 'upload']]
-        print(f'to_collate: {to_collate}, {len(to_collate)}')
-        print(f'to_collate_uploads: {to_collate_uploads}, {len(to_collate_uploads)}')
+        # print(f'to_collate: {to_collate}, {len(to_collate)}')
+        # print(f'to_collate_uploads: {to_collate_uploads}, {len(to_collate_uploads)}')
         assert to_collate_uploads['upload'].all()
         for id in to_collate_uploads['id']:
             if len(upload_futures) >= len(client.scheduler_info()['workers'])*2:
@@ -1352,6 +1368,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             failed.append(f_tuple)
             upload_futures.remove(ulf)
         elif ulf.done():
+            upload_times.append(ulf.result())
             upload_futures.remove(ulf)
             to_collate.loc[to_collate['id'] == id, 'upload'] = False
         if len(upload_futures) == 0:
@@ -1367,6 +1384,12 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         to_collate.to_csv(collate_list_file, index=False)
     else:
         print(f'Collate list not saved.')
+
+    ############################
+    # Return upload times list #
+    ############################
+
+    return upload_times
 
 ##########################################
 #              Main Function             #
@@ -1689,41 +1712,43 @@ if __name__ == '__main__':
             with warnings.catch_warnings():
                 warnings.filterwarnings('ignore')
                 if api == 's3':
-                    process_files(s3,
-                                bucket_name,
-                                api,
-                                current_objects,
-                                exclude,
-                                local_dir,
-                                destination_dir,
-                                dryrun,
-                                log,
-                                global_collate,
-                                use_compression,
-                                client,
-                                mem_per_worker,
-                                collate_list_file,
-                                save_collate_list,
-                                file_count_stop
-                            )
+                    upload_times = process_files(
+                            s3,
+                            bucket_name,
+                            api,
+                            current_objects,
+                            exclude,
+                            local_dir,
+                            destination_dir,
+                            dryrun,
+                            log,
+                            global_collate,
+                            use_compression,
+                            client,
+                            mem_per_worker,
+                            collate_list_file,
+                            save_collate_list,
+                            file_count_stop
+                        )
                 elif api == 'swift':
-                    process_files(s3,
-                                bucket_name,
-                                api,
-                                current_objects,
-                                exclude,
-                                local_dir,
-                                destination_dir,
-                                dryrun,
-                                log,
-                                global_collate,
-                                use_compression,
-                                client,
-                                mem_per_worker,
-                                collate_list_file,
-                                save_collate_list,
-                                file_count_stop
-                            )
+                    upload_times = process_files(
+                            s3,
+                            bucket_name,
+                            api,
+                            current_objects,
+                            exclude,
+                            local_dir,
+                            destination_dir,
+                            dryrun,
+                            log,
+                            global_collate,
+                            use_compression,
+                            client,
+                            mem_per_worker,
+                            collate_list_file,
+                            save_collate_list,
+                            file_count_stop
+                        )
 
             with open(collate_list_file, 'r') as clf:
                 upload_checks = []
@@ -1732,17 +1757,21 @@ if __name__ == '__main__':
                         upload_checks.append(True)
                     else:
                         upload_checks.append(False)
-            print(upload_checks)
             zips_to_upload = any(upload_checks)
             retries += 1
 
-    print(f'Finished uploads at {datetime.now()}, elapsed time = {datetime.now() - start}')
-    print(f'Dask Client closed at {datetime.now()}, elapsed time = {datetime.now() - start}')
+    print(f'Finished uploads at {datetime.now()}')
+    print(f'Dask Client closed at {datetime.now()}')
     print('Completing logging.')
 
     # Complete
     final_time = datetime.now() - start
     final_time_seconds = final_time.seconds + final_time.microseconds / 1e6
+    final_upload_time_seconds = sum([ut.seconds + ut.microseconds / 1e6 for ut in upload_times])
+    print(f'Total time: {final_time_seconds} s')
+    print(f'Total time spent on data transfer: {final_upload_time_seconds:.2f} s')
+    print(f'Total time spent on data processing: {(final_time_seconds - final_upload_time_seconds):.2f} s')
+
     try:
         logdf = pd.read_csv(log)
     except Exception as e:
@@ -1768,14 +1797,36 @@ if __name__ == '__main__':
         )
 
     final_size = logdf["FILE_SIZE"].sum() / 1024**2
-    try:
-        final_transfer_speed = final_size / final_time_seconds
+    file_count = len(logdf)
+    print(f'Final size: {final_size:.2f} MiB.')
+    print(f'Uploaded {file_count} files including zips.')
+    file_count_expand_zips = 0
+    for zc in logdf['ZIP_CONTENTS']:
+        if zc:
+            if type(zc) == list:
+                file_count_expand_zips += len(zc)
+            else:
+                file_count_expand_zips += len(zc.split(','))
+        else:
+            file_count_expand_zips += 1
+    print(f'Files on CSD3: {file_count_expand_zips}.')
 
-    except ZeroDivisionError:
-        final_transfer_speed = 0
-    try:
-        final_transfer_speed_sperf = final_time_seconds / len(logdf)
-    except ZeroDivisionError:
-        final_transfer_speed_sperf = 0
-    print(f'Finished at {datetime.now()}, elapsed time = {final_time}')
-    print(f'Total: {len(logdf)} files; {(final_size):.2f} MiB; {(final_transfer_speed):.2f} MiB/s including setup time; {final_transfer_speed_sperf:.2f} s/file including setup time')
+    if final_time_seconds > 0:
+        total_transfer_speed = final_size / final_time_seconds
+    else:
+        total_transfer_speed = 0
+    if final_upload_time_seconds > 0:
+        uploading_transfer_speed = final_size / final_upload_time_seconds
+    else:
+        uploading_transfer_speed = 0
+
+    total_time_per_file = final_time_seconds / file_count
+    total_time_per_file_expand_zips = final_time_seconds / file_count_expand_zips
+
+    upload_time_per_file = final_upload_time_seconds / file_count
+    upload_time_per_file_expand_zips = final_upload_time_seconds / file_count_expand_zips
+
+    print(f'Finished at {datetime.now()}, elapsed time = {datetime.now() - start}')
+    print(f'Total: {len(logdf)} files; {(final_size):.2f} MiB')
+    print(f'Overall speed including setup time: {(total_transfer_speed):.2f} MiB/s; {total_time_per_file:.2f} s/file uploaded; {total_time_per_file_expand_zips:.2f} s/file on CSD3')
+    print(f'Upload speed: {(uploading_transfer_speed):.2f} MiB/s; {upload_time_per_file:.2f} s/file uploaded; {upload_time_per_file_expand_zips:.2f} s/file on CSD3')
