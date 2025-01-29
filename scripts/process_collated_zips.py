@@ -12,10 +12,7 @@ from distributed import Client
 from dask import dataframe as dd
 
 from time import sleep
-
-import pandas as pd
-import numpy as np
-
+from psutil import virtual_memory as mem
 import io
 import zipfile
 import warnings
@@ -205,6 +202,10 @@ def main():
             nprocs = cpu_count() - 1
     else:
         nprocs = 6
+    threads_per_worker = 1
+    total_memory = mem().total
+    n_workers = nprocs//threads_per_worker
+    mem_per_worker = mem().total//n_workers
 
     # Setup bucket object
     try:
@@ -225,9 +226,12 @@ def main():
     print('Getting key list...')
     keys = object_list_swift(conn, bucket_name, count=True)
 
-    with Client(n_workers=nprocs) as client:
+    with Client(n_workers=n_workers,threads_per_worker=threads_per_worker,memory_limit=mem_per_worker) as client:
+        print(f'Dask Client: {client}', flush=True)
+        print(f'Dashboard: {client.dashboard_link}', flush=True)
+        print(f'Using {n_workers} workers, each with {threads_per_worker} threads, on {nprocs} CPUs.')
         #Dask Dataframe of all keys
-        keys_df = dd.from_dict({'key':keys}, npartitions=nprocs)
+        keys_df = dd.from_dict({'key':keys}, npartitions=n_workers)
         #Discover if key is a zipfile
         keys_df['is_zipfile'] = keys_df['key'].apply(match_key, meta=('is_zipfile', 'bool'))
         #Get metadata for zipfiles
