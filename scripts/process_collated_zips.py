@@ -28,7 +28,7 @@ import argparse
 from typing import List
 import re
 
-def find_metadata_swift(key: str, conn, container_name: str) -> List[str]:
+def find_metadata_swift(key: str, conn, bucket_name: str) -> List[str]:
     """
     Retrieve metadata for a given key from a Swift container.
     This function attempts to retrieve metadata for a specified key from a Swift container.
@@ -47,11 +47,11 @@ def find_metadata_swift(key: str, conn, container_name: str) -> List[str]:
         existing_zip_contents = None
         if key.endswith('.zip'):
             try:
-                existing_zip_contents = str(conn.get_object(container_name,''.join([key,'.metadata']))[1].decode('UTF-8')).split('|') # use | as separator
+                existing_zip_contents = str(conn.get_object(bucket_name,''.join([key,'.metadata']))[1].decode('UTF-8')).split('|') # use | as separator
                 print(f'Using zip-contents-object, {"".join([key,".metadata"])} for object {key}.')
             except Exception as e:
                 try:
-                    existing_zip_contents = conn.head_object(container_name,key)['x-object-meta-zip-contents'].split('|') # use | as separator
+                    existing_zip_contents = conn.head_object(bucket_name,key)['x-object-meta-zip-contents'].split('|') # use | as separator
                     print(f'Using zip-contents metadata for {key}.')
                 except KeyError:
                     return None
@@ -88,38 +88,12 @@ def object_list_swift(conn: swiftclient.Connection, container_name: str, prefix 
                 print(f'Existing objects: {o}', end='\r', flush=True)
     return keys
 
-# def match_key(key, conn, bucket_name):#, get_contents_metadata):
-#     pattern = re.compile(r'.*collated_\d+\.zip$')
-#     if pattern.match(key):
-#         return True
-#     else:
-#         return False
-
-
-    # for key in keys:
-
-    #         is_zipfile.append(True)
-    #         if get_contents_metadata:
-    #             try:
-    #                 contents_list.append(find_metadata_swift(key, conn, bucket_name))
-    #             except KeyError as e:
-    #                 print(f'Key {key} has no zip-contents metadata.')
-    #                 contents_list.append(None)
-    #             sizes.append(conn.head_object(bucket_name, key)['content-length'])
-    #     else:
-    #         is_zipfile.append(False)
-    #         sizes.append(np.nan)
-    #         contents_list.append(None)
-
-    # print(f'Keys found: {len(keys)}, Zip files found: {len([x for x in is_zipfile if x])}')
-
-    # df = pd.DataFrame.from_dict({
-    #     'key':keys,
-    #     'size':sizes,
-    #     'is_zipfile':is_zipfile,
-    #     'contents':contents_list
-    #     })
-    # return df
+def match_key(key):
+    pattern = re.compile(r'.*collated_\d+\.zip$')
+    if pattern.match(key):
+        return True
+    else:
+        return False
 
 def verify_zip_contents(row, keys_df):
     """
@@ -202,23 +176,23 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument('--bucket-name','-b', type=str, help='Name of the S3 bucket.', required=True)
-    parser.add_argument('--list-contents','-l', action='store_true', help='List the contents of the zip files.')
+    parser.add_argument('--list-zips','-l', action='store_true', help='List the zip files.')
     parser.add_argument('--extract','-e', action='store_true', help='Extract and upload zip files for which the contents are not found in the bucket.')
     parser.add_argument('--nprocs','-n', type=int, help='Maximum number of processes to use for extraction and upload.', default=6)
 
     args = parser.parse_args()
     bucket_name = args.bucket_name
-    if args.list_contents:
-        list_contents = True
+    if args.list_zips:
+        list_zips = True
     else:
-        list_contents = False
+        list_zips = False
 
     if args.extract:
         extract = True
     else:
         extract = False
 
-    if list_contents and extract:
+    if list_zips and extract:
         print('Cannot list contents and extract at the same time. Exiting.')
         sys.exit()
 
@@ -248,8 +222,6 @@ def main():
 
     print(f'Using bucket {bucket_name}.')
 
-    zip_pattern = re.compile(r'.*collated_\d+\.zip$')
-
     print('Getting key list...')
     keys = object_list_swift(conn, bucket_name, count=True)
 
@@ -257,28 +229,24 @@ def main():
         #Dask Dataframe of all keys
         keys_df = dd.from_dict({'key':keys}, npartitions=nprocs)
         #Discover if key is a zipfile
-        keys_df['is_zipfile'] = keys_df['key'].apply(lambda x: zip_pattern.match(x), meta=('is_zipfile', 'bool'), axis=1)
+        keys_df['is_zipfile'] = keys_df['key'].apply(match_key, meta=('is_zipfile', 'bool'))
         #Get metadata for zipfiles
-        keys_df['contents'] = keys_df[keys_df['is_zipfile' == True]]['key'].apply(find_metadata_swift, conn, bucket_name, meta=('contents', 'str'), axis=1)
+        print(keys_df[keys_df['is_zipfile'] == True])
+        keys_df['contents'] = keys_df[keys_df['is_zipfile'] == True]['key'].apply(find_metadata_swift, conn=conn, bucket_name=bucket_name, meta=('contents', 'str'))
         #Prepend zipfile path to contents
-        keys_df[keys_df['is_zipfile' == True]]['contents'] = keys_df[keys_df['is_zipfile' == True]].apply(prepend_zipfile_path_to_contents, meta=('contents', 'str'), axis=1)
+        keys_df[keys_df['is_zipfile'] == True]['contents'] = keys_df[keys_df['is_zipfile'] == True].apply(prepend_zipfile_path_to_contents, meta=('contents', 'str'), axis=1)
         #Set contents to None for non-zipfiles
-        keys_df[keys_df['is_zipfile' == False]]['contents'] = None
+        keys_df[keys_df['is_zipfile'] == False]['contents'] = None
 
-        if list_contents:
-            pd.set_option('display.max_rows', None)
-            pd.set_option('display.max_colwidth', None)
-            keys_pdf = keys_df.compute()
-            print(keys_pdf[keys_pdf['is_zipfile'] == True][['key','contents']])
+        if list_zips:
+            print(keys_df[keys_df['is_zipfile'] == True]['key'].compute())
 
         if extract:
             print('Extracting zip files...')
             keys_df['extract'] = keys_df.apply(verify_zip_contents, meta=('extract', 'bool'), keys_df=keys_df, axis=1)
             keys_df['extracted and uploaded'] = keys_df.apply(extract_and_upload, conn=conn, bucket_name=bucket_name, meta=('extracted and uploaded', 'bool'), axis=1)
-
-            keys_pdf = keys_df.compute()
             print('Zip files extracted and uploaded:')
-            print(keys_pdf[keys_pdf['extracted and uploaded'] == True]['key'])
+            print(keys_df[keys_df['extracted and uploaded'] == True]['key'].compute())
 
     print('Done.')
 
