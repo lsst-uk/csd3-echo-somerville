@@ -212,15 +212,15 @@ def main():
         list_contents = True
     else:
         list_contents = False
-    if args.verify_contents:
-        verify_contents = True
-    else:
-        verify_contents = False
 
     if args.extract:
         extract = True
     else:
         extract = False
+
+    if list_contents and extract:
+        print('Cannot list contents and extract at the same time. Exiting.')
+        sys.exit()
 
     if args.nprocs:
         nprocs = args.nprocs
@@ -247,8 +247,6 @@ def main():
         sys.exit()
 
     print(f'Using bucket {bucket_name}.')
-    prepended = False
-    extact_list_made = False
 
     zip_pattern = re.compile(r'.*collated_\d+\.zip$')
 
@@ -275,13 +273,7 @@ def main():
 
         if extract:
             print('Extracting zip files...')
-            if not prepended:
-                keys_df['contents'] = keys_df.apply(prepend_zipfile_path_to_contents, meta=('contents', 'str'), axis=1)
-                prepended = True
-            if not extact_list_made:
-                keys_df['extract'] = keys_df.apply(verify_zip_contents, meta=('extract', 'bool'), keys_df=keys_df, axis=1)
-                extact_list_made = True
-
+            keys_df['extract'] = keys_df.apply(verify_zip_contents, meta=('extract', 'bool'), keys_df=keys_df, axis=1)
             keys_df['extracted and uploaded'] = keys_df.apply(extract_and_upload, conn=conn, bucket_name=bucket_name, meta=('extracted and uploaded', 'bool'), axis=1)
 
             keys_pdf = keys_df.compute()
