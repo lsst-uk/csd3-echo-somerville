@@ -231,7 +231,7 @@ def main():
         print(f'Dashboard: {client.dashboard_link}', flush=True)
         print(f'Using {n_workers} workers, each with {threads_per_worker} threads, on {nprocs} CPUs.')
         #Dask Dataframe of all keys
-        keys_df = dd.from_dict({'key':keys}, npartitions=n_workers)
+        keys_df = dd.from_dict({'key':keys}, chunksize=1000)
         #Discover if key is a zipfile
         keys_df['is_zipfile'] = keys_df['key'].apply(match_key, meta=('is_zipfile', 'bool'))
         #Get metadata for zipfiles
