@@ -56,7 +56,7 @@ with DAG(
         task_id=f'process_zips_{bucket_name}',
         image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
         cmds=['/entrypoint.sh'],
-        arguments=['python', 'csd3-echo-somerville/scripts/process_collated_zips.py', '--bucket-name', bucket_name, '--extract', '--nprocs', '16'],
+        arguments=['python', 'csd3-echo-somerville/scripts/process_collated_zips.py', '--bucket-name', bucket_name, '--extract', '--nprocs', '12'],
         env_vars={
             'S3_ACCESS_KEY': Variable.get("S3_ACCESS_KEY"),
             'S3_SECRET_KEY': Variable.get("S3_SECRET_KEY"),
