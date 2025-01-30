@@ -228,7 +228,7 @@ def main():
     keys = object_list_swift(conn, bucket_name, count=True)
 
     with Client(n_workers=n_workers,threads_per_worker=threads_per_worker,memory_limit=mem_per_worker) as client:
-        dask.set_options(get=dask.local.get_sync)
+        # dask.set_options(get=dask.local.get_sync)
         print(f'Dask Client: {client}', flush=True)
         print(f'Dashboard: {client.dashboard_link}', flush=True)
         print(f'Using {n_workers} workers, each with {threads_per_worker} threads, on {nprocs} CPUs.')
@@ -245,14 +245,14 @@ def main():
         keys_df[keys_df['is_zipfile'] == False]['contents'] = None
 
         if list_zips:
-            print(keys_df[keys_df['is_zipfile'] == True]['key'].compute())
+            print(keys_df[keys_df['is_zipfile'] == True]['key'].compute(scheduler='processes'))
 
         if extract:
             print('Extracting zip files...')
             keys_df['extract'] = keys_df.apply(verify_zip_contents, meta=('extract', 'bool'), keys_df=keys_df, axis=1)
             keys_df['extracted and uploaded'] = keys_df.apply(extract_and_upload, conn=conn, bucket_name=bucket_name, meta=('extracted and uploaded', 'bool'), axis=1)
             print('Zip files extracted and uploaded:')
-            print(keys_df[keys_df['extracted and uploaded'] == True]['key'].compute())
+            print(keys_df[keys_df['extracted and uploaded'] == True]['key'].compute(scheduler='processes'))
 
     print('Done.')
 
