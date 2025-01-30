@@ -10,6 +10,7 @@ from distributed import Client, wait
 from multiprocessing import cpu_count
 from distributed import Client
 from dask import dataframe as dd
+import dask
 
 from time import sleep
 from psutil import virtual_memory as mem
@@ -227,6 +228,7 @@ def main():
     keys = object_list_swift(conn, bucket_name, count=True)
 
     with Client(n_workers=n_workers,threads_per_worker=threads_per_worker,memory_limit=mem_per_worker) as client:
+        dask.set_options(get=dask.local.get_sync)
         print(f'Dask Client: {client}', flush=True)
         print(f'Dashboard: {client.dashboard_link}', flush=True)
         print(f'Using {n_workers} workers, each with {threads_per_worker} threads, on {nprocs} CPUs.')
