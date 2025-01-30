@@ -204,9 +204,8 @@ def main():
     else:
         nprocs = 6
     threads_per_worker = 1
-    total_memory = mem().total
     n_workers = nprocs//threads_per_worker
-    mem_per_worker = mem().total//n_workers
+    mem_per_worker = mem().total/n_workers*0.75
 
     # Setup bucket object
     try:
@@ -245,14 +244,14 @@ def main():
         keys_df[keys_df['is_zipfile'] == False]['contents'] = None
 
         if list_zips:
-            print(keys_df[keys_df['is_zipfile'] == True]['key'].compute(scheduler='processes'))
+            print(keys_df[keys_df['is_zipfile'] == True]['key'].compute(scheduler='single-threaded'))
 
         if extract:
             print('Extracting zip files...')
             keys_df['extract'] = keys_df.apply(verify_zip_contents, meta=('extract', 'bool'), keys_df=keys_df, axis=1)
             keys_df['extracted and uploaded'] = keys_df.apply(extract_and_upload, conn=conn, bucket_name=bucket_name, meta=('extracted and uploaded', 'bool'), axis=1)
             print('Zip files extracted and uploaded:')
-            print(keys_df[keys_df['extracted and uploaded'] == True]['key'].compute(scheduler='processes'))
+            print(keys_df[keys_df['extracted and uploaded'] == True]['key'].compute(scheduler='single-threaded'))
 
     print('Done.')
 
