@@ -207,7 +207,7 @@ def main():
         nprocs = 6
     threads_per_worker = 1
     n_workers = nprocs//threads_per_worker
-    mem_per_worker = 64*1024**3/n_workers # limit to 64 GiB total memory
+    mem_per_worker = 64*1024**3//n_workers # limit to 64 GiB total memory
 
     # Setup bucket object
     try:
