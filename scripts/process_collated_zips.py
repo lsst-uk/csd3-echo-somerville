@@ -105,7 +105,7 @@ def verify_zip_contents(row, keys_df):
     Returns:
     - extract (bool): True if the zipfile contents are not found in the keys_df, otherwise False.
     """
-    extract = None
+    extract = False
     # print(zipfiles_df)
     # print(all_keys)
     print('Checking for zipfile contents in all_keys list...')
