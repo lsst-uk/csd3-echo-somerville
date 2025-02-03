@@ -231,8 +231,10 @@ def main():
         print(f'Dask Client: {client}', flush=True)
         print(f'Dashboard: {client.dashboard_link}', flush=True)
         print(f'Using {n_workers} workers, each with {threads_per_worker} threads, on {nprocs} CPUs.')
+        #Write to tmp file
+        dd.from_dict({'key':keys}, npartitions=len(keys)//n_workers).to_csv('/tmp/keys-*.csv', index=False)
         #Dask Dataframe of all keys
-        keys_df = dd.from_dict({'key':keys}, npartitions=len(keys)//n_workers)
+        keys_df = dd.read_csv('/tmp/keys-*.csv')
         #Discover if key is a zipfile
         keys_df['is_zipfile'] = keys_df['key'].apply(match_key, meta=('is_zipfile', 'bool'))
         #Get metadata for zipfiles
