@@ -235,10 +235,11 @@ def main():
         dd.from_dict({'key':keys}, npartitions=len(keys)//n_workers).to_csv('/tmp/keys-*.csv', index=False)
         #Dask Dataframe of all keys
         keys_df = dd.read_csv('/tmp/keys-*.csv')
+        print(keys_df)
         #Discover if key is a zipfile
         keys_df['is_zipfile'] = keys_df['key'].apply(match_key, meta=('is_zipfile', 'bool'))
         #Get metadata for zipfiles
-        print(keys_df[keys_df['is_zipfile'] == True])
+        print(keys_df) # make sure not to imply .compute by printing!
         keys_df['contents'] = keys_df[keys_df['is_zipfile'] == True]['key'].apply(find_metadata_swift, conn=conn, bucket_name=bucket_name, meta=('contents', 'str'))
         #Prepend zipfile path to contents
         keys_df[keys_df['is_zipfile'] == True]['contents'] = keys_df[keys_df['is_zipfile'] == True].apply(prepend_zipfile_path_to_contents, meta=('contents', 'str'), axis=1)
