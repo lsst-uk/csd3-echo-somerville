@@ -90,6 +90,7 @@ def object_list_swift(conn: swiftclient.Connection, container_name: str, prefix 
 def match_key(key):
     pattern = re.compile(r'.*collated_\d+\.zip$')
     if pattern.match(key):
+        print(key)
         return True
     else:
         return False
