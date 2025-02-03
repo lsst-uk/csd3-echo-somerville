@@ -240,6 +240,9 @@ def main():
         print(keys_df)
         #Discover if key is a zipfile
         keys_df['is_zipfile'] = keys_df['key'].apply(match_key, meta=('is_zipfile', 'bool'))
+        if not keys_df['is_zipfile'].any().compute():
+            print('No zipfiles found. Exiting.')
+            sys.exit()
         #Get metadata for zipfiles
         print(keys_df) # make sure not to imply .compute by printing!
         keys_df['contents'] = keys_df[keys_df['is_zipfile'] == True]['key'].apply(find_metadata_swift, conn=conn, bucket_name=bucket_name, meta=('contents', 'str'))
