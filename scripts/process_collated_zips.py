@@ -9,6 +9,7 @@ from distributed import Client, wait
 
 from multiprocessing import cpu_count
 from distributed import Client
+from distributed import print as dprint
 from dask import dataframe as dd
 import dask
 import pandas as pd
@@ -47,11 +48,11 @@ def find_metadata_swift(key: str, conn, bucket_name: str) -> List[str]:
         if key.endswith('.zip'):
             try:
                 existing_zip_contents = str(conn.get_object(bucket_name,''.join([key,'.metadata']))[1].decode('UTF-8')).split('|') # use | as separator
-                print(f'Using zip-contents-object, {"".join([key,".metadata"])} for object {key}.')
+                dprint(f'Using zip-contents-object, {"".join([key,".metadata"])} for object {key}.')
             except Exception as e:
                 try:
                     existing_zip_contents = conn.head_object(bucket_name,key)['x-object-meta-zip-contents'].split('|') # use | as separator
-                    print(f'Using zip-contents metadata for {key}.')
+                    dprint(f'Using zip-contents metadata for {key}.')
                 except KeyError:
                     return None
                 except Exception as e:
@@ -84,13 +85,13 @@ def object_list_swift(conn: swiftclient.Connection, container_name: str, prefix 
         if count:
             o += 1
             if o % 10000 == 0:
-                print(f'Existing objects: {o}', end='\r', flush=True)
+                dprint(f'Existing objects: {o}', end='\r', flush=True)
     return keys
 
 def match_key(key):
     pattern = re.compile(r'.*collated_\d+\.zip$')
     if pattern.match(key):
-        print(key)
+        dprint(key)
         return True
     else:
         return False
@@ -109,18 +110,18 @@ def verify_zip_contents(row, keys_df):
     extract = False
     # print(zipfiles_df)
     # print(all_keys)
-    print('Checking for zipfile contents in all_keys list...')
+    dprint('Checking for zipfile contents in all_keys list...')
 
     if row['is_zipfile']:
         if row['contents']:
             if sum(keys_df['key'].isin([row['contents']])) != len(row['contents']):
                 extract = True
-                print(f'{row["key"]} to be extracted.')
+                dprint(f'{row["key"]} to be extracted.')
             else:
-                print(f'{row["key"]} contents previously extracted.')
+                dprint(f'{row["key"]} contents previously extracted.')
         else:
             extract = True
-            print(f'{row["key"]} to be extracted (contents unknown).')
+            dprint(f'{row["key"]} to be extracted (contents unknown).')
 
     return extract
 
@@ -139,16 +140,16 @@ def prepend_zipfile_path_to_contents(row):
 
 def extract_and_upload(row, conn, bucket_name):
     if row['extract']:
-        print(f'Extracting {row["key"]}...', flush=True)
+        dprint(f'Extracting {row["key"]}...', flush=True)
         path_stub = '/'.join(row["key"].split('/')[:-1])
         zipfile_data = io.BytesIO(conn.get_object(bucket_name,row['key'])[1])
         with zipfile.ZipFile(zipfile_data) as zf:
             for content_file in zf.namelist():
-                print(content_file, flush=True)
+                dprint(content_file, flush=True)
                 content_file_data = zf.open(content_file)
                 key = path_stub + '/' + content_file
                 conn.put_object(bucket_name,key,content_file_data)
-                print(f'Uploaded {content_file} to {key}', flush=True)
+                dprint(f'Uploaded {content_file} to {key}', flush=True)
         return True
     else:
         return False
@@ -231,21 +232,21 @@ def main():
 
     with Client(n_workers=n_workers,threads_per_worker=threads_per_worker,memory_limit=mem_per_worker) as client:
         # dask.set_options(get=dask.local.get_sync)
-        print(f'Dask Client: {client}', flush=True)
+        dprint(f'Dask Client: {client}', flush=True)
         # print(f'Dashboard: {client.dashboard_link}', flush=True)
-        print(f'Using {n_workers} workers, each with {threads_per_worker} threads, on {nprocs} CPUs.')
+        dprint(f'Using {n_workers} workers, each with {threads_per_worker} threads, on {nprocs} CPUs.')
 
         #Dask Dataframe of all keys
         keys_df = dd.from_pandas(keys, npartitions=len(keys)//n_workers)
         del keys
-        print(keys_df)
+        dprint(keys_df)
         #Discover if key is a zipfile
         keys_df['is_zipfile'] = keys_df['key'].apply(match_key, meta=('is_zipfile', 'bool'))
         if not keys_df['is_zipfile'].any().compute():
-            print('No zipfiles found. Exiting.')
+            dprint('No zipfiles found. Exiting.')
             sys.exit()
         #Get metadata for zipfiles
-        print(keys_df) # make sure not to imply .compute by printing!
+        dprint(keys_df) # make sure not to imply .compute by printing!
         keys_df['contents'] = keys_df[keys_df['is_zipfile'] == True]['key'].apply(find_metadata_swift, conn=conn, bucket_name=bucket_name, meta=('contents', 'str'))
         #Prepend zipfile path to contents
         keys_df[keys_df['is_zipfile'] == True]['contents'] = keys_df[keys_df['is_zipfile'] == True].apply(prepend_zipfile_path_to_contents, meta=('contents', 'str'), axis=1)
@@ -253,16 +254,16 @@ def main():
         keys_df[keys_df['is_zipfile'] == False]['contents'] = None
 
         if list_zips:
-            print(keys_df[keys_df['is_zipfile'] == True]['key'].compute(scheduler='processes'))
+            dprint(keys_df[keys_df['is_zipfile'] == True]['key'].compute(scheduler='processes'))
 
         if extract:
-            print('Extracting zip files...')
+            dprint('Extracting zip files...')
             keys_df['extract'] = keys_df.apply(verify_zip_contents, meta=('extract', 'bool'), keys_df=keys_df, axis=1)
             keys_df['extracted and uploaded'] = keys_df.apply(extract_and_upload, conn=conn, bucket_name=bucket_name, meta=('extracted and uploaded', 'bool'), axis=1)
-            print('Zip files extracted and uploaded:')
-            print(keys_df[keys_df['extracted and uploaded'] == True]['key'].compute(scheduler='processes'))
+            dprint('Zip files extracted and uploaded:')
+            dprint(keys_df[keys_df['extracted and uploaded'] == True]['key'].compute(scheduler='processes'))
 
-    print('Done.')
+    dprint('Done.')
 
 if __name__ == '__main__':
     main()
