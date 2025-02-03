@@ -233,7 +233,7 @@ def main():
     with Client(n_workers=n_workers,threads_per_worker=threads_per_worker,memory_limit=mem_per_worker) as client:
         # dask.set_options(get=dask.local.get_sync)
         dprint(f'Dask Client: {client}', flush=True)
-        # print(f'Dashboard: {client.dashboard_link}', flush=True)
+        dprint(f'Dashboard: {client.dashboard_link}', flush=True)
         dprint(f'Using {n_workers} workers, each with {threads_per_worker} threads, on {nprocs} CPUs.')
 
         #Dask Dataframe of all keys
