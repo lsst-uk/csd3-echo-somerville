@@ -11,6 +11,7 @@ from multiprocessing import cpu_count
 from distributed import Client
 from dask import dataframe as dd
 import dask
+import pandas as pd
 
 from time import sleep
 from psutil import virtual_memory as mem
@@ -224,7 +225,8 @@ def main():
     print(f'Using bucket {bucket_name}.')
 
     print('Getting key list...')
-    keys = object_list_swift(conn, bucket_name, count=True)
+    keys = pd.DataFrame.from_dict({'key':object_list_swift(conn, bucket_name, count=True)})
+    print(keys.head())
 
     with Client(n_workers=n_workers,threads_per_worker=threads_per_worker,memory_limit=mem_per_worker) as client:
         # dask.set_options(get=dask.local.get_sync)
@@ -232,7 +234,7 @@ def main():
         print(f'Dashboard: {client.dashboard_link}', flush=True)
         print(f'Using {n_workers} workers, each with {threads_per_worker} threads, on {nprocs} CPUs.')
         #Write to tmp file
-        dd.from_dict({'key':keys}, npartitions=len(keys)//n_workers).to_csv('/tmp/keys-*.csv', index=False)
+        dd.from_pandas(keys, npartitions=len(keys)//n_workers).to_csv('/tmp/keys-*.csv', index=False)
         #Dask Dataframe of all keys
         keys_df = dd.read_csv('/tmp/keys-*.csv')
         print(keys_df)
