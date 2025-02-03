@@ -231,7 +231,7 @@ def main():
     with Client(n_workers=n_workers,threads_per_worker=threads_per_worker,memory_limit=mem_per_worker) as client:
         # dask.set_options(get=dask.local.get_sync)
         print(f'Dask Client: {client}', flush=True)
-        print(f'Dashboard: {client.dashboard_link}', flush=True)
+        # print(f'Dashboard: {client.dashboard_link}', flush=True)
         print(f'Using {n_workers} workers, each with {threads_per_worker} threads, on {nprocs} CPUs.')
         #Write to tmp file
         dd.from_pandas(keys, npartitions=len(keys)//n_workers).to_csv('/tmp/keys-*.csv', index=False)
