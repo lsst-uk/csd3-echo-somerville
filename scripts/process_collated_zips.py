@@ -223,6 +223,7 @@ def main():
          SystemExit: If invalid arguments are provided or if the bucket is not found.
     """
     all_start = datetime.now()
+    print(f'Start time: {all_start}.')
     epilog = ''
     class MyParser(argparse.ArgumentParser):
         def error(self, message):
