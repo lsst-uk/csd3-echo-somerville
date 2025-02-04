@@ -1539,6 +1539,7 @@ if __name__ == '__main__':
     print(f'Symlinks will be replaced with the target file. A new file <simlink_file>.symlink will contain the symlink target path.')
 
     if not local_dir or not prefix or not bucket_name:
+        print('local_dir, s3_prefix and bucket_name must be provided and must not be empty strings or null.')
         parser.print_help()
         sys.exit(1)
 
