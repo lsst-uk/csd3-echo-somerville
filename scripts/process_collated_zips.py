@@ -171,7 +171,7 @@ def extract_and_upload(row, conn, bucket_name):
         end = datetime.now()
         duration = (end - start).microseconds / 1e6 + (end - start).seconds
         try:
-            dprint(f'Extracted and uploaded contents of {row["key"]} in {duration:.2f} s ({size/1024**2/duration} MiB/s).', flush=True)
+            dprint(f'Extracted and uploaded contents of {row["key"]} in {duration:.2f} s ({(size/1024**2/duration):.2f} MiB/s).', flush=True)
         except ZeroDivisionError:
             dprint(f'Extracted and uploaded contents of {row["key"]} in {duration:.2f} s', flush=True)
 
