@@ -6,7 +6,7 @@
 from datetime import datetime
 import sys
 import os
-from distributed import Client, wait
+from distributed import Client
 
 from multiprocessing import cpu_count
 from distributed import Client
@@ -16,8 +16,7 @@ import pyarrow as pa
 import pandas as pd
 from numpy.random import randint
 
-from time import sleep
-from psutil import virtual_memory as mem
+
 import io
 import zipfile
 import warnings
@@ -31,17 +30,35 @@ from typing import List
 import re
 import shutil
 
-def get_random_parquet_path():
+def get_random_parquet_path() -> str:
+    """
+    Generates a random file path for a Parquet file.
+    The function creates a random directory name using a random integer
+    between 0 and 1,000,000 (inclusive) and returns a string representing
+    the path to a Parquet file within that directory.
+    Returns:
+        str: A string representing the random file path for a Parquet file.
+    """
     return f'/tmp/{randint(0,1e6):06d}/data.parquet'
 
-def rm_parquet(path):
+def rm_parquet(path: str) -> None:
+    """
+    Remove the parent directory of the given path if it is a directory and not a symbolic link.
+    If the parent is not a directory but exists, remove it as a file.
+    Designed to work with temporary directories created by the get_random_parquet_path function.
+    Args:
+        path (str): The path to a file or directory whose parent directory is to be removed.
+    Returns:
+        None
+    """
+
     parent = os.path.dirname(path)
     if os.path.isdir(parent) and not os.path.islink(parent):
         shutil.rmtree(parent)
     elif os.path.exists(parent):
         os.remove(parent)
 
-def find_metadata_swift(key: str, conn, bucket_name: str) -> List[str]:
+def find_metadata_swift(key: str, conn: swiftclient.Connection, bucket_name: str) -> List[str]:
     """
     Retrieve metadata for a given key from a Swift container.
     This function attempts to retrieve metadata for a specified key from a Swift container.
@@ -109,17 +126,17 @@ def match_key(key):
     else:
         return False
 
-def verify_zip_contents(row, keys_series):
+def verify_zip_contents(row: pd.Series, keys_series: pd.Series) -> bool:
     """
-    Verify the contents of a zipfile against a list of keys.
-
-    Parameters:
-    - row (pandas.Series): The row containing the zipfile information.
-    - keys_df (pandas.Series): The dataframe containing the zipfile information.
-
+    Verifies the contents of a zip file based on the provided row and keys series.
+    Args:
+        row (pd.Series): A pandas Series containing information about the zip file,
+                         including 'key', 'is_zipfile', and 'contents'.
+        keys_series (pd.Series): A pandas Series containing keys to check against the zip file contents.
     Returns:
-    - extract (bool): True if the zipfile contents are not found in the keys_df, otherwise False.
+        bool: True if the zip file needs to be extracted, False otherwise.
     """
+
     extract = False
     # print(zipfiles_df)
     # print(all_keys)
@@ -138,21 +155,31 @@ def verify_zip_contents(row, keys_series):
 
     return extract
 
-def prepend_zipfile_path_to_contents(row):
+def prepend_zipfile_path_to_contents(row: pd.Series) -> str:
     """
-    Prepend the path to the zipfile to the contents column in the given DataFrame.
-    Contents by default are relative to the zipfile location.
-    Parameters:
-    - zipfile_df (DataFrame): The DataFrame containing the zipfile information.
+    Prepends the path of the zip file to the contents of the given row.
+    This function takes a pandas Series object representing a row, extracts the path from the 'key' column,
+    and prepends it to the 'contents' column. The modified 'contents' value is then returned.
+    Args:
+        row (pd.Series): A pandas Series object containing at least 'key' and 'contents' columns.
     Returns:
-    - None
+        str: The modified 'contents' value with the prepended path.
     """
+
     path_stub = '/'.join(row['key'].split('/')[:-1])
     row['contents'] = f'{path_stub}/{row["contents"]}'
     return row['contents']
 
-def extract_and_upload(row, conn, bucket_name):
-    # dprint(f"key: {row['key']}, extract: {row['extract']}")
+def extract_and_upload(row: pd.Series, conn: swiftclient.Connection, bucket_name: str) -> bool:
+    """
+    Extracts the contents of a zip file from an object storage bucket and uploads the extracted files back to the bucket.
+    Args:
+        row (pd.Series): A pandas Series containing metadata about the zip file, including the 'key' (str) and 'extract' (bool).
+        conn (swiftclient.Connection): A connection object to interact with the object storage service.
+        bucket_name (str): The name of the bucket where the zip file is stored and where the extracted files will be uploaded.
+    Returns:
+        bool: True if the extraction and upload process was successful, False otherwise.
+    """
 
     if row['extract']:
         start = datetime.now()
@@ -181,15 +208,24 @@ def extract_and_upload(row, conn, bucket_name):
 
 def main():
     """
-    Search for zip files created by lsst-backup.py in a given S3 bucket on echo.stfc.ac.uk.
-    Args:
-        --bucket-name, -b (str): Name of the S3 bucket. (required)
-        --list-contents, -l (bool): List the contents of the zip files.
-        --verify-contents, -v (bool): Verify the contents of the zip files from metadata.
-        --debug, -d (bool): Print debug messages and shorten search.
-    Returns:
-        None
+    Main function to process collated zip files in an S3 bucket on echo.stfc.ac.uk.
+    This script performs the following tasks:
+    1. Parses command-line arguments to determine the S3 bucket name, whether to list zip files,
+        whether to extract and upload zip files, and the maximum number of processes to use.
+    2. Validates the provided arguments and sets up the necessary configurations.
+    3. Connects to the specified S3 bucket and retrieves the list of objects.
+    4. Uses Dask to parallelize the processing of the objects in the bucket.
+    5. Identifies zip files and optionally lists them.
+    6. Extracts and uploads the contents of the zip files if specified.
+    Command-line arguments:
+         --bucket-name, -b: Name of the S3 bucket (required).
+         --list-zips, -l: List the zip files in the bucket.
+         --extract, -e: Extract and upload zip files whose contents are not found in the bucket.
+         --nprocs, -n: Maximum number of processes to use for extraction and upload (default: 6).
+    Raises:
+         SystemExit: If invalid arguments are provided or if the bucket is not found.
     """
+
     epilog = ''
     class MyParser(argparse.ArgumentParser):
         def error(self, message):
