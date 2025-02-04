@@ -170,7 +170,7 @@ def extract_and_upload(row, conn, bucket_name):
                 # dprint(f'Uploaded {content_file} to {key}', flush=True)
         end = datetime.now()
         duration = end - start
-        if duration > 0:
+        if duration.seconds > 0:
             dprint(f'Extracted and uploaded contents of {row["key"]} in {duration.seconds:.2f} s ({size/1024**2/duration.seconds} MiB/s).', flush=True)
         else:
             dprint(f'Extracted and uploaded contents of {row["key"]} in {duration.seconds:.2f} s.', flush=True)
