@@ -138,11 +138,8 @@ def verify_zip_contents(row: pd.Series, keys_series: pd.Series) -> bool:
     """
 
     extract = False
-    # print(zipfiles_df)
-    # print(all_keys)
-    dprint(f'Checking for {row["key"]} contents in all_keys list...')
-
     if row['is_zipfile']:
+        dprint(f'Checking for {row["key"]} contents in all_keys list...')
         if len(row['contents']) > 0:
             if sum(keys_series.isin([row['contents']])) != len(row['contents']):
                 extract = True
