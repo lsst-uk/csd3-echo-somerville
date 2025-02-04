@@ -447,7 +447,4 @@ dependencies:
   - zipp=3.17.0=pyhd8ed1ab_0
   - zlib=1.2.13=hd590300_5
   - zstd=1.5.5=hfc55251_0
-  - pip:
-      - bucket-manager==0.4.0.dev5
-      - urllib3==2.0.7
-prefix: /home/dave/miniconda3/envs/lsst-uk
+  - urllib3==2.0.7
