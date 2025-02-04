@@ -96,13 +96,13 @@ def match_key(key):
     else:
         return False
 
-def verify_zip_contents(row, keys_df):
+def verify_zip_contents(row, keys_series):
     """
     Verify the contents of a zipfile against a list of keys.
 
     Parameters:
     - row (pandas.Series): The row containing the zipfile information.
-    - keys_df (pandas.DataFrame): The dataframe containing the zipfile information.
+    - keys_df (pandas.Series): The dataframe containing the zipfile information.
 
     Returns:
     - extract (bool): True if the zipfile contents are not found in the keys_df, otherwise False.
@@ -114,7 +114,7 @@ def verify_zip_contents(row, keys_df):
 
     if row['is_zipfile']:
         if row['contents']:
-            if sum(keys_df['key'].isin([row['contents']])) != len(row['contents']):
+            if sum(keys_series.isin([row['contents']])) != len(row['contents']):
                 extract = True
                 dprint(f'{row["key"]} to be extracted.')
             else:
@@ -242,26 +242,39 @@ def main():
         dprint(keys_df)
         #Discover if key is a zipfile
         keys_df['is_zipfile'] = keys_df['key'].apply(match_key, meta=('is_zipfile', 'bool'))
-        if not keys_df['is_zipfile'].any().compute():
+        keys_df.to_parquet('keys_df.parquet', overwrite=True)
+        keys_df = dd.read_parquet('keys_df.parquet')
+        check = keys_df['is_zipfile'].any().compute()
+        if not check:
             dprint('No zipfiles found. Exiting.')
             sys.exit()
+
         #Get metadata for zipfiles
         dprint(keys_df) # make sure not to imply .compute by printing!
         keys_df['contents'] = keys_df[keys_df['is_zipfile'] == True]['key'].apply(find_metadata_swift, conn=conn, bucket_name=bucket_name, meta=('contents', 'str'))
+        keys_df.to_parquet('keys_df.parquet', overwrite=True)
         #Prepend zipfile path to contents
+        keys_df = dd.read_parquet('keys_df.parquet')
         keys_df[keys_df['is_zipfile'] == True]['contents'] = keys_df[keys_df['is_zipfile'] == True].apply(prepend_zipfile_path_to_contents, meta=('contents', 'str'), axis=1)
         #Set contents to None for non-zipfiles
         keys_df[keys_df['is_zipfile'] == False]['contents'] = None
+        keys_df.to_parquet('keys_df.parquet')
+        del keys_df
 
         if list_zips:
-            dprint(keys_df[keys_df['is_zipfile'] == True]['key'].compute(scheduler='processes'))
+            keys_df = dd.read_parquet('keys_df.parquet').drop('contents', axis=1)
+            dprint(keys_df[keys_df['is_zipfile'] == True]['key'].compute())
 
         if extract:
             dprint('Extracting zip files...')
-            keys_df['extract'] = keys_df.apply(verify_zip_contents, meta=('extract', 'bool'), keys_df=keys_df, axis=1)
+            keys_df = dd.read_parquet('keys_df.parquet')
+            keys_series = keys_df['key'].compute()
+            client.scatter(keys_series)
+            keys_df['extract'] = keys_df.apply(verify_zip_contents, meta=('extract', 'bool'), keys_series=keys_series, axis=1)
+            del keys_series
             keys_df['extracted and uploaded'] = keys_df.apply(extract_and_upload, conn=conn, bucket_name=bucket_name, meta=('extracted and uploaded', 'bool'), axis=1)
             dprint('Zip files extracted and uploaded:')
-            dprint(keys_df[keys_df['extracted and uploaded'] == True]['key'].compute(scheduler='processes'))
+            dprint(keys_df[keys_df['extracted and uploaded'] == True]['key'].compute())
 
     dprint('Done.')
 
