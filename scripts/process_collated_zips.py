@@ -152,7 +152,7 @@ def prepend_zipfile_path_to_contents(row):
 
 def extract_and_upload(row, conn, bucket_name):
     dprint(f"key: {row['key']}, extract: {row['extract']}")
-    if row['extract'][0]:
+    if row['extract']:
         dprint(f'Extracting {row["key"]}...', flush=True)
         path_stub = '/'.join(row["key"].split('/')[:-1])
         zipfile_data = io.BytesIO(conn.get_object(bucket_name,row['key'])[1])
