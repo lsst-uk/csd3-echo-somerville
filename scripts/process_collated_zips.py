@@ -242,8 +242,8 @@ def main():
         dprint(keys_df)
         #Discover if key is a zipfile
         keys_df['is_zipfile'] = keys_df['key'].apply(match_key, meta=('is_zipfile', 'bool'))
-        keys_df.to_parquet('keys_df.parquet', overwrite=True)
-        keys_df = dd.read_parquet('keys_df.parquet')
+        # keys_df.to_parquet('keys_df.parquet', overwrite=True)
+        # keys_df = dd.read_parquet('keys_df.parquet')
         check = keys_df['is_zipfile'].any().compute()
         if not check:
             dprint('No zipfiles found. Exiting.')
