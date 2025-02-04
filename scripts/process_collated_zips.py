@@ -169,11 +169,12 @@ def extract_and_upload(row, conn, bucket_name):
                 conn.put_object(bucket_name,key,content_file_data)
                 # dprint(f'Uploaded {content_file} to {key}', flush=True)
         end = datetime.now()
-        duration = end - start
-        if duration.seconds > 0:
-            dprint(f'Extracted and uploaded contents of {row["key"]} in {duration.seconds:.2f} s ({size/1024**2/duration.seconds} MiB/s).', flush=True)
-        else:
-            dprint(f'Extracted and uploaded contents of {row["key"]} in {duration.seconds:.2f} s.', flush=True)
+        duration = (end - start).microseconds / 1e6 + (end - start).seconds
+        try:
+            dprint(f'Extracted and uploaded contents of {row["key"]} in {duration:.2f} s ({size/1024**2/duration} MiB/s).', flush=True)
+        except ZeroDivisionError:
+            dprint(f'Extracted and uploaded contents of {row["key"]} in {duration:.2f} s', flush=True)
+
         return True
     else:
         return False
