@@ -28,9 +28,16 @@ import os
 import argparse
 from typing import List
 import re
+import shutil
 
 def get_random_parquet_path():
     return f'/tmp/{randint(0,1e6):06d}/data.parquet'
+
+def rm_parquet(path):
+    if os.path.isdir(path) and not os.path.islink(path):
+        shutil.rmtree(path)
+    elif os.path.exists(path):
+        os.remove(path)
 
 def find_metadata_swift(key: str, conn, bucket_name: str) -> List[str]:
     """
@@ -266,7 +273,7 @@ def main():
                 ('is_zipfile', pa.bool_()),
                 ('contents', pa.list_(pa.string()))
             ]))
-        os.remove(pq1)
+        rm_parquet(pq1)
         #Prepend zipfile path to contents
         keys_df = dd.read_parquet(pq2)
         keys_df[keys_df['is_zipfile'] == True]['contents'] = keys_df[keys_df['is_zipfile'] == True].apply(prepend_zipfile_path_to_contents, meta=('contents', 'str'), axis=1)
@@ -278,13 +285,13 @@ def main():
                 ('is_zipfile', pa.bool_()),
                 ('contents', pa.list_(pa.string()))
             ]))
-        os.remove(pq2)
+        rm_parquet(pq2)
         del keys_df
 
         if list_zips:
             keys_df = dd.read_parquet(pq3).drop('contents', axis=1)
             dprint(keys_df[keys_df['is_zipfile'] == True]['key'].compute())
-            os.remove(pq3)
+            rm_parquet(pq3)
 
         if extract:
             dprint('Extracting zip files...')
@@ -296,7 +303,7 @@ def main():
             keys_df['extracted and uploaded'] = keys_df.apply(extract_and_upload, conn=conn, bucket_name=bucket_name, meta=('extracted and uploaded', 'bool'), axis=1)
             dprint('Zip files extracted and uploaded:')
             dprint(keys_df[keys_df['extracted and uploaded'] == True]['key'].compute())
-            os.remove(pq3)
+            rm_parquet(pq3)
     dprint('Done.')
 
 if __name__ == '__main__':
