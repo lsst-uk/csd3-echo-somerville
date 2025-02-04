@@ -301,9 +301,8 @@ def main():
             client.scatter(keys_series)
             keys_df['extract'] = keys_df.apply(verify_zip_contents, meta=('extract', 'bool'), keys_series=keys_series, axis=1)
             del keys_series
-            keys_df['extracted and uploaded'] = keys_df.apply(extract_and_upload, conn=conn, bucket_name=bucket_name, meta=('extracted and uploaded', 'bool'), axis=1)
             dprint('Zip files extracted and uploaded:')
-            dprint(keys_df[keys_df['extracted and uploaded'] == True]['key'].compute())
+            keys_df['extracted and uploaded'] = keys_df.apply(extract_and_upload, conn=conn, bucket_name=bucket_name, meta=('extracted and uploaded', 'bool'), axis=1).compute()
             rm_parquet(pq3)
     dprint('Done.')
 
