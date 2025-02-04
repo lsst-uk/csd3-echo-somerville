@@ -34,10 +34,11 @@ def get_random_parquet_path():
     return f'/tmp/{randint(0,1e6):06d}/data.parquet'
 
 def rm_parquet(path):
-    if os.path.isdir(path) and not os.path.islink(path):
-        shutil.rmtree(path)
-    elif os.path.exists(path):
-        os.remove(path)
+    parent = os.path.dirname(path)
+    if os.path.isdir(parent) and not os.path.islink(parent):
+        shutil.rmtree(parent)
+    elif os.path.exists(parent):
+        os.remove(parent)
 
 def find_metadata_swift(key: str, conn, bucket_name: str) -> List[str]:
     """
