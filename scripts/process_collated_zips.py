@@ -158,11 +158,12 @@ def extract_and_upload(row, conn, bucket_name):
         zipfile_data = io.BytesIO(conn.get_object(bucket_name,row['key'])[1])
         with zipfile.ZipFile(zipfile_data) as zf:
             for content_file in zf.namelist():
-                dprint(content_file, flush=True)
+                # dprint(content_file, flush=True)
                 content_file_data = zf.open(content_file)
                 key = path_stub + '/' + content_file
                 conn.put_object(bucket_name,key,content_file_data)
-                dprint(f'Uploaded {content_file} to {key}', flush=True)
+                # dprint(f'Uploaded {content_file} to {key}', flush=True)
+            dprint(f'Uploaded contents of {row["key"]}.', flush=True)
         return True
     else:
         return False
