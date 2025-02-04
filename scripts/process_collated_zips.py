@@ -125,7 +125,7 @@ def verify_zip_contents(row, keys_series):
     dprint('Checking for zipfile contents in all_keys list...')
 
     if row['is_zipfile']:
-        if row['contents']:
+        if len(row['contents']) > 0:
             if sum(keys_series.isin([row['contents']])) != len(row['contents']):
                 extract = True
                 dprint(f'{row["key"]} to be extracted.')
