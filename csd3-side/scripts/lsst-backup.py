@@ -1413,12 +1413,12 @@ if __name__ == '__main__':
     parser.add_argument('--config-file', type=str, help='Path to the configuration YAML file.')
     parser.add_argument('--api', type=str, help='API to use; "S3" or "Swift". Case insensitive.')
     parser.add_argument('--bucket-name', type=str, help='Name of the S3 bucket.')
-    parser.add_argument('--local-path', type=str, help='Absolute path to the folder to be uploaded.', default=os.getcwd())
-    parser.add_argument('--S3-prefix', type=str, help='Prefix to be used in S3 object keys.', default='')
+    parser.add_argument('--local-path', type=str, help='Absolute path to the folder to be uploaded.')
+    parser.add_argument('--S3-prefix', type=str, help='Prefix to be used in S3 object keys.')
     parser.add_argument('--S3-folder', type=str, help='Subfolder(s) at the end of the local path to be used in S3 object keys.', nargs='?', const='', default='')
     parser.add_argument('--exclude', nargs='+', help="Files or folders to exclude from upload as a list in the form ['dir1', 'dir2', ...] or other valid YAML. Must relative paths to local_path.")
     parser.add_argument('--nprocs', type=int, help='Number of CPU cores to use for parallel upload.')
-    parser.add_argument('--threads-per-worker', type=int, help='Number of threads per Dask worker to use for parallel upload.', default=2)
+    parser.add_argument('--threads-per-worker', type=int, help='Number of threads per Dask worker to use for parallel upload.')
     parser.add_argument('--no-checksum', default=False, action='store_true', help='DEPRECATED - Turn off file checksum.')
     parser.add_argument('--no-collate', default=False, action='store_true', help='Turn off collation of subfolders containing small numbers of small files into zip files.')
     parser.add_argument('--dryrun', default=False, action='store_true', help='Perform a dry run without uploading files.')
@@ -1455,6 +1455,8 @@ if __name__ == '__main__':
                     args.bucket_name = config['bucket_name']
                 if 'local_path' in config.keys() and not args.local_path:
                     args.local_path = config['local_path']
+                elif 'local_path' not in config.keys() and not args.local_path:
+                    args.local_path = os.getcwd()
                 if 'S3_prefix' in config.keys() and not args.S3_prefix:
                     args.S3_prefix = config['S3_prefix']
                 if 'S3_folder' in config.keys() and not args.S3_folder:
