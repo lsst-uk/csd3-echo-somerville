@@ -3,6 +3,7 @@
 #D.McKay Jun 2024
 
 
+from datetime import datetime
 import sys
 import os
 from distributed import Client, wait
@@ -103,7 +104,7 @@ def object_list_swift(conn: swiftclient.Connection, container_name: str, prefix 
 def match_key(key):
     pattern = re.compile(r'.*collated_\d+\.zip$')
     if pattern.match(key):
-        dprint(key)
+        # dprint(key)
         return True
     else:
         return False
@@ -151,19 +152,28 @@ def prepend_zipfile_path_to_contents(row):
     return row['contents']
 
 def extract_and_upload(row, conn, bucket_name):
-    dprint(f"key: {row['key']}, extract: {row['extract']}")
+    # dprint(f"key: {row['key']}, extract: {row['extract']}")
+
     if row['extract']:
-        dprint(f'Extracting {row["key"]}...', flush=True)
+        start = datetime.now()
+        size = 0
+        # dprint(f'Extracting {row["key"]}...', flush=True)
         path_stub = '/'.join(row["key"].split('/')[:-1])
         zipfile_data = io.BytesIO(conn.get_object(bucket_name,row['key'])[1])
         with zipfile.ZipFile(zipfile_data) as zf:
             for content_file in zf.namelist():
                 # dprint(content_file, flush=True)
                 content_file_data = zf.open(content_file)
+                size += len(content_file_data.read())
                 key = path_stub + '/' + content_file
                 conn.put_object(bucket_name,key,content_file_data)
                 # dprint(f'Uploaded {content_file} to {key}', flush=True)
-            dprint(f'Uploaded contents of {row["key"]}.', flush=True)
+        end = datetime.now()
+        duration = end - start
+        if duration > 0:
+            dprint(f'Extracted and uploaded contents of {row["key"]} in {duration.seconds:.2f} s ({size/1024**2/duration.seconds} MiB/s).', flush=True)
+        else:
+            dprint(f'Extracted and uploaded contents of {row["key"]} in {duration.seconds:.2f} s.', flush=True)
         return True
     else:
         return False
@@ -253,7 +263,7 @@ def main():
         #Dask Dataframe of all keys
         keys_df = dd.from_pandas(keys, npartitions=len(keys)//n_workers)
         del keys
-        dprint(keys_df)
+        # dprint(keys_df)
         #Discover if key is a zipfile
         keys_df['is_zipfile'] = keys_df['key'].apply(match_key, meta=('is_zipfile', 'bool'))
         pq1 = get_random_parquet_path()
@@ -268,7 +278,7 @@ def main():
             sys.exit()
 
         #Get metadata for zipfiles
-        dprint(keys_df) # make sure not to imply .compute by printing!
+        # dprint(keys_df) # make sure not to imply .compute by printing!
         keys_df['contents'] = keys_df[keys_df['is_zipfile'] == True]['key'].apply(find_metadata_swift, conn=conn, bucket_name=bucket_name, meta=('contents', 'str'))
         pq2 = get_random_parquet_path()
         keys_df.to_parquet(pq2, schema=pa.schema([
@@ -292,6 +302,7 @@ def main():
         del keys_df
 
         if list_zips:
+            dprint('Zip files found:')
             keys_df = dd.read_parquet(pq3).drop('contents', axis=1)
             dprint(keys_df[keys_df['is_zipfile'] == True]['key'].compute())
             rm_parquet(pq3)
@@ -306,7 +317,7 @@ def main():
             dprint('Zip files extracted and uploaded:')
             keys_df['extracted and uploaded'] = keys_df.apply(extract_and_upload, conn=conn, bucket_name=bucket_name, meta=('extracted and uploaded', 'bool'), axis=1).compute()
             rm_parquet(pq3)
-    dprint('Done.')
+    print('Done.')
 
 if __name__ == '__main__':
     main()
