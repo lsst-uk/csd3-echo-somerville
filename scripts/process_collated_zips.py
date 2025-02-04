@@ -222,7 +222,7 @@ def main():
     Raises:
          SystemExit: If invalid arguments are provided or if the bucket is not found.
     """
-
+    all_start = datetime.now()
     epilog = ''
     class MyParser(argparse.ArgumentParser):
         def error(self, message):
@@ -351,7 +351,7 @@ def main():
             dprint('Zip files extracted and uploaded:')
             keys_df['extracted and uploaded'] = keys_df.apply(extract_and_upload, conn=conn, bucket_name=bucket_name, meta=('extracted and uploaded', 'bool'), axis=1).compute()
             rm_parquet(pq3)
-    print('Done.')
+    print(f'Done. Runtime: {datetime.now() - all_start}.')
 
 if __name__ == '__main__':
     main()
