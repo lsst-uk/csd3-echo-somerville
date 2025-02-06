@@ -302,6 +302,7 @@ def main():
         #Discover if key is a zipfile
         keys_df['is_zipfile'] = keys_df['key'].apply(match_key, meta=('is_zipfile', 'bool'))
         pq1 = get_random_parquet_path()
+        dprint(f'tmp folder is {os.path.dirname(pq1)}')
         keys_df.to_parquet(pq1, schema=pa.schema([
                 ('key', pa.string()),
                 ('is_zipfile', pa.bool_()),
