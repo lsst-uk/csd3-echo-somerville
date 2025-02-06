@@ -265,7 +265,7 @@ def main():
             nprocs = cpu_count() - 1
     else:
         nprocs = 6
-    threads_per_worker = 1
+    threads_per_worker = nprocs
     n_workers = nprocs//threads_per_worker
     mem_per_worker = 64*1024**3//n_workers # limit to 64 GiB total memory
 
@@ -296,7 +296,7 @@ def main():
         dprint(f'Using {n_workers} workers, each with {threads_per_worker} threads, on {nprocs} CPUs.')
 
         #Dask Dataframe of all keys
-        keys_df = dd.from_pandas(keys, npartitions=len(keys)//n_workers)
+        keys_df = dd.from_pandas(keys, chunksize=1) #  1 key per chunk
         del keys
         # dprint(keys_df)
         #Discover if key is a zipfile
