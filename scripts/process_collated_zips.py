@@ -2,8 +2,6 @@
 # coding: utf-8
 #D.McKay Jun 2024
 
-
-from ast import literal_eval
 from datetime import datetime
 import sys
 import os
@@ -13,10 +11,9 @@ from multiprocessing import cpu_count
 from distributed import Client
 from distributed import print as dprint
 from dask import dataframe as dd
-import pyarrow as pa
+
 import pandas as pd
 from numpy.random import randint
-
 
 import io
 import zipfile
@@ -42,39 +39,41 @@ def get_random_dir() -> str:
     """
     return f'/tmp/{randint(0,1e6):06d}'
 
-def find_metadata_swift(key: str, conn: swiftclient.Connection, bucket_name: str) -> List[str]:
+def find_metadata_swift(key: str, conn: swiftclient.Connection, bucket_name: str) -> str:
     """
     Retrieve metadata for a given key from a Swift container.
     This function attempts to retrieve metadata for a specified key from a Swift container.
     It handles both '.zip' files and other types of files differently. If the key ends with
     '.zip', it tries to fetch the metadata either by getting the object or by checking the
-    object's headers. The metadata is expected to be a string separated by '|' or ','.
+    object's headers. The metadata is expected to be a string separated by '|'.
     Args:
         key (str): The key for which metadata is to be retrieved.
         conn: The connection object to the Swift service.
         container_name (str): The name of the container in the Swift service.
     Returns:
-        List[str]: A list of metadata strings if found, otherwise None.
+        str: '|'-separated metadata strings if found, otherwise None.
     """
 
     if type(key) == str:
         existing_zip_contents = None
         if key.endswith('.zip'):
             try:
-                existing_zip_contents = str(conn.get_object(bucket_name,''.join([key,'.metadata']))[1].decode('UTF-8')).split('|') # use | as separator
+                existing_zip_contents = str(conn.get_object(bucket_name,''.join([key,'.metadata']))[1].decode('UTF-8')) #.split('|') # use | as separator
                 dprint(f'Using zip-contents-object, {"".join([key,".metadata"])} for object {key}.')
             except Exception as e:
                 try:
-                    existing_zip_contents = conn.head_object(bucket_name,key)['x-object-meta-zip-contents'].split('|') # use | as separator
+                    existing_zip_contents = conn.head_object(bucket_name,key)['x-object-meta-zip-contents'] #.split('|') # use | as separator
                     dprint(f'Using zip-contents metadata for {key}.')
                 except KeyError:
                     return None
                 except Exception as e:
                     return None
-            if existing_zip_contents:
-                if len(existing_zip_contents) == 1:
-                        existing_zip_contents = existing_zip_contents[0].split(',') # revert to comma if no | found
+            if existing_zip_contents is not None:
+                if not '|' in existing_zip_contents:
+                    existing_zip_contents = '|'.join(existing_zip_contents.split(',')) # some older metadata may have used commas as separators
                 return existing_zip_contents
+            else:
+                return None
         else:
             return None
     else:
@@ -123,7 +122,7 @@ def verify_zip_contents(row: pd.Series, keys_series: pd.Series) -> bool:
     """
     contents = row['contents']
     if type(contents) == str:
-        contents = literal_eval(contents)
+        contents = contents.split('|')
     extract = False
     if row['is_zipfile']:
         dprint(f'Checking for {row["key"]} contents in all_keys list...')
@@ -151,46 +150,46 @@ def prepend_zipfile_path_to_contents(row: pd.Series) -> str:
     """
 
     path_stub = '/'.join(row['key'].split('/')[:-1])
-    row['contents'] = f'{path_stub}/{row["contents"]}'
-    return row['contents']
+    contents = row['contents'].split('|')
+    prepended = [f'{path_stub}/{c}' for c in contents]
+    return '|'.join(prepended)
 
-def extract_and_upload(row: pd.Series, conn: swiftclient.Connection, bucket_name: str) -> bool:
+def extract_and_upload(key: str, conn: swiftclient.Connection, bucket_name: str) -> bool:
     """
     Extracts the contents of a zip file from an object storage bucket and uploads the extracted files back to the bucket.
     Args:
-        row (pd.Series): A pandas Series containing metadata about the zip file, including the 'key' (str) and 'extract' (bool).
+        key (str): A zip file object 'path' on S3 storage.
         conn (swiftclient.Connection): A connection object to interact with the object storage service.
         bucket_name (str): The name of the bucket where the zip file is stored and where the extracted files will be uploaded.
     Returns:
         bool: True if the extraction and upload process was successful, False otherwise.
     """
+    done = False
+    start = datetime.now()
+    size = 0
+    # dprint(f'Extracting {row["key"]}...', flush=True)
+    path_stub = '/'.join(key.split('/')[:-1])
+    zipfile_data = io.BytesIO(conn.get_object(bucket_name,key)[1])
+    with zipfile.ZipFile(zipfile_data) as zf:
+        for content_file in zf.namelist():
+            # dprint(content_file, flush=True)
+            content_file_data = zf.open(content_file)
+            size += len(content_file_data.read())
+            key = path_stub + '/' + content_file
+            conn.put_object(bucket_name,key,content_file_data)
+            done = True
+            del content_file_data
+            # dprint(f'Uploaded {content_file} to {key}', flush=True)
+    del zipfile_data
+    end = datetime.now()
+    duration = (end - start).microseconds / 1e6 + (end - start).seconds
+    try:
+        dprint(f'Extracted and uploaded contents of {key} in {duration:.2f} s ({(size/1024**2/duration):.2f} MiB/s).', flush=True)
+    except ZeroDivisionError:
+        dprint(f'Extracted and uploaded contents of {key} in {duration:.2f} s', flush=True)
 
-    if row['extract']:
-        start = datetime.now()
-        size = 0
-        # dprint(f'Extracting {row["key"]}...', flush=True)
-        path_stub = '/'.join(row["key"].split('/')[:-1])
-        zipfile_data = io.BytesIO(conn.get_object(bucket_name,row['key'])[1])
-        with zipfile.ZipFile(zipfile_data) as zf:
-            for content_file in zf.namelist():
-                # dprint(content_file, flush=True)
-                content_file_data = zf.open(content_file)
-                size += len(content_file_data.read())
-                key = path_stub + '/' + content_file
-                conn.put_object(bucket_name,key,content_file_data)
-                del content_file_data
-                # dprint(f'Uploaded {content_file} to {key}', flush=True)
-        del zipfile_data
-        end = datetime.now()
-        duration = (end - start).microseconds / 1e6 + (end - start).seconds
-        try:
-            dprint(f'Extracted and uploaded contents of {row["key"]} in {duration:.2f} s ({(size/1024**2/duration):.2f} MiB/s).', flush=True)
-        except ZeroDivisionError:
-            dprint(f'Extracted and uploaded contents of {row["key"]} in {duration:.2f} s', flush=True)
+    return done
 
-        return True
-    else:
-        return False
 
 def main():
     """
@@ -310,24 +309,23 @@ def main():
 
         if extract:
             #Get metadata for zipfiles
-            keys_df['contents'] = keys_df[keys_df['is_zipfile'] == True]['key'].apply(find_metadata_swift, conn=conn, bucket_name=bucket_name, meta=('contents', 'object'))
+            keys_df['contents'] = keys_df[keys_df['is_zipfile'] == True]['key'].apply(find_metadata_swift, conn=conn, bucket_name=bucket_name, meta=('contents', 'str'))
             d2 = get_random_dir()
             keys_df.to_csv(f'{d2}/keys_*.csv')
             shutil.rmtree(d1)
 
             #Prepend zipfile path to contents
-            keys_df = dd.read_csv(f'{d2}/keys_*.csv', dtype={'key':'str', 'is_zipfile': 'bool'})
+            keys_df = dd.read_csv(f'{d2}/keys_*.csv', dtype={'key':'str', 'is_zipfile': 'bool', 'contents': 'str'})
             dprint(keys_df)
-            keys_df[keys_df['is_zipfile'] == True]['contents'] = keys_df[keys_df['is_zipfile'] == True].apply(prepend_zipfile_path_to_contents, meta=('contents', 'object'), axis=1)
+            keys_df[keys_df['is_zipfile'] == True]['contents'] = keys_df[keys_df['is_zipfile'] == True].apply(prepend_zipfile_path_to_contents, meta=('contents', 'str'), axis=1)
             #Set contents to None for non-zipfiles
-            keys_df['contents'] = keys_df['contents'].astype('object')
             d3 = get_random_dir()
             keys_df.to_csv(f'{d3}/keys_*.csv')
             shutil.rmtree(d2)
             del keys_df
 
             dprint('Extracting zip files...')
-            keys_df = dd.read_csv(f'{d3}/keys_*.csv',dtype={'key':'str', 'is_zipfile': 'bool', 'contents': 'object'})
+            keys_df = dd.read_csv(f'{d3}/keys_*.csv',dtype={'key':'str', 'is_zipfile': 'bool', 'contents': 'str'})
             keys_series = keys_df['key'].compute()
             client.scatter(keys_series)
             keys_df['extract'] = keys_df.apply(verify_zip_contents, meta=('extract', 'bool'), keys_series=keys_series, axis=1)
@@ -336,9 +334,9 @@ def main():
             keys_df.to_csv(f'{d4}/keys_*.csv')
             shutil.rmtree(d3)
             del keys_df
-            keys_df = dd.read_csv(f'{d4}/keys_*.csv', dtype={'key':'str', 'is_zipfile': 'bool', 'contents': 'object', 'extract': 'bool'}).drop(['contents','is_zipfile'], axis=1)
+            keys_df = dd.read_csv(f'{d4}/keys_*.csv', dtype={'key':'str', 'is_zipfile': 'bool', 'contents': 'str', 'extract': 'bool'}).drop(['contents','is_zipfile'], axis=1)
             dprint('Zip files extracted and uploaded:')
-            keys_df['extracted and uploaded'] = keys_df.apply(extract_and_upload, conn=conn, bucket_name=bucket_name, meta=('extracted and uploaded', 'bool'), axis=1).compute(scheduler='synchronous')
+            keys_df['extracted and uploaded'] = keys_df[keys_df['extract'] == True]['key'].apply(extract_and_upload, conn=conn, bucket_name=bucket_name, meta=('extracted and uploaded', 'bool'), axis=1).compute(scheduler='synchronous')
             shutil.rmtree(d4)
             if keys_df['extracted and uploaded'].all():
                 dprint('All zip files extracted and uploaded.')
