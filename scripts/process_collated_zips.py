@@ -294,20 +294,12 @@ def main():
         dprint(f'tmp folder is {d1}')
         keys_df.to_csv(f'{d1}/keys_*.csv')
         keys_df = dd.read_csv(f'{d1}/keys_*.csv', dtype={'key':'str'})
+
         check = keys_df['is_zipfile'].any().compute()
         if not check:
             dprint('No zipfiles found. Exiting.')
             sys.exit()
 
-        #Get metadata for zipfiles
-        # dprint(keys_df) # make sure not to imply .compute by printing!
-        keys_df['contents'] = keys_df[keys_df['is_zipfile'] == True]['key'].apply(find_metadata_swift, conn=conn, bucket_name=bucket_name, meta=('contents', 'object'))
-        d2 = get_random_dir()
-        keys_df.to_csv(f'{d2}/keys_*.csv')
-        shutil.rmtree(d1)
-        #Prepend zipfile path to contents
-        keys_df = dd.read_csv(f'{d2}/keys_*.csv', dtype={'key':'str', 'is_zipfile': 'bool'})
-        dprint(keys_df)
         if list_zips:
             dprint('Zip files found:')
             dprint(keys_df[keys_df['is_zipfile'] == True]['key'].compute())
@@ -317,10 +309,17 @@ def main():
             sys.exit()
 
         if extract:
+            #Get metadata for zipfiles
+            keys_df['contents'] = keys_df[keys_df['is_zipfile'] == True]['key'].apply(find_metadata_swift, conn=conn, bucket_name=bucket_name, meta=('contents', 'object'))
+            d2 = get_random_dir()
+            keys_df.to_csv(f'{d2}/keys_*.csv')
+            shutil.rmtree(d1)
 
+            #Prepend zipfile path to contents
+            keys_df = dd.read_csv(f'{d2}/keys_*.csv', dtype={'key':'str', 'is_zipfile': 'bool'})
+            dprint(keys_df)
             keys_df[keys_df['is_zipfile'] == True]['contents'] = keys_df[keys_df['is_zipfile'] == True].apply(prepend_zipfile_path_to_contents, meta=('contents', 'object'), axis=1)
             #Set contents to None for non-zipfiles
-            keys_df[keys_df['is_zipfile'] == False]['contents'] = []
             keys_df['contents'] = keys_df['contents'].astype('object')
             d3 = get_random_dir()
             keys_df.to_csv(f'{d3}/keys_*.csv')
