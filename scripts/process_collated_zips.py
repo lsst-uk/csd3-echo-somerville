@@ -317,7 +317,7 @@ def main():
 
         #Get metadata for zipfiles
         # dprint(keys_df) # make sure not to imply .compute by printing!
-        keys_df['contents'] = keys_df[keys_df['is_zipfile'] == True]['key'].apply(find_metadata_swift, conn=conn, bucket_name=bucket_name, meta=('contents', 'str'))
+        keys_df['contents'] = keys_df[keys_df['is_zipfile'] == True]['key'].apply(find_metadata_swift, conn=conn, bucket_name=bucket_name, meta=('contents', 'list'))
         pq2 = get_random_parquet_path()
         keys_df.to_parquet(pq2, schema=pa.schema([
                 ('key', pa.string()),
@@ -327,9 +327,9 @@ def main():
         rm_parquet(pq1)
         #Prepend zipfile path to contents
         keys_df = dd.read_parquet(pq2, chunksize=1000)
-        keys_df[keys_df['is_zipfile'] == True]['contents'] = keys_df[keys_df['is_zipfile'] == True].apply(prepend_zipfile_path_to_contents, meta=('contents', 'str'), axis=1)
+        keys_df[keys_df['is_zipfile'] == True]['contents'] = keys_df[keys_df['is_zipfile'] == True].apply(prepend_zipfile_path_to_contents, meta=('contents', 'list'), axis=1)
         #Set contents to None for non-zipfiles
-        keys_df[keys_df['is_zipfile'] == False]['contents'] = None
+        keys_df[keys_df['is_zipfile'] == False]['contents'] = ['']
         pq3 = get_random_parquet_path()
         keys_df.to_parquet(pq3, schema=pa.schema([
                 ('key', pa.string()),
