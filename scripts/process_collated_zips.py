@@ -322,11 +322,12 @@ def main():
         keys_df.to_parquet(pq2, schema=pa.schema([
                 ('key', pa.string()),
                 ('is_zipfile', pa.bool_()),
-                ('contents', pa.list_(pa.string()))
+                ('contents', pa.large_string())
             ]))
         rm_parquet(pq1)
         #Prepend zipfile path to contents
         keys_df = dd.read_parquet(pq2, chunksize=1000)
+        dprint(keys_df)
         keys_df[keys_df['is_zipfile'] == True]['contents'] = keys_df[keys_df['is_zipfile'] == True].apply(prepend_zipfile_path_to_contents, meta=('contents', 'object'), axis=1)
         #Set contents to None for non-zipfiles
         keys_df[keys_df['is_zipfile'] == False]['contents'] = ['']
@@ -334,7 +335,7 @@ def main():
         keys_df.to_parquet(pq3, schema=pa.schema([
                 ('key', pa.string()),
                 ('is_zipfile', pa.bool_()),
-                ('contents', pa.list_(pa.string()))
+                ('contents', pa.large_string())
             ]))
         rm_parquet(pq2)
         del keys_df
