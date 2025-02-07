@@ -3,6 +3,7 @@
 #D.McKay Jun 2024
 
 
+from ast import literal_eval
 from datetime import datetime
 import sys
 import os
@@ -119,12 +120,14 @@ def verify_zip_contents(row: pd.Series, keys_series: pd.Series) -> bool:
     Returns:
         bool: True if the zip file needs to be extracted, False otherwise.
     """
-
+    contents = row['contents']
+    if type(contents) == str:
+        contents = literal_eval(contents)
     extract = False
     if row['is_zipfile']:
         dprint(f'Checking for {row["key"]} contents in all_keys list...')
-        if len(row['contents']) > 0:
-            if sum(keys_series.isin([row['contents']])) != len(row['contents']):
+        if len(contents) > 0:
+            if sum(keys_series.isin([contents])) != len(contents):
                 extract = True
                 dprint(f'{row["key"]} to be extracted.')
             else:
@@ -289,7 +292,7 @@ def main():
         d1 = get_random_dir()
         dprint(f'tmp folder is {d1}')
         keys_df.to_csv(f'{d1}/keys_*.csv')
-        keys_df = dd.read_csv(f'{d1}/keys_*.csv')
+        keys_df = dd.read_csv(f'{d1}/keys_*.csv', dtype={'key':'str'})
         check = keys_df['is_zipfile'].any().compute()
         if not check:
             dprint('No zipfiles found. Exiting.')
@@ -302,25 +305,28 @@ def main():
         keys_df.to_csv(f'{d2}/keys_*.csv')
         shutil.rmtree(d1)
         #Prepend zipfile path to contents
-        keys_df = dd.read_csv(f'{d2}/keys_*.csv')
+        keys_df = dd.read_csv(f'{d2}/keys_*.csv', dtype={'key':'str', 'is_zipfile': 'bool'})
         dprint(keys_df)
-        keys_df[keys_df['is_zipfile'] == True]['contents'] = keys_df[keys_df['is_zipfile'] == True].apply(prepend_zipfile_path_to_contents, meta=('contents', 'object'), axis=1)
-        #Set contents to None for non-zipfiles
-        keys_df[keys_df['is_zipfile'] == False]['contents'] = None
-        d3 = get_random_dir()
-        keys_df.to_csv(f'{d1}/keys_*.csv')
-        shutil.rmtree(d2)
-        del keys_df
-
         if list_zips:
             dprint('Zip files found:')
-            keys_df = dd.read_csv(f'{d3}/keys_*.csv').drop('contents', axis=1)
             dprint(keys_df[keys_df['is_zipfile'] == True]['key'].compute())
-            shutil.rmtree(d3)
+            del keys_df
+            shutil.rmtree(d1)
+            shutil.rmtree(d2)
+            sys.exit()
 
         if extract:
+
+            keys_df[keys_df['is_zipfile'] == True]['contents'] = keys_df[keys_df['is_zipfile'] == True].apply(prepend_zipfile_path_to_contents, meta=('contents', 'object'), axis=1)
+            #Set contents to None for non-zipfiles
+            keys_df[keys_df['is_zipfile'] == False]['contents'] = None
+            d3 = get_random_dir()
+            keys_df.to_csv(f'{d3}/keys_*.csv')
+            shutil.rmtree(d2)
+            del keys_df
+
             dprint('Extracting zip files...')
-            keys_df = dd.read_csv(f'{d3}/keys_*.csv')
+            keys_df = dd.read_csv(f'{d3}/keys_*.csv',dtype={'key':'str', 'is_zipfile': 'bool', 'contents': 'object'})
             keys_series = keys_df['key'].compute()
             client.scatter(keys_series)
             keys_df['extract'] = keys_df.apply(verify_zip_contents, meta=('extract', 'bool'), keys_series=keys_series, axis=1)
@@ -329,7 +335,7 @@ def main():
             keys_df.to_csv(f'{d4}/keys_*.csv')
             shutil.rmtree(d3)
             del keys_df
-            keys_df = dd.read_csv(f'{d4}/keys_*.csv').drop(['contents','is_zipfile'], axis=1)
+            keys_df = dd.read_csv(f'{d4}/keys_*.csv', dtype={'key':'str', 'is_zipfile': 'bool', 'contents': 'object', 'extract': 'bool'}).drop(['contents','is_zipfile'], axis=1)
             dprint('Zip files extracted and uploaded:')
             keys_df['extracted and uploaded'] = keys_df.apply(extract_and_upload, conn=conn, bucket_name=bucket_name, meta=('extracted and uploaded', 'bool'), axis=1).compute(scheduler='synchronous')
             shutil.rmtree(d4)
