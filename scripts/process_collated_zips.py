@@ -322,7 +322,7 @@ def main():
         keys_df.to_parquet(pq2, schema=pa.schema([
                 ('key', pa.string()),
                 ('is_zipfile', pa.bool_()),
-                ('contents', pa.StringArray())
+                ('contents', pa.list_(pa.string()))
             ]))
         rm_parquet(pq1)
         #Prepend zipfile path to contents
@@ -334,7 +334,7 @@ def main():
         keys_df.to_parquet(pq3, schema=pa.schema([
                 ('key', pa.string()),
                 ('is_zipfile', pa.bool_()),
-                ('contents', pa.StringArray())
+                ('contents', pa.list_(pa.string()))
             ]))
         rm_parquet(pq2)
         del keys_df
