@@ -30,33 +30,16 @@ from typing import List
 import re
 import shutil
 
-def get_random_parquet_path() -> str:
+def get_random_dir() -> str:
     """
-    Generates a random file path for a Parquet file.
+    Generates a random file path for a CSV file.
     The function creates a random directory name using a random integer
     between 0 and 1,000,000 (inclusive) and returns a string representing
-    the path to a Parquet file within that directory.
+    the path to a CSV file within that directory.
     Returns:
-        str: A string representing the random file path for a Parquet file.
+        str: A string representing the random file path for a CSV file.
     """
-    return f'/tmp/{randint(0,1e6):06d}/data.parquet'
-
-def rm_parquet(path: str) -> None:
-    """
-    Remove the parent directory of the given path if it is a directory and not a symbolic link.
-    If the parent is not a directory but exists, remove it as a file.
-    Designed to work with temporary directories created by the get_random_parquet_path function.
-    Args:
-        path (str): The path to a file or directory whose parent directory is to be removed.
-    Returns:
-        None
-    """
-
-    parent = os.path.dirname(path)
-    if os.path.isdir(parent) and not os.path.islink(parent):
-        shutil.rmtree(parent)
-    elif os.path.exists(parent):
-        os.remove(parent)
+    return f'/tmp/{randint(0,1e6):06d}'
 
 def find_metadata_swift(key: str, conn: swiftclient.Connection, bucket_name: str) -> List[str]:
     """
@@ -303,13 +286,10 @@ def main():
         # dprint(keys_df)
         #Discover if key is a zipfile
         keys_df['is_zipfile'] = keys_df['key'].apply(match_key, meta=('is_zipfile', 'bool'))
-        pq1 = get_random_parquet_path()
-        dprint(f'tmp folder is {os.path.dirname(pq1)}')
-        keys_df.to_parquet(pq1, schema=pa.schema([
-                ('key', pa.string()),
-                ('is_zipfile', pa.bool_()),
-            ]))
-        keys_df = dd.read_parquet(pq1, chunksize=1000)
+        d1 = get_random_dir()
+        dprint(f'tmp folder is {d1}')
+        keys_df.to_csv(f'{d1}/keys_*.csv')
+        keys_df = dd.read_csv(f'{d1}/keys_*.csv', chunksize=1000)
         check = keys_df['is_zipfile'].any().compute()
         if not check:
             dprint('No zipfiles found. Exiting.')
@@ -318,54 +298,41 @@ def main():
         #Get metadata for zipfiles
         # dprint(keys_df) # make sure not to imply .compute by printing!
         keys_df['contents'] = keys_df[keys_df['is_zipfile'] == True]['key'].apply(find_metadata_swift, conn=conn, bucket_name=bucket_name, meta=('contents', 'object'))
-        pq2 = get_random_parquet_path()
-        keys_df.to_parquet(pq2, schema=pa.schema([
-                ('key', pa.string()),
-                ('is_zipfile', pa.bool_()),
-                ('contents', pa.large_string())
-            ]))
-        rm_parquet(pq1)
+        d2 = get_random_dir()
+        keys_df.to_csv(f'{d2}/keys_*.csv')
+        shutil.rmtree(d1)
         #Prepend zipfile path to contents
-        keys_df = dd.read_parquet(pq2, chunksize=1000)
+        keys_df = dd.read_csv(f'{d2}/keys_*.csv', chunksize=1000)
         dprint(keys_df)
         keys_df[keys_df['is_zipfile'] == True]['contents'] = keys_df[keys_df['is_zipfile'] == True].apply(prepend_zipfile_path_to_contents, meta=('contents', 'object'), axis=1)
         #Set contents to None for non-zipfiles
         keys_df[keys_df['is_zipfile'] == False]['contents'] = ['']
-        pq3 = get_random_parquet_path()
-        keys_df.to_parquet(pq3, schema=pa.schema([
-                ('key', pa.string()),
-                ('is_zipfile', pa.bool_()),
-                ('contents', pa.large_string())
-            ]))
-        rm_parquet(pq2)
+        d3 = get_random_dir()
+        keys_df.to_csv(f'{d1}/keys_*.csv')
+        shutil.rmtree(d2)
         del keys_df
 
         if list_zips:
             dprint('Zip files found:')
-            keys_df = dd.read_parquet(pq3, chunksize=1000).drop('contents', axis=1)
+            keys_df = dd.read_csv(f'{d3}/keys_*.csv', chunksize=1000).drop('contents', axis=1)
             dprint(keys_df[keys_df['is_zipfile'] == True]['key'].compute())
-            rm_parquet(pq3)
+            shutil.rmtree(d3)
 
         if extract:
             dprint('Extracting zip files...')
-            keys_df = dd.read_parquet(pq3, chunksize=1000)
+            keys_df = dd.read_csv(f'{d3}/keys_*.csv', chunksize=1000)
             keys_series = keys_df['key'].compute()
             client.scatter(keys_series)
             keys_df['extract'] = keys_df.apply(verify_zip_contents, meta=('extract', 'bool'), keys_series=keys_series, axis=1)
             del keys_series
-            pq4 = get_random_parquet_path()
-            keys_df.to_parquet(pq4, schema=pa.schema([
-                ('key', pa.string()),
-                ('is_zipfile', pa.bool_()),
-                ('contents', pa.list_(pa.string())),
-                ('extract', pa.bool_())
-            ]))
-            rm_parquet(pq3)
+            d4 = get_random_dir()
+            keys_df.to_csv(f'{d4}/keys_*.csv')
+            shutil.rmtree(d3)
             del keys_df
-            keys_df = dd.read_parquet(pq4, chunksize=1).drop(['contents','is_zipfile'], axis=1)
+            keys_df = dd.read_csv(f'{d4}/keys_*.csv', chunksize=1).drop(['contents','is_zipfile'], axis=1)
             dprint('Zip files extracted and uploaded:')
             keys_df['extracted and uploaded'] = keys_df.apply(extract_and_upload, conn=conn, bucket_name=bucket_name, meta=('extracted and uploaded', 'bool'), axis=1).compute(scheduler='synchronous')
-            rm_parquet(pq4)
+            shutil.rmtree(d4)
             if keys_df['extracted and uploaded'].all():
                 dprint('All zip files extracted and uploaded.')
             del(keys_df)
