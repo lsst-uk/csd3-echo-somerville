@@ -306,7 +306,7 @@ def main():
         dprint(keys_df)
         keys_df[keys_df['is_zipfile'] == True]['contents'] = keys_df[keys_df['is_zipfile'] == True].apply(prepend_zipfile_path_to_contents, meta=('contents', 'object'), axis=1)
         #Set contents to None for non-zipfiles
-        keys_df[keys_df['is_zipfile'] == False]['contents'] = ['']
+        keys_df[keys_df['is_zipfile'] == False]['contents'] = None
         d3 = get_random_dir()
         keys_df.to_csv(f'{d1}/keys_*.csv')
         shutil.rmtree(d2)
