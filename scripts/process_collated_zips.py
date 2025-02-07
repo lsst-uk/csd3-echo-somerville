@@ -100,6 +100,7 @@ def object_list_swift(conn: swiftclient.Connection, container_name: str, prefix 
             o += 1
             if o % 10000 == 0:
                 dprint(f'Existing objects: {o}', end='\r', flush=True)
+    print()
     return keys
 
 def match_key(key):
