@@ -191,7 +191,9 @@ def extract_and_upload(row: pd.Series, conn: swiftclient.Connection, bucket_name
                 size += len(content_file_data.read())
                 key = path_stub + '/' + content_file
                 conn.put_object(bucket_name,key,content_file_data)
+                del content_file_data
                 # dprint(f'Uploaded {content_file} to {key}', flush=True)
+        del zipfile_data
         end = datetime.now()
         duration = (end - start).microseconds / 1e6 + (end - start).seconds
         try:
@@ -296,7 +298,7 @@ def main():
         dprint(f'Using {n_workers} workers, each with {threads_per_worker} threads, on {nprocs} CPUs.')
 
         #Dask Dataframe of all keys
-        keys_df = dd.from_pandas(keys, chunksize=1) #  1 key per chunk
+        keys_df = dd.from_pandas(keys, chunksize=1000)
         del keys
         # dprint(keys_df)
         #Discover if key is a zipfile
@@ -307,7 +309,7 @@ def main():
                 ('key', pa.string()),
                 ('is_zipfile', pa.bool_()),
             ]))
-        keys_df = dd.read_parquet(pq1)
+        keys_df = dd.read_parquet(pq1, chunksize=1000)
         check = keys_df['is_zipfile'].any().compute()
         if not check:
             dprint('No zipfiles found. Exiting.')
@@ -324,7 +326,7 @@ def main():
             ]))
         rm_parquet(pq1)
         #Prepend zipfile path to contents
-        keys_df = dd.read_parquet(pq2)
+        keys_df = dd.read_parquet(pq2, chunksize=1000)
         keys_df[keys_df['is_zipfile'] == True]['contents'] = keys_df[keys_df['is_zipfile'] == True].apply(prepend_zipfile_path_to_contents, meta=('contents', 'str'), axis=1)
         #Set contents to None for non-zipfiles
         keys_df[keys_df['is_zipfile'] == False]['contents'] = None
@@ -339,20 +341,33 @@ def main():
 
         if list_zips:
             dprint('Zip files found:')
-            keys_df = dd.read_parquet(pq3).drop('contents', axis=1)
+            keys_df = dd.read_parquet(pq3, chunksize=1000).drop('contents', axis=1)
             dprint(keys_df[keys_df['is_zipfile'] == True]['key'].compute())
             rm_parquet(pq3)
 
         if extract:
             dprint('Extracting zip files...')
-            keys_df = dd.read_parquet(pq3)
+            keys_df = dd.read_parquet(pq3, chunksize=1000)
             keys_series = keys_df['key'].compute()
             client.scatter(keys_series)
             keys_df['extract'] = keys_df.apply(verify_zip_contents, meta=('extract', 'bool'), keys_series=keys_series, axis=1)
             del keys_series
-            dprint('Zip files extracted and uploaded:')
-            keys_df['extracted and uploaded'] = keys_df.apply(extract_and_upload, conn=conn, bucket_name=bucket_name, meta=('extracted and uploaded', 'bool'), axis=1).compute()
+            pq4 = get_random_parquet_path()
+            keys_df.to_parquet(pq4, schema=pa.schema([
+                ('key', pa.string()),
+                ('is_zipfile', pa.bool_()),
+                ('contents', pa.list_(pa.string())),
+                ('extract', pa.bool_())
+            ]))
             rm_parquet(pq3)
+            del keys_df
+            keys_df = dd.read_parquet(pq4, chunksize=1).drop(['contents','is_zipfile'], axis=1)
+            dprint('Zip files extracted and uploaded:')
+            keys_df['extracted and uploaded'] = keys_df.apply(extract_and_upload, conn=conn, bucket_name=bucket_name, meta=('extracted and uploaded', 'bool'), axis=1).compute(scheduler='synchronous')
+            rm_parquet(pq4)
+            if keys_df['extracted and uploaded'].all():
+                dprint('All zip files extracted and uploaded.')
+            del(keys_df)
     print(f'Done. Runtime: {datetime.now() - all_start}.')
 
 if __name__ == '__main__':
