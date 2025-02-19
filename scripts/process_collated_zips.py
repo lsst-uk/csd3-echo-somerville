@@ -284,6 +284,8 @@ def main():
 
         #Dask Dataframe of all keys
         keys_df = dd.from_pandas(keys, chunksize=1000)
+        keys_series = keys['key']
+        client.scatter(keys_series)
         del keys
         # dprint(keys_df)
         #Discover if key is a zipfile
@@ -327,8 +329,7 @@ def main():
 
             dprint('Extracting zip files...')
             keys_df = dd.read_csv(f'{d3}/keys_*.csv',dtype={'key':'str', 'is_zipfile': 'bool', 'contents': 'str'}, blocksize='64MB')
-            keys_series = keys_df['key'].compute()
-            client.scatter(keys_series)
+
             keys_df['extract'] = keys_df.apply(verify_zip_contents, meta=('extract', 'bool'), keys_series=keys_series, axis=1)
             del keys_series
             d4 = get_random_dir()
