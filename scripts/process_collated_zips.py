@@ -5,7 +5,6 @@
 from datetime import datetime
 import sys
 import os
-from distributed import Client
 
 from multiprocessing import cpu_count
 from distributed import Client
@@ -291,8 +290,9 @@ def main():
         keys_df['is_zipfile'] = keys_df['key'].apply(match_key, meta=('is_zipfile', 'bool'))
         d1 = get_random_dir()
         dprint(f'tmp folder is {d1}')
-        keys_df.to_csv(f'{d1}/keys_*.csv')
-        keys_df = dd.read_csv(f'{d1}/keys_*.csv', dtype={'key':'str'})
+        keys_df.to_csv(f'{d1}/keys_*.csv', index=False)
+        del keys_df
+        keys_df = dd.read_csv(f'{d1}/keys_*.csv', dtype={'key':'str'}, blocksize='64MB')
 
         check = keys_df['is_zipfile'].any().compute()
         if not check:
@@ -311,30 +311,31 @@ def main():
             #Get metadata for zipfiles
             keys_df['contents'] = keys_df[keys_df['is_zipfile'] == True]['key'].apply(find_metadata_swift, conn=conn, bucket_name=bucket_name, meta=('contents', 'str'))
             d2 = get_random_dir()
-            keys_df.to_csv(f'{d2}/keys_*.csv')
+            keys_df.to_csv(f'{d2}/keys_*.csv', index=False)
+            del keys_df
             shutil.rmtree(d1)
 
             #Prepend zipfile path to contents
-            keys_df = dd.read_csv(f'{d2}/keys_*.csv', dtype={'key':'str', 'is_zipfile': 'bool', 'contents': 'str'})
+            keys_df = dd.read_csv(f'{d2}/keys_*.csv', dtype={'key':'str', 'is_zipfile': 'bool', 'contents': 'str'}, blocksize='64MB')
             dprint(keys_df)
             keys_df[keys_df['is_zipfile'] == True]['contents'] = keys_df[keys_df['is_zipfile'] == True].apply(prepend_zipfile_path_to_contents, meta=('contents', 'str'), axis=1)
             #Set contents to None for non-zipfiles
             d3 = get_random_dir()
-            keys_df.to_csv(f'{d3}/keys_*.csv')
-            shutil.rmtree(d2)
+            keys_df.to_csv(f'{d3}/keys_*.csv', index=False)
             del keys_df
+            shutil.rmtree(d2)
 
             dprint('Extracting zip files...')
-            keys_df = dd.read_csv(f'{d3}/keys_*.csv',dtype={'key':'str', 'is_zipfile': 'bool', 'contents': 'str'})
+            keys_df = dd.read_csv(f'{d3}/keys_*.csv',dtype={'key':'str', 'is_zipfile': 'bool', 'contents': 'str'}, blocksize='64MB')
             keys_series = keys_df['key'].compute()
             client.scatter(keys_series)
             keys_df['extract'] = keys_df.apply(verify_zip_contents, meta=('extract', 'bool'), keys_series=keys_series, axis=1)
             del keys_series
             d4 = get_random_dir()
-            keys_df.to_csv(f'{d4}/keys_*.csv')
-            shutil.rmtree(d3)
+            keys_df.to_csv(f'{d4}/keys_*.csv', index=False)
             del keys_df
-            keys_df = dd.read_csv(f'{d4}/keys_*.csv', dtype={'key':'str', 'is_zipfile': 'bool', 'contents': 'str', 'extract': 'bool'}).drop(['contents','is_zipfile'], axis=1)
+            shutil.rmtree(d3)
+            keys_df = dd.read_csv(f'{d4}/keys_*.csv', dtype={'key':'str', 'is_zipfile': 'bool', 'contents': 'str', 'extract': 'bool'}, blocksize='64MB').drop(['contents','is_zipfile'], axis=1)
             dprint('Zip files extracted and uploaded:')
             keys_df['extracted and uploaded'] = keys_df[keys_df['extract'] == True]['key'].apply(extract_and_upload, conn=conn, bucket_name=bucket_name, meta=('extracted and uploaded', 'bool'), axis=1).compute(scheduler='synchronous')
             shutil.rmtree(d4)
