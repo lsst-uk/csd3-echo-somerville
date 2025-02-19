@@ -338,7 +338,7 @@ def main():
             shutil.rmtree(d3)
             keys_df = dd.read_csv(f'{d4}/keys_*.csv', dtype={'key':'str', 'is_zipfile': 'bool', 'contents': 'str', 'extract': 'bool'}, blocksize='64MB').drop(['contents','is_zipfile'], axis=1)
             dprint('Zip files extracted and uploaded:')
-            keys_df['extracted and uploaded'] = keys_df[keys_df['extract'] == True]['key'].apply(extract_and_upload, conn=conn, bucket_name=bucket_name, meta=('extracted and uploaded', 'bool'), axis=1).compute(scheduler='synchronous')
+            keys_df['extracted and uploaded'] = keys_df[keys_df['extract'] == True]['key'].apply(extract_and_upload, conn=conn, bucket_name=bucket_name, meta=('extracted and uploaded', 'bool'), axis=1).compute()
             shutil.rmtree(d4)
             if keys_df['extracted and uploaded'].all():
                 dprint('All zip files extracted and uploaded.')
