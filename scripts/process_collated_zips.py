@@ -306,7 +306,6 @@ def main():
             dprint(keys_df[keys_df['is_zipfile'] == True]['key'].compute())
             del keys_df
             shutil.rmtree(d1)
-            shutil.rmtree(d2)
             sys.exit()
 
         if extract:
