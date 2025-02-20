@@ -10,6 +10,7 @@ from multiprocessing import cpu_count
 from distributed import Client
 from distributed import print as dprint
 from dask import dataframe as dd
+import gc
 
 import pyarrow as pa
 import pandas as pd
@@ -24,7 +25,6 @@ import bucket_manager.bucket_manager as bm
 import swiftclient
 import os
 import argparse
-from typing import List
 import re
 import shutil
 
@@ -209,6 +209,7 @@ def extract_and_upload(key: str, conn: swiftclient.Connection, bucket_name: str)
             del content_file_data
             # dprint(f'Uploaded {content_file} to {key}', flush=True)
     del zipfile_data
+    gc.collect()
     end = datetime.now()
     duration = (end - start).microseconds / 1e6 + (end - start).seconds
     try:
