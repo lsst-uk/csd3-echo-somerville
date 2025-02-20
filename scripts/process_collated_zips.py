@@ -364,7 +364,7 @@ def main():
             del keys_df, keys_series
 
             dprint('Extracting zip files...')
-            keys_df = dd.read_parquet(pq,dtype={'key':'str', 'extract': 'bool'}, chunksize=100) # small chunks to avoid memory issues
+            keys_df = dd.read_parquet(pq,dtype={'key':'str', 'extract': 'bool'}, chunksize=10) # small chunks to avoid memory issues
 
             dprint('Zip files extracted and uploaded:')
             keys_df['extracted_and_uploaded'] = keys_df[keys_df['extract'] == True]['key'].apply(extract_and_upload, conn=conn, bucket_name=bucket_name, meta=('extracted_and_uploaded', 'bool'), axis=1)
