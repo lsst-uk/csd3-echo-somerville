@@ -313,7 +313,7 @@ def main():
         dprint(f'Using {n_workers} workers, each with {threads_per_worker} threads, on {nprocs} CPUs.')
 
         #Dask Dataframe of all keys
-        keys_df = dd.from_pandas(keys, chunksize=1000)
+        keys_df = dd.from_pandas(keys, chunksize=1000000)
         if extract:
             keys_only_df = keys_df['key'].copy()
             keys_only_df = client.persist(keys_only_df)
