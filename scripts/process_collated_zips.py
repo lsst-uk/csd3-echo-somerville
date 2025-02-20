@@ -358,7 +358,7 @@ def main():
             keys_df = keys_df[['key','extract']]
             keys_df.to_parquet(pq, index=False, schema=pa.schema([
                 ('key', pa.string()),
-                ('extract', pa.bool_),
+                ('extract', pa.bool_()),
             ]))
             del keys_df, keys_series
 
