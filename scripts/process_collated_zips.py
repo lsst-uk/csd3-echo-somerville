@@ -356,7 +356,7 @@ def main():
             pq = get_random_parquet_path()
             dprint(f'tmp folder is {pq}')
             keys_df = keys_df[['key','extract']]
-            keys_df.to_parquet(pq, index=False, schema=pa.schema([
+            keys_df.to_parquet(pq, schema=pa.schema([
                 ('key', pa.string()),
                 ('extract', pa.bool_()),
             ]))
