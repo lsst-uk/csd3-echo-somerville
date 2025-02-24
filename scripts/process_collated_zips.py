@@ -271,7 +271,11 @@ def main():
         extract = False
 
     if args.recover:
-        recover = True
+        if not list_zips:
+            recover = True
+        else:
+            print('Cannot list zips and recover at the same time. Exiting.')
+            sys.exit()
     else:
         recover = False
 
@@ -307,10 +311,10 @@ def main():
         sys.exit()
 
     print(f'Using bucket {bucket_name}.')
-
-    print('Getting key list...')
-    keys = pd.DataFrame.from_dict({'key':object_list_swift(conn, bucket_name, count=True)})
-    print(keys.head())
+    if not recover:
+        print('Getting key list...')
+        keys = pd.DataFrame.from_dict({'key':object_list_swift(conn, bucket_name, count=True)})
+        print(keys.head())
 
     with Client(n_workers=n_workers,threads_per_worker=threads_per_worker,memory_limit=mem_per_worker) as client:
         # dask.set_options(get=dask.local.get_sync)
@@ -318,15 +322,16 @@ def main():
         dprint(f'Dashboard: {client.dashboard_link}', flush=True)
         dprint(f'Using {n_workers} workers, each with {threads_per_worker} threads, on {nprocs} CPUs.')
 
-        #Dask Dataframe of all keys
-        keys_df = dd.from_pandas(keys, chunksize=1000000) # this works - high chunksize allows parquet to be written
-        if extract:
-            keys_only_df = keys_df['key'].copy()
-            keys_only_df = client.persist(keys_only_df)
-        del keys
-        # dprint(keys_df)
-        #Discover if key is a zipfile
-        keys_df['is_zipfile'] = keys_df['key'].apply(match_key, meta=('is_zipfile', 'bool'))
+        if not recover:
+            #Dask Dataframe of all keys
+            keys_df = dd.from_pandas(keys, chunksize=1000000) # this works - high chunksize allows parquet to be written
+            if extract:
+                keys_only_df = keys_df['key'].copy()
+                keys_only_df = client.persist(keys_only_df)
+            del keys
+            # dprint(keys_df)
+            #Discover if key is a zipfile
+            keys_df['is_zipfile'] = keys_df['key'].apply(match_key, meta=('is_zipfile', 'bool'))
 
         #check, compute and write to parquet
         # keys_df = client.persist(keys_df) # persist to memory to make the following faster
@@ -368,14 +373,13 @@ def main():
                     ('key', pa.string()),
                     ('extract', pa.bool_()),
                 ]))
+                dprint(f'Parquet file written to {os.path.abspath(pq)}.')
                 del keys_df, keys_series
                 gc.collect()
 
-            if recover:
+            else:
                 pq = 'data.parquet'
                 dprint(f'Recovering from previous run. Using {os.path.abspath(pq)}.')
-            else:
-                dprint(f'Parquet file written to {os.path.abspath(pq)}.')
 
             dprint('Extracting zip files...')
             keys_df = dd.read_parquet(pq,dtype={'key':'str', 'extract': 'bool'}, chunksize=100000) # small chunks to avoid memory issues
