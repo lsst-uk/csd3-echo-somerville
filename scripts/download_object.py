@@ -11,18 +11,16 @@ import warnings
 
 import bucket_manager.bucket_manager as bm
 
-s3_host = 'https://echo.stfc.ac.uk'
+ # Setup bucket object
 try:
-    keys = bm.get_keys()
-except KeyError as e:
+    assert bm.check_keys(api='s3')
+except AssertionError as e:
     print(e)
     sys.exit()
-access_key = keys['access_key']
-secret_key = keys['secret_key']
 
 warnings.filterwarnings('ignore')
 
-s3 = bm.get_resource(access_key, secret_key, s3_host)
+s3 = bm.get_resource()
 
 bucket_name = sys.argv[1]
 URI = sys.argv[2]
@@ -36,4 +34,4 @@ bucket = s3.Bucket(bucket_name)
 #     sys.exit('Object does not exist.')
 
 
-bucket.download_file(URI, URI.split('/')[-1]) 
+bucket.download_file(URI, URI.split('/')[-1])
