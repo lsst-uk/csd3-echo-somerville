@@ -20,7 +20,10 @@ from numpy.random import randint
 import io
 import zipfile
 import warnings
+
+import swiftclient.exceptions
 warnings.filterwarnings('ignore')
+import hashlib
 
 import bucket_manager.bucket_manager as bm
 import swiftclient
@@ -28,6 +31,16 @@ import os
 import argparse
 import re
 import shutil
+
+def get_md5_hash(data: bytes) -> str:
+    """
+    Returns the MD5 hash of the given data.
+    Args:
+        data (bytes): The data to hash.
+    Returns:
+        str: The MD5 hash of the data.
+    """
+    return hashlib.md5(data).hexdigest()
 
 def get_random_dir() -> str:
     """
@@ -206,10 +219,22 @@ def extract_and_upload(key: str, conn: swiftclient.Connection, bucket_name: str)
             content_file_data = zf.open(content_file)
             size += len(content_file_data.read())
             content_key = path_stub + '/' + content_file
-            conn.put_object(bucket_name,content_key,content_file_data)
-            done = True
+            content_md5 = get_md5_hash(content_file_data.read())
+            content_file_data.seek(0)
+            try:
+                existing_content = conn.head_object(bucket_name,content_key)
+                if existing_content['etag'] == content_md5:
+                    continue
+                else:
+                    conn.put_object(bucket_name,content_key,content_file_data)
+            except swiftclient.exceptions.ClientException as e:
+                if e.http_status == 404:
+                    conn.put_object(bucket_name,content_key,content_file_data)
+                else:
+                    raise
             del content_file_data
             # dprint(f'Uploaded {content_file} to {key}', flush=True)
+    done = True
     del zipfile_data
     gc.collect()
     end = datetime.now()
