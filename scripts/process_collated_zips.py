@@ -387,12 +387,13 @@ def main():
 
             dprint('Zip files extracted and uploaded:')
             keys_df['extracted_and_uploaded'] = keys_df[keys_df['extract'] == True]['key'].apply(extract_and_upload, conn=conn, bucket_name=bucket_name, meta=('extracted_and_uploaded', 'bool'))
-            with annotate(resources={'MEMORY': 10e9}):
-                extracted_and_uploaded = keys_df[keys_df['extract'] == True]['extracted_and_uploaded'].compute()
+            # with annotate(resources={'MEMORY': 10e9}):
+            extracted_and_uploaded = keys_df[keys_df['extract'] == True]['extracted_and_uploaded'].compute()
             del(keys_df)
-            rm_parquet(pq)
+            gc.collect()
             if extracted_and_uploaded.all():
                 dprint('All zip files extracted and uploaded.')
+                rm_parquet(pq)
 
     print(f'Done. Runtime: {datetime.now() - all_start}.')
 
