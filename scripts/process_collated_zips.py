@@ -218,6 +218,7 @@ def extract_and_upload(key: str, conn: swiftclient.Connection, bucket_name: str)
             # dprint(content_file, flush=True)
             content_file_data = zf.open(content_file)
             size += len(content_file_data.read())
+            content_file_data.seek(0)
             content_key = path_stub + '/' + content_file
             content_md5 = get_md5_hash(content_file_data.read())
             content_file_data.seek(0)
