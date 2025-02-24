@@ -256,6 +256,7 @@ def main():
     parser.add_argument('--list-zips','-l', action='store_true', help='List the zip files.')
     parser.add_argument('--extract','-e', action='store_true', help='Extract and upload zip files for which the contents are not found in the bucket.')
     parser.add_argument('--nprocs','-n', type=int, help='Maximum number of processes to use for extraction and upload.', default=6)
+    parser.add_argument('--recover','-r', action='store_true', help='Recover from a previous run. Will only work if data.parquet is copied to the working directory.')
 
     args = parser.parse_args()
     bucket_name = args.bucket_name
@@ -268,6 +269,11 @@ def main():
         extract = True
     else:
         extract = False
+
+    if args.recover:
+        recover = True
+    else:
+        recover = False
 
     if list_zips and extract:
         print('Cannot list contents and extract at the same time. Exiting.')
@@ -337,37 +343,45 @@ def main():
             sys.exit()
 
         if extract:
-            # keys_df = client.persist(keys_df)
-            check = keys_df['is_zipfile'].any().compute()
-            if not check:
-                dprint('No zipfiles found. Exiting.')
-                sys.exit()
-            #Get metadata for zipfiles
-            keys_df['contents'] = keys_df[keys_df['is_zipfile'] == True]['key'].apply(find_metadata_swift, conn=conn, bucket_name=bucket_name, meta=('contents', 'str'))
-            keys_df[keys_df['is_zipfile'] == False]['contents'] = ''
+            if not recover:
+                # keys_df = client.persist(keys_df)
+                check = keys_df['is_zipfile'].any().compute()
+                if not check:
+                    dprint('No zipfiles found. Exiting.')
+                    sys.exit()
+                #Get metadata for zipfiles
+                keys_df['contents'] = keys_df[keys_df['is_zipfile'] == True]['key'].apply(find_metadata_swift, conn=conn, bucket_name=bucket_name, meta=('contents', 'str'))
+                keys_df[keys_df['is_zipfile'] == False]['contents'] = ''
 
-            #Prepend zipfile path to contents
-            # dprint(keys_df)
-            keys_df[keys_df['is_zipfile'] == True]['contents'] = keys_df[keys_df['is_zipfile'] == True].apply(prepend_zipfile_path_to_contents, meta=('contents', 'str'), axis=1)
-            keys_series = keys_df['key'].compute()
-            keys_df['extract'] = keys_df.apply(verify_zip_contents, meta=('extract', 'bool'), keys_series=keys_series, axis=1)
+                #Prepend zipfile path to contents
+                # dprint(keys_df)
+                keys_df[keys_df['is_zipfile'] == True]['contents'] = keys_df[keys_df['is_zipfile'] == True].apply(prepend_zipfile_path_to_contents, meta=('contents', 'str'), axis=1)
+                keys_series = keys_df['key'].compute()
+                keys_df['extract'] = keys_df.apply(verify_zip_contents, meta=('extract', 'bool'), keys_series=keys_series, axis=1)
 
-            # all wrangling and decision making done - write to parquet for lazy unzipping
-            # only require key and extract boolean
-            pq = get_random_parquet_path()
-            dprint(f'tmp folder is {pq}')
-            keys_df = keys_df[['key','extract']]
-            keys_df.to_parquet(pq, schema=pa.schema([
-                ('key', pa.string()),
-                ('extract', pa.bool_()),
-            ]))
-            del keys_df, keys_series
+                # all wrangling and decision making done - write to parquet for lazy unzipping
+                # only require key and extract boolean
+                pq = get_random_parquet_path()
+                dprint(f'tmp folder is {pq}')
+                keys_df = keys_df[['key','extract']]
+                keys_df.to_parquet(pq, schema=pa.schema([
+                    ('key', pa.string()),
+                    ('extract', pa.bool_()),
+                ]))
+                del keys_df, keys_series
+                gc.collect()
+
+            if recover:
+                pq = 'data.parquet'
+                dprint(f'Recovering from previous run. Using {os.path.abspath(pq)}.')
+            else:
+                dprint(f'Parquet file written to {os.path.abspath(pq)}.')
 
             dprint('Extracting zip files...')
             keys_df = dd.read_parquet(pq,dtype={'key':'str', 'extract': 'bool'}, chunksize=100000) # small chunks to avoid memory issues
 
             dprint('Zip files extracted and uploaded:')
-            keys_df['extracted_and_uploaded'] = keys_df[keys_df['extract'] == True]['key'].apply(extract_and_upload, conn=conn, bucket_name=bucket_name, meta=('extracted_and_uploaded', 'bool'), axis=1)
+            keys_df['extracted_and_uploaded'] = keys_df[keys_df['extract'] == True]['key'].apply(extract_and_upload, conn=conn, bucket_name=bucket_name, meta=('extracted_and_uploaded', 'bool'))
             extracted_and_uploaded = keys_df[keys_df['extract'] == True]['extracted_and_uploaded'].compute(resources={'MEMORY': 10e9})
             del(keys_df)
             rm_parquet(pq)
