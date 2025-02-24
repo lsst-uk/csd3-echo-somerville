@@ -200,6 +200,7 @@ def extract_and_upload(key: str, conn: swiftclient.Connection, bucket_name: str)
     path_stub = '/'.join(key.split('/')[:-1])
     zipfile_data = io.BytesIO(conn.get_object(bucket_name,key)[1])
     with zipfile.ZipFile(zipfile_data) as zf:
+        num_files = len(zf.namelist())
         for content_file in zf.namelist():
             # dprint(content_file, flush=True)
             content_file_data = zf.open(content_file)
@@ -214,9 +215,9 @@ def extract_and_upload(key: str, conn: swiftclient.Connection, bucket_name: str)
     end = datetime.now()
     duration = (end - start).microseconds / 1e6 + (end - start).seconds
     try:
-        dprint(f'Extracted and uploaded contents of {key} in {duration:.2f} s ({(size/1024**2/duration):.2f} MiB/s).', flush=True)
+        dprint(f'Extracted and uploaded contents of {key} ({num_files} files, total size: {size/1024**2} MiB) in {duration:.2f} s ({(size/1024**2/duration):.2f} MiB/s).', flush=True)
     except ZeroDivisionError:
-        dprint(f'Extracted and uploaded contents of {key} in {duration:.2f} s', flush=True)
+        dprint(f'Extracted and uploaded contents of {key} ({num_files} files, total size: {size/1024**2} MiB) in {duration:.2f} s', flush=True)
 
     return done
 
