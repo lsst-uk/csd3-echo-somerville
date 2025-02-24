@@ -204,8 +204,8 @@ def extract_and_upload(key: str, conn: swiftclient.Connection, bucket_name: str)
             # dprint(content_file, flush=True)
             content_file_data = zf.open(content_file)
             size += len(content_file_data.read())
-            key = path_stub + '/' + content_file
-            conn.put_object(bucket_name,key,content_file_data)
+            content_key = path_stub + '/' + content_file
+            conn.put_object(bucket_name,content_key,content_file_data)
             done = True
             del content_file_data
             # dprint(f'Uploaded {content_file} to {key}', flush=True)
