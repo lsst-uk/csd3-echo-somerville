@@ -223,6 +223,7 @@ def extract_and_upload(key: str, conn: swiftclient.Connection, bucket_name: str)
             content_file_data.seek(0)
             try:
                 existing_content = conn.head_object(bucket_name,content_key)
+                dprint(existing_content['etag'], content_md5)
                 if existing_content['etag'] == content_md5:
                     continue
                 else:
