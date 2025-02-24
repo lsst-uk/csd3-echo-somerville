@@ -224,17 +224,15 @@ def extract_and_upload(key: str, conn: swiftclient.Connection, bucket_name: str)
             content_file_data.seek(0)
             try:
                 existing_content = conn.head_object(bucket_name,content_key)
-                dprint(content_key, key)
-                dprint(existing_content['etag'], content_md5)
                 if existing_content['etag'] == content_md5:
-                    dprint('Content already exists. Skipping.')
+                    # dprint('Content already exists. Skipping.')
                     continue
                 else:
-                    dprint('Content differs. Uploading.')
+                    # dprint('Content differs. Uploading.')
                     conn.put_object(bucket_name,content_key,content_file_data)
             except swiftclient.exceptions.ClientException as e:
                 if e.http_status == 404:
-                    dprint('Object not found. Uploading.')
+                    # dprint('Object not found. Uploading.')
                     conn.put_object(bucket_name,content_key,content_file_data)
                 else:
                     raise
