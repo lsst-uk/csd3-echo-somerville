@@ -224,11 +224,12 @@ def extract_and_upload(key: str, conn: swiftclient.Connection, bucket_name: str)
             content_file_data.seek(0)
             try:
                 existing_content = conn.head_object(bucket_name,content_key)
-                if existing_content['etag'] == content_md5:
-                    dprint(f'Skipping {content_key} ({existing_content['etag']} == {content_md5})')
+                existing_md5 = existing_content['etag']
+                if existing_md5 == content_md5:
+                    dprint(f'Skipping {content_key} ({existing_md5} == {content_md5})')
                     continue
                 else:
-                    dprint(f'Uploading {content_key} ({existing_content['etag']} != {content_md5}).')
+                    dprint(f'Uploading {content_key} ({existing_md5} != {content_md5}).')
                     # dprint('Content differs. Uploading.')
                     conn.put_object(bucket_name,content_key,content_file_data)
             except swiftclient.exceptions.ClientException as e:
