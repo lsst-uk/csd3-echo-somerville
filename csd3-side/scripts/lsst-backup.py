@@ -782,6 +782,7 @@ def upload_to_bucket_collated(s3, bucket_name, api, folder, file_data, zip_conte
 
         filename = object_key.split('/')[-1]
         file_data_size = len(file_data)
+        file_data.seek(0)
 
         print(f'Uploading zip file "{filename}" for {folder} to {bucket_name}/{object_key}, {file_data_size} bytes, checksum = True, dryrun = {dryrun}', flush=True)
         """
@@ -792,6 +793,7 @@ def upload_to_bucket_collated(s3, bucket_name, api, folder, file_data, zip_conte
             - Create checksum object
             """
             checksum_hash = hashlib.md5(file_data)
+            file_data.seek(0)
             checksum_string = checksum_hash.hexdigest()
             checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
 
