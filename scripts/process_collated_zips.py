@@ -228,6 +228,9 @@ def extract_and_upload(key: str, conn: swiftclient.Connection, bucket_name: str)
                 if existing_md5 == content_md5:
                     dprint(f'Skipping {content_key} ({existing_md5} == {content_md5})')
                     continue
+                elif existing_md5 != content_md5 and '-' in existing_md5:
+                    dprint(f'Skipping {content_key} (exists, but segmented - replacement not currently supported).')
+                    continue
                 else:
                     dprint(f'Uploading {content_key} ({existing_md5} != {content_md5}).')
                     # dprint('Content differs. Uploading.')
