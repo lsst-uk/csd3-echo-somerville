@@ -198,13 +198,16 @@ def prepend_zipfile_path_to_contents(row: pd.Series) -> str:
 
 def extract_and_upload(key: str, conn: swiftclient.Connection, bucket_name: str) -> bool:
     """
-    Extracts the contents of a zip file from an object storage bucket and uploads the extracted files back to the bucket.
+    Extracts the contents of a zip file from an object storage bucket and uploads the extracted files back to the bucket if not already present.
+    Files will be skipped if they are already present and have the same MD5 hash, or if they are segmented.
     Args:
-        key (str): A zip file object 'path' on S3 storage.
-        conn (swiftclient.Connection): A connection object to interact with the object storage service.
+        key (str): The key (path) of the zip file in the object storage bucket.
+        conn (swiftclient.Connection): The connection object to interact with the object storage.
         bucket_name (str): The name of the bucket where the zip file is stored and where the extracted files will be uploaded.
     Returns:
-        bool: True if the extraction and upload process was successful, False otherwise.
+        bool: True if the extraction and upload process is completed successfully, False otherwise.
+    Raises:
+        swiftclient.exceptions.ClientException: If there is an error interacting with the object storage.
     """
     done = False
     start = datetime.now()
@@ -222,6 +225,8 @@ def extract_and_upload(key: str, conn: swiftclient.Connection, bucket_name: str)
             content_key = path_stub + '/' + content_file
             content_md5 = get_md5_hash(content_file_data.read())
             content_file_data.seek(0)
+            # Previous check for existing content consider whether _all_ of the files in a zip have been uploaded.
+            # Here we check individual files and only upload if the md5s differ.
             try:
                 existing_content = conn.head_object(bucket_name,content_key)
                 existing_md5 = existing_content['etag']
