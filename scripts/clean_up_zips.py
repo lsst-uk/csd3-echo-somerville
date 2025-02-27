@@ -29,7 +29,7 @@ def logprint(msg,log=None):
     else:
         print(msg)
 
-def delete_object_swift(obj, log=None):
+def delete_object_swift(obj, s3, log=None):
     deleted = False
     try:
         s3.delete_object(bucket_name, obj)
@@ -191,7 +191,7 @@ if __name__ == '__main__':
                     else:
                         print('auto y')
 
-                futures = [client.submit(delete_object_swift, co, log) for co, log in zip(current_zips['CURRENT_OBJECTS'], repeat(log))]
+                futures = [client.submit(delete_object_swift, co, s3, log) for co, s3, log in zip(current_zips['CURRENT_OBJECTS'], repeat(s3), repeat(log))]
                 wait(futures)
                 current_zips['DELETED'] = [f.result() for f in futures]
                 if current_zips['DELETED'].all():
