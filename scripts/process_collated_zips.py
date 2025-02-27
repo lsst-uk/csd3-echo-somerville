@@ -212,6 +212,7 @@ def extract_and_upload(key: str, conn: swiftclient.Connection, bucket_name: str)
     done = False
     start = datetime.now()
     size = 0
+    uploaded = False
     # dprint(f'Extracting {row["key"]}...', flush=True)
     path_stub = '/'.join(key.split('/')[:-1])
     zipfile_data = io.BytesIO(conn.get_object(bucket_name,key)[1])
@@ -240,11 +241,13 @@ def extract_and_upload(key: str, conn: swiftclient.Connection, bucket_name: str)
                     dprint(f'Uploading {content_key} ({existing_md5} != {content_md5}).')
                     # dprint('Content differs. Uploading.')
                     conn.put_object(bucket_name,content_key,content_file_data)
+                    uploaded = True
             except swiftclient.exceptions.ClientException as e:
                 if e.http_status == 404:
                     # dprint('Object not found. Uploading.')
                     dprint(f'Uploading {content_key} (not found).')
                     conn.put_object(bucket_name,content_key,content_file_data)
+                    uploaded = True
                 else:
                     raise
             del content_file_data
@@ -255,9 +258,15 @@ def extract_and_upload(key: str, conn: swiftclient.Connection, bucket_name: str)
     end = datetime.now()
     duration = (end - start).microseconds / 1e6 + (end - start).seconds
     try:
-        dprint(f'Extracted and uploaded contents of {key} ({num_files} files, total size: {size/1024**2:.2f} MiB) in {duration:.2f} s ({(size/1024**2/duration):.2f} MiB/s).', flush=True)
+        if uploaded:
+            dprint(f'Extracted and uploaded contents of {key} ({num_files} files, total size: {size/1024**2:.2f} MiB) in {duration:.2f} s ({(size/1024**2/duration):.2f} MiB/s if all files were uploaded).', flush=True)
+        else:
+            dprint(f'Extracted contents of {key} ({num_files} files, total size: {size/1024**2:.2f} MiB) in {duration:.2f} s (no uploads required)', flush=True)
     except ZeroDivisionError:
-        dprint(f'Extracted and uploaded contents of {key} ({num_files} files, total size: {size/1024**2:.2f} MiB) in {duration:.2f} s', flush=True)
+        if uploaded:
+            dprint(f'Extracted and uploaded contents of {key} ({num_files} files, total size: {size/1024**2:.2f} MiB) in {duration:.2f} s', flush=True)
+        else:
+            dprint(f'Extracted contents of {key} ({num_files} files, total size: {size/1024**2:.2f} MiB) in {duration:.2f} s (no uploads required)', flush=True)
 
     return done
 
