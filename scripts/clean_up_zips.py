@@ -200,12 +200,17 @@ if __name__ == '__main__':
             current_zips = current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_\d+\.zip')].copy()
             logprint(current_zips.head(),log=log)
             if len(current_zips) > 0:
-
+                if verify:
+                    current_zips['verified'] = [ False for i in range(len(current_zips)) ]
+                    current_zips['verified'] = current_zips['CURRENT_OBJECTS'].apply(lambda x: verify_zip_objects(x, s3, bucket_name, current_objects['CURRENT_OBJECTS'], log))
                 if dryrun:
                     logprint(f'Current objects (with matching prefix): {len(current_objects)}', log=log)
-                    logprint(f'Current zip objects (with matching prefix): {len(current_zips)} would be deleted.', log=log)
+                    if verify:
+                        logprint(f'{len(current_zips[current_zips["verified"] == True])} zip objects were verified as deletable.', log=log)
+                    else:
+                        logprint(f'Current zip objects (with matching prefix): {len(current_zips)} would be deleted.', log=log)
                     sys.exit()
-                else:
+                elif not dryrun:
                     print(f'Current objects (with matching prefix): {len(current_objects)}')
                     print(f'Current zip objects (with matching prefix): {len(current_zips)} will be deleted.')
                     print('WARNING! Files are about to be deleted!')
@@ -216,11 +221,8 @@ if __name__ == '__main__':
                     else:
                         print('auto y')
 
-                current_zips['verified'] = [ False for i in range(len(current_zips)) ]
                 if verify:
-                    current_zips['verified'] = current_zips['CURRENT_OBJECTS'].apply(lambda x: verify_zip_objects(x, s3, bucket_name, current_objects['CURRENT_OBJECTS'], log))
                     futures = [client.submit(delete_object_swift, co, s3, log) for co, s3, log in zip(current_zips[current_zips['verified'] == True]['CURRENT_OBJECTS'], repeat(s3), repeat(log))]
-
                 else:
                     futures = [client.submit(delete_object_swift, co, s3, log) for co, s3, log in zip(current_zips['CURRENT_OBJECTS'], repeat(s3), repeat(log))]
 
@@ -231,11 +233,12 @@ if __name__ == '__main__':
                     sys.exit(0)
                 else:
                     logprint(f'Not all zip files were deleted.', log=log)
-                    logprint(f"{len(current_zips[current_zips['verified'] == False])} zip files were not verified and not deleted.", log=log)
+                    if verify:
+                        logprint(f"{len(current_zips[current_zips['verified'] == False])} zip files were not verified and not deleted.", log=log)
+                        if len(current_zips[current_zips['verified'] == False]) + sum(results) != len(current_zips):
+                            logprint(f"Some errors may have occurred, as some zips verified for deletion were not deleted.", log=log)
                     logprint(f"{sum(results)} of {len(current_zips)} were deleted.", log=log)
-                    if len(current_zips[current_zips['verified'] == False]) + sum(results) != len(current_zips):
-                        logprint(f"Some errors may have occurred, as some zips verified for deletion were not deleted.", log=log)
-                    sys.exit(1)
+                    sys.exit(0)
             else:
                 print(f'No zip files in bucket {bucket_name}. Exiting.')
                 sys.exit(0)
