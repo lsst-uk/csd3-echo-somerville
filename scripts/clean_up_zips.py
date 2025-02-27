@@ -49,9 +49,10 @@ def verify_zip_objects(zip_obj, s3, bucket_name, current_objects, log) -> bool:
     Returns:
         bool: True if the zip file needs to be extracted, False otherwise.
     """
-    zip_data = io.BytesIO(s3.get_object(bucket_name, zip_obj))
+    zip_data = io.BytesIO(s3.get_object(bucket_name, zip_obj)[1])
     with zipfile.ZipFile(zip_data, 'r') as z:
         contents = z.namelist()
+    print(contents)
     del zip_data
     verified = False
     if sum(current_objects.isin([contents]).all()) == len(contents):
@@ -76,10 +77,10 @@ if __name__ == '__main__':
     )
 
     parser.add_argument('--api', type=str, help='API to use; "S3" or "Swift". Case insensitive. Note: S3 currently not implemented as only Swift is parallelisable through Dask.', default='Swift')
-    parser.add_argument('--bucket-name', type=str, help='Name of the S3 bucket. Required.')
-    parser.add_argument('--prefix', type=str, help='Prefix to be used in S3 object keys. Required.')
-    parser.add_argument('--nprocs', type=int, help='Number of CPU cores to use for parallel upload. Default is 4.', default=4)
-    parser.add_argument('--dryrun', default=False, action='store_true', help='Perform a dry run without uploading files. Default is False.')
+    parser.add_argument('--bucket-name', '-b', type=str, help='Name of the S3 bucket. Required.')
+    parser.add_argument('--prefix', '-p', type=str, help='Prefix to be used in S3 object keys. Required.')
+    parser.add_argument('--nprocs', '-n', type=int, help='Number of CPU cores to use for parallel upload. Default is 4.', default=4)
+    parser.add_argument('--dryrun', '-d', default=False, action='store_true', help='Perform a dry run without uploading files. Default is False.')
     parser.add_argument('--log-to-file', default=False, action='store_true', help='Log output to file. Default is False, i.e., stdout.')
     parser.add_argument('--yes', '-y', default=False, action='store_true', help='Answer yes to all prompts. Default is False.')
     parser.add_argument('--verify', '-v', default=False, action='store_true', help='Verify the contents of the zip file are in the list of uploaded files. Default is False.')
