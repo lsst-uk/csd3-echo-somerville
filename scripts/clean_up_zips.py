@@ -39,6 +39,29 @@ def delete_object_swift(obj, s3, log=None):
         print(f'Error deleting {obj}: {e}', file=sys.stderr)
     return deleted
 
+def verify_zip_objects(zip_obj, s3, bucket_name, current_objects, log) -> bool:
+    """
+    Verifies the contents of a zip file based on the provided row and keys series.
+    Args:
+        row (pd.Series): A pandas Series containing information about the zip file,
+                         including 'key', 'is_zipfile', and 'contents'.
+        keys_series (pd.Series): A pandas Series containing keys to check against the zip file contents.
+    Returns:
+        bool: True if the zip file needs to be extracted, False otherwise.
+    """
+    zip_data = io.BytesIO(s3.get_object(bucket_name, zip_obj))
+    with zipfile.ZipFile(zip_data, 'r') as z:
+        contents = z.namelist()
+    del zip_data
+    verified = False
+    if sum(current_objects.isin([contents]).all()) == len(contents):
+        verified = True
+        logprint(f'{zip_obj} verified: {verified} - can be deleted', log)
+    else:
+        verified = False
+        logprint(f'{zip_obj} verified: {verified} - cannot be deleted', log)
+    return verified
+
 if __name__ == '__main__':
     epilog = ''
     class MyParser(argparse.ArgumentParser):
@@ -59,6 +82,7 @@ if __name__ == '__main__':
     parser.add_argument('--dryrun', default=False, action='store_true', help='Perform a dry run without uploading files. Default is False.')
     parser.add_argument('--log-to-file', default=False, action='store_true', help='Log output to file. Default is False, i.e., stdout.')
     parser.add_argument('--yes', '-y', default=False, action='store_true', help='Answer yes to all prompts. Default is False.')
+    parser.add_argument('--verify', '-v', default=False, action='store_true', help='Verify the contents of the zip file are in the list of uploaded files. Default is False.')
     args = parser.parse_args()
 
     # Parse arguments
@@ -81,6 +105,7 @@ if __name__ == '__main__':
     dryrun = args.dryrun
     yes = args.yes
     log_to_file = args.log_to_file
+    verify = args.verify
 
     if not prefix or not bucket_name:
         parser.print_help()
@@ -191,15 +216,25 @@ if __name__ == '__main__':
                     else:
                         print('auto y')
 
-                futures = [client.submit(delete_object_swift, co, s3, log) for co, s3, log in zip(current_zips['CURRENT_OBJECTS'], repeat(s3), repeat(log))]
+                current_zips['verified'] = [ False for i in range(len(current_zips)) ]
+                if verify:
+                    current_zips['verified'] = current_zips['CURRENT_OBJECTS'].apply(lambda x: verify_zip_objects(x, s3, bucket_name, current_objects['CURRENT_OBJECTS'], log))
+                    futures = [client.submit(delete_object_swift, co, s3, log) for co, s3, log in zip(current_zips[current_zips['verified'] == True]['CURRENT_OBJECTS'], repeat(s3), repeat(log))]
+
+                else:
+                    futures = [client.submit(delete_object_swift, co, s3, log) for co, s3, log in zip(current_zips['CURRENT_OBJECTS'], repeat(s3), repeat(log))]
+
                 wait(futures)
-                current_zips['DELETED'] = [f.result() for f in futures]
-                if current_zips['DELETED'].all():
+                results = [f.result() for f in futures]
+                if sum(results) == len(current_zips):
                     logprint(f'All zip files deleted.', log=log)
                     sys.exit(0)
                 else:
-                    logprint(f'Error deleting zip files.', log=log)
-                    logprint(f"{len(current_zips['DELETED' == False])} / {len(current_zips)} deleted.", log=log)
+                    logprint(f'Not all zip files were deleted.', log=log)
+                    logprint(f"{len(current_zips[current_zips['verified'] == False])} zip files were not verified and not deleted.", log=log)
+                    logprint(f"{sum(results)} of {len(current_zips)} were deleted.", log=log)
+                    if len(current_zips[current_zips['verified'] == False]) + sum(results) != len(current_zips):
+                        logprint(f"Some errors may have occurred, as some zips verified for deletion were not deleted.", log=log)
                     sys.exit(1)
             else:
                 print(f'No zip files in bucket {bucket_name}. Exiting.')
