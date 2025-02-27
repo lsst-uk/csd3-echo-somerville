@@ -52,10 +52,9 @@ def verify_zip_objects(zip_obj, s3, bucket_name, current_objects, log) -> bool:
     zip_data = io.BytesIO(s3.get_object(bucket_name, zip_obj)[1])
     with zipfile.ZipFile(zip_data, 'r') as z:
         contents = z.namelist()
-    print(contents)
     del zip_data
     verified = False
-    if sum(current_objects.isin([contents]).all()) == len(contents):
+    if current_objects.isin([contents]).all():
         verified = True
         logprint(f'{zip_obj} verified: {verified} - can be deleted', log)
     else:
