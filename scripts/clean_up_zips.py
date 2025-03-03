@@ -220,18 +220,18 @@ if __name__ == '__main__':
                         logprint(f'Current zip objects (with matching prefix): {len(current_zips)} would be deleted.', log=log)
                     sys.exit()
                 else:
-                    print(f'Current objects (with matching prefix): {len(current_objects)}')
+                    logprint(f'Current objects (with matching prefix): {len(current_objects)}')
                     if not verify:
-                        print(f'Current zip objects (with matching prefix): {len(current_zips)} will be deleted.')
+                        logprint(f'Current zip objects (with matching prefix): {len(current_zips)} will be deleted.')
                     else:
-                        print(f'Current zip objects (with matching prefix): {len(current_zips)} will be deleted if all contents exist as objects.')
-                    print('WARNING! Files are about to be deleted!')
-                    print('Continue [y/n]?')
+                        logprint(f'Current zip objects (with matching prefix): {len(current_zips)} will be deleted if all contents exist as objects.')
+                    logprint('WARNING! Files are about to be deleted!')
+                    logprint('Continue [y/n]?')
                     if not yes:
                         if input().lower() != 'y':
                             sys.exit()
                     else:
-                        print('auto y')
+                        logprint('auto y')
 
                     if verify:
                         current_zips['DELETED'] = current_zips[current_zips['verified'] == True]['CURRENT_OBJECTS'].apply(lambda x: delete_object_swift(x, s3, log), meta=('bool'))
