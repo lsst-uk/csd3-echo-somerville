@@ -38,6 +38,7 @@ def delete_object_swift(obj, s3, log=None):
         deleted = True
     except Exception as e:
         print(f'Error deleting {obj}: {e}', file=sys.stderr)
+        return False
     return deleted
 
 def verify_zip_objects(zip_obj, s3, bucket_name, current_objects, log) -> bool:
@@ -208,7 +209,7 @@ if __name__ == '__main__':
             # exit()
             if len(current_zips) > 0:
                 if verify:
-                    current_zips = dd.from_pandas(current_zips, chunksize=100000)
+                    current_zips = dd.from_pandas(current_zips, chunksize=10000)
                     current_zips['verified'] = current_zips['CURRENT_OBJECTS'].apply(lambda x: verify_zip_objects(x, s3, bucket_name, current_objects['CURRENT_OBJECTS'], log), meta=('bool'))
                 if dryrun:
                     logprint(f'Current objects (with matching prefix): {len(current_objects)}', log=log)
@@ -219,37 +220,37 @@ if __name__ == '__main__':
                         logprint(f'Current zip objects (with matching prefix): {len(current_zips)} would be deleted.', log=log)
                     sys.exit()
                 else:
-                    print(f'Current objects (with matching prefix): {len(current_objects)}')
+                    logprint(f'Current objects (with matching prefix): {len(current_objects)}')
                     if not verify:
-                        print(f'Current zip objects (with matching prefix): {len(current_zips)} will be deleted.')
+                        logprint(f'Current zip objects (with matching prefix): {len(current_zips)} will be deleted.')
                     else:
-                        print(f'Current zip objects (with matching prefix): {len(current_zips)} will be deleted if all contents exist as objects.')
-                    print('WARNING! Files are about to be deleted!')
-                    print('Continue [y/n]?')
+                        logprint(f'Current zip objects (with matching prefix): {len(current_zips)} will be deleted if all contents exist as objects.')
+                    logprint('WARNING! Files are about to be deleted!')
+                    logprint('Continue [y/n]?')
                     if not yes:
                         if input().lower() != 'y':
                             sys.exit()
                     else:
-                        print('auto y')
+                        logprint('auto y')
 
                     if verify:
                         current_zips['DELETED'] = current_zips[current_zips['verified'] == True]['CURRENT_OBJECTS'].apply(lambda x: delete_object_swift(x, s3, log), meta=('bool'))
-                        current_zips['DELETED'] = current_zips[current_zips['verified'] == False]['CURRENT_OBJECTS'] = False
+                        current_zips[current_zips['verified'] == False]['DELETED'] = False
                     else:
                         current_zips['DELETED'] = current_zips['CURRENT_OBJECTS'].apply(lambda x: delete_object_swift(x, s3, log), meta=('bool'))
 
                     current_zips = current_zips.compute()
-                    if current_zips['DELETED'].all():
-                        logprint(f'All zip files deleted.', log=log)
-                        sys.exit(0)
+
+                    if verify:
+                        logprint(f'{len(current_zips[current_zips["verified"] == True])} zip files were verified.', log=log)
+                        logprint(f'{len(current_zips[current_zips["DELETED"] == True])} zip files were DELETED.', log=log)
+                        logprint(f"{len(current_zips[current_zips['verified'] == False])} zip files were not verified and not deleted.", log=log)
+                        if len(current_zips[current_zips['verified'] == True]) != len(current_zips[current_zips['DELETED'] == True]):
+                            logprint(f"Some errors may have occurred, as some zips verified for deletion were not deleted.", log=log)
                     else:
-                        logprint(f'Not all zip files were deleted.', log=log)
-                        if verify:
-                            logprint(f"{len(current_zips[current_zips['verified'] == False])} zip files were not verified and not deleted.", log=log)
-                            if len(current_zips[current_zips['verified'] == True]) != len(current_zips[current_zips['DELETED'] == True]):
-                                logprint(f"Some errors may have occurred, as some zips verified for deletion were not deleted.", log=log)
-                        logprint(f"{len(current_zips[current_zips['DELETED'] == True])} of {len(current_zips)} were deleted.", log=log)
-                        sys.exit(0)
+                        logprint(f'{len(current_zips[current_zips["DELETED"] == True])} zip files were DELETED.', log=log)
+                    logprint(f'Finished processing at {datetime.now()}, elapsed time = {datetime.now() - start}', log=log)
+                    sys.exit(0)
             else:
                 print(f'No zip files in bucket {bucket_name}. Exiting.')
                 sys.exit(0)
