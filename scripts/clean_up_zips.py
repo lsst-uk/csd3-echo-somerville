@@ -21,6 +21,7 @@ from dask import dataframe as dd
 from distributed import Client, wait
 import subprocess
 from typing import List
+import gc
 
 def logprint(msg,log=None):
     if log is not None:
@@ -52,7 +53,6 @@ def verify_zip_objects(zip_obj, s3, bucket_name, current_objects, log) -> bool:
     zip_data = io.BytesIO(s3.get_object(bucket_name, zip_obj)[1])
     with zipfile.ZipFile(zip_data, 'r') as z:
         contents = z.namelist()
-    del zip_data
     path_stub = '/'.join(zip_obj.split('/')[:-1])
     contents = [f'{path_stub}/{c}' for c in contents]
     verified = False
@@ -62,6 +62,8 @@ def verify_zip_objects(zip_obj, s3, bucket_name, current_objects, log) -> bool:
     else:
         verified = False
         logprint(f'{zip_obj} verified: {verified} - cannot be deleted', log)
+    del zip_data, contents
+    gc.collect()
     return verified
 
 if __name__ == '__main__':
@@ -216,7 +218,7 @@ if __name__ == '__main__':
                     else:
                         logprint(f'Current zip objects (with matching prefix): {len(current_zips)} would be deleted.', log=log)
                     sys.exit()
-                elif not dryrun:
+                else:
                     print(f'Current objects (with matching prefix): {len(current_objects)}')
                     if not verify:
                         print(f'Current zip objects (with matching prefix): {len(current_zips)} will be deleted.')
@@ -230,25 +232,25 @@ if __name__ == '__main__':
                     else:
                         print('auto y')
 
-                if verify:
-                    current_zips = current_zips.compute()
-                    futures = [client.submit(delete_object_swift, co, s3, log) for co, s3, log in zip(current_zips[current_zips['verified'] == True]['CURRENT_OBJECTS'], repeat(s3), repeat(log))]
-                else:
-                    futures = [client.submit(delete_object_swift, co, s3, log) for co, s3, log in zip(current_zips['CURRENT_OBJECTS'], repeat(s3), repeat(log))]
-
-                wait(futures)
-                results = [f.result() for f in futures]
-                if sum(results) == len(current_zips):
-                    logprint(f'All zip files deleted.', log=log)
-                    sys.exit(0)
-                else:
-                    logprint(f'Not all zip files were deleted.', log=log)
                     if verify:
-                        logprint(f"{len(current_zips[current_zips['verified'] == False])} zip files were not verified and not deleted.", log=log)
-                        if len(current_zips[current_zips['verified'] == False]) + sum(results) != len(current_zips):
-                            logprint(f"Some errors may have occurred, as some zips verified for deletion were not deleted.", log=log)
-                    logprint(f"{sum(results)} of {len(current_zips)} were deleted.", log=log)
-                    sys.exit(0)
+                        current_zips = current_zips.compute()
+                        futures = [client.submit(delete_object_swift, co, s3, log) for co, s3, log in zip(current_zips[current_zips['verified'] == True]['CURRENT_OBJECTS'], repeat(s3), repeat(log))]
+                    else:
+                        futures = [client.submit(delete_object_swift, co, s3, log) for co, s3, log in zip(current_zips['CURRENT_OBJECTS'], repeat(s3), repeat(log))]
+
+                    wait(futures)
+                    results = [f.result() for f in futures]
+                    if sum(results) == len(current_zips):
+                        logprint(f'All zip files deleted.', log=log)
+                        sys.exit(0)
+                    else:
+                        logprint(f'Not all zip files were deleted.', log=log)
+                        if verify:
+                            logprint(f"{len(current_zips[current_zips['verified'] == False])} zip files were not verified and not deleted.", log=log)
+                            if len(current_zips[current_zips['verified'] == False]) + sum(results) != len(current_zips):
+                                logprint(f"Some errors may have occurred, as some zips verified for deletion were not deleted.", log=log)
+                        logprint(f"{sum(results)} of {len(current_zips)} were deleted.", log=log)
+                        sys.exit(0)
             else:
                 print(f'No zip files in bucket {bucket_name}. Exiting.')
                 sys.exit(0)
