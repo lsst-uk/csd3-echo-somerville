@@ -233,23 +233,22 @@ if __name__ == '__main__':
                         print('auto y')
 
                     if verify:
-                        current_zips = current_zips.compute()
-                        futures = [client.submit(delete_object_swift, co, s3, log) for co, s3, log in zip(current_zips[current_zips['verified'] == True]['CURRENT_OBJECTS'], repeat(s3), repeat(log))]
+                        current_zips['DELETED'] = current_zips[current_zips['verified'] == True]['CURRENT_OBJECTS'].apply(lambda x: delete_object_swift(x, s3, log), meta=('bool'))
+                        current_zips['DELETED'] = current_zips[current_zips['verified'] == False]['CURRENT_OBJECTS'] = False
                     else:
-                        futures = [client.submit(delete_object_swift, co, s3, log) for co, s3, log in zip(current_zips['CURRENT_OBJECTS'], repeat(s3), repeat(log))]
+                        current_zips['DELETED'] = current_zips['CURRENT_OBJECTS'].apply(lambda x: delete_object_swift(x, s3, log), meta=('bool'))
 
-                    wait(futures)
-                    results = [f.result() for f in futures]
-                    if sum(results) == len(current_zips):
+                    current_zips = current_zips.compute()
+                    if current_zips['DELETED'].all():
                         logprint(f'All zip files deleted.', log=log)
                         sys.exit(0)
                     else:
                         logprint(f'Not all zip files were deleted.', log=log)
                         if verify:
                             logprint(f"{len(current_zips[current_zips['verified'] == False])} zip files were not verified and not deleted.", log=log)
-                            if len(current_zips[current_zips['verified'] == False]) + sum(results) != len(current_zips):
+                            if len(current_zips[current_zips['verified'] == True]) != len(current_zips[current_zips['DELETED'] == True]):
                                 logprint(f"Some errors may have occurred, as some zips verified for deletion were not deleted.", log=log)
-                        logprint(f"{sum(results)} of {len(current_zips)} were deleted.", log=log)
+                        logprint(f"{len(current_zips[current_zips['DELETED'] == True])} of {len(current_zips)} were deleted.", log=log)
                         sys.exit(0)
             else:
                 print(f'No zip files in bucket {bucket_name}. Exiting.')
