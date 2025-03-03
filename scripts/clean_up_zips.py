@@ -53,6 +53,8 @@ def verify_zip_objects(zip_obj, s3, bucket_name, current_objects, log) -> bool:
     with zipfile.ZipFile(zip_data, 'r') as z:
         contents = z.namelist()
     del zip_data
+    path_stub = '/'.join(zip_obj.split('/')[:-1])
+    contents = [f'{path_stub}/{c}' for c in contents]
     verified = False
     logprint(contents[0], log)
     if current_objects.isin([contents]).all():
