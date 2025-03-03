@@ -91,12 +91,14 @@ if __name__ == '__main__':
         parser.error('API must be "S3" or "Swift" (case insensitive).')
 
     if not args.bucket_name:
-        print('Bucket name not provided. Exiting.', file=sys.stderr)
+        print('Bucket name not provided.', file=sys.stderr)
+        parser.print_help()
         sys.exit(1)
     else:
         bucket_name = args.bucket_name
     if not args.prefix:
-        print('S3 prefix not provided. Exiting.', file=sys.stderr)
+        print('S3 prefix not provided.', file=sys.stderr)
+        parser.print_help()
         sys.exit(1)
     else:
         prefix = args.prefix
@@ -194,11 +196,14 @@ if __name__ == '__main__':
             current_objects = bm.object_list_swift(s3, bucket_name, prefix=prefix, count=True)
         logprint('',log=log)
         logprint(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', log=log)
-
-        current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
+        slice_size = 10000
+        slice_start = 10000
+        current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects[slice_start:slice_start+slice_size]})
+        logprint(current_objects.head(),log=log)
         if not current_objects.empty:
-            current_zips = current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_\d+\.zip')].copy()
+            current_zips = current_objects[(current_objects['CURRENT_OBJECTS'].str.contains('collated_\d+\.zip')) & ~(current_objects['CURRENT_OBJECTS'].str.contains('.zip.metadata'))].copy()
             logprint(current_zips.head(),log=log)
+            # exit()
             if len(current_zips) > 0:
                 if verify:
                     current_zips['verified'] = [ False for i in range(len(current_zips)) ]
