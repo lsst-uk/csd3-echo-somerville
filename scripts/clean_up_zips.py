@@ -58,8 +58,8 @@ def verify_zip_objects(zip_obj, s3, bucket_name, current_objects, log) -> bool:
     contents = [f'{path_stub}/{c}' for c in contents]
     verified = False
     logprint(contents[0], log)
-    logprint(current_objects.isin([contents]), log)
-    if current_objects.isin([contents]).all():
+    logprint(set(contents).issubset(current_objects['CURRENT_OBJECTS']), log)
+    if set(contents).issubset(current_objects['CURRENT_OBJECTS']):
         verified = True
         logprint(f'{zip_obj} verified: {verified} - can be deleted', log)
     else:
