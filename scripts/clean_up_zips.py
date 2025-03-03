@@ -28,7 +28,7 @@ def logprint(msg,log=None):
         with open(log, 'a') as logfile:
             logfile.write(f'{msg}\n')
     else:
-        print(msg)
+        print(msg, flush=True)
 
 def delete_object_swift(obj, s3, log=None):
     deleted = False
