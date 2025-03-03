@@ -49,6 +49,7 @@ def verify_zip_objects(zip_obj, s3, bucket_name, current_objects, log) -> bool:
     Returns:
         bool: True if the zip file needs to be extracted, False otherwise.
     """
+    logprint(current_objects.head(), log)
     zip_data = io.BytesIO(s3.get_object(bucket_name, zip_obj)[1])
     with zipfile.ZipFile(zip_data, 'r') as z:
         contents = z.namelist()
