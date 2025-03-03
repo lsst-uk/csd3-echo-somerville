@@ -54,6 +54,7 @@ def verify_zip_objects(zip_obj, s3, bucket_name, current_objects, log) -> bool:
         contents = z.namelist()
     del zip_data
     verified = False
+    logprint(contents[0], log)
     if current_objects.isin([contents]).all():
         verified = True
         logprint(f'{zip_obj} verified: {verified} - can be deleted', log)
