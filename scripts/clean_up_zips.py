@@ -202,21 +202,26 @@ if __name__ == '__main__':
         current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
         if not current_objects.empty:
             current_zips = current_objects[(current_objects['CURRENT_OBJECTS'].str.contains('collated_\d+\.zip')) & ~(current_objects['CURRENT_OBJECTS'].str.contains('.zip.metadata'))].copy()
+
             # exit()
             if len(current_zips) > 0:
                 if verify:
-                    current_zips['verified'] = [ False for i in range(len(current_zips)) ]
-                    current_zips['verified'] = current_zips['CURRENT_OBJECTS'].apply(lambda x: verify_zip_objects(x, s3, bucket_name, current_objects['CURRENT_OBJECTS'], log))
+                    current_zips = dd.from_pandas(current_zips, npartitions=len(current_zips)//nprocs)
+                    current_zips['verified'] = current_zips['CURRENT_OBJECTS'].apply(verify_zip_objects, s3, bucket_name, current_objects['CURRENT_OBJECTS'], log, meta=('bool'))
                 if dryrun:
                     logprint(f'Current objects (with matching prefix): {len(current_objects)}', log=log)
                     if verify:
+                        current_zips = current_zips.compute()
                         logprint(f'{len(current_zips[current_zips["verified"] == True])} zip objects were verified as deletable.', log=log)
                     else:
                         logprint(f'Current zip objects (with matching prefix): {len(current_zips)} would be deleted.', log=log)
                     sys.exit()
                 elif not dryrun:
                     print(f'Current objects (with matching prefix): {len(current_objects)}')
-                    print(f'Current zip objects (with matching prefix): {len(current_zips)} will be deleted.')
+                    if not verify:
+                        print(f'Current zip objects (with matching prefix): {len(current_zips)} will be deleted.')
+                    else:
+                        print(f'Current zip objects (with matching prefix): {len(current_zips)} will be deleted if all contents exist as objects.')
                     print('WARNING! Files are about to be deleted!')
                     print('Continue [y/n]?')
                     if not yes:
@@ -226,6 +231,7 @@ if __name__ == '__main__':
                         print('auto y')
 
                 if verify:
+                    current_zips = current_zips.compute()
                     futures = [client.submit(delete_object_swift, co, s3, log) for co, s3, log in zip(current_zips[current_zips['verified'] == True]['CURRENT_OBJECTS'], repeat(s3), repeat(log))]
                 else:
                     futures = [client.submit(delete_object_swift, co, s3, log) for co, s3, log in zip(current_zips['CURRENT_OBJECTS'], repeat(s3), repeat(log))]
