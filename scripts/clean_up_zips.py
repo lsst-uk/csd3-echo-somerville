@@ -63,7 +63,7 @@ def verify_zip_objects(zip_obj, s3, bucket_name, current_objects, log) -> bool:
         verified = False
         logprint(f'{zip_obj} verified: {verified} - cannot be deleted', log)
     del zip_data, contents
-    gc.collect()
+    # gc.collect()
     return verified
 
 if __name__ == '__main__':
