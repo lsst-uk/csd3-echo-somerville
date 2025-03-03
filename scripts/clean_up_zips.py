@@ -201,10 +201,7 @@ if __name__ == '__main__':
             current_objects = bm.object_list_swift(s3, bucket_name, prefix=prefix, count=True)
         logprint('',log=log)
         logprint(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', log=log)
-        slice_size = 10000
-        slice_start = 10000
-        current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects[slice_start:slice_start+slice_size]})
-        logprint(current_objects.head(),log=log)
+
         if not current_objects.empty:
             current_zips = current_objects[(current_objects['CURRENT_OBJECTS'].str.contains('collated_\d+\.zip')) & ~(current_objects['CURRENT_OBJECTS'].str.contains('.zip.metadata'))].copy()
             logprint(current_zips.head(),log=log)
