@@ -49,6 +49,7 @@ def verify_zip_objects(zip_obj, s3, bucket_name, current_objects, log) -> bool:
     Returns:
         bool: True if the zip file needs to be extracted, False otherwise.
     """
+    logprint(current_objects.head(), log)
     zip_data = io.BytesIO(s3.get_object(bucket_name, zip_obj)[1])
     with zipfile.ZipFile(zip_data, 'r') as z:
         contents = z.namelist()
@@ -201,6 +202,8 @@ if __name__ == '__main__':
         logprint('',log=log)
         logprint(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', log=log)
 
+        current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
+        logprint(current_objects.head(),log=log)
         if not current_objects.empty:
             current_zips = current_objects[(current_objects['CURRENT_OBJECTS'].str.contains('collated_\d+\.zip')) & ~(current_objects['CURRENT_OBJECTS'].str.contains('.zip.metadata'))].copy()
             logprint(current_zips.head(),log=log)
