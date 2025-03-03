@@ -204,7 +204,7 @@ if __name__ == '__main__':
         current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
         if not current_objects.empty:
             current_zips = current_objects[(current_objects['CURRENT_OBJECTS'].str.contains('collated_\d+\.zip')) & ~(current_objects['CURRENT_OBJECTS'].str.contains('.zip.metadata'))].copy()
-
+            logprint(f'Found {len(current_zips)} zip files in bucket {bucket_name}.', log=log)
             # exit()
             if len(current_zips) > 0:
                 if verify:
