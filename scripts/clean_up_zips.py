@@ -38,6 +38,7 @@ def delete_object_swift(obj, s3, log=None):
         deleted = True
     except Exception as e:
         print(f'Error deleting {obj}: {e}', file=sys.stderr)
+        return False
     return deleted
 
 def verify_zip_objects(zip_obj, s3, bucket_name, current_objects, log) -> bool:
