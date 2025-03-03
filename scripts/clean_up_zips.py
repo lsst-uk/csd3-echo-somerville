@@ -241,15 +241,17 @@ if __name__ == '__main__':
 
                     current_zips = current_zips.compute()
                     if current_zips['DELETED'].all():
+                        logprint(len(current_zips[current_zips['DELETED'] == True]), log)
                         logprint(f'All zip files deleted.', log=log)
                         sys.exit(0)
                     else:
                         logprint(f'Not all zip files were deleted.', log=log)
                         if verify:
+                            logprint(f'{len(current_zips[current_zips["verified"] == True])} zip files were verified.', log=log)
+                            logprint(f'{len(current_zips[current_zips["DELETED"] == True])} zip files were DELETED.', log=log)
                             logprint(f"{len(current_zips[current_zips['verified'] == False])} zip files were not verified and not deleted.", log=log)
                             if len(current_zips[current_zips['verified'] == True]) != len(current_zips[current_zips['DELETED'] == True]):
                                 logprint(f"Some errors may have occurred, as some zips verified for deletion were not deleted.", log=log)
-                        logprint(f"{len(current_zips[current_zips['DELETED'] == True])} of {len(current_zips)} were deleted.", log=log)
                         sys.exit(0)
             else:
                 print(f'No zip files in bucket {bucket_name}. Exiting.')
