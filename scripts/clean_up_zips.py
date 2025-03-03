@@ -235,7 +235,7 @@ if __name__ == '__main__':
 
                     if verify:
                         current_zips['DELETED'] = current_zips[current_zips['verified'] == True]['CURRENT_OBJECTS'].apply(lambda x: delete_object_swift(x, s3, log), meta=('bool'))
-                        current_zips['DELETED'] = current_zips[current_zips['verified'] == False]['CURRENT_OBJECTS'] = False
+                        current_zips[current_zips['verified'] == False]['DELETED'] = False
                     else:
                         current_zips['DELETED'] = current_zips['CURRENT_OBJECTS'].apply(lambda x: delete_object_swift(x, s3, log), meta=('bool'))
 
