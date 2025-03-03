@@ -195,13 +195,13 @@ if __name__ == '__main__':
         logprint(f'Getting current object list for {bucket_name}. This may take some time.\nStarting at {datetime.now()}, elapsed time = {datetime.now() - start}', log=log)
 
         if api == 's3':
-            current_objects = bm.object_list(bucket, prefix=prefix, count=True)
+            current_objects = bm.object_list(bucket, prefix=prefix, count=False)
         elif api == 'swift':
-            current_objects = bm.object_list_swift(s3, bucket_name, prefix=prefix, count=True)
-        logprint('',log=log)
+            current_objects = bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)
         logprint(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', log=log)
 
         current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS':current_objects})
+        logprint(f'Found {len(current_objects)} objects in bucket {bucket_name}.', log=log)
         if not current_objects.empty:
             current_zips = current_objects[(current_objects['CURRENT_OBJECTS'].str.contains('collated_\d+\.zip')) & ~(current_objects['CURRENT_OBJECTS'].str.contains('.zip.metadata'))].copy()
             logprint(f'Found {len(current_zips)} zip files in bucket {bucket_name}.', log=log)
