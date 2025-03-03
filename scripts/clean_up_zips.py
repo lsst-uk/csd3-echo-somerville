@@ -209,7 +209,7 @@ if __name__ == '__main__':
             # exit()
             if len(current_zips) > 0:
                 if verify:
-                    current_zips = dd.from_pandas(current_zips, chunksize=10000)
+                    current_zips = dd.from_pandas(current_zips, chunksize=100000)
                     current_zips['verified'] = current_zips['CURRENT_OBJECTS'].apply(lambda x: verify_zip_objects(x, s3, bucket_name, current_objects['CURRENT_OBJECTS'], log), meta=('bool'))
                 if dryrun:
                     logprint(f'Current objects (with matching prefix): {len(current_objects)}', log=log)
