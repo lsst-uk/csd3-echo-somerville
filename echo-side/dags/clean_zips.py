@@ -105,7 +105,7 @@ with DAG(
                 'ST_KEY': Variable.get("ST_KEY"),
             },
             get_logs=True,
-            xcom_push=True,
+            do_xcom_push=True,
         ) for bucket_name in bucket_names
     ]
 
@@ -115,7 +115,6 @@ with DAG(
             python_callable=process_prefixes,
             op_kwargs={'bucket_name': bucket_name},
             provide_context=True,
-            op_args=[XComArg('return_value')],
             get_logs=True,
             xcom_push=True,
         ) for bucket_name in bucket_names
