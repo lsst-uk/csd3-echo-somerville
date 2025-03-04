@@ -29,9 +29,9 @@ bucket_names = ['LSST-IR-FUSION-test-zip-processing']
 def print_bucket_name(bucket_name):
     print(bucket_name)
 
-def process_prefixes(bucket_name, **kwargs):
+def process_prefixes(bucket_name, **context):
     extn = re.compile(r'\.\w{3}$')
-    ti = kwargs['ti']
+    ti = context['ti']
     print(ti.xcom_pull(task_ids=f'get_prefixes_{bucket_name}', key='return_value'))
     prefixes = ti.xcom_pull(task_ids=f'get_prefixes_{bucket_name}')
     prefixes_first_card = [ pre.split('/')[0] for pre in prefixes ]
@@ -91,8 +91,7 @@ with DAG(
             task_id=f'print_bucket_name_{bucket_name}',
             python_callable=print_bucket_name,
             op_kwargs={'bucket_name': bucket_name},
-        ) for bucket_name in bucket_names
-    ]
+        ) for bucket_name in bucket_names ]
 
     get_prefixes_task = [
         KubernetesPodOperator(
@@ -110,8 +109,7 @@ with DAG(
             },
             get_logs=True,
             do_xcom_push=True,
-        ) for bucket_name in bucket_names
-    ]
+        ) for bucket_name in bucket_names ]
 
     process_prefixes_task = [
         PythonOperator(
@@ -120,8 +118,7 @@ with DAG(
             op_kwargs={'bucket_name': bucket_name},
             provide_context=True,
             do_xcom_push=True,
-        ) for bucket_name in bucket_names
-    ]
+        ) for bucket_name in bucket_names ]
 
     create_clean_up_zips_task = PythonOperator(
         task_id='create_clean_up_zips_tasks',
