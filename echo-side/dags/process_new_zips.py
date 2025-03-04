@@ -18,7 +18,10 @@ def dl_bucket_names(url):
     print(f'Bucket names found: {bucket_names}')
     return bucket_names
 
-bucket_names = dl_bucket_names('https://raw.githubusercontent.com/lsst-uk/csd3-echo-somerville/main/echo-side/bucket_names/bucket_names.json')
+# for production
+# bucket_names = dl_bucket_names('https://raw.githubusercontent.com/lsst-uk/csd3-echo-somerville/main/echo-side/bucket_names/bucket_names.json')
+# for testing
+bucket_names = ['LSST-IR-FUSION-test-zip-processing']
 
 def print_bucket_name(bucket_name):
     print(bucket_name)
