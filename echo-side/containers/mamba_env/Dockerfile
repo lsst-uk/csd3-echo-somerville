@@ -8,6 +8,8 @@ LABEL org.opencontainers.image.licenses="Apache-2.0"
 COPY environment.yaml /environment.yaml
 USER root
 RUN apt-get update && apt-get install -y git
+RUN mkdir /airflow/xcom
+RUN chown -R mambauser:mambauser /airflow
 USER mambauser
 RUN micromamba --version
 
@@ -24,7 +26,5 @@ RUN git clone https://github.com/lsst-uk/csd3-echo-somerville.git
 RUN cd csd3-echo-somerville && python -m pip install .
 
 COPY echo-side/containers/mamba_env/entrypoint.sh /entrypoint.sh
-
-RUN mkdir /airflow/xcom
 
 ENTRYPOINT ["/entrypoint.sh"]
