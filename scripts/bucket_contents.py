@@ -4,6 +4,7 @@
 
 import argparse
 import sys
+import os
 import bucket_manager.bucket_manager as bm
 
 def list_all(bucket,limit,names_to_json):
@@ -115,4 +116,7 @@ if __name__ == '__main__':
     except Exception as e:
         if '(NoSuchBucket)' in str(e).split():
             print('NoSuchBucket')
+    if names_to_json:
+        print('Names written to /airflow/xcom/return.json')
+        os.chmod('/airflow/xcom/return.json',0o444)
     print(f'Total size of bucket: {total_size/1024**3:.2f} GiB')
