@@ -98,7 +98,7 @@ with DAG(
             task_id=f'get_prefixes_{bucket_name}',
             image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
             cmds=['/entrypoint.sh'],
-            arguments=['python', 'csd3-echo-somerville/scripts/bucket_contents.py', '--bucket-name', bucket_name, '--names-only'],
+            arguments=['python', 'csd3-echo-somerville/scripts/bucket_contents.py', '--bucket-name', bucket_name, '--names-only', '>', '/airflow/xcom/return.json'],
             env_vars={
                 'S3_ACCESS_KEY': Variable.get("S3_ACCESS_KEY"),
                 'S3_SECRET_KEY': Variable.get("S3_SECRET_KEY"),
@@ -107,7 +107,7 @@ with DAG(
                 'ST_USER': Variable.get("ST_USER"),
                 'ST_KEY': Variable.get("ST_KEY"),
             },
-            # get_logs=True,
+            get_logs=True,
             do_xcom_push=True,
         ) for bucket_name in bucket_names ]
 

@@ -25,4 +25,6 @@ RUN cd csd3-echo-somerville && python -m pip install .
 
 COPY echo-side/containers/mamba_env/entrypoint.sh /entrypoint.sh
 
+RUN mkdir /airflow/xcom
+
 ENTRYPOINT ["/entrypoint.sh"]

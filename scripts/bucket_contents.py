@@ -14,17 +14,17 @@ def list_all(bucket,limit,names_only):
         if ob.key.endswith('zip'):
             try:
                 if names_only:
-                    print(ob.key)
+                    print(f'"{ob.key}"')
                 else:
                     print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}, {s3.ObjectSummary(bucket_name, ob.key).get()["Metadata"]["zip-contents"]}')
             except Exception as e:
                 if names_only:
-                    print(ob.key)
+                    print(f'"{ob.key}"')
                 else:
                     print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}, n/a')
         else:
             if names_only:
-                print(ob.key)
+                print(f'"{ob.key}"')
             else:
                 print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}, n/a')
         total_size += ob.size
@@ -65,13 +65,13 @@ if __name__ == '__main__':
     parser.add_argument('--bucket-name', '-b', type=str, help='Name of the S3 bucket', required=True)
     parser.add_argument('--prefix', '-p', type=str, default='', help='Optional prefix to filter objects in the bucket')
     parser.add_argument('--limit', '-l', type=int, default=0, help='Optional limit on the number of objects to list')
-    parser.add_argument('--names-only', '-n', action='store_true', default=False, help='Only list the names of the objects')
+    parser.add_argument('--names-only-json', '-n', action='store_true', default=False, help='Only list the names of the objects')
 
     args = parser.parse_args()
     bucket_name = args.bucket_name
     prefix = args.prefix
     limit = args.limit
-    names_only = args.names_only
+    names_only = args.names_only_json
 
     try:
         assert bm.check_keys()
