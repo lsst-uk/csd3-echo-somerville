@@ -29,9 +29,9 @@ bucket_names = ['LSST-IR-FUSION-test-zip-processing']
 def print_bucket_name(bucket_name):
     print(bucket_name)
 
-def process_prefixes(bucket_name, **context):
+def process_prefixes(bucket_name, **kwargs):
     extn = re.compile(r'\.\w{3}$')
-    ti = context['ti']
+    ti = kwargs['ti']
     print(ti.xcom_pull(task_ids=f'get_prefixes_{bucket_name}', key='return_value'))
     prefixes = ti.xcom_pull(task_ids=f'get_prefixes_{bucket_name}')
     prefixes_first_card = [ pre.split('/')[0] for pre in prefixes ]
@@ -107,7 +107,7 @@ with DAG(
                 'ST_USER': Variable.get("ST_USER"),
                 'ST_KEY': Variable.get("ST_KEY"),
             },
-            get_logs=True,
+            # get_logs=True,
             do_xcom_push=True,
         ) for bucket_name in bucket_names ]
 
