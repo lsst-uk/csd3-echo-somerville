@@ -116,7 +116,7 @@ with DAG(
             op_kwargs={'bucket_name': bucket_name},
             provide_context=True,
             get_logs=True,
-            xcom_push=True,
+            do_xcom_push=True,
         ) for bucket_name in bucket_names
     ]
 
