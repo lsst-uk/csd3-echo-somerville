@@ -32,6 +32,7 @@ def print_bucket_name(bucket_name):
 def process_prefixes(bucket_name, **kwargs):
     extn = re.compile(r'\.\w{3}$')
     ti = kwargs['ti']
+    print(ti.xcom_pull(task_ids=f'get_prefixes_{bucket_name}'))
     prefixes = ti.xcom_pull(task_ids=f'get_prefixes_{bucket_name}')
     prefixes_first_card = [ pre.split('/')[0] for pre in prefixes ]
     for prefix in prefixes_first_card:
