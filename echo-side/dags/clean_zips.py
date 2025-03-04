@@ -29,25 +29,12 @@ bucket_names = ['LSST-IR-FUSION-test-zip-processing']
 def print_bucket_name(bucket_name):
     print(bucket_name)
 
-def process_prefixes(bucket_name, **kwargs):
-    extn = re.compile(r'\.\w{3}$')
-    ti = kwargs['ti']
-    print(ti.xcom_pull(task_ids=f'get_prefixes_{bucket_name}', key='return_value'))
-    prefixes = ti.xcom_pull(task_ids=f'get_prefixes_{bucket_name}')
-    prefixes_first_card = [ pre.split('/')[0] for pre in prefixes ]
-    for prefix in prefixes_first_card:
-        if extn.match(prefix):
-            prefixes_first_card.remove(prefix) # first card is a file, not a prefix
-    prefixes = list(set(prefixes_first_card))
-    print(f'Prefixes for {bucket_name}: {prefixes}')
-    return [{'bucket_name': bucket_name, 'prefix': prefix} for prefix in prefixes]
-
 # Generate downstream tasks dynamically
 def create_clean_up_zips_tasks(**kwargs):
     ti = kwargs['ti']
     tasks = []
     for bucket_name in bucket_names:
-        prefixes = ti.xcom_pull(task_ids=f'process_prefixes_{bucket_name}')
+        prefixes = ti.xcom_pull(task_ids=f'get_prefixes_{bucket_name}')
         for prefix in prefixes:
             task_id = f'clean_up_zips_{prefix["bucket_name"]}_{prefix["prefix"]}'
             task = KubernetesPodOperator(
@@ -111,15 +98,6 @@ with DAG(
             do_xcom_push=True,
         ) for bucket_name in bucket_names ]
 
-    process_prefixes_task = [
-        PythonOperator(
-            task_id=f'process_prefixes_{bucket_name}',
-            python_callable=process_prefixes,
-            op_kwargs={'bucket_name': bucket_name},
-            provide_context=True,
-            do_xcom_push=True,
-        ) for bucket_name in bucket_names ]
-
     create_clean_up_zips_task = PythonOperator(
         task_id='create_clean_up_zips_tasks',
         python_callable=create_clean_up_zips_tasks,
@@ -131,9 +109,6 @@ with DAG(
         task >> get_prefixes_task
 
     for task in get_prefixes_task:
-        task >> process_prefixes_task
-
-    for task in process_prefixes_task:
         task >> create_clean_up_zips_task
 
     # # Add the dynamically created tasks to the DAG
