@@ -11,25 +11,28 @@ def list_all(bucket,limit,names_to_json):
     total_size = 0
     count = 0
     if names_to_json:
-        jfile = open('/airflow/xcom/return.json','a')
+        json_names = []
     for ob in bucket.objects.all():
+        if count > 0:
+            if names_to_json:
+                json_names.append(ob.key)
         if ob.key.endswith('zip'):
             try:
                 if names_to_json:
                     print(f'"{ob.key}"')
-                    jfile.write(json.dumps(ob.key + "\n"))
+                    json_names.append(ob.key)
                 else:
                     print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}, {s3.ObjectSummary(bucket_name, ob.key).get()["Metadata"]["zip-contents"]}')
             except Exception as e:
                 if names_to_json:
                     print(f'"{ob.key}"')
-                    jfile.write(json.dumps(ob.key + "\n"))
+                    json_names.append(ob.key)
                 else:
                     print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}, n/a')
         else:
             if names_to_json:
                 print(f'"{ob.key}"')
-                jfile.write(json.dumps(ob.key + "\n"))
+                json_names.append(ob.key)
             else:
                 print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}, n/a')
         total_size += ob.size
@@ -37,32 +40,33 @@ def list_all(bucket,limit,names_to_json):
         if count == limit:
             break
     if names_to_json:
-        jfile.close()
+        with open('/airflow/xcom/return.json','w') as jfile:
+            jfile.write(json.dump(json_names))
     return total_size
 
 def list_prefix(bucket,prefix,limit,names_to_json):
     total_size = 0
     count = 0
     if names_to_json:
-        jfile = open('/airflow/xcom/return.json','a')
+        json_names = []
     for ob in bucket.objects.filter(Prefix=prefix):
         if ob.key.endswith('zip'):
             try:
                 if names_to_json:
                     print(f'"{ob.key}"')
-                    jfile.write(json.dumps(ob.key + "\n"))
+                    json_names.append(ob.key)
                 else:
                     print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}, {s3.ObjectSummary(bucket_name, ob.key).get()["Metadata"]["zip-contents"]}')
             except Exception as e:
                 if names_to_json:
                     print(f'"{ob.key}"')
-                    jfile.write(json.dumps(ob.key + "\n"))
+                    json_names.append(ob.key)
                 else:
                     print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}, n/a')
         else:
             if names_to_json:
                 print(f'"{ob.key}"')
-                jfile.write(json.dumps(ob.key + "\n"))
+                json_names.append(ob.key)
             else:
                 print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}, n/a')
         total_size += ob.size
@@ -70,7 +74,8 @@ def list_prefix(bucket,prefix,limit,names_to_json):
         if count == limit:
             break
     if names_to_json:
-        jfile.close()
+        with open('/airflow/xcom/return.json','w') as jfile:
+            jfile.write(json.dump(json_names))
     return total_size
 
 if __name__ == '__main__':
