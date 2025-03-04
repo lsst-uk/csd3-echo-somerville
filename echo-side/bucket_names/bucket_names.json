@@ -6,5 +6,9 @@
     {
         "name": "LSST-IR-FUSION-rdsip005",
         "description": "Bucket to hold data produced during LSST Pipeline runs on CSD3 (mostly rds-ip005 as of 14/08/2024)"
+    },
+    {
+        "name": "LSST-IR-FUSION-test-zip-processing",
+        "description": "Bucket to hold dummy data for testing zip processing via Airflow"
     }
 ]
