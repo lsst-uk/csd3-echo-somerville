@@ -13,26 +13,26 @@ def list_all(bucket,limit,names_to_json):
     if names_to_json:
         json_names = []
     for ob in bucket.objects.all():
-        if count > 0:
-            if names_to_json:
-                json_names.append(ob.key)
         if ob.key.endswith('zip'):
             try:
                 if names_to_json:
                     print(f'"{ob.key}"')
-                    json_names.append(ob.key)
+                    if '/' in ob.key and ob.key.split('/')[0] not in json_names:
+                        json_names.append(ob.key.split('/')[0])
                 else:
                     print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}, {s3.ObjectSummary(bucket_name, ob.key).get()["Metadata"]["zip-contents"]}')
             except Exception as e:
                 if names_to_json:
                     print(f'"{ob.key}"')
-                    json_names.append(ob.key)
+                    if '/' in ob.key and ob.key.split('/')[0] not in json_names:
+                        json_names.append(ob.key.split('/')[0])
                 else:
                     print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}, n/a')
         else:
             if names_to_json:
                 print(f'"{ob.key}"')
-                json_names.append(ob.key)
+                if '/' in ob.key and ob.key.split('/')[0] not in json_names:
+                        json_names.append(ob.key.split('/')[0])
             else:
                 print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}, n/a')
         total_size += ob.size
@@ -54,19 +54,22 @@ def list_prefix(bucket,prefix,limit,names_to_json):
             try:
                 if names_to_json:
                     print(f'"{ob.key}"')
-                    json_names.append(ob.key)
+                    if '/' in ob.key and ob.key.split('/')[0] not in json_names:
+                        json_names.append(ob.key.split('/')[0])
                 else:
                     print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}, {s3.ObjectSummary(bucket_name, ob.key).get()["Metadata"]["zip-contents"]}')
             except Exception as e:
                 if names_to_json:
                     print(f'"{ob.key}"')
-                    json_names.append(ob.key)
+                    if '/' in ob.key and ob.key.split('/')[0] not in json_names:
+                        json_names.append(ob.key.split('/')[0])
                 else:
                     print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}, n/a')
         else:
             if names_to_json:
                 print(f'"{ob.key}"')
-                json_names.append(ob.key)
+                if '/' in ob.key and ob.key.split('/')[0] not in json_names:
+                        json_names.append(ob.key.split('/')[0])
             else:
                 print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}, n/a')
         total_size += ob.size
@@ -84,7 +87,7 @@ if __name__ == '__main__':
     parser.add_argument('--bucket-name', '-b', type=str, help='Name of the S3 bucket', required=True)
     parser.add_argument('--prefix', '-p', type=str, default='', help='Optional prefix to filter objects in the bucket')
     parser.add_argument('--limit', '-l', type=int, default=0, help='Optional limit on the number of objects to list')
-    parser.add_argument('--names-to-json', '-n', action='store_true', default=False, help='Only list the names of the objects')
+    parser.add_argument('--names-to-json', '-n', action='store_true', default=False, help='Only list the base folder names of the objects and write to json file for Airflow XCom')
 
     args = parser.parse_args()
     bucket_name = args.bucket_name
