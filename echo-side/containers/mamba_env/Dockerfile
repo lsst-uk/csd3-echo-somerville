@@ -8,7 +8,7 @@ LABEL org.opencontainers.image.licenses="Apache-2.0"
 COPY environment.yaml /environment.yaml
 USER root
 RUN apt-get update && apt-get install -y git
-RUN mkdir /airflow/xcom
+RUN mkdir -p /airflow/xcom
 RUN chown -R mambauser:mambauser /airflow
 USER mambauser
 RUN micromamba --version
