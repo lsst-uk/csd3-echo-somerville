@@ -136,5 +136,6 @@ with DAG(
         task >> create_clean_up_zips_task
 
     # Add the dynamically created tasks to the DAG
-    for task in create_clean_up_zips_tasks():
+    clean_up_zips_tasks = create_clean_up_zips_tasks()
+    for task in clean_up_zips_tasks:
         create_clean_up_zips_task >> task
