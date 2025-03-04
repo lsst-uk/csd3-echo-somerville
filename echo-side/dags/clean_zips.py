@@ -115,7 +115,6 @@ with DAG(
             python_callable=process_prefixes,
             op_kwargs={'bucket_name': bucket_name},
             provide_context=True,
-            get_logs=True,
             do_xcom_push=True,
         ) for bucket_name in bucket_names
     ]
@@ -126,8 +125,16 @@ with DAG(
         provide_context=True,
     )
 
-    print_bucket_name_task
-    get_prefixes_task
-    process_prefixes_task
-    create_clean_up_zips_task
-    create_clean_up_zips_tasks()
+     # Set task dependencies
+    for task in print_bucket_name_task:
+        task >> get_prefixes_task
+
+    for task in get_prefixes_task:
+        task >> process_prefixes_task
+
+    for task in process_prefixes_task:
+        task >> create_clean_up_zips_task
+
+    # Add the dynamically created tasks to the DAG
+    for task in create_clean_up_zips_tasks():
+        create_clean_up_zips_task >> task
