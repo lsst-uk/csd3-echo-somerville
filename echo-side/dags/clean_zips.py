@@ -135,7 +135,7 @@ with DAG(
     for task in process_prefixes_task:
         task >> create_clean_up_zips_task
 
-    # Add the dynamically created tasks to the DAG
-    clean_up_zips_tasks = create_clean_up_zips_tasks()
-    for task in clean_up_zips_tasks:
-        create_clean_up_zips_task >> task
+    # # Add the dynamically created tasks to the DAG
+    # clean_up_zips_tasks = create_clean_up_zips_tasks()
+    # for task in clean_up_zips_tasks:
+    #     create_clean_up_zips_task >> task
