@@ -4,7 +4,6 @@
 
 import argparse
 import sys
-import os
 import bucket_manager.bucket_manager as bm
 
 def list_all(bucket,limit,names_to_json):
@@ -17,19 +16,19 @@ def list_all(bucket,limit,names_to_json):
             try:
                 if names_to_json:
                     print(f'"{ob.key}"')
-                    jfile.write(f'"{ob.key}"')
+                    jfile.write(json.dumps(ob.key + "\n"))
                 else:
                     print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}, {s3.ObjectSummary(bucket_name, ob.key).get()["Metadata"]["zip-contents"]}')
             except Exception as e:
                 if names_to_json:
                     print(f'"{ob.key}"')
-                    jfile.write(f'"{ob.key}"')
+                    jfile.write(json.dumps(ob.key + "\n"))
                 else:
                     print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}, n/a')
         else:
             if names_to_json:
                 print(f'"{ob.key}"')
-                jfile.write(f'"{ob.key}"')
+                jfile.write(json.dumps(ob.key + "\n"))
             else:
                 print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}, n/a')
         total_size += ob.size
@@ -50,19 +49,19 @@ def list_prefix(bucket,prefix,limit,names_to_json):
             try:
                 if names_to_json:
                     print(f'"{ob.key}"')
-                    jfile.write(f'"{ob.key}"')
+                    jfile.write(json.dumps(ob.key + "\n"))
                 else:
                     print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}, {s3.ObjectSummary(bucket_name, ob.key).get()["Metadata"]["zip-contents"]}')
             except Exception as e:
                 if names_to_json:
                     print(f'"{ob.key}"')
-                    jfile.write(f'"{ob.key}"')
+                    jfile.write(json.dumps(ob.key + "\n"))
                 else:
                     print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}, n/a')
         else:
             if names_to_json:
                 print(f'"{ob.key}"')
-                jfile.write(f'"{ob.key}"')
+                jfile.write(json.dumps(ob.key + "\n"))
             else:
                 print(f'{ob.key}, {ob.size/1024**2:.2f}, {ob.last_modified}, n/a')
         total_size += ob.size
@@ -87,6 +86,9 @@ if __name__ == '__main__':
     limit = args.limit
     names_to_json = args.names_to_json
 
+    if names_to_json:
+        import json
+
     try:
         assert bm.check_keys()
     except AssertionError as e:
@@ -102,7 +104,10 @@ if __name__ == '__main__':
 
     try:
         print('Contents of bucket: ',bucket_name)
-        print('Object, Size / MiB, LastModified, Zip Contents')
+        if names_to_json:
+            print("Names only")
+        else:
+            print('Object, Size / MiB, LastModified, Zip Contents')
         if prefix:
             total_size = list_prefix(bucket,prefix,limit,names_to_json)
         else:
