@@ -127,6 +127,8 @@ if __name__ == '__main__':
     except Exception as e:
         if '(NoSuchBucket)' in str(e).split():
             print('NoSuchBucket')
+        else:
+            print(e)
     if names_to_json:
         print('Names written to /airflow/xcom/return.json')
         os.chmod('/airflow/xcom/return.json',0o444)
