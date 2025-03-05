@@ -113,7 +113,7 @@ if __name__ == '__main__':
     s3 = bm.get_resource()
 
     bucket = s3.Bucket(bucket_name)
-
+    total_size = 0
     try:
         print('Contents of bucket: ',bucket_name)
         if names_to_json:
