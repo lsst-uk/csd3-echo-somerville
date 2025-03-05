@@ -58,6 +58,12 @@ def create_clean_up_zips_tasks(**kwargs):
             tasks.append(task)
     return tasks
 
+def add_dynamic_tasks(**kwargs):
+    tasks = create_clean_up_zips_tasks(**kwargs)
+    for task in tasks:
+        globals()[task.task_id] = task
+        create_clean_up_zips_task >> task
+
 # Define default arguments for the DAG
 default_args = {
     'owner': 'airflow',
@@ -102,7 +108,7 @@ with DAG(
 
     create_clean_up_zips_task = PythonOperator(
         task_id='create_clean_up_zips_tasks',
-        python_callable=create_clean_up_zips_tasks,
+        python_callable=add_dynamic_tasks,
         provide_context=True,
     )
 
@@ -112,6 +118,3 @@ with DAG(
 
     for task in get_prefixes_task:
         task >> create_clean_up_zips_task
-
-    # Add the dynamically created tasks to the DAG
-    create_clean_up_zips_task >> create_clean_up_zips_tasks()
