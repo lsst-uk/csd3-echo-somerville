@@ -40,8 +40,7 @@ def list_all(bucket,limit,names_to_json):
         if count == limit:
             break
     if names_to_json:
-        with open('/airflow/xcom/return.json','w') as jfile:
-            jfile.write(json.dump(json_names))
+        json.dump(json_names, '/airflow/xcom/return.json')
         # check
         import subprocess
         print(subprocess.Popen(['head','-n','5','/airflow/xcom/return.json'],stdout=subprocess.PIPE).stdout.read())
@@ -80,8 +79,7 @@ def list_prefix(bucket,prefix,limit,names_to_json):
         if count == limit:
             break
     if names_to_json:
-        with open('/airflow/xcom/return.json','w') as jfile:
-            jfile.write(json.dump(json_names))
+        json.dump(json_names, '/airflow/xcom/return.json')
     return total_size
 
 if __name__ == '__main__':
