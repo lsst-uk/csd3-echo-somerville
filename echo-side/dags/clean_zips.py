@@ -37,6 +37,7 @@ def create_clean_up_zips_tasks(**kwargs):
     tasks = []
     for bucket_name in bucket_names:
         prefixes = ti.xcom_pull(task_ids=f'get_prefixes_{bucket_name}')
+        print(prefixes)
         for prefix in prefixes:
             task_id = f'clean_up_zips_{prefix["bucket_name"]}_{prefix["prefix"]}'
             task = KubernetesPodOperator(
