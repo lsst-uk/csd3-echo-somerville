@@ -39,9 +39,8 @@ def create_clean_up_zips_tasks(**kwargs):
         prefixes = ti.xcom_pull(task_ids=f'get_prefixes_{bucket_name}')
         print(prefixes)
         for prefix in prefixes:
-            task_id = f'clean_up_zips_{prefix["bucket_name"]}_{prefix["prefix"]}'
             task = KubernetesPodOperator(
-                task_id=task_id,
+                task_id=f'clean_up_zips_{prefix["bucket_name"]}_{prefix["prefix"]}',
                 image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
                 cmds=['/entrypoint.sh'],
                 arguments=['python', 'csd3-echo-somerville/scripts/clean_up_zips.py', '-y', '-v', '--bucket-name', prefix["bucket_name"], '--extract', '--prefix', prefix["prefix"], '--nprocs', '6'],
@@ -54,9 +53,10 @@ def create_clean_up_zips_tasks(**kwargs):
                     'ST_KEY': Variable.get("ST_KEY"),
                 },
                 get_logs=True,
-                dag=dag,
+                dag=kwargs['dag'],
             )
             tasks.append(task)
+    print([ task.task_id for task in tasks ])
     return tasks
 
 def add_dynamic_tasks(**kwargs):
