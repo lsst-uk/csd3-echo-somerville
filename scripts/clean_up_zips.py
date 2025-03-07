@@ -15,6 +15,7 @@ from psutil import virtual_memory as mem
 warnings.filterwarnings('ignore')
 from logging import ERROR
 import bucket_manager.bucket_manager as bm
+import swiftclient.exceptions
 import os
 import argparse
 from dask import dataframe as dd
@@ -39,6 +40,11 @@ def delete_object_swift(obj, s3, log=None):
     except Exception as e:
         print(f'Error deleting {obj}: {e}', file=sys.stderr)
         return False
+    try:
+        s3.delete_object(bucket_name, f'{obj}.metadata')
+        logprint(f'Deleted {obj}.metadata',log)
+    except swiftclient.exceptions.ClientException as e:
+        logprint(f'WARNING: Error deleting {obj}.metadata: {e.msg}',log)
     return deleted
 
 def verify_zip_objects(zip_obj, s3, bucket_name, current_objects, log) -> bool:
