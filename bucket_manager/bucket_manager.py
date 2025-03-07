@@ -21,7 +21,7 @@ def print_buckets(resource) -> None:
     """
     for b in resource.buckets.all():
         print(b.name)
-    
+
 def check_keys(api: str ='swift') -> None:
     """
     Retrieves the access key and secret key for the specified API.
@@ -41,7 +41,7 @@ def check_keys(api: str ='swift') -> None:
         except AssertionError:
             raise AssertionError('Set S3_ACCESS_KEY, S3_SECRET_KEY and S3_HOST_URL environment variables.')
         return True
-    
+
     elif api == 'swift':
         try:
             assert 'ST_USER' in os.environ
@@ -183,7 +183,7 @@ def object_list(bucket, prefix='', count=False) -> list[str]:
                 print(f'Existing objects: {o}', end='\r', flush=True)
     return keys
 
-def object_list_swift(conn: swiftclient.Connection, container_name: str, prefix : str = '', full_listing: bool = True, count: bool = False) -> list[str]:
+def object_list_swift(conn: swiftclient.Connection, container_name: str, prefix : str = None, full_listing: bool = True, count: bool = False) -> list[str]:
     """
     Returns a list of keys of all objects in the specified bucket.
 

@@ -109,9 +109,7 @@ if __name__ == '__main__':
     else:
         bucket_name = args.bucket_name
     if not args.prefix:
-        print('S3 prefix not provided.', file=sys.stderr)
-        parser.print_help()
-        sys.exit(1)
+        prefix = None
     else:
         prefix = args.prefix
 
@@ -120,10 +118,6 @@ if __name__ == '__main__':
     yes = args.yes
     log_to_file = args.log_to_file
     verify = args.verify
-
-    if not prefix or not bucket_name:
-        parser.print_help()
-        sys.exit(1)
 
     print(f'API: {api}, Bucket name: {bucket_name}, Prefix: {prefix}, nprocs: {nprocs}, dryrun: {dryrun}')
 
