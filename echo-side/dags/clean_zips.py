@@ -43,7 +43,7 @@ def create_clean_up_zips_tasks(**kwargs):
                 task_id=f'clean_up_zips_{prefix["bucket_name"]}_{prefix["prefix"]}',
                 image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
                 cmds=['/entrypoint.sh'],
-                arguments=['python', 'csd3-echo-somerville/scripts/clean_up_zips.py', '-y', '-v', '--bucket-name', prefix["bucket_name"], '--extract', '--prefix', prefix["prefix"], '--nprocs', '6'],
+                arguments=['python', 'csd3-echo-somerville/scripts/clean_up_zips.py', '-y', '-v', '--bucket-name', prefix["bucket_name"], '--prefix', prefix["prefix"], '--nprocs', '6'],
                 env_vars={
                     'S3_ACCESS_KEY': Variable.get("S3_ACCESS_KEY"),
                     'S3_SECRET_KEY': Variable.get("S3_SECRET_KEY"),
