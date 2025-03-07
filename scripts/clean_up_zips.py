@@ -99,7 +99,8 @@ if __name__ == '__main__':
     # Parse arguments
     api = args.api.lower()
     if api not in ['s3', 'swift']:
-        parser.error('API must be "S3" or "Swift" (case insensitive).')
+        print('API set to "swift".')
+        api = 'swift'
 
     if not args.bucket_name:
         print('Bucket name not provided.', file=sys.stderr)
