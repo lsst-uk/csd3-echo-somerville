@@ -30,40 +30,40 @@ def print_bucket_name(bucket_name):
     print(bucket_name)
 
 # Generate downstream tasks dynamically
-def create_clean_up_zips_tasks(**kwargs):
-    print(kwargs)
-    # return ['']
-    ti = kwargs['ti']
-    tasks = []
-    for bucket_name in bucket_names:
-        prefixes = ti.xcom_pull(task_ids=f'get_prefixes_{bucket_name}')
-        print(prefixes)
-        for prefix in prefixes:
-            task = KubernetesPodOperator(
-                task_id=f'clean_up_zips_{prefix["bucket_name"]}_{prefix["prefix"]}',
-                image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
-                cmds=['/entrypoint.sh'],
-                arguments=['python', 'csd3-echo-somerville/scripts/clean_up_zips.py', '-y', '-v', '--bucket-name', prefix["bucket_name"], '--prefix', prefix["prefix"], '--nprocs', '6'],
-                env_vars={
-                    'S3_ACCESS_KEY': Variable.get("S3_ACCESS_KEY"),
-                    'S3_SECRET_KEY': Variable.get("S3_SECRET_KEY"),
-                    'S3_HOST_URL': Variable.get("S3_HOST_URL"),
-                    'ST_AUTH': Variable.get("ST_AUTH"),
-                    'ST_USER': Variable.get("ST_USER"),
-                    'ST_KEY': Variable.get("ST_KEY"),
-                },
-                get_logs=True,
-                dag=kwargs['dag'],
-            )
-            tasks.append(task)
-    print(f"Task list: {[ task.task_id for task in tasks ]}")
-    return tasks
+# def create_clean_up_zips_tasks(**kwargs):
+#     print(kwargs)
+#     # return ['']
+#     ti = kwargs['ti']
+#     tasks = []
+#     for bucket_name in bucket_names:
+#         prefixes = ti.xcom_pull(task_ids=f'get_prefixes_{bucket_name}')
+#         print(prefixes)
+#         for prefix in prefixes:
+#             task = KubernetesPodOperator(
+#                 task_id=f'clean_up_zips_{prefix["bucket_name"]}_{prefix["prefix"]}',
+#                 image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
+#                 cmds=['/entrypoint.sh'],
+#                 arguments=['python', 'csd3-echo-somerville/scripts/clean_up_zips.py', '-y', '-v', '--bucket-name', prefix["bucket_name"], '--prefix', prefix["prefix"], '--nprocs', '6'],
+#                 env_vars={
+#                     'S3_ACCESS_KEY': Variable.get("S3_ACCESS_KEY"),
+#                     'S3_SECRET_KEY': Variable.get("S3_SECRET_KEY"),
+#                     'S3_HOST_URL': Variable.get("S3_HOST_URL"),
+#                     'ST_AUTH': Variable.get("ST_AUTH"),
+#                     'ST_USER': Variable.get("ST_USER"),
+#                     'ST_KEY': Variable.get("ST_KEY"),
+#                 },
+#                 get_logs=True,
+#                 dag=kwargs['dag'],
+#             )
+#             tasks.append(task)
+#     print(f"Task list: {[ task.task_id for task in tasks ]}")
+#     return tasks
 
-def add_dynamic_tasks(**kwargs):
-    tasks = create_clean_up_zips_tasks(**kwargs)
-    for task in tasks:
-        globals()[task.task_id] = task
-        create_clean_up_zips_task >> task
+# def add_dynamic_tasks(**kwargs):
+#     tasks = create_clean_up_zips_tasks(**kwargs)
+#     for task in tasks:
+#         globals()[task.task_id] = task
+#         create_clean_up_zips_task >> task
 
 # Define default arguments for the DAG
 default_args = {
@@ -89,33 +89,51 @@ with DAG(
             op_kwargs={'bucket_name': bucket_name},
         ) for bucket_name in bucket_names ]
 
-    get_prefixes_task = [
+    create_clean_up_zips_task = [
         KubernetesPodOperator(
-            task_id=f'get_prefixes_{bucket_name}',
-            image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
-            cmds=['/entrypoint.sh'],
-            arguments=['python', 'csd3-echo-somerville/scripts/bucket_contents.py', '--bucket-name', bucket_name, '--names-to-json'],
-            env_vars={
-                'S3_ACCESS_KEY': Variable.get("S3_ACCESS_KEY"),
-                'S3_SECRET_KEY': Variable.get("S3_SECRET_KEY"),
-                'S3_HOST_URL': Variable.get("S3_HOST_URL"),
-                'ST_AUTH': Variable.get("ST_AUTH"),
-                'ST_USER': Variable.get("ST_USER"),
-                'ST_KEY': Variable.get("ST_KEY"),
-            },
-            get_logs=True,
-            do_xcom_push=True,
-        ) for bucket_name in bucket_names ]
+                task_id=f'clean_up_zips_{bucket_name}',
+                image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
+                cmds=['/entrypoint.sh'],
+                arguments=['python', 'csd3-echo-somerville/scripts/clean_up_zips.py', '-y', '-v', '--bucket-name', bucket_name, '--prefix', '""', '--nprocs', '6'],
+                env_vars={
+                    'S3_ACCESS_KEY': Variable.get("S3_ACCESS_KEY"),
+                    'S3_SECRET_KEY': Variable.get("S3_SECRET_KEY"),
+                    'S3_HOST_URL': Variable.get("S3_HOST_URL"),
+                    'ST_AUTH': Variable.get("ST_AUTH"),
+                    'ST_USER': Variable.get("ST_USER"),
+                    'ST_KEY': Variable.get("ST_KEY"),
+                },
+                get_logs=True,
+                dag=dag,
+            ) for bucket_name in bucket_names ]
 
-    create_clean_up_zips_task = PythonOperator(
-        task_id='create_clean_up_zips_tasks',
-        python_callable=add_dynamic_tasks,
-        provide_context=True,
-    )
+    # get_prefixes_task = [
+    #     KubernetesPodOperator(
+    #         task_id=f'get_prefixes_{bucket_name}',
+    #         image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
+    #         cmds=['/entrypoint.sh'],
+    #         arguments=['python', 'csd3-echo-somerville/scripts/bucket_contents.py', '--bucket-name', bucket_name, '--names-to-json'],
+    #         env_vars={
+    #             'S3_ACCESS_KEY': Variable.get("S3_ACCESS_KEY"),
+    #             'S3_SECRET_KEY': Variable.get("S3_SECRET_KEY"),
+    #             'S3_HOST_URL': Variable.get("S3_HOST_URL"),
+    #             'ST_AUTH': Variable.get("ST_AUTH"),
+    #             'ST_USER': Variable.get("ST_USER"),
+    #             'ST_KEY': Variable.get("ST_KEY"),
+    #         },
+    #         get_logs=True,
+    #         do_xcom_push=True,
+    #     ) for bucket_name in bucket_names ]
+
+    # create_clean_up_zips_task = PythonOperator(
+    #     task_id='create_clean_up_zips_tasks',
+    #     python_callable=add_dynamic_tasks,
+    #     provide_context=True,
+    # )
 
      # Set task dependencies
     for task in print_bucket_name_task:
-        task >> get_prefixes_task
-
-    for task in get_prefixes_task:
         task >> create_clean_up_zips_task
+
+    # for task in get_prefixes_task:
+    #     task >> create_clean_up_zips_task
