@@ -94,7 +94,7 @@ with DAG(
                 task_id=f'clean_up_zips_{bucket_name}',
                 image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
                 cmds=['/entrypoint.sh'],
-                arguments=['python', 'csd3-echo-somerville/scripts/clean_up_zips.py', '-y', '-v', '--bucket-name', bucket_name, '--prefix', '""', '--nprocs', '6'],
+                arguments=['python', 'csd3-echo-somerville/scripts/clean_up_zips.py', '-y', '-v', '--bucket-name', bucket_name, '--nprocs', '6'],
                 env_vars={
                     'S3_ACCESS_KEY': Variable.get("S3_ACCESS_KEY"),
                     'S3_SECRET_KEY': Variable.get("S3_SECRET_KEY"),
