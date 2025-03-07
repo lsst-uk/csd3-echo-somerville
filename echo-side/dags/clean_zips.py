@@ -56,7 +56,7 @@ def create_clean_up_zips_tasks(**kwargs):
                 dag=kwargs['dag'],
             )
             tasks.append(task)
-    print([ task.task_id for task in tasks ])
+    print(f"Task list: {[ task.task_id for task in tasks ]}")
     return tasks
 
 def add_dynamic_tasks(**kwargs):
