@@ -1840,7 +1840,7 @@ if __name__ == '__main__':
     print(f'Uploaded {file_count} files including zips.')
     file_count_expand_zips = 0
     for zc in logdf['ZIP_CONTENTS']:
-        if zc:
+        if zc != '':
             if type(zc) == list:
                 file_count_expand_zips += len(zc)
             else:
