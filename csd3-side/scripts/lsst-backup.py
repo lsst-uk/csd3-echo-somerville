@@ -1770,16 +1770,16 @@ if __name__ == '__main__':
                             save_collate_list,
                             file_count_stop
                         )
-
-            with open(collate_list_file, 'r') as clf:
-                upload_checks = []
-                for l in clf.readlines():
-                    if l.split(',')[-1] == 'True':
-                        upload_checks.append(True)
-                    else:
-                        upload_checks.append(False)
-            zips_to_upload = any(upload_checks)
-            retries += 1
+            if os.path.exists(collate_list_file):
+                with open(collate_list_file, 'r') as clf:
+                    upload_checks = []
+                    for l in clf.readlines():
+                        if l.split(',')[-1] == 'True':
+                            upload_checks.append(True)
+                        else:
+                            upload_checks.append(False)
+                zips_to_upload = any(upload_checks)
+                retries += 1
 
     print(f'Finished uploads at {datetime.now()}')
     print(f'Dask Client closed at {datetime.now()}')
