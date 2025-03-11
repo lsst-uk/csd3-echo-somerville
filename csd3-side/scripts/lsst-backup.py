@@ -1150,8 +1150,8 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                 try:
                     for i,args in enumerate(zip(
                             repeat(s3),
-                            repeat(api),
                             repeat(bucket_name),
+                            repeat(api),
                             repeat(local_dir),
                             repeat(folder),
                             folder_files,
