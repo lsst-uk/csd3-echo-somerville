@@ -1386,7 +1386,8 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
         elif ulf.done():
             upload_times.append(ulf.result())
             upload_futures.remove(ulf)
-            to_collate.loc[to_collate['id'] == id, 'upload'] = False
+            if at_least_one_batch:
+                to_collate.loc[to_collate['id'] == id, 'upload'] = False
         if len(upload_futures) == 0:
             print('All zip uploads complete.', flush=True)
 
