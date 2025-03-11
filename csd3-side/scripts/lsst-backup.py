@@ -992,6 +992,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
     failed = []
     max_zip_batch_size = 128*1024**2
     size = 0
+    at_least_one_batch = False
     zip_batch_files = [[]]
     zip_batch_object_names = [[]]
     zip_batch_sizes = [0]
@@ -1180,6 +1181,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
 
             elif mean_filesize <= max_zip_batch_size and len(folder_files) > 0 and global_collate: # small files in folder
                 print('Collated upload.', flush=True)
+                at_least_one_batch = True
                 if not os.path.exists(collate_list_file):
                     # Put this back in - need to extract all zips before continuation.
                     # Existing object removal
@@ -1241,7 +1243,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                     print(f'Number of zip files: {len(zip_batch_files)}', flush=True)
             print(f'Done traversing {local_dir}.', flush=True)
 
-    if global_collate:
+    if global_collate and at_least_one_batch:
         ###############################
         # CHECK HERE FOR ZIP CONTENTS #
         ###############################
