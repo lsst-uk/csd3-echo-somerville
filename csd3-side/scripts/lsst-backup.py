@@ -1396,11 +1396,12 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             print(f'Error upload {i}:\nException: {failed_upload[0]}\nTraceback: {failed_upload[1]}', flush=True)
 
     # Re-save collate list to reflect uploads
-    if save_collate_file:
-        print(f'Saving updated collate list to {collate_list_file}.', flush=True)
-        to_collate.to_csv(collate_list_file, index=False)
-    else:
-        print(f'Collate list not saved.')
+    if at_least_one_batch:
+        if save_collate_file:
+            print(f'Saving updated collate list to {collate_list_file}.', flush=True)
+            to_collate.to_csv(collate_list_file, index=False)
+        else:
+            print(f'Collate list not saved.')
 
     ############################
     # Return upload times list #
