@@ -1335,44 +1335,44 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
             to_collate.to_csv(collate_list_file, index=False)
         else:
             print(f'Collate list not saved.', flush=True)
+    if at_least_one_batch:
+        if len(to_collate) > 0:
+            # call zip_folder in parallel
+            print(f'Zipping {len(to_collate)} batches.', flush=True)
+            # print(to_collate[to_collate.upload == False][['file_paths','id', 'upload']])
+            # print(f'len(to_collate[to_collate.upload == False]): {len(to_collate[to_collate.upload == False])}')
+            to_collate_uploads = to_collate[to_collate.upload == True][['file_paths','id', 'upload']]
+            # print(f'to_collate: {to_collate}, {len(to_collate)}')
+            # print(f'to_collate_uploads: {to_collate_uploads}, {len(to_collate_uploads)}')
+            assert to_collate_uploads['upload'].all()
+            for id in to_collate_uploads['id']:
+                if len(upload_futures) >= len(client.scheduler_info()['workers'])*2:
+                    while len(upload_futures) >= len(client.scheduler_info()['workers'])*2:
+                        for ulf in upload_futures:
+                            if 'exception' in ulf.status or 'error' in ulf.status:
+                                f_tuple = ulf.exception(), ulf.traceback()
+                                failed.append(f_tuple)
+                                upload_futures.remove(ulf)
+                            else:
+                                upload_futures.remove(ulf)
+                                to_collate.loc[to_collate['id'] == id, 'upload'] = False
 
-    if len(to_collate) > 0:
-        # call zip_folder in parallel
-        print(f'Zipping {len(to_collate)} batches.', flush=True)
-        # print(to_collate[to_collate.upload == False][['file_paths','id', 'upload']])
-        # print(f'len(to_collate[to_collate.upload == False]): {len(to_collate[to_collate.upload == False])}')
-        to_collate_uploads = to_collate[to_collate.upload == True][['file_paths','id', 'upload']]
-        # print(f'to_collate: {to_collate}, {len(to_collate)}')
-        # print(f'to_collate_uploads: {to_collate_uploads}, {len(to_collate_uploads)}')
-        assert to_collate_uploads['upload'].all()
-        for id in to_collate_uploads['id']:
-            if len(upload_futures) >= len(client.scheduler_info()['workers'])*2:
-                while len(upload_futures) >= len(client.scheduler_info()['workers'])*2:
-                    for ulf in upload_futures:
-                        if 'exception' in ulf.status or 'error' in ulf.status:
-                            f_tuple = ulf.exception(), ulf.traceback()
-                            failed.append(f_tuple)
-                            upload_futures.remove(ulf)
-                        else:
-                            upload_futures.remove(ulf)
-                            to_collate.loc[to_collate['id'] == id, 'upload'] = False
-
-            upload_futures.append(client.submit(
-                zip_and_upload,
-                id,
-                to_collate_uploads[to_collate_uploads.id == id]['file_paths'].values[0],
-                s3,
-                bucket_name,
-                api,
-                destination_dir,
-                local_dir,
-                total_size_uploaded,
-                total_files_uploaded,
-                use_compression,
-                dryrun,
-                processing_start,
-                mem_per_worker,
-            ))
+                upload_futures.append(client.submit(
+                    zip_and_upload,
+                    id,
+                    to_collate_uploads[to_collate_uploads.id == id]['file_paths'].values[0],
+                    s3,
+                    bucket_name,
+                    api,
+                    destination_dir,
+                    local_dir,
+                    total_size_uploaded,
+                    total_files_uploaded,
+                    use_compression,
+                    dryrun,
+                    processing_start,
+                    mem_per_worker,
+                ))
 
     ########################
     # Monitor upload tasks #
