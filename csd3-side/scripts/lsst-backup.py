@@ -473,6 +473,7 @@ def upload_to_bucket(s3, bucket_name, api, local_dir, folder, filename, object_k
         str: A string containing information about the uploaded file in CSV format.
             The format is: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY
     """
+    print(f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, checksum = True, dryrun = {dryrun}, api = {api} local_dir = {local_dir}, s3 = {s3}', flush=True)
     if api == 's3': # Need to make a new S3 connection
         s3 = bm.get_resource()
         s3_client = bm.get_client()
