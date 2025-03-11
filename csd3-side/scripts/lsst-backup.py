@@ -611,6 +611,7 @@ def upload_to_bucket(s3, bucket_name, api, local_dir, folder, filename, object_k
         return return_string
 
     elif api == 'swift':
+        print('In upload_to_bucket for swift', flush=True)
         try:
             assert type(s3) is swiftclient.Connection
         except AssertionError:
