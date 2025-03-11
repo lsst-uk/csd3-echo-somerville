@@ -609,6 +609,7 @@ def upload_to_bucket(s3, bucket_name, api, local_dir, folder, filename, object_k
         #for no zip contents
         return_string += ',n/a'
         return return_string
+
     elif api == 'swift':
         try:
             assert type(s3) is swiftclient.Connection
@@ -708,6 +709,7 @@ def upload_to_bucket(s3, bucket_name, api, local_dir, folder, filename, object_k
 
         #for no zip contents
         return_string += ',n/a'
+        print(f'return_string: {return_string}', flush=True)
         return return_string
 
 def upload_to_bucket_collated(s3, bucket_name, api, folder, file_data, zip_contents, object_key, dryrun, mem_per_worker) -> str:
