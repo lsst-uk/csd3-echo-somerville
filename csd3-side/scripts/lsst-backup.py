@@ -1795,6 +1795,8 @@ if __name__ == '__main__':
                             upload_checks.append(False)
                 zips_to_upload = any(upload_checks)
                 retries += 1
+            else:
+                break
 
     print(f'Finished uploads at {datetime.now()}')
     print(f'Dask Client closed at {datetime.now()}')
