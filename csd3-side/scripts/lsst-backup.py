@@ -320,7 +320,7 @@ def mem_check(futures):
 def remove_duplicates(l: list[dict]) -> list[dict]:
     return pd.DataFrame(l).drop_duplicates().to_dict(orient='records')
 
-def zip_and_upload(id, file_paths, s3, bucket_name, api, destination_dir, local_dir, total_size_uploaded, total_files_uploaded, use_compression, dryrun, processing_start, mem_per_worker) -> timedelta:
+def zip_and_upload(id, file_paths, s3, bucket_name, api, destination_dir, local_dir, total_size_uploaded, total_files_uploaded, use_compression, dryrun, processing_start, mem_per_worker, log) -> timedelta:
     """
     Zips a list of files and uploads the resulting zip file to an S3 bucket.
     Args:
@@ -374,7 +374,8 @@ def zip_and_upload(id, file_paths, s3, bucket_name, api, destination_dir, local_
             total_size_uploaded,
             total_files_uploaded,
             True,
-            mem_per_worker
+            mem_per_worker,
+            log
         )
         return upload_time
 
@@ -894,7 +895,8 @@ def upload_and_callback(s3,
                         total_size_uploaded,
                         total_files_uploaded,
                         collated,
-                        mem_per_worker) -> timedelta:
+                        mem_per_worker,
+                        log) -> timedelta:
     """
     Uploads files to an S3 bucket and logs the output. Supports both collated (zipped) and individual file uploads.
     Args:
@@ -1159,9 +1161,10 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                             repeat(total_files_uploaded),
                             repeat(False),
                             repeat(mem_per_worker),
+                            repeat(log),
                         )):
                         upload_futures.append(client.submit(upload_and_callback, *args))
-                        uploads.append({'folder':args[4],'folder_size':args[12],'file_size':folder_files_sizes[i],'file':args[5],'object':args[7],'uploaded':False})
+                        # uploads.append({'folder':args[4],'folder_size':args[12],'file_size':folder_files_sizes[i],'file':args[5],'object':args[7],'uploaded':False})
                 except BrokenPipeError as e:
                     print(f'Caught BrokenPipeError: {e}')
                     # Record the failure
@@ -1372,6 +1375,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
                     dryrun,
                     processing_start,
                     mem_per_worker,
+                    log
                 ))
 
     ########################
