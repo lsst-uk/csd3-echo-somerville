@@ -1377,31 +1377,46 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
     ########################
     # Monitor upload tasks #
     ########################
-
-    for ulf in as_completed(upload_futures):
-        if 'exception' in ulf.status or 'error' in ulf.status:
-            f_tuple = ulf.exception(), ulf.traceback()
-            failed.append(f_tuple)
-            upload_futures.remove(ulf)
-        elif ulf.done():
-            upload_times.append(ulf.result())
-            upload_futures.remove(ulf)
-            if at_least_one_batch:
-                to_collate.loc[to_collate['id'] == id, 'upload'] = False
-        if len(upload_futures) == 0:
-            print('All uploads complete.', flush=True)
-
-    if failed:
-        for i, failed_upload in enumerate(failed):
-            print(f'Error upload {i}:\nException: {failed_upload[0]}\nTraceback: {failed_upload[1]}', flush=True)
-
-    # Re-save collate list to reflect uploads
     if at_least_one_batch:
+        for ulf in as_completed(upload_futures):
+            if 'exception' in ulf.status or 'error' in ulf.status:
+                f_tuple = ulf.exception(), ulf.traceback()
+                failed.append(f_tuple)
+                upload_futures.remove(ulf)
+            elif ulf.done():
+                upload_times.append(ulf.result())
+                upload_futures.remove(ulf)
+                to_collate.loc[to_collate['id'] == id, 'upload'] = False
+            if len(upload_futures) == 0:
+                print('All uploads complete.', flush=True)
+
+        if failed:
+            for i, failed_upload in enumerate(failed):
+                print(f'Error upload {i}:\nException: {failed_upload[0]}\nTraceback: {failed_upload[1]}', flush=True)
+
+        # Re-save collate list to reflect uploads
         if save_collate_file:
             print(f'Saving updated collate list to {collate_list_file}.', flush=True)
             to_collate.to_csv(collate_list_file, index=False)
         else:
             print(f'Collate list not saved.')
+    else:
+        print('Waiting for uploads to complete.', flush=True)
+        wait(upload_futures)
+        for ulf in upload_futures:
+            if 'exception' in ulf.status or 'error' in ulf.status:
+                f_tuple = ulf.exception(), ulf.traceback()
+                failed.append(f_tuple)
+                upload_futures.remove(ulf)
+            elif ulf.done():
+                upload_times.append(ulf.result())
+                upload_futures.remove(ulf)
+            if len(upload_futures) == 0:
+                print('All uploads complete.', flush=True)
+
+        if failed:
+            for i, failed_upload in enumerate(failed):
+                print(f'Error upload {i}:\nException: {failed_upload[0]}\nTraceback: {failed_upload[1]}', flush=True)
 
     ############################
     # Return upload times list #
