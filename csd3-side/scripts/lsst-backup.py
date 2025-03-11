@@ -1178,7 +1178,7 @@ def process_files(s3, bucket_name, api, current_objects, exclude, local_dir, des
 
                 # release block of files if the list for results is greater than 4 times the number of processes
 
-            elif len(folder_files) > 0 and global_collate: # small files in folder
+            elif mean_filesize <= max_zip_batch_size and len(folder_files) > 0 and global_collate: # small files in folder
                 print('Collated upload.', flush=True)
                 if not os.path.exists(collate_list_file):
                     # Put this back in - need to extract all zips before continuation.
