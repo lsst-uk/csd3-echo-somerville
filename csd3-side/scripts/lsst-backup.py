@@ -1875,13 +1875,13 @@ def process_files(
     ################################
     # Return bool as upload status #
     ################################
-    uploaded_df = uploads['uploaded'].compute()
-    del uploads
-    all_uploads_successful = uploaded_df.all()
-    if all_uploads_successful:
-        print('All uploads successful.', flush=True)
-    else:
-        print('Some uploads failed.', flush=True)
+        uploaded_df = uploads['uploaded'].compute()
+        del uploads
+        all_uploads_successful = uploaded_df.all()
+        if all_uploads_successful:
+            print('All uploads successful.', flush=True)
+        else:
+            print('Some uploads failed.', flush=True)
 
     return all_uploads_successful
 
