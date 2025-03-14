@@ -1753,7 +1753,15 @@ def process_files(
             print('Collate list not saved.', flush=True)
     if at_least_one_batch or at_least_one_individual:
         if len(to_collate) > 0:
-            to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers']) * 2, )
+            uploads = dd.from_pandas(to_collate[
+                to_collate['upload'] == True # noqa
+            ][
+                'id', 'paths', 'type', 'upload'
+            ],
+                npartitions=len(
+                    client.scheduler_info()['workers']
+            ) * 2,
+            )
             # call zip_folder in parallel
             print(f"Zipping and uploading "
                     f"{len(to_collate[to_collate['type'] == 'zip'])} " # noqa
@@ -1761,20 +1769,8 @@ def process_files(
             print(f"Uploading "
                     f"{len(to_collate[to_collate['type'] == 'file'])} " # noqa
                     "individual files.", flush=True)
-            uploads = to_collate[
-                to_collate.upload == True  # noqa
-            ][
-                [
-                    'paths',
-                    'id',
-                    'upload',
-                    'type',
-                ]
-            ].copy()
-            print(f'type(uploads): {type(uploads)}', flush=True)
             del to_collate
             print('Uploading...', flush=True)
-            uploads = dd.from_pandas(uploads, npartitions=len(client.scheduler_info()['workers']) * 2)
 
             # assert uploads['upload'].all()
             # for id in uploads['id']:
