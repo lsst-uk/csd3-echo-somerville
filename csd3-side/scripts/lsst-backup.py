@@ -1882,8 +1882,9 @@ def process_files(
             print('All uploads successful.', flush=True)
         else:
             print('Some uploads failed.', flush=True)
-
-    return all_uploads_successful
+        return all_uploads_successful
+    else:
+        return None
 
 
 ##########################################
@@ -2321,7 +2322,7 @@ if __name__ == '__main__':
             with warnings.catch_warnings():
                 warnings.filterwarnings('ignore')
                 if api == 's3':
-                    upload_times = process_files(
+                    upload_successful = process_files(
                         s3,
                         bucket_name,
                         api,
@@ -2340,7 +2341,7 @@ if __name__ == '__main__':
                         file_count_stop
                     )
                 elif api == 'swift':
-                    upload_times = process_files(
+                    upload_successful = process_files(
                         s3,
                         bucket_name,
                         api,
@@ -2378,10 +2379,10 @@ if __name__ == '__main__':
     # Complete
     final_time = datetime.now() - start
     final_time_seconds = final_time.seconds + final_time.microseconds / 1e6
-    final_upload_time_seconds = sum([ut.seconds + ut.microseconds / 1e6 for ut in upload_times])
+    # final_upload_time_seconds = sum([ut.seconds + ut.microseconds / 1e6 for ut in upload_times])
     print(f'Total time: {final_time_seconds} s')
-    print(f'Total time spent on data transfer: {final_upload_time_seconds:.2f} s')
-    print(f'Total time spent on data processing: {(final_time_seconds - final_upload_time_seconds):.2f} s')
+    # print(f'Total time spent on data transfer: {final_upload_time_seconds:.2f} s')
+    # print(f'Total time spent on data processing: {(final_time_seconds - final_upload_time_seconds):.2f} s')
 
     try:
         logdf = pd.read_csv(log)
@@ -2427,16 +2428,16 @@ if __name__ == '__main__':
         total_transfer_speed = final_size / final_time_seconds
     else:
         total_transfer_speed = 0
-    if final_upload_time_seconds > 0:
-        uploading_transfer_speed = final_size / final_upload_time_seconds
-    else:
-        uploading_transfer_speed = 0
+    # if final_upload_time_seconds > 0:
+    #     uploading_transfer_speed = final_size / final_upload_time_seconds
+    # else:
+    #     uploading_transfer_speed = 0
 
     total_time_per_file = final_time_seconds / file_count
     total_time_per_file_expand_zips = final_time_seconds / file_count_expand_zips
 
-    upload_time_per_file = final_upload_time_seconds / file_count
-    upload_time_per_file_expand_zips = final_upload_time_seconds / file_count_expand_zips
+    # upload_time_per_file = final_upload_time_seconds / file_count
+    # upload_time_per_file_expand_zips = final_upload_time_seconds / file_count_expand_zips
 
     print(f'Finished at {datetime.now()}, elapsed time = {datetime.now() - start}')
     print(f'Total: {len(logdf)} files; {(final_size):.2f} MiB')
@@ -2444,7 +2445,7 @@ if __name__ == '__main__':
         f'Overall speed including setup time: {(total_transfer_speed):.2f} MiB/s; '
         f'{total_time_per_file:.2f} s/file uploaded; {total_time_per_file_expand_zips:.2f} s/file on CSD3'
     )
-    print(
-        f'Upload speed: {(uploading_transfer_speed):.2f} MiB/s; {upload_time_per_file:.2f} '
-        f's/file uploaded; {upload_time_per_file_expand_zips:.2f} s/file on CSD3'
-    )
+    # print(
+    #     f'Upload speed: {(uploading_transfer_speed):.2f} MiB/s; {upload_time_per_file:.2f} '
+    #     f's/file uploaded; {upload_time_per_file_expand_zips:.2f} s/file on CSD3'
+    # )
