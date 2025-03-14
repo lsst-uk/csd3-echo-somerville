@@ -1658,11 +1658,10 @@ def process_files(
                     True for _ in range(len(individual_files))
                 ]
             })
-            to_collate.to_csv('temp.csv', index=False)
-            exit()
+            to_collate = to_collate.where(to_collate['size'] > 0).dropna()
             to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers']) * 2)
-            to_collate[to_collate['type' == 'file']]['upload'] = True
-            to_collate[to_collate['type' == 'zip']]['upload'] = to_collate[to_collate['type' == 'zip']]['object_names'].apply(
+            to_collate[to_collate['type'] == 'file']['upload'] = True
+            to_collate[to_collate['type'] == 'zip']['upload'] = to_collate[to_collate['type'] == 'zip']['object_names'].apply(
                 lambda x: compare_zip_contents_bool(
                     x,
                     current_objects,
@@ -1683,6 +1682,7 @@ def process_files(
                 individual_object_names,
                 individual_files_sizes
             )
+            exit()
 
         else:
             if not current_objects.empty:
