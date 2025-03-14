@@ -1669,11 +1669,12 @@ def process_files(
                 meta=('upload', pd.Series(dtype=bool))
             )
             to_collate = to_collate.compute()
-            to_collate.object_names = to_collate.object_names.apply(literal_eval)
-            to_collate.paths = to_collate.paths.apply(literal_eval)
-            client.scatter(to_collate)
+            to_collate[to_collate['type'] == 'zip']['object_names'] = to_collate[to_collate['type'] == 'zip']['object_names'].apply(literal_eval)
+            to_collate[to_collate['type'] == 'zip']['paths'] = to_collate[to_collate['type'] == 'zip']['paths'].apply(literal_eval)
             print(type(to_collate), flush=True)
             print(to_collate.dtypes, flush=True)
+            to_collate.to_csv('temp.csv', index=False)
+            client.scatter(to_collate)
             del (
                 zip_batch_files,
                 zip_batch_object_names,
