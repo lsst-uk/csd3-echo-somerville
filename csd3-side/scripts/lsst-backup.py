@@ -1770,8 +1770,8 @@ def process_files(
                     'upload',
                     'type',
                 ]
-            ]
-
+            ].copy()
+            print(f'type(uploads): {type(uploads)}', flush=True)
             del to_collate
             print('Uploading...', flush=True)
             uploads = dd.from_pandas(uploads, npartitions=len(client.scheduler_info()['workers']) * 2)
@@ -1803,7 +1803,7 @@ def process_files(
                 processing_start,
                 mem_per_worker,
                 log,
-                meta=('upload', pd.Series(dtype=bool))
+                meta=('uploaded', pd.Series(dtype=bool))
             )
 
             uploads[uploads['type'] == 'file']['uploaded'] = uploads[uploads['type'] == 'file'].apply(
@@ -1819,7 +1819,7 @@ def process_files(
                 total_files_uploaded,
                 mem_per_worker,
                 log,
-                meta=('upload', pd.Series(dtype=bool))
+                meta=('uploaded', pd.Series(dtype=bool))
             )
 
     # ########################
