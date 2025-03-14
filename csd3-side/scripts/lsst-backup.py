@@ -1669,11 +1669,18 @@ def process_files(
                 meta=('upload', pd.Series(dtype=bool))
             )
             to_collate = to_collate.compute()
-            to_collate[to_collate['type'] == 'zip']['object_names'] = to_collate[to_collate['type'] == 'zip']['object_names'].apply(literal_eval)
-            to_collate[to_collate['type'] == 'zip']['paths'] = to_collate[to_collate['type'] == 'zip']['paths'].apply(literal_eval)
-            print(type(to_collate), flush=True)
-            print(to_collate.dtypes, flush=True)
-            to_collate.to_csv('temp.csv', index=False)
+            # Convert strings representations of lists back to lists
+            to_collate[
+                to_collate['type'] == 'zip'
+            ]['object_names'] = to_collate[
+                to_collate['type'] == 'zip'
+            ]['object_names'].apply(literal_eval)
+
+            to_collate[
+                to_collate['type'] == 'zip'
+            ]['paths'] = to_collate[
+                to_collate['type'] == 'zip'
+            ]['paths'].apply(literal_eval)
             client.scatter(to_collate)
             del (
                 zip_batch_files,
@@ -1683,7 +1690,6 @@ def process_files(
                 individual_object_names,
                 individual_files_sizes
             )
-            exit()
 
         else:
             if not current_objects.empty:
@@ -1691,8 +1697,20 @@ def process_files(
                 # Pandas
                 to_collate = pd.read_csv(local_list_file).drop('upload', axis=1)
                 print(len(to_collate))
-                to_collate.object_names = to_collate.object_names.apply(literal_eval)
-                to_collate.paths = to_collate.paths.apply(literal_eval)
+
+                # Convert strings representations of lists back to lists
+                to_collate[
+                    to_collate['type'] == 'zip'
+                ]['object_names'] = to_collate[
+                    to_collate['type'] == 'zip'
+                ]['object_names'].apply(literal_eval)
+
+                to_collate[
+                    to_collate['type'] == 'zip'
+                ]['paths'] = to_collate[
+                    to_collate['type'] == 'zip'
+                ]['paths'].apply(literal_eval)
+
                 to_collate = to_collate.drop_duplicates(subset='id', keep='first')
                 print(len(to_collate))
                 to_collate = dd.from_pandas(
@@ -1706,14 +1724,14 @@ def process_files(
 
                 print('Created Dask dataframe for to_collate.', flush=True)
                 dprint('Comparing existing zips to collate list.', flush=True)
-                to_collate['upload'] = to_collate[to_collate['type' == 'file']]['object_names'].apply(
+                to_collate['upload'] = to_collate[to_collate['type'] == 'file']['object_names'].apply(
                     lambda x: isntin(
                         x,
                         current_objects['CURRENT_OBJECTS'],
                     ),
                     meta=('upload', pd.Series(dtype=bool))
                 )
-                to_collate['upload'] = to_collate[to_collate['type' == 'zip']]['object_names'].apply(
+                to_collate['upload'] = to_collate[to_collate['type'] == 'zip']['object_names'].apply(
                     lambda x: compare_zip_contents_bool(
                         x,
                         current_objects,
