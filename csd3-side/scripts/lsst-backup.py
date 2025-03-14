@@ -1659,8 +1659,8 @@ def process_files(
                 ]
             })
             to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers']) * 2)
-            to_collate['upload'] = to_collate[to_collate['type' == 'file']] = True
-            to_collate['upload'] = to_collate[to_collate['type' == 'zip']]['object_names'].apply(
+            to_collate[to_collate['type' == 'file']]['upload'] = True
+            to_collate[to_collate['type' == 'zip']]['upload'] = to_collate[to_collate['type' == 'zip']]['object_names'].apply(
                 lambda x: compare_zip_contents_bool(
                     x,
                     current_objects,
