@@ -55,7 +55,7 @@ def upload_file(connection, bucket_name, object_name, local_path, timings=False)
         print(f'File size: {size} bytes.')
         print(f'Read time: {(read_end - read_start).total_seconds():.2f} seconds.')
         print(f'Upload time: {(upload_end - upload_start).total_seconds():.2f} seconds.')
-        print(f'Transfer speed: {size * 8 / (upload_end - upload_start).total_seconds():.2f} bps '
+        print(f'Transfer speed: {size * 8 / (upload_end - upload_start).total_seconds():.0f} bps '
               f'({size / 1024**3 * 8 / (upload_end - upload_start).total_seconds():.2f} Gbit/s) .')
         print(f'Total time: {(end - read_start).total_seconds():.2f} seconds.')
     return response
