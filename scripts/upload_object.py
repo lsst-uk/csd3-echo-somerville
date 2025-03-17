@@ -21,6 +21,7 @@ def upload_file(connection, bucket_name, object_name, local_path, timings=False)
     Upload a file to an S3 bucket.
     Optionally print timings for data loading and upload.
     """
+    print(f'Uploading {local_path} to {bucket_name}/{object_name}...')
     size = os.path.getsize(local_path)
     if size > 5 * 1024**3:
         sys.exit('File size is greater than 5GB. Currently unsupported.')
