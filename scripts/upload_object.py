@@ -11,6 +11,7 @@ import os
 import warnings
 import argparse
 import datetime as dt
+import hashlib
 
 import bucket_manager.bucket_manager as bm
 
@@ -20,20 +21,28 @@ def upload_file(connection, bucket_name, object_name, local_path, timings=False)
     Upload a file to an S3 bucket.
     Optionally print timings for data loading and upload.
     """
+    size = os.path.getsize(local_path)
+    if size > 5 * 1024**3:
+        sys.exit('File size is greater than 5GB. Currently unsupported.')
     if timings:
         read_start = dt.datetime.now()
         file_data = open(local_path, 'rb').read()
         read_end = dt.datetime.now()
-        size = os.path.getsize(local_path)
     else:
         file_data = open(local_path, 'rb').read()
+    etag = hashlib.md5(file_data).hexdigest()
     try:
         if timings:
             upload_start = dt.datetime.now()
-        response = connection.put_object(
-            bucket=bucket_name,
-            obj=object_name,
-            contents=file_data
+        response = {}
+        connection.put_object(
+            bucket_name,
+            object_name,
+            file_data,
+            content_length=size,
+            etag=etag,
+            content_type='application/octet-stream',
+            response_dict=response
         )
         if timings:
             upload_end = dt.datetime.now()
@@ -121,3 +130,5 @@ response = upload_file(
     local_path,
     timings
 )
+
+print(response)
