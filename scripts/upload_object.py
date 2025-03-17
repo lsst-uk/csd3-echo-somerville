@@ -33,7 +33,6 @@ def upload_file(connection, bucket_name, object_name, local_path, timings=False)
     else:
         file_data = open(local_path, 'rb').read()
     etag = hashlib.md5(file_data).hexdigest()
-    file_data.seek(0)
     try:
         if timings:
             timings_dict['upload_start'] = dt.datetime.now()
