@@ -62,6 +62,15 @@ args = parser.parse_args()
 bucket_name = args.bucket_name
 object_name = args.object_name
 local_path = args.local_path
+timings = args.timings
+api = args.api.lower()
+
+if api == 's3':
+    sys.exit('S3 API not yet implemented.')
+elif api == 'swift':
+    pass
+else:
+    sys.exit('API not recognised.')
 
 if not bucket_name or not object_name or not local_path:
     sys.exit('Please provide bucket name, object name and local path.')
