@@ -26,15 +26,17 @@ def upload_file(connection, bucket_name, object_name, local_path, timings=False)
     if size > 5 * 1024**3:
         sys.exit('File size is greater than 5GB. Currently unsupported.')
     if timings:
-        read_start = dt.datetime.now()
+        timings_dict = {}
+        timings_dict['read_start'] = dt.datetime.now()
         file_data = open(local_path, 'rb').read()
-        read_end = dt.datetime.now()
+        timings_dict['read_end'] = dt.datetime.now()
     else:
         file_data = open(local_path, 'rb').read()
     etag = hashlib.md5(file_data).hexdigest()
+    file_data.seek(0)
     try:
         if timings:
-            upload_start = dt.datetime.now()
+            timings_dict['upload_start'] = dt.datetime.now()
         response = {}
         connection.put_object(
             bucket_name,
@@ -46,20 +48,16 @@ def upload_file(connection, bucket_name, object_name, local_path, timings=False)
             response_dict=response
         )
         if timings:
-            upload_end = dt.datetime.now()
+            timings_dict['upload_end'] = dt.datetime.now()
     except Exception as e:
         print(f'Error {e}', file=sys.stderr)
         sys.exit()
     if timings:
-        end = dt.datetime.now()
-        print(f'File size: {size} bytes')
-        print(f'Read time: {(read_end - read_start).total_seconds():.2f} seconds')
-        print(f'Upload time: {(upload_end - upload_start).total_seconds():.2f} seconds')
-        print(
-            f'Transfer speed: {size / 1024**3 * 8 / (upload_end - upload_start).total_seconds():.2f} Gbit/s'
-        )
-        print(f'Total time: {(end - read_start).total_seconds():.2f} seconds')
-    return response
+        timings_dict['end'] = dt.datetime.now()
+    if timings:
+        return response, timings_dict
+    else:
+        return response, None
 
 
 parser = argparse.ArgumentParser(description='Upload a file to an S3 bucket.')
@@ -68,6 +66,7 @@ parser.add_argument('--object-name', '-o', type=str, help='The name of the objec
 parser.add_argument('--local-path', '-p', type=str, help='The local path to the file to upload.')
 parser.add_argument('--timings', '-t', action='store_true', help='Timings for data loading and upload.')
 parser.add_argument('--api', type=str, help='The API to use for the upload.')
+parser.add_argument('--benchmark', action='store_true', help='Upload multiple copies of data and benchmark.')
 
 args = parser.parse_args()
 
@@ -126,7 +125,7 @@ if bucket_name not in bm.bucket_list_swift(connection):
     print(f'Bucket {bucket_name} does not exist. Creating...')
     bm.create_bucket_swift(connection, bucket_name)
 
-response = upload_file(
+response, timings_dict = upload_file(
     connection,
     bucket_name,
     object_name,
@@ -134,4 +133,10 @@ response = upload_file(
     timings
 )
 
-print(response)
+print(f"File size: {timings_dict['size']} bytes")
+print(f"Read time: {(timings_dict['read_end'] - timings_dict['read_start']).total_seconds():.2f} seconds")
+print(f"Upload time: {(timings_dict['upload_end'] - timings_dict['upload_start']).total_seconds():.2f} seconds")
+print(
+    f"Transfer speed: {timings_dict['size'] / 1024**3 * 8 / (timings_dict['upload_end'] - timings_dict['upload_start']).total_seconds():.2f} Gbit/s"
+)
+print(f"Total time: {(timings_dict['end'] - timings_dict['read_start']).total_seconds():.2f} seconds")
