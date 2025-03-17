@@ -27,6 +27,7 @@ def upload_file(connection, bucket_name, object_name, local_path, timings=False)
         sys.exit('File size is greater than 5GB. Currently unsupported.')
     if timings:
         timings_dict = {}
+        timings_dict['size'] = size
         timings_dict['read_start'] = dt.datetime.now()
         file_data = open(local_path, 'rb').read()
         timings_dict['read_end'] = dt.datetime.now()
