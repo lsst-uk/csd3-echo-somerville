@@ -111,7 +111,7 @@ warnings.filterwarnings('ignore')
 connection = bm.get_conn_swift()
 
 if bucket_name not in bm.bucket_list_swift(connection):
-    sys.exit('Bucket does not exist.')
+    bm.create_bucket_swift(connection, bucket_name)
 
 response = upload_file(
     connection,

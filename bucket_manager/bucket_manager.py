@@ -149,6 +149,23 @@ def create_bucket(resource, bucket_name: str) -> bool:
         print(e)
     return True
 
+def create_bucket_swift(conn: swiftclient.Connection, container_name: str) -> bool:
+    """
+    Creates a new container in the Swift endpoint.
+
+    Parameters:
+    - conn: swiftclient.client.Connection object.
+    - container_name: The name of the container to create.
+
+    Returns:
+    True if the container was created successfully, False otherwise.
+    """
+    try:
+        conn.put_container(container_name)
+    except Exception as e:
+        print(e)
+    return True
+
 def print_objects(bucket) -> None:
     """
     Prints the keys of all objects in the specified bucket.
