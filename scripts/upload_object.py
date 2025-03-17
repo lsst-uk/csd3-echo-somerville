@@ -62,15 +62,20 @@ args = parser.parse_args()
 bucket_name = args.bucket_name
 object_name = args.object_name
 local_path = args.local_path
+
+if not bucket_name or not object_name or not local_path:
+    sys.exit('Please provide bucket name, object name and local path.')
+
 timings = args.timings
-api = args.api.lower()
+if args.api.lower() in ['s3', 'swift']:
+    api = args.api.lower()
+else:
+    sys.exit('API not recognised.')
 
 if api == 's3':
     sys.exit('S3 API not yet implemented.')
 elif api == 'swift':
     pass
-else:
-    sys.exit('API not recognised.')
 
 try:
     if bm.check_keys(api):
@@ -94,7 +99,7 @@ except ValueError as e:
 
 warnings.filterwarnings('ignore')
 
-connection = bm.get_conn_swift(s3_host, access_key, secret_key)
+connection = bm.get_conn_swift()
 
 if bucket_name not in bm.bucket_list_swift(connection):
     sys.exit('Bucket does not exist.')
