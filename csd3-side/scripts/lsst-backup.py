@@ -1578,7 +1578,7 @@ def process_files(
 
                 individual_files.extend([[ff] for ff in folder_files])
                 individual_object_names.extend([[on] for on in object_names])
-                individual_files_sizes.extend([[ffs] for ffs in folder_files_sizes])
+                individual_files_sizes.extend(folder_files_sizes)
 
                 # try:
                 #     for i, args in enumerate(zip(
@@ -1703,7 +1703,7 @@ def process_files(
                 ]
             })
             print(f'1704 to_collate pandas dtypes: {to_collate.dtypes}', flush=True)
-            to_collate = to_collate.where(to_collate['size'].values.all() > 0).dropna()
+            to_collate = to_collate.where(to_collate['size'] > 0).dropna()
             to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers']) * 2)
             to_collate[to_collate['type'] == 'file']['upload'] = True
             to_collate[to_collate['type'] == 'zip']['upload'] = to_collate[
