@@ -1576,9 +1576,9 @@ def process_files(
                       f'{folder} will be uploaded individually to {bucket_name}.', flush=True)
                 print(f'Individual files objects names: {object_names}', flush=True)
 
-                individual_files.extend(folder_files)
-                individual_object_names.extend(object_names)
-                individual_files_sizes.extend(folder_files_sizes)
+                individual_files.extend([[ff] for ff in folder_files])
+                individual_object_names.extend([[on] for on in object_names])
+                individual_files_sizes.extend([[ffs] for ffs in folder_files_sizes])
 
                 # try:
                 #     for i, args in enumerate(zip(
