@@ -445,7 +445,7 @@ def zip_and_upload(
     Returns:
         bool: True if a zip was created and uploaded, False if not..
     """
-    file_paths = row['paths']
+    file_paths = my_lit_eval(row['paths'])
     id = row['id']
     dprint('in zip_and_upload', flush=True)
     dprint(f'file paths: {file_paths}, {type(file_paths)}', flush=True)
@@ -456,6 +456,8 @@ def zip_and_upload(
         f' to {destination_dir}/collated_{id}.zip.',
         flush=True
     )
+    with open('a_temp_file.txt', 'w') as f:
+        f.write(f'{file_paths}')
     exit()
 
     #############
