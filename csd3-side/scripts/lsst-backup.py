@@ -392,7 +392,8 @@ def zip_and_upload(
 
     Args:
 
-        row (pd.Series): List of file paths to be included in the zip file.
+        row (pd.Series): List of file paths to be included in the zip file,
+        with columns id,object_names,paths,size,type,upload.
 
         s3 (swiftclient.Connection | None): if api == "swift":
         swiftclient.Connection for uploading the zip file;
@@ -1090,19 +1091,52 @@ def upload_files_from_series(
     mem_per_worker,
     log
 ) -> bool:
+    """
+    Uploads files from a given Pandas Series to an S3 bucket using
+    upload_and_callback.
+
+    Args:
+        row (pd.Series): A Pandas Series containing file information,
+        with columns id,object_names,paths,size,type,upload.
+
+        s3: The S3 client object.
+
+        bucket_name (str): The name of the S3 bucket.
+
+        api: The API object for callback.
+
+        local_dir (str): The local directory containing the files.
+
+        dryrun (bool): If True, perform a dry run without actual upload.
+
+        processing_start: The start time of the processing.
+
+        file_count (int): The current count of files processed == 1.
+
+        total_size_uploaded (int): The total size of files uploaded so far.
+
+        total_files_uploaded (int): The total number of files uploaded so far.
+
+        mem_per_worker: Memory allocated per worker.
+
+        log: The logging object.
+
+    Returns:
+        bool: The truth values of upload_and_callback.
+    """
     return upload_and_callback(
         s3,
         bucket_name,
         api,
         local_dir,
-        os.path.dirname(row['path']),
+        os.path.dirname(row['paths']),
         row['path'],
         None,
-        row['object_key'],
+        row['object_names'],
         dryrun,
         processing_start,
         file_count,
-        os.path.getsize(row['path']),
+        os.path.getsize(row['paths']),
         total_size_uploaded,
         total_files_uploaded,
         False,
@@ -1756,9 +1790,7 @@ def process_files(
             client.scatter(to_collate)
             uploads = dd.from_pandas(to_collate[
                 to_collate['upload'] == True # noqa
-            ][[
-                'id', 'paths', 'type', 'upload'
-            ]],
+            ],
                 npartitions=len(
                     client.scheduler_info()['workers']
             ) * 2,
@@ -1770,7 +1802,6 @@ def process_files(
             print(f"Uploading "
                     f"{len(to_collate[to_collate['type'] == 'file'])} " # noqa
                     "individual files.", flush=True)
-            to_collate.to_csv('temp_to_collate.csv', index=False)
             # del to_collate
             print('Uploading...', flush=True)
 
@@ -1788,6 +1819,8 @@ def process_files(
             #                     to_collate.loc[to_collate['id'] == id, 'upload'] = False
             uploads['uploaded'] = False
             uploads.to_csv('temp1_uploads.csv', index=False, single_file=True)
+
+            # id,object_names,paths,size,type,upload
 
             uploads[uploads['type'] == 'zip']['uploaded'] = uploads[uploads['type'] == 'zip'].apply(
                 zip_and_upload,
@@ -1815,7 +1848,7 @@ def process_files(
                 local_dir,
                 dryrun,
                 processing_start,
-                file_count,
+                1,
                 total_size_uploaded,
                 total_files_uploaded,
                 mem_per_worker,
