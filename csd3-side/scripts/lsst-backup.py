@@ -425,14 +425,17 @@ def zip_and_upload(
     """
     file_paths = row['paths']
     id = row['id']
-    print(f'Zipping and uploading {len(file_paths)} files from {local_dir}'
+    dprint(f'file paths: {file_paths}, {type(file_paths)}', flush=True)
+    dprint(f'row: {row}, {type(row)}', flush=True)
+    dprint(f'id: {id}, {type(id)}', flush=True)
+    dprint(f'Zipping and uploading {len(file_paths)} files from {local_dir}'
           f' to {destination_dir}/collated_{id}.zip.', flush=True)
 
     #############
     #  zip part #
     #############
     zip_data, namelist = zip_folders(local_dir, file_paths, use_compression, dryrun, id, mem_per_worker)
-    print('Created zipFile in memory', flush=True)
+    dprint('Created zipFile in memory', flush=True)
     ###############
     # upload part #
     ###############
