@@ -1835,6 +1835,12 @@ def process_files(
                     client.scheduler_info()['workers']
             ) * 2,
             )
+            uploads['object_names'] = uploads['object_names'].apply(my_lit_eval).astype(object)
+            uploads['id'] = uploads['id'].astype(int)
+            uploads['paths'] = uploads['paths'].apply(my_lit_eval).astype(object)
+            uploads['upload'] = uploads['upload'].astype(bool)
+            uploads['type'] = uploads['type'].astype(str)
+            uploads['size'] = uploads['size'].astype(int)
             print(f'1813 uploads pandas dtypes: {uploads.dtypes}', flush=True)
             # call zip_folder in parallel
             print(f"Zipping and uploading "
