@@ -1753,6 +1753,8 @@ def process_files(
             print('Collate list not saved.', flush=True)
     if at_least_one_batch or at_least_one_individual:
         if len(to_collate) > 0:
+            print(to_collate)
+            exit()
             uploads = dd.from_pandas(to_collate[
                 to_collate['upload'] == True # noqa
             ][
