@@ -87,6 +87,9 @@ if not bucket_name or not object_name or not local_path:
     sys.exit('Please provide bucket name, object name and local path.')
 
 timings = args.timings
+if timings:
+    print('Timings enabled.')
+    print(f'Start time: {dt.datetime.now()}')
 if args.api.lower() in ['s3', 'swift']:
     api = args.api.lower()
 else:
@@ -132,11 +135,14 @@ response, timings_dict = upload_file(
     local_path,
     timings
 )
-
-print(f"File size: {timings_dict['size']} bytes")
-print(f"Read time: {(timings_dict['read_end'] - timings_dict['read_start']).total_seconds():.2f} seconds")
-print(f"Upload time: {(timings_dict['upload_end'] - timings_dict['upload_start']).total_seconds():.2f} seconds")
-print(
-    f"Transfer speed: {timings_dict['size'] / 1024**3 * 8 / (timings_dict['upload_end'] - timings_dict['upload_start']).total_seconds():.2f} Gbit/s"
-)
-print(f"Total time: {(timings_dict['end'] - timings_dict['read_start']).total_seconds():.2f} seconds")
+if timings:
+    print(f"File size: {timings_dict['size']} bytes")
+    print(f"Read time: {(timings_dict['read_end'] - timings_dict['read_start']).total_seconds():.2f} seconds")
+    print(f"Upload time: {(timings_dict['upload_end'] - timings_dict['upload_start']).total_seconds():.2f} seconds")
+    print(
+        f"Transfer speed: {timings_dict['size'] / 1024**3 * 8 / (timings_dict['upload_end'] - timings_dict['upload_start']).total_seconds():.2f} Gbit/s"
+    )
+    print(f"Total time: {(timings_dict['end'] - timings_dict['read_start']).total_seconds():.2f} seconds")
+    print(f'End time: {dt.datetime.now()}')
+else:
+    print(response)
