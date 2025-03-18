@@ -1845,7 +1845,7 @@ def process_files(
                 processing_start,
                 mem_per_worker,
                 log,
-                meta=('uploaded', pd.Series(dtype=bool)),
+                meta=('uploaded', bool),
                 axis=1
             )
 
@@ -1862,7 +1862,7 @@ def process_files(
                 total_files_uploaded,
                 mem_per_worker,
                 log,
-                meta=('uploaded', pd.Series(dtype=bool)),
+                meta=('uploaded', bool),
                 axis=1
             )
             uploads = uploads.compute()
