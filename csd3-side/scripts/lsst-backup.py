@@ -1701,7 +1701,7 @@ def process_files(
                     True for _ in range(len(individual_files))
                 ]
             })
-            print(f'to_collate pandas dtypes: {to_collate.dtypes}', flush=True)
+            print(f'1704 to_collate pandas dtypes: {to_collate.dtypes}', flush=True)
             to_collate = to_collate.where(to_collate['size'] > 0).dropna()
             to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers']) * 2)
             to_collate[to_collate['type'] == 'file']['upload'] = True
@@ -1715,7 +1715,7 @@ def process_files(
                 meta=('upload', bool)
             )
             to_collate = to_collate.compute()
-            print(f'to_collate pandas dtypes: {to_collate.dtypes}', flush=True)
+            print(f'1718 to_collate pandas dtypes: {to_collate.dtypes}', flush=True)
             # Convert strings representations of lists back to lists
             to_collate[
                 to_collate['type'] == 'zip'
@@ -1729,7 +1729,7 @@ def process_files(
                 to_collate['type'] == 'zip'
             ]['paths'].apply(literal_eval)
             to_collate['upload'] = to_collate['upload'].astype(bool)
-            print(f'to_collate pandas dtypes: {to_collate.dtypes}', flush=True)
+            print(f'1732 to_collate pandas dtypes: {to_collate.dtypes}', flush=True)
             del (
                 zip_batch_files,
                 zip_batch_object_names,
@@ -1802,7 +1802,7 @@ def process_files(
     if at_least_one_batch or at_least_one_individual:
         if len(to_collate) > 0:
             client.scatter(to_collate)
-            print(f'to_collate types: {to_collate.dtypes}', flush=True)
+            print(f'1805 to_collate types: {to_collate.dtypes}', flush=True)
             uploads = dd.from_pandas(to_collate[
                 to_collate['upload'] == True # noqa
             ],
