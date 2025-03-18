@@ -1796,6 +1796,12 @@ def process_files(
             print('Collate list not saved.', flush=True)
     if at_least_one_batch or at_least_one_individual:
         if len(to_collate) > 0:
+            to_collate['object_names'] = to_collate['object_names'].apply(literal_eval).astype(object)
+            to_collate['id'] = to_collate['id'].astype(int)
+            to_collate['paths'] = to_collate['paths'].apply(literal_eval).astype(object)
+            to_collate['upload'] = to_collate['upload'].astype(bool)
+            to_collate['type'] = to_collate['type'].astype(str)
+            to_collate['size'] = to_collate['size'].astype(int)
             client.scatter(to_collate)
             print(f'1805 to_collate types: {to_collate.dtypes}', flush=True)
             uploads = dd.from_pandas(to_collate[
