@@ -1702,7 +1702,7 @@ def process_files(
                     print(f'Batch {len(zip_batch_files)}: {len(zip_batch_files[-1])} files, '
                           f'{zip_batch_sizes[-1]/1024**2:.0f} MiB', flush=True)
                     print(f'Number of zip files: {len(zip_batch_files)}', flush=True)
-            print(f'Done traversing {local_dir}.', flush=True)
+        print(f'Done traversing {local_dir}.', flush=True)
 
     if at_least_one_batch or at_least_one_individual:
         ###############################
