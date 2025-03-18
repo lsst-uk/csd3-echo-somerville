@@ -1695,7 +1695,9 @@ def process_files(
             to_collate = to_collate.where(to_collate['size'] > 0).dropna()
             to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers']) * 2)
             to_collate[to_collate['type'] == 'file']['upload'] = True
-            to_collate[to_collate['type'] == 'zip']['upload'] = to_collate[to_collate['type'] == 'zip']['object_names'].apply(
+            to_collate[to_collate['type'] == 'zip']['upload'] = to_collate[
+                to_collate['type'] == 'zip'
+            ]['object_names'].apply(
                 lambda x: compare_zip_contents_bool(
                     x,
                     current_objects,
@@ -1715,7 +1717,6 @@ def process_files(
             ]['paths'] = to_collate[
                 to_collate['type'] == 'zip'
             ]['paths'].apply(literal_eval)
-            client.scatter(to_collate)
             del (
                 zip_batch_files,
                 zip_batch_object_names,
@@ -1788,6 +1789,7 @@ def process_files(
     if at_least_one_batch or at_least_one_individual:
         if len(to_collate) > 0:
             client.scatter(to_collate)
+            print(f'to_collate types: {to_collate.dtypes}', flush=True)
             uploads = dd.from_pandas(to_collate[
                 to_collate['upload'] == True # noqa
             ],
