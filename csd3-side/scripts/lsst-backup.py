@@ -1703,7 +1703,7 @@ def process_files(
                 ]
             })
             print(f'1704 to_collate pandas dtypes: {to_collate.dtypes}', flush=True)
-            to_collate = to_collate.where(to_collate['size'].values[0] > 0).dropna()
+            to_collate = to_collate.where(to_collate['size'].values.all() > 0).dropna()
             to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers']) * 2)
             to_collate[to_collate['type'] == 'file']['upload'] = True
             to_collate[to_collate['type'] == 'zip']['upload'] = to_collate[
