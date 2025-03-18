@@ -1784,6 +1784,7 @@ def process_files(
             #                 else:
             #                     upload_futures.remove(ulf)
             #                     to_collate.loc[to_collate['id'] == id, 'upload'] = False
+            uploads['uploaded'] = False
 
             uploads[uploads['type'] == 'zip']['uploaded'] = uploads[uploads['type'] == 'zip'].apply(
                 zip_and_upload,
