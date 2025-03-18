@@ -1785,6 +1785,7 @@ def process_files(
             #                     upload_futures.remove(ulf)
             #                     to_collate.loc[to_collate['id'] == id, 'upload'] = False
             uploads['uploaded'] = False
+            uploads.to_csv('temp1.csv', index=False, single_file=True)
 
             uploads[uploads['type'] == 'zip']['uploaded'] = uploads[uploads['type'] == 'zip'].apply(
                 zip_and_upload,
@@ -1820,6 +1821,8 @@ def process_files(
                 meta=('uploaded', pd.Series(dtype=bool)),
                 axis=1
             )
+            uploads = uploads.compute()
+            uploads.to_csv('temp2csv', index=False)
 
     # ########################
     # # Monitor upload tasks #
@@ -1874,9 +1877,8 @@ def process_files(
     ################################
     # Return bool as upload status #
     ################################
-        uploads = uploads.compute()
         all_uploads_successful = uploads['uploaded'].all()
-        uploads.to_csv('temp.csv', index=False)
+
         del uploads
         if all_uploads_successful:
             print('All uploads successful.', flush=True)
