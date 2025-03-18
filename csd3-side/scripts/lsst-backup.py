@@ -1718,9 +1718,9 @@ def process_files(
             to_collate = to_collate.compute()
             print(f'1718 to_collate pandas dtypes: {to_collate.dtypes}', flush=True)
             # Convert strings representations of lists back to lists
-            to_collate['object_names'] = to_collate['object_names'].apply(literal_eval)
-
-            to_collate['paths'] = to_collate['paths'].apply(literal_eval)
+            to_collate['object_names'] = to_collate['object_names'].apply(literal_eval).astype(list)
+            to_collate['id'] = to_collate['id'].astype(int)
+            to_collate['paths'] = to_collate['paths'].apply(literal_eval).astype(list)
             to_collate['upload'] = to_collate['upload'].astype(bool)
             to_collate['type'] = to_collate['type'].astype(str)
             to_collate['size'] = to_collate['size'].astype(int)
