@@ -48,7 +48,7 @@ from typing import List
 warnings.filterwarnings('ignore')
 
 
-def my_lit_eval(x):
+def my_lit_eval(x: object) -> object:
     """
     Safely evaluates a string containing a Python literal expression.
 
@@ -57,10 +57,12 @@ def my_lit_eval(x):
     original input is returned unchanged.
 
     Parameters:
-        x (str): The input string to evaluate.
+        x (object): The input to evaluate. Typically, this is expected to be a
+        string.
 
     Returns:
-        Any: The evaluated Python literal if successful, otherwise the original input.
+        object: The evaluated Python literal if successful, otherwise the
+        original input.
     """
     try:
         return literal_eval(x)
