@@ -1836,7 +1836,8 @@ def process_files(
             #                     to_collate.loc[to_collate['id'] == id, 'upload'] = False
             uploads['uploaded'] = False
             uploads['uploaded'] = uploads['uploaded'].astype(bool)
-            print(f'1838 uploads pandas dtypes: {uploads.dtypes}', flush=True)
+            print(f'1813 uploads pandas dtypes: {uploads.dtypes}', flush=True)
+            print(f'1813 uploads type: {type(uploads)}', flush=True)
             uploads.to_csv('temp1_uploads.csv', index=False, single_file=True)
 
             # id,object_names,paths,size,type,upload
