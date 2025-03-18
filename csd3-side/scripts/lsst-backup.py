@@ -1769,6 +1769,7 @@ def process_files(
             print(f"Uploading "
                     f"{len(to_collate[to_collate['type'] == 'file'])} " # noqa
                     "individual files.", flush=True)
+            to_collate.to_csv('temp_to_collate.csv', index=False)
             del to_collate
             print('Uploading...', flush=True)
 
@@ -1785,7 +1786,7 @@ def process_files(
             #                     upload_futures.remove(ulf)
             #                     to_collate.loc[to_collate['id'] == id, 'upload'] = False
             uploads['uploaded'] = False
-            uploads.to_csv('temp1.csv', index=False, single_file=True)
+            uploads.to_csv('temp1_uploads.csv', index=False, single_file=True)
 
             uploads[uploads['type'] == 'zip']['uploaded'] = uploads[uploads['type'] == 'zip'].apply(
                 zip_and_upload,
@@ -1822,7 +1823,7 @@ def process_files(
                 axis=1
             )
             uploads = uploads.compute()
-            uploads.to_csv('temp2csv', index=False)
+            uploads.to_csv('temp2_uploads.csv', index=False)
 
     # ########################
     # # Monitor upload tasks #
