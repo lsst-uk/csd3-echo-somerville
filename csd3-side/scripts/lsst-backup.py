@@ -1876,6 +1876,7 @@ def process_files(
     ################################
         uploads = uploads.compute()
         all_uploads_successful = uploads['uploaded'].all()
+        uploads.to_csv('temp.csv', index=False)
         del uploads
         if all_uploads_successful:
             print('All uploads successful.', flush=True)
