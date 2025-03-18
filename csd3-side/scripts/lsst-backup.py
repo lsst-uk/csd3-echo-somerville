@@ -1753,6 +1753,7 @@ def process_files(
             print('Collate list not saved.', flush=True)
     if at_least_one_batch or at_least_one_individual:
         if len(to_collate) > 0:
+            client.scatter(to_collate)
             uploads = dd.from_pandas(to_collate[
                 to_collate['upload'] == True # noqa
             ][[
@@ -1770,7 +1771,7 @@ def process_files(
                     f"{len(to_collate[to_collate['type'] == 'file'])} " # noqa
                     "individual files.", flush=True)
             to_collate.to_csv('temp_to_collate.csv', index=False)
-            del to_collate
+            # del to_collate
             print('Uploading...', flush=True)
 
             # assert uploads['upload'].all()
