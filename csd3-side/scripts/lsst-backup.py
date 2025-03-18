@@ -1726,7 +1726,7 @@ def process_files(
                     True for _ in range(len(individual_files))
                 ]
             })
-            print(f'1704 to_collate pandas dtypes: {to_collate.dtypes}', flush=True)
+            print(f'1704 to_collate pandas dtypes:\n{to_collate.dtypes}', flush=True)
             to_collate = to_collate.where(to_collate['size'] > 0).dropna()
             to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers']) * 2)
             to_collate[to_collate['type'] == 'file']['upload'] = True
@@ -1740,7 +1740,7 @@ def process_files(
                 meta=('upload', bool)
             )
             to_collate = to_collate.compute()
-            print(f'1718 to_collate pandas dtypes: {to_collate.dtypes}', flush=True)
+            print(f'1718 to_collate pandas dtypes:\n{to_collate.dtypes}', flush=True)
             # Convert strings representations of lists back to lists
             to_collate['object_names'] = to_collate['object_names'].apply(my_lit_eval).astype(object)
             to_collate['id'] = to_collate['id'].astype(int)
@@ -1748,7 +1748,7 @@ def process_files(
             to_collate['upload'] = to_collate['upload'].astype(bool)
             to_collate['type'] = to_collate['type'].astype(str)
             to_collate['size'] = to_collate['size'].astype(int)
-            print(f'1732 to_collate pandas dtypes: {to_collate.dtypes}', flush=True)
+            print(f'1732 to_collate pandas dtypes:\n{to_collate.dtypes}', flush=True)
             del (
                 zip_batch_files,
                 zip_batch_object_names,
@@ -1827,7 +1827,7 @@ def process_files(
             to_collate['type'] = to_collate['type'].astype(str)
             to_collate['size'] = to_collate['size'].astype(int)
             client.scatter(to_collate)
-            print(f'1805 to_collate types: {to_collate.dtypes}', flush=True)
+            print(f'1805 to_collate dtypes:\n{to_collate.dtypes}', flush=True)
             uploads = dd.from_pandas(to_collate[
                 to_collate['upload'] == True # noqa
             ],
@@ -1841,7 +1841,7 @@ def process_files(
             uploads['upload'] = uploads['upload'].astype(bool)
             uploads['type'] = uploads['type'].astype(str)
             uploads['size'] = uploads['size'].astype(int)
-            print(f'1813 uploads pandas dtypes: {uploads.dtypes}', flush=True)
+            print(f'1813 uploads pandas dtypes:\n{uploads.dtypes}', flush=True)
             # call zip_folder in parallel
             print(f"Zipping and uploading "
                     f"{len(to_collate[to_collate['type'] == 'zip'])} " # noqa
@@ -1866,7 +1866,7 @@ def process_files(
             #                     to_collate.loc[to_collate['id'] == id, 'upload'] = False
             uploads['uploaded'] = False
             uploads['uploaded'] = uploads['uploaded'].astype(bool)
-            print(f'1813 uploads pandas dtypes: {uploads.dtypes}', flush=True)
+            print(f'1813 uploads pandas dtypes:\n{uploads.dtypes}', flush=True)
             print(f'1813 uploads type: {type(uploads)}', flush=True)
             uploads.to_csv('temp1_uploads.csv', index=False, single_file=True)
 
@@ -1906,9 +1906,9 @@ def process_files(
                 meta=('uploaded', bool),
                 axis=1
             )
-            print(f'1877 uploads pandas dtypes: {uploads.dtypes}', flush=True)
+            print(f'1877 uploads pandas dtypes:\n{uploads.dtypes}', flush=True)
             uploads = uploads.compute()
-            print(f'1879 uploads pandas dtypes: {uploads.dtypes}', flush=True)
+            print(f'1879 uploads pandas dtypes:\n{uploads.dtypes}', flush=True)
             uploads.to_csv('temp2_uploads.csv', index=False)
 
     # ########################
