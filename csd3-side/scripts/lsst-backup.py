@@ -434,6 +434,7 @@ def zip_and_upload(
         f' to {destination_dir}/collated_{id}.zip.',
         flush=True
     )
+    exit()
 
     #############
     #  zip part #
@@ -1810,6 +1811,7 @@ def process_files(
                     client.scheduler_info()['workers']
             ) * 2,
             )
+            print(f'1813 uploads pandas dtypes: {uploads.dtypes}', flush=True)
             # call zip_folder in parallel
             print(f"Zipping and uploading "
                     f"{len(to_collate[to_collate['type'] == 'zip'])} " # noqa
@@ -1834,6 +1836,7 @@ def process_files(
             #                     to_collate.loc[to_collate['id'] == id, 'upload'] = False
             uploads['uploaded'] = False
             uploads['uploaded'] = uploads['uploaded'].astype(bool)
+            print(f'1838 uploads pandas dtypes: {uploads.dtypes}', flush=True)
             uploads.to_csv('temp1_uploads.csv', index=False, single_file=True)
 
             # id,object_names,paths,size,type,upload
@@ -1872,7 +1875,9 @@ def process_files(
                 meta=('uploaded', bool),
                 axis=1
             )
+            print(f'1877 uploads pandas dtypes: {uploads.dtypes}', flush=True)
             uploads = uploads.compute()
+            print(f'1879 uploads pandas dtypes: {uploads.dtypes}', flush=True)
             uploads.to_csv('temp2_uploads.csv', index=False)
 
     # ########################
