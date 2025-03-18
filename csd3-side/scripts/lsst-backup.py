@@ -393,7 +393,7 @@ def zip_and_upload(
     Args:
 
         row (pd.Series): List of file paths to be included in the zip file,
-        with columns id,object_names,paths,size,type,upload.
+        with columns id,object_names,paths,size,type,upload,uploaded.
 
         s3 (swiftclient.Connection | None): if api == "swift":
         swiftclient.Connection for uploading the zip file;
@@ -1124,19 +1124,21 @@ def upload_files_from_series(
     Returns:
         bool: The truth values of upload_and_callback.
     """
+    path = row['paths'][0]
+    object_name = row['object_names'][0]
     return upload_and_callback(
         s3,
         bucket_name,
         api,
         local_dir,
-        os.path.dirname(row['paths']),
-        row['path'],
+        os.path.dirname(path),
+        path,
         None,
-        row['object_names'],
+        object_name,
         dryrun,
         processing_start,
         file_count,
-        os.path.getsize(row['paths']),
+        os.path.getsize(path),
         total_size_uploaded,
         total_files_uploaded,
         False,
@@ -1824,6 +1826,7 @@ def process_files(
             #                     upload_futures.remove(ulf)
             #                     to_collate.loc[to_collate['id'] == id, 'upload'] = False
             uploads['uploaded'] = False
+            uploads['uploaded'] = uploads['uploaded'].astype(bool)
             uploads.to_csv('temp1_uploads.csv', index=False, single_file=True)
 
             # id,object_names,paths,size,type,upload
