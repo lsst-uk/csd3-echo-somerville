@@ -48,6 +48,26 @@ from typing import List
 warnings.filterwarnings('ignore')
 
 
+def my_lit_eval(x):
+    """
+    Safely evaluates a string containing a Python literal expression.
+
+    This function attempts to evaluate the input string `x` as a Python literal
+    using `ast.literal_eval`. If the evaluation fails with a `ValueError`, the
+    original input is returned unchanged.
+
+    Parameters:
+        x (str): The input string to evaluate.
+
+    Returns:
+        Any: The evaluated Python literal if successful, otherwise the original input.
+    """
+    try:
+        return literal_eval(x)
+    except ValueError:
+        return x
+
+
 def filesize(path: str):
     """
     Returns the size of a file in bytes.
@@ -195,7 +215,7 @@ def compare_zip_contents_bool(
     return_bool = True
     if isinstance(collate_object_names, str):
         try:
-            collate_object_names = literal_eval(collate_object_names)
+            collate_object_names = my_lit_eval(collate_object_names)
         except Exception as e:
             print(f'Warning: literal_eval failed with error: {e}', flush=True)
             print('Defaulting to upload for this file list.', flush=True)
@@ -1718,9 +1738,9 @@ def process_files(
             to_collate = to_collate.compute()
             print(f'1718 to_collate pandas dtypes: {to_collate.dtypes}', flush=True)
             # Convert strings representations of lists back to lists
-            to_collate['object_names'] = to_collate['object_names'].apply(literal_eval).astype(object)
+            to_collate['object_names'] = to_collate['object_names'].apply(my_lit_eval).astype(object)
             to_collate['id'] = to_collate['id'].astype(int)
-            to_collate['paths'] = to_collate['paths'].apply(literal_eval).astype(object)
+            to_collate['paths'] = to_collate['paths'].apply(my_lit_eval).astype(object)
             to_collate['upload'] = to_collate['upload'].astype(bool)
             to_collate['type'] = to_collate['type'].astype(str)
             to_collate['size'] = to_collate['size'].astype(int)
@@ -1746,13 +1766,13 @@ def process_files(
                     to_collate['type'] == 'zip'
                 ]['object_names'] = to_collate[
                     to_collate['type'] == 'zip'
-                ]['object_names'].apply(literal_eval)
+                ]['object_names'].apply(my_lit_eval)
 
                 to_collate[
                     to_collate['type'] == 'zip'
                 ]['paths'] = to_collate[
                     to_collate['type'] == 'zip'
-                ]['paths'].apply(literal_eval)
+                ]['paths'].apply(my_lit_eval)
 
                 to_collate = to_collate.drop_duplicates(subset='id', keep='first')
                 print(len(to_collate))
@@ -1796,9 +1816,9 @@ def process_files(
             print('Collate list not saved.', flush=True)
     if at_least_one_batch or at_least_one_individual:
         if len(to_collate) > 0:
-            to_collate['object_names'] = to_collate['object_names'].apply(literal_eval).astype(object)
+            to_collate['object_names'] = to_collate['object_names'].apply(my_lit_eval).astype(object)
             to_collate['id'] = to_collate['id'].astype(int)
-            to_collate['paths'] = to_collate['paths'].apply(literal_eval).astype(object)
+            to_collate['paths'] = to_collate['paths'].apply(my_lit_eval).astype(object)
             to_collate['upload'] = to_collate['upload'].astype(bool)
             to_collate['type'] = to_collate['type'].astype(str)
             to_collate['size'] = to_collate['size'].astype(int)
