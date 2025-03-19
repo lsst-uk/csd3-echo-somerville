@@ -1871,26 +1871,28 @@ def process_files(
             uploads.to_csv('temp1_uploads.csv', index=False, single_file=True)
 
             # id,object_names,paths,size,type,upload
-
-            uploads[uploads['type'] == 'zip', 'uploaded'] = uploads[uploads['type'] == 'zip'].apply(
-                zip_and_upload,
-                s3,
-                bucket_name,
-                api,
-                destination_dir,
-                local_dir,
-                total_size_uploaded,
-                total_files_uploaded,
-                use_compression,
-                dryrun,
-                processing_start,
-                mem_per_worker,
-                log,
-                meta=('uploaded', bool),
-                axis=1
-            )
-
-            uploads[uploads['type'] == 'file', 'uploaded'] = uploads[uploads['type'] == 'file'].apply(
+            try:
+                uploads[uploads['type'] == 'zip']['uploaded'] = uploads[uploads['type'] == 'zip'].apply(
+                    zip_and_upload,
+                    s3,
+                    bucket_name,
+                    api,
+                    destination_dir,
+                    local_dir,
+                    total_size_uploaded,
+                    total_files_uploaded,
+                    use_compression,
+                    dryrun,
+                    processing_start,
+                    mem_per_worker,
+                    log,
+                    meta=('uploaded', bool),
+                    axis=1
+                )
+            except Exception as e:
+                print(e)
+                exit()
+            uploads[uploads['type'] == 'file']['uploaded'] = uploads[uploads['type'] == 'file'].apply(
                 upload_files_from_series,
                 s3,
                 bucket_name,
