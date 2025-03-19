@@ -1908,8 +1908,8 @@ def process_files(
             client.compute([uploads, zip_uploads, file_uploads])
             print(f'1879 uploads pandas dtypes:\n{uploads.dtypes}', flush=True)
             uploads.to_csv('temp2_uploads.csv', index=False)
-            zip_uploads.to_csv('temp2_zipuploads.csv', index=False)
-            file_uploads.to_csv('temp2_fileuploads.csv', index=False)
+            zip_uploads.to_csv('temp2_zipuploads.csv', index=False, single_file=True)
+            file_uploads.to_csv('temp2_fileuploads.csv', index=False, single_file=True)
 
     # ########################
     # # Monitor upload tasks #
