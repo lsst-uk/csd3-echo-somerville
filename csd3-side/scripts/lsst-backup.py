@@ -1886,7 +1886,7 @@ def process_files(
                 mem_per_worker,
                 log,
                 meta=('uploaded', pd.Series([], dtype=bool)),
-                axis=1
+                # axis=1
             )
             file_uploads = uploads[uploads['type'] == 'file'].apply(
                 upload_files_from_series,
@@ -1902,7 +1902,7 @@ def process_files(
                 mem_per_worker,
                 log,
                 meta=('uploaded', pd.Series([], dtype=bool)),
-                axis=1
+                # axis=1
             )
             print(f'1877 uploads pandas dtypes:\n{uploads.dtypes}', flush=True)
             client.compute([uploads, zip_uploads, file_uploads])
