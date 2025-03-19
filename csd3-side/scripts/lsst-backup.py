@@ -1871,28 +1871,24 @@ def process_files(
             uploads.to_csv('temp1_uploads.csv', index=False, single_file=True)
 
             # id,object_names,paths,size,type,upload
-            try:
-                uploads[uploads['type'] == 'zip']['uploaded'] = uploads[uploads['type'] == 'zip'].apply(
-                    zip_and_upload,
-                    s3,
-                    bucket_name,
-                    api,
-                    destination_dir,
-                    local_dir,
-                    total_size_uploaded,
-                    total_files_uploaded,
-                    use_compression,
-                    dryrun,
-                    processing_start,
-                    mem_per_worker,
-                    log,
-                    meta=('uploaded', bool),
-                    axis=1
-                )
-            except Exception as e:
-                print(e)
-                exit()
-            uploads[uploads['type'] == 'file']['uploaded'] = uploads[uploads['type'] == 'file'].apply(
+            zip_uploads = uploads[uploads['type'] == 'zip'].apply(
+                zip_and_upload,
+                s3,
+                bucket_name,
+                api,
+                destination_dir,
+                local_dir,
+                total_size_uploaded,
+                total_files_uploaded,
+                use_compression,
+                dryrun,
+                processing_start,
+                mem_per_worker,
+                log,
+                meta=('uploaded', pd.Series([], dtype=bool)),
+                axis=1
+            )
+            file_uploads = uploads[uploads['type'] == 'file'].apply(
                 upload_files_from_series,
                 s3,
                 bucket_name,
@@ -1905,13 +1901,15 @@ def process_files(
                 total_files_uploaded,
                 mem_per_worker,
                 log,
-                meta=('uploaded', bool),
+                meta=('uploaded', pd.Series([], dtype=bool)),
                 axis=1
             )
             print(f'1877 uploads pandas dtypes:\n{uploads.dtypes}', flush=True)
-            uploads = uploads.compute()
+            client.compute([uploads, zip_uploads, file_uploads])
             print(f'1879 uploads pandas dtypes:\n{uploads.dtypes}', flush=True)
             uploads.to_csv('temp2_uploads.csv', index=False)
+            zip_uploads.to_csv('temp2_zipuploads.csv', index=False)
+            file_uploads.to_csv('temp2_fileuploads.csv', index=False)
 
     # ########################
     # # Monitor upload tasks #
@@ -1966,8 +1964,8 @@ def process_files(
     ################################
     # Return bool as upload status #
     ################################
-        all_uploads_successful = uploads['uploaded'].all()
-
+        all_uploads_successful = bool(zip_uploads.all() * file_uploads.all())
+        print(all_uploads_successful)
         del uploads
         if all_uploads_successful:
             print('All uploads successful.', flush=True)
