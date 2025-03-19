@@ -1873,36 +1873,40 @@ def process_files(
             # id,object_names,paths,size,type,upload
             zip_uploads = uploads[uploads['type'] == 'zip'].apply(
                 zip_and_upload,
-                s3,
-                bucket_name,
-                api,
-                destination_dir,
-                local_dir,
-                total_size_uploaded,
-                total_files_uploaded,
-                use_compression,
-                dryrun,
-                processing_start,
-                mem_per_worker,
-                log,
+                axis=1,
                 meta=('uploaded', pd.Series([], dtype=bool)),
-                # axis=1
+                args=(
+                    s3,
+                    bucket_name,
+                    api,
+                    destination_dir,
+                    local_dir,
+                    total_size_uploaded,
+                    total_files_uploaded,
+                    use_compression,
+                    dryrun,
+                    processing_start,
+                    mem_per_worker,
+                    log,
+                )
             )
             file_uploads = uploads[uploads['type'] == 'file'].apply(
                 upload_files_from_series,
-                s3,
-                bucket_name,
-                api,
-                local_dir,
-                dryrun,
-                processing_start,
-                1,
-                total_size_uploaded,
-                total_files_uploaded,
-                mem_per_worker,
-                log,
+                axis=1,
                 meta=('uploaded', pd.Series([], dtype=bool)),
-                # axis=1
+                args=(
+                    s3,
+                    bucket_name,
+                    api,
+                    local_dir,
+                    dryrun,
+                    processing_start,
+                    1,
+                    total_size_uploaded,
+                    total_files_uploaded,
+                    mem_per_worker,
+                    log,
+                )
             )
             print(f'1877 uploads pandas dtypes:\n{uploads.dtypes}', flush=True)
             client.compute([uploads, zip_uploads, file_uploads])
