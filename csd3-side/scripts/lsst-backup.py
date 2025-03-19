@@ -1872,7 +1872,7 @@ def process_files(
 
             # id,object_names,paths,size,type,upload
 
-            uploads[uploads['type'] == 'zip']['uploaded'] = uploads[uploads['type'] == 'zip'].apply(
+            uploads[uploads['type'] == 'zip', 'uploaded'] = uploads[uploads['type'] == 'zip'].apply(
                 zip_and_upload,
                 s3,
                 bucket_name,
@@ -1890,7 +1890,7 @@ def process_files(
                 axis=1
             )
 
-            uploads[uploads['type'] == 'file']['uploaded'] = uploads[uploads['type'] == 'file'].apply(
+            uploads[uploads['type'] == 'file', 'uploaded'] = uploads[uploads['type'] == 'file'].apply(
                 upload_files_from_series,
                 s3,
                 bucket_name,
