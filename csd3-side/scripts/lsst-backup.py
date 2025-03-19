@@ -1909,11 +1909,15 @@ def process_files(
                 )
             )
             print(f'1877 uploads pandas dtypes:\n{uploads.dtypes}', flush=True)
-            client.compute([uploads, zip_uploads, file_uploads])
+            uploads = uploads.compute()
+            zip_uploads = zip_uploads.compute()
+            file_uploads = file_uploads.compute()
+            uploads['type' == 'file']['uploaded'] = file_uploads
+            uploads['type' == 'zip']['uploaded'] = zip_uploads
             print(f'1879 uploads pandas dtypes:\n{uploads.dtypes}', flush=True)
             uploads.to_csv('temp2_uploads.csv', index=False)
-            zip_uploads.to_csv('temp2_zipuploads.csv', index=False, single_file=True)
-            file_uploads.to_csv('temp2_fileuploads.csv', index=False, single_file=True)
+            # zip_uploads.to_csv('temp2_zipuploads.csv', index=False, single_file=True)
+            # file_uploads.to_csv('temp2_fileuploads.csv', index=False, single_file=True)
 
     # ########################
     # # Monitor upload tasks #
