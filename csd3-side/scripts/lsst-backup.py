@@ -447,15 +447,6 @@ def zip_and_upload(
     """
     file_paths = my_lit_eval(row['paths'])
     id = row['id']
-    dprint('in zip_and_upload', flush=True)
-    dprint(f'file paths: {file_paths}, {type(file_paths)}', flush=True)
-    dprint(f'row: {row}, {type(row)}', flush=True)
-    dprint(f'id: {id}, {type(id)}', flush=True)
-    dprint(
-        f'Zipping and uploading {len(file_paths)} files from {local_dir}'
-        f' to {destination_dir}/collated_{id}.zip.',
-        flush=True
-    )
     with open('a_temp_file.txt', 'w') as f:
         f.write(f'{file_paths}')
 
@@ -1307,7 +1298,7 @@ def upload_and_callback(
     """
     # upload files in parallel and log output
     file_start = datetime.now()
-    dprint(f'collated = {collated}', flush=True)
+    dprint(f'Collated = {collated}', flush=True)
     if collated:
         try:
             dprint(f'Uploading zip containing {file_count} subfolders from {folder}.')
@@ -1732,7 +1723,6 @@ def process_files(
                 client.scatter(current_objects)
                 # Pandas
                 to_collate = pd.read_csv(local_list_file).drop('upload', axis=1)
-                print(len(to_collate))
 
                 # Convert strings representations of lists back to lists
                 to_collate[
@@ -1748,7 +1738,7 @@ def process_files(
                 ]['paths'].apply(my_lit_eval)
 
                 to_collate = to_collate.drop_duplicates(subset='id', keep='first')
-                print(len(to_collate))
+                # print(len(to_collate))
                 to_collate = dd.from_pandas(
                     to_collate,
                     npartitions=len(client.scheduler_info()['workers']) * 2
@@ -1777,7 +1767,7 @@ def process_files(
                 )
                 to_collate = to_collate.compute()
 
-                print(to_collate['upload'], flush=True)
+                # print(to_collate['upload'], flush=True)
 
             else:
                 pass
@@ -2385,8 +2375,17 @@ if __name__ == '__main__':
         sys.exit()
     logdf = logdf.drop_duplicates(subset='DESTINATION_KEY', keep='last')
     logdf = logdf.reset_index(drop=True)
-    # logdf.to_csv(log, index=False)
-
+    logdf.to_csv(log, index=False)
+    #def upload_to_bucket(
+    # s3,
+    # bucket_name,
+    # api,
+    # local_dir,
+    # folder,
+    # filename,
+    # object_key,
+    # dryrun,
+    # log
     # Upload log file
     if not dryrun:
         print('Uploading log file.')
@@ -2399,7 +2398,7 @@ if __name__ == '__main__':
             log,
             os.path.basename(log),
             False,  # dryrun
-            mem_per_worker,
+            os.path.dirname(log) + 'temp_log_file.log',
         )
 
     final_size = logdf["FILE_SIZE"].sum() / 1024**2
