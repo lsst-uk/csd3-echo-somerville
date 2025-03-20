@@ -1860,7 +1860,6 @@ def process_files(
     # Return bool as upload status #
     ################################
         all_uploads_successful = bool(zip_uploads.all() * file_uploads.all())
-        print(all_uploads_successful)
         del uploads
         if all_uploads_successful:
             print('All uploads successful.', flush=True)
@@ -2373,10 +2372,11 @@ if __name__ == '__main__':
     except Exception as e:
         print(f'Error reading log file {log}: {e}')
         sys.exit()
-    logdf = logdf.drop_duplicates(subset='DESTINATION_KEY', keep='last')
-    logdf = logdf.reset_index(drop=True)
-    logdf.to_csv(log, index=False)
-    #def upload_to_bucket(
+    # logdf = logdf.drop_duplicates(subset='DESTINATION_KEY', keep='last')
+    # logdf = logdf.reset_index(drop=True)
+    # logdf.to_csv(log, index=False)
+
+    # def upload_to_bucket(
     # s3,
     # bucket_name,
     # api,
