@@ -458,7 +458,6 @@ def zip_and_upload(
     )
     with open('a_temp_file.txt', 'w') as f:
         f.write(f'{file_paths}')
-    exit()
 
     #############
     #  zip part #
