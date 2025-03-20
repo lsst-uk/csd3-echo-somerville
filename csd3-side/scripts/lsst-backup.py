@@ -2385,7 +2385,7 @@ if __name__ == '__main__':
         sys.exit()
     logdf = logdf.drop_duplicates(subset='DESTINATION_KEY', keep='last')
     logdf = logdf.reset_index(drop=True)
-    logdf.to_csv(log, index=False)
+    # logdf.to_csv(log, index=False)
 
     # Upload log file
     if not dryrun:
