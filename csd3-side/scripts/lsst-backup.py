@@ -1028,8 +1028,8 @@ def upload_to_bucket_collated(
         LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS
         """
         sep = ','  # separator
-        log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}","'
-        f'{checksum_string}","{sep.join(zip_contents)}"'
+        log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","'
+        log_string += f'{object_key}","{checksum_string}","{sep.join(zip_contents)}"'
 
         with open(log, 'a') as f:
             f.write(log_string + '\n')
