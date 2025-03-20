@@ -455,6 +455,7 @@ def zip_and_upload(
     #############
     zip_data, namelist = zip_folders(local_dir, file_paths, use_compression, dryrun, id, mem_per_worker)
     dprint('Created zipFile in memory', flush=True)
+    dprint(f'namelist: {namelist}', flush=True)
     ###############
     # upload part #
     ###############
@@ -968,6 +969,7 @@ def upload_to_bucket_collated(
         format. The format is: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,
         DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY
     """
+    dprint(f'zip_contents in upload_to_bucket_collated: {zip_contents}', flush=True)
     if api == 's3':
         s3 = bm.get_resource()
         bucket = s3.Bucket(bucket_name)
@@ -1307,6 +1309,7 @@ def upload_and_callback(
     if collated:
         try:
             dprint(f'Uploading zip containing {file_count} subfolders from {folder}.')
+            dprint(f'zip_contents: {zip_contents}', flush=True)
             result = upload_to_bucket_collated(
                 s3,
                 bucket_name,
