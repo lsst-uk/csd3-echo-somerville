@@ -66,7 +66,7 @@ def my_lit_eval(x: object) -> object:
     """
     try:
         return literal_eval(x)
-    except ValueError:
+    except Exception:
         return x
 
 
