@@ -219,8 +219,8 @@ def compare_zip_contents_bool(
         try:
             collate_object_names = my_lit_eval(collate_object_names)
         except Exception as e:
-            print(f'Warning: literal_eval failed with error: {e}', flush=True)
-            print('Defaulting to upload for this file list.', flush=True)
+            dprint(f'Warning: literal_eval failed with error: {e}', flush=True)
+            dprint('Defaulting to upload for this file list.', flush=True)
             return True
     assert isinstance(collate_object_names, list), 'collate_object_names is not a list: '
     f'type=={type(collate_object_names)}'
@@ -335,7 +335,7 @@ def find_metadata_swift(key: str, conn, container_name: str) -> List[str]:
     if isinstance(key, str):
         existing_zip_contents = None
         if key.endswith('.zip'):
-            print('.', end='', flush=True)
+            dprint('.', end='', flush=True)
             try:
                 existing_zip_contents = str(conn.get_object(container_name, ''.join([key, '.metadata']))[
                     1
@@ -374,7 +374,7 @@ def mem_check(futures):
     client = get_client()
     workers = client.scheduler_info()['workers']
     system_perc = mem().percent
-    print(f'System memory usage: {system_perc:.0f}%.', file=sys.stderr)
+    dprint(f'System memory usage: {system_perc:.0f}%.', file=sys.stderr)
     min_w_mem = None
     high_mem_workers = []
     for w in workers.items():
@@ -385,7 +385,7 @@ def mem_check(futures):
         if used_perc > 80:
             high_mem_workers.append(w[1]['id'])
     if high_mem_workers:
-        print(f'High memory usage on workers: {high_mem_workers}.', file=sys.stderr)
+        dprint(f'High memory usage on workers: {high_mem_workers}.', file=sys.stderr)
         client.rebalance()
         wait(futures)
 
@@ -472,9 +472,9 @@ def zip_and_upload(
         destination_dir,
         os.path.relpath(f'{local_dir}/collated_{id}.zip', local_dir)
     ])
-    print(f'zip_object_key: {zip_object_key}', flush=True)
+    dprint(f'zip_object_key: {zip_object_key}', flush=True)
     if namelist == []:
-        print('No files to upload in zip file.')
+        dprint('No files to upload in zip file.')
         return False
     else:  # for no subtasks
         uploaded = upload_and_callback(
@@ -553,15 +553,15 @@ def zip_folders(
                         with open(file_path, 'rb') as src_file:
                             zip_file.writestr(arc_name, src_file.read())
                     except PermissionError:
-                        print(f'WARNING: Permission error reading {file_path}. File will not be backed up.')
+                        dprint(f'WARNING: Permission error reading {file_path}. File will not be backed up.')
                         continue
                 namelist = zip_file.namelist()
             if zipped_size > mem_per_worker:
-                print(f'WARNING: Zipped size of {zipped_size} bytes exceeds memory per core of '
+                dprint(f'WARNING: Zipped size of {zipped_size} bytes exceeds memory per core of '
                       f'{mem_per_worker} bytes.')
         except MemoryError as e:
-            print(f'Error zipping: {e}')
-            print(f'Namespace: {globals()}')
+            dprint(f'Error zipping: {e}')
+            dprint(f'Namespace: {globals()}')
             exit(1)
         if namelist == []:
             return b'', []
@@ -639,7 +639,7 @@ def upload_to_bucket(
         format. The format is: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,
         DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY
     """
-    print(f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, checksum = True, '
+    dprint(f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, checksum = True, '
           f'dryrun = {dryrun}, api = {api} local_dir = {local_dir}, s3 = {s3}', flush=True)
     if api == 's3':  # Need to make a new S3 connection
         s3 = bm.get_resource()
@@ -661,10 +661,10 @@ def upload_to_bucket(
 
         if file_size > 10 * 1024**3:
             if not dryrun:
-                print(f'WARNING: File size of {file_size} bytes exceeds memory per worker of '
+                dprint(f'WARNING: File size of {file_size} bytes exceeds memory per worker of '
                       f'{mem_per_worker} bytes.', flush=True)
-                print('Running upload_object.py.', flush=True)
-                print('This upload WILL NOT be checksummed or tracked!', flush=True)
+                dprint('Running upload_object.py.', flush=True)
+                dprint('This upload WILL NOT be checksummed or tracked!', flush=True)
                 del file_data
                 # Ensure consistent path to upload_object.py
                 upload_object_path = os.path.join(
@@ -691,10 +691,10 @@ def upload_to_bucket(
                     env=os.environ,
                     preexec_fn=os.setsid
                 )
-                print(f'Running upload_object.py for {filename}.', flush=True)
+                dprint(f'Running upload_object.py for {filename}.', flush=True)
                 return f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}","n/a","n/a"'
 
-        print(f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, {file_size} bytes, '
+        dprint(f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, {file_size} bytes, '
               f'checksum = True, dryrun = {dryrun}', flush=True)
         """
         - Upload the file to the bucket
@@ -709,7 +709,7 @@ def upload_to_bucket(
                     try:
                         get_client().scatter(file_data)
                     except TypeError as e:
-                        print(f'Error scattering {filename}: {e}')
+                        dprint(f'Error scattering {filename}: {e}')
                         exit(1)
                 else:
                     bucket.put_object(Body=file_data, Key=object_key)
@@ -726,7 +726,7 @@ def upload_to_bucket(
                     try:
                         file_data = get_client().scatter(file_data)
                     except TypeError as e:
-                        print(f'Error scattering {filename}: {e}')
+                        dprint(f'Error scattering {filename}: {e}')
                         exit(1)
                 try:
                     # Check if file size is larger than 5GiB
@@ -739,7 +739,7 @@ def upload_to_bucket(
                         mp_upload = obj.initiate_multipart_upload()
                         chunk_size = 512 * 1024**2  # 512 MiB
                         chunk_count = int(np.ceil(file_size / chunk_size))
-                        print(f'Uploading {filename} to {bucket_name}/{object_key} in {chunk_count} parts.')
+                        dprint(f'Uploading {filename} to {bucket_name}/{object_key} in {chunk_count} parts.')
                         parts = []
                         part_futures = []
                         for i in range(chunk_count):
@@ -767,7 +767,7 @@ def upload_to_bucket(
                         """
                         - Upload the file to the bucket
                         """
-                        print(f'Uploading {filename} to {bucket_name}/{object_key}')
+                        dprint(f'Uploading {filename} to {bucket_name}/{object_key}')
                         if use_future:
                             bucket.put_object(
                                 Body=get_client().gather(file_data),
@@ -781,7 +781,7 @@ def upload_to_bucket(
                                 ContentMD5=checksum_base64
                             )
                 except Exception as e:
-                    print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
+                    dprint(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
 
                 del file_data
         else:
@@ -827,7 +827,7 @@ def upload_to_bucket(
         file_size = os.path.getsize(filename)
         use_future = False
 
-        print(f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, {file_size} bytes, '
+        dprint(f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, {file_size} bytes, '
               f'checksum = True, dryrun = {dryrun}', flush=True)
         """
         - Upload the file to the bucket
@@ -872,7 +872,7 @@ def upload_to_bucket(
                         segmented_upload = [filename]
                         for so in segment_objects:
                             segmented_upload.append(so)
-                        print(f'Uploading {filename} to {bucket_name}/{object_key} in '
+                        dprint(f'Uploading {filename} to {bucket_name}/{object_key} in '
                               f'{n_segments} parts.', flush=True)
                         _ = swift_service.upload(
                             bucket_name,
@@ -889,7 +889,7 @@ def upload_to_bucket(
                         """
                         - Upload the file to the bucket
                         """
-                        print(f'Uploading {filename} to {bucket_name}/{object_key}')
+                        dprint(f'Uploading {filename} to {bucket_name}/{object_key}')
                         s3.put_object(
                             container=bucket_name,
                             contents=file_data,
@@ -898,7 +898,7 @@ def upload_to_bucket(
                             etag=checksum_string
                         )
                 except Exception as e:
-                    print(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
+                    dprint(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
 
                 del file_data
         else:
@@ -976,7 +976,7 @@ def upload_to_bucket_collated(
         if hasattr(file_data, 'seek'):
             file_data.seek(0)
 
-        print(f'Uploading zip file "{filename}" for {folder} to {bucket_name}/{object_key}, {file_data_size} '
+        dprint(f'Uploading zip file "{filename}" for {folder} to {bucket_name}/{object_key}, {file_data_size} '
               f'bytes, checksum = True, dryrun = {dryrun}', flush=True)
         """
         - Upload the file to the bucket
@@ -995,12 +995,12 @@ def upload_to_bucket_collated(
                 """
                 - Upload the file to the bucket
                 """
-                print(f'Uploading zip file "{filename}" ({file_data_size} bytes) to '
+                dprint(f'Uploading zip file "{filename}" ({file_data_size} bytes) to '
                       f'{bucket_name}/{object_key}')
                 metadata_value = '|'.join(zip_contents)  # use | as separator
 
                 metadata_object_key = object_key + '.metadata'
-                print(f'Writing zip contents to {metadata_object_key}.', flush=True)
+                dprint(f'Writing zip contents to {metadata_object_key}.', flush=True)
                 bucket.put_object(
                     Body=metadata_value,
                     Key=metadata_object_key,
@@ -1015,7 +1015,7 @@ def upload_to_bucket_collated(
                     Metadata=metadata
                 )
             except Exception as e:
-                print(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
+                dprint(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
                 exit(1)
         else:
             checksum_string = "DRYRUN"
@@ -1042,7 +1042,7 @@ def upload_to_bucket_collated(
         if hasattr(file_data, 'seek'):
             file_data.seek(0)
 
-        print(f'Uploading zip file "{filename}" for {folder} to {bucket_name}/{object_key}, {file_data_size} '
+        dprint(f'Uploading zip file "{filename}" for {folder} to {bucket_name}/{object_key}, {file_data_size} '
               f'bytes, checksum = True, dryrun = {dryrun}', flush=True)
         """
         - Upload the file to the bucket
@@ -1062,12 +1062,12 @@ def upload_to_bucket_collated(
                 """
                 - Upload the file to the bucket
                 """
-                print(f'Uploading zip file "{filename}" ({file_data_size} bytes) to '
+                dprint(f'Uploading zip file "{filename}" ({file_data_size} bytes) to '
                       f'{bucket_name}/{object_key}')
                 metadata_value = '|'.join(zip_contents)  # use | as separator
 
                 metadata_object_key = object_key + '.metadata'
-                print(f'Writing zip contents to {metadata_object_key}.', flush=True)
+                dprint(f'Writing zip contents to {metadata_object_key}.', flush=True)
                 responses = [{}, {}]
                 s3.put_object(
                     container=bucket_name,
@@ -1087,7 +1087,7 @@ def upload_to_bucket_collated(
                     response_dict=responses[1]
                 )
             except Exception as e:
-                print(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
+                dprint(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
                 exit(1)
         else:
             checksum_string = "DRYRUN"
@@ -1216,15 +1216,15 @@ def print_stats(
 
     elapsed = file_end - file_start
     if collated:
-        print(f'Uploaded zip file, elapsed time = {elapsed}')
+        dprint(f'Uploaded zip file, elapsed time = {elapsed}')
     else:
-        print(f'Uploaded {file_name_or_data}, elapsed time = {elapsed}')
+        dprint(f'Uploaded {file_name_or_data}, elapsed time = {elapsed}')
     try:
         elapsed_seconds = elapsed.seconds + elapsed.microseconds / 1e6
         avg_file_size = total_size / file_count / 1024**2
-        print(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded in {elapsed_seconds:.2f} '
+        dprint(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded in {elapsed_seconds:.2f} '
               f'seconds, {elapsed_seconds/file_count:.2f} s/file', flush=True)
-        print(f'{total_size / 1024**2:.2f} MiB uploaded in {elapsed_seconds:.2f} seconds, '
+        dprint(f'{total_size / 1024**2:.2f} MiB uploaded in {elapsed_seconds:.2f} seconds, '
               f'{total_size / 1024**2 / elapsed_seconds:.2f} MiB/s', flush=True)
     except ZeroDivisionError:
         pass
@@ -1295,10 +1295,10 @@ def upload_and_callback(
     """
     # upload files in parallel and log output
     file_start = datetime.now()
-    print(f'collated = {collated}', flush=True)
+    dprint(f'collated = {collated}', flush=True)
     if collated:
         try:
-            print(f'Uploading zip containing {file_count} subfolders from {folder}.')
+            dprint(f'Uploading zip containing {file_count} subfolders from {folder}.')
             result = upload_to_bucket_collated(
                 s3,
                 bucket_name,
@@ -1311,11 +1311,11 @@ def upload_and_callback(
                 mem_per_worker
             )
         except Exception as e:
-            print(f'Error uploading {folder} to {bucket_name}/{object_key}: {e}')
+            dprint(f'Error uploading {folder} to {bucket_name}/{object_key}: {e}')
             return False
     else:
         try:
-            print(f'Uploading {file_count} files from {folder}.')
+            dprint(f'Uploading {file_count} files from {folder}.')
             result = upload_to_bucket(
                 s3,
                 bucket_name,
@@ -1328,7 +1328,7 @@ def upload_and_callback(
                 mem_per_worker
             )
         except Exception as e:
-            print(f'Error uploading {folder} to {bucket_name}/{object_key}: {e}')
+            dprint(f'Error uploading {folder} to {bucket_name}/{object_key}: {e}')
             return False
 
     file_end = datetime.now()
