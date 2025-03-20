@@ -608,8 +608,8 @@ def upload_to_bucket(
     filename,
     object_key,
     dryrun,
-    mem_per_worker
-) -> str:
+    log
+) -> bool:
     """
     Uploads a file to an S3 bucket.
     Calculates a checksum for the file
@@ -635,12 +635,10 @@ def upload_to_bucket(
         mem_per_worker (int): The memory per worker in bytes.
 
     Returns:
-        str: A string containing information about the uploaded file in CSV
-        format. The format is: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,
-        DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY
+        bool: True if the file was uploaded, False if not.
     """
     dprint(f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, checksum = True, '
-          f'dryrun = {dryrun}, api = {api} local_dir = {local_dir}, s3 = {s3}', flush=True)
+           f'dryrun = {dryrun}, api = {api} local_dir = {local_dir}, s3 = {s3}', flush=True)
     if api == 's3':  # Need to make a new S3 connection
         s3 = bm.get_resource()
         s3_client = bm.get_client()
@@ -695,7 +693,7 @@ def upload_to_bucket(
                 return f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}","n/a","n/a"'
 
         dprint(f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, {file_size} bytes, '
-              f'checksum = True, dryrun = {dryrun}', flush=True)
+               f'checksum = True, dryrun = {dryrun}', flush=True)
         """
         - Upload the file to the bucket
         """
@@ -782,6 +780,7 @@ def upload_to_bucket(
                             )
                 except Exception as e:
                     dprint(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
+                    return False
 
                 del file_data
         else:
@@ -794,17 +793,21 @@ def upload_to_bucket(
         LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM
         """
         if link:
-            return_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}"'
+            log_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}"'
         else:
-            return_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}"'
+            log_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}"'
         if link:
-            return_string += ',n/a'
+            log_string += ',n/a'
         else:
-            return_string += f',{checksum_string}'
+            log_string += f',{checksum_string}'
 
         # for no zip contents
-        return_string += ',n/a'
-        return return_string
+        log_string += ',n/a'
+
+        with open(log, 'a') as f:
+            f.write(log_string + '\n')
+
+        return True
 
     elif api == 'swift':
         try:
@@ -828,7 +831,7 @@ def upload_to_bucket(
         use_future = False
 
         dprint(f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, {file_size} bytes, '
-              f'checksum = True, dryrun = {dryrun}', flush=True)
+               f'checksum = True, dryrun = {dryrun}', flush=True)
         """
         - Upload the file to the bucket
         """
@@ -899,6 +902,7 @@ def upload_to_bucket(
                         )
                 except Exception as e:
                     dprint(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
+                    return False
 
                 del file_data
         else:
@@ -911,17 +915,20 @@ def upload_to_bucket(
         LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM
         """
         if link:
-            return_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}"'
+            log_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}"'
         else:
-            return_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}"'
+            log_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}"'
         if link:
-            return_string += ',n/a'
+            log_string += ',n/a'
         else:
-            return_string += f',{checksum_string}'
+            log_string += f',{checksum_string}'
 
         # for no zip contents
-        return_string += ',n/a'
-        return return_string
+        log_string += ',n/a'
+
+        with open(log, 'a') as f:
+            f.write(log_string + '\n')
+        return True
 
 
 def upload_to_bucket_collated(
@@ -933,8 +940,8 @@ def upload_to_bucket_collated(
     zip_contents,
     object_key,
     dryrun,
-    mem_per_worker
-) -> str:
+    log
+) -> bool:
     """
     Uploads a file to an S3 bucket.
     Calculates a checksum for the file
@@ -976,8 +983,8 @@ def upload_to_bucket_collated(
         if hasattr(file_data, 'seek'):
             file_data.seek(0)
 
-        dprint(f'Uploading zip file "{filename}" for {folder} to {bucket_name}/{object_key}, {file_data_size} '
-              f'bytes, checksum = True, dryrun = {dryrun}', flush=True)
+        dprint(f'Uploading zip file "{filename}" for {folder} to {bucket_name}/{object_key}, '
+               f'{file_data_size} bytes, checksum = True, dryrun = {dryrun}', flush=True)
         """
         - Upload the file to the bucket
         """
@@ -996,7 +1003,7 @@ def upload_to_bucket_collated(
                 - Upload the file to the bucket
                 """
                 dprint(f'Uploading zip file "{filename}" ({file_data_size} bytes) to '
-                      f'{bucket_name}/{object_key}')
+                       f'{bucket_name}/{object_key}')
                 metadata_value = '|'.join(zip_contents)  # use | as separator
 
                 metadata_object_key = object_key + '.metadata'
@@ -1016,7 +1023,7 @@ def upload_to_bucket_collated(
                 )
             except Exception as e:
                 dprint(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
-                exit(1)
+                return False
         else:
             checksum_string = "DRYRUN"
 
@@ -1026,10 +1033,13 @@ def upload_to_bucket_collated(
         header:
         LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS
         """
-        return_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}","'
+        log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}","'
         f'{checksum_string}","{",".join(zip_contents)}"'
 
-        return return_string
+        with open(log, 'a') as f:
+            f.write(log_string + '\n')
+
+        return True
 
     elif api == 'swift':
         try:
@@ -1088,7 +1098,7 @@ def upload_to_bucket_collated(
                 )
             except Exception as e:
                 dprint(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
-                exit(1)
+                return False
         else:
             checksum_string = "DRYRUN"
 
@@ -1098,14 +1108,16 @@ def upload_to_bucket_collated(
         header:
         LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS
         """
-        return_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}","'
+        log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}","'
         f'{checksum_string}","{",".join(zip_contents)}"'
         while True:
             if responses[0] and responses[1]:
                 if responses[0]['status'] == 201 and responses[1]['status'] == 201:
                     break
+        with open(log, 'a') as f:
+            f.write(log_string + '\n')
 
-        return return_string
+        return True
 
 
 def upload_files_from_series(
@@ -1308,7 +1320,7 @@ def upload_and_callback(
                 zip_contents,
                 object_key,
                 dryrun,
-                mem_per_worker
+                log
             )
         except Exception as e:
             dprint(f'Error uploading {folder} to {bucket_name}/{object_key}: {e}')
@@ -1325,7 +1337,7 @@ def upload_and_callback(
                 file_name_or_data,
                 object_key,
                 dryrun,
-                mem_per_worker
+                log
             )
         except Exception as e:
             dprint(f'Error uploading {folder} to {bucket_name}/{object_key}: {e}')
@@ -1343,12 +1355,10 @@ def upload_and_callback(
         total_files_uploaded,
         collated
     )
-    with open(log, 'a') as logfile:
-        logfile.write(f'{result}\n')
 
     del file_name_or_data
 
-    return True
+    return result
 
 
 # KEY FUNCTION TO FIND ALL FILES AND ORGANISE UPLOADS #
@@ -1603,43 +1613,6 @@ def process_files(
                 individual_object_names.extend([[on] for on in object_names])
                 individual_files_sizes.extend(folder_files_sizes)
 
-                # try:
-                #     for i, args in enumerate(zip(
-                #             repeat(s3),
-                #             repeat(bucket_name),
-                #             repeat(api),
-                #             repeat(local_dir),
-                #             repeat(folder),
-                #             folder_files,
-                #             repeat(None),
-                #             object_names,
-                #             repeat(dryrun),
-                #             repeat(processing_start),
-                #             repeat(file_count),
-                #             repeat(folder_files_size),
-                #             repeat(total_size_uploaded),
-                #             repeat(total_files_uploaded),
-                #             repeat(False),
-                #             repeat(mem_per_worker),
-                #             repeat(log),
-                #     )):
-                #         upload_futures.append(client.submit(upload_and_callback, *args))
-
-                # except BrokenPipeError as e:
-                #     print(f'Caught BrokenPipeError: {e}')
-                #     # Record the failure
-                #     with open('error_log.err', 'a') as f:
-                #         f.write(f'BrokenPipeError: {e}\n')
-                #     # Exit gracefully
-                #     sys.exit(1)
-                # except Exception as e:
-                #     print(f'An unexpected error occurred: {e}')
-                #     # Record the failure
-                #     with open('error_log.err', 'a') as f:
-                #         f.write(f'Unexpected error: {e}\n')
-                #     # Exit gracefully
-                #     sys.exit(1)
-
             # small files in folder
             elif mean_filesize <= max_zip_batch_size and len(folder_files) > 0 and global_collate:
                 print('Collated upload.', flush=True)
@@ -1725,7 +1698,6 @@ def process_files(
                     True for _ in range(len(individual_files))
                 ]
             })
-            print(f'1704 to_collate pandas dtypes:\n{to_collate.dtypes}', flush=True)
             to_collate = to_collate.where(to_collate['size'] > 0).dropna()
             to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers']) * 2)
             to_collate[to_collate['type'] == 'file']['upload'] = True
@@ -1739,7 +1711,6 @@ def process_files(
                 meta=('upload', bool)
             )
             to_collate = to_collate.compute()
-            print(f'1718 to_collate pandas dtypes:\n{to_collate.dtypes}', flush=True)
             # Convert strings representations of lists back to lists
             to_collate['object_names'] = to_collate['object_names'].apply(my_lit_eval).astype(object)
             to_collate['id'] = to_collate['id'].astype(int)
@@ -1747,7 +1718,6 @@ def process_files(
             to_collate['upload'] = to_collate['upload'].astype(bool)
             to_collate['type'] = to_collate['type'].astype(str)
             to_collate['size'] = to_collate['size'].astype(int)
-            print(f'1732 to_collate pandas dtypes:\n{to_collate.dtypes}', flush=True)
             del (
                 zip_batch_files,
                 zip_batch_object_names,
@@ -1789,7 +1759,7 @@ def process_files(
                 # - this could be re-written to using vectorised operations
 
                 print('Created Dask dataframe for to_collate.', flush=True)
-                dprint('Comparing existing zips to collate list.', flush=True)
+                print('Comparing existing zips to collate list.', flush=True)
                 to_collate['upload'] = to_collate[to_collate['type'] == 'file']['object_names'].apply(
                     lambda x: isntin(
                         x,
@@ -1826,7 +1796,7 @@ def process_files(
             to_collate['type'] = to_collate['type'].astype(str)
             to_collate['size'] = to_collate['size'].astype(int)
             client.scatter(to_collate)
-            print(f'1805 to_collate dtypes:\n{to_collate.dtypes}', flush=True)
+
             uploads = dd.from_pandas(to_collate[
                 to_collate['upload'] == True # noqa
             ],
@@ -1840,7 +1810,7 @@ def process_files(
             uploads['upload'] = uploads['upload'].astype(bool)
             uploads['type'] = uploads['type'].astype(str)
             uploads['size'] = uploads['size'].astype(int)
-            print(f'1813 uploads pandas dtypes:\n{uploads.dtypes}', flush=True)
+
             # call zip_folder in parallel
             print(f"Zipping and uploading "
                     f"{len(to_collate[to_collate['type'] == 'zip'])} " # noqa
@@ -1848,28 +1818,11 @@ def process_files(
             print(f"Uploading "
                     f"{len(to_collate[to_collate['type'] == 'file'])} " # noqa
                     "individual files.", flush=True)
-            # del to_collate
-            print('Uploading...', flush=True)
 
-            # assert uploads['upload'].all()
-            # for id in uploads['id']:
-            #     if len(upload_futures) >= len(client.scheduler_info()['workers']) * 2:
-            #         while len(upload_futures) >= len(client.scheduler_info()['workers']) * 2:
-            #             for ulf in upload_futures:
-            #                 if 'exception' in ulf.status or 'error' in ulf.status:
-            #                     f_tuple = ulf.exception(), ulf.traceback()
-            #                     failed.append(f_tuple)
-            #                     upload_futures.remove(ulf)
-            #                 else:
-            #                     upload_futures.remove(ulf)
-            #                     to_collate.loc[to_collate['id'] == id, 'upload'] = False
+            print('Uploading...', flush=True)
             uploads['uploaded'] = False
             uploads['uploaded'] = uploads['uploaded'].astype(bool)
-            print(f'1813 uploads pandas dtypes:\n{uploads.dtypes}', flush=True)
-            print(f'1813 uploads type: {type(uploads)}', flush=True)
-            uploads.to_csv('temp1_uploads.csv', index=False, single_file=True)
 
-            # id,object_names,paths,size,type,upload
             zip_uploads = uploads[uploads['type'] == 'zip'].apply(
                 zip_and_upload,
                 axis=1,
@@ -1907,66 +1860,11 @@ def process_files(
                     log,
                 )
             )
-            print(f'1877 uploads pandas dtypes:\n{uploads.dtypes}', flush=True)
             uploads = uploads.compute()
             zip_uploads = zip_uploads.compute()
             file_uploads = file_uploads.compute()
             uploads[uploads['type'] == 'file']['uploaded'] = file_uploads
             uploads[uploads['type'] == 'zip']['uploaded'] = zip_uploads
-            print(f'1879 uploads pandas dtypes:\n{uploads.dtypes}', flush=True)
-            uploads.to_csv('temp2_uploads.csv', index=False)
-            # zip_uploads.to_csv('temp2_zipuploads.csv', index=False, single_file=True)
-            # file_uploads.to_csv('temp2_fileuploads.csv', index=False, single_file=True)
-
-    # ########################
-    # # Monitor upload tasks #
-    # ########################
-    # if at_least_one_batch:
-    #     for ulf in as_completed(upload_futures):
-    #         if 'exception' in ulf.status or 'error' in ulf.status:
-    #             f_tuple = ulf.exception(), ulf.traceback()
-    #             failed.append(f_tuple)
-    #             upload_futures.remove(ulf)
-    #         elif ulf.done():
-    #             upload_times.append(ulf.result())
-    #             upload_futures.remove(ulf)
-    #             to_collate.loc[to_collate['id'] == id, 'upload'] = False
-    #         if len(upload_futures) == 0:
-    #             print('All uploads complete.', flush=True)
-
-    #     if failed:
-    #         for i, failed_upload in enumerate(failed):
-    #             print(
-    #                 f'Error upload {i}:\nException: {failed_upload[0]}\nTraceback: {failed_upload[1]}',
-    #                 flush=True
-    #             )
-
-    #     # Re-save collate list to reflect uploads
-    #     if save_local_file:
-    #         print(f'Saving updated collate list to {local_list_file}.', flush=True)
-    #         to_collate.to_csv(local_list_file, index=False)
-    #     else:
-    #         print('Local file list not saved.')
-    # else:
-    #     print('Waiting for uploads to complete.', flush=True)
-    #     wait(upload_futures)
-    #     for ulf in upload_futures:
-    #         if 'exception' in ulf.status or 'error' in ulf.status:
-    #             f_tuple = ulf.exception(), ulf.traceback()
-    #             failed.append(f_tuple)
-    #             upload_futures.remove(ulf)
-    #         elif ulf.done():
-    #             upload_times.append(ulf.result())
-    #             upload_futures.remove(ulf)
-    #         if len(upload_futures) == 0:
-    #             print('All uploads complete.', flush=True)
-
-    #     if failed:
-    #         for i, failed_upload in enumerate(failed):
-    #             print(
-    #                 f'Error upload {i}:\nException: {failed_upload[0]}\nTraceback: {failed_upload[1]}',
-    #                 flush=True
-    #             )
 
     ################################
     # Return bool as upload status #
