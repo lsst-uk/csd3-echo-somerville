@@ -651,7 +651,7 @@ def upload_to_bucket(
         if file_size > 10 * 1024**3:
             if not dryrun:
                 dprint(f'WARNING: File size of {file_size} bytes exceeds memory per worker of '
-                      f'{mem_per_worker} bytes.', flush=True)
+                       f'{mem_per_worker} bytes.', flush=True)
                 dprint('Running upload_object.py.', flush=True)
                 dprint('This upload WILL NOT be checksummed or tracked!', flush=True)
                 del file_data
@@ -681,7 +681,10 @@ def upload_to_bucket(
                     preexec_fn=os.setsid
                 )
                 dprint(f'Running upload_object.py for {filename}.', flush=True)
-                return f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}","n/a","n/a"'
+                log_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}","n/a","n/a"'
+                with open(log, 'a') as f:
+                    f.write(log_string + '\n')
+                return True
 
         dprint(f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, {file_size} bytes, '
                f'checksum = True, dryrun = {dryrun}', flush=True)
@@ -781,19 +784,19 @@ def upload_to_bucket(
         report actions
         CSV formatted
         header:
-        LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM
+        LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS
         """
         if link:
             log_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}"'
         else:
             log_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}"'
         if link:
-            log_string += ',n/a'
+            log_string += ',"n/a"'
         else:
-            log_string += f',{checksum_string}'
+            log_string += f',"{checksum_string}"'
 
         # for no zip contents
-        log_string += ',n/a'
+        log_string += ',"n/a"'
 
         with open(log, 'a') as f:
             f.write(log_string + '\n')
@@ -867,7 +870,7 @@ def upload_to_bucket(
                         for so in segment_objects:
                             segmented_upload.append(so)
                         dprint(f'Uploading {filename} to {bucket_name}/{object_key} in '
-                              f'{n_segments} parts.', flush=True)
+                               f'{n_segments} parts.', flush=True)
                         _ = swift_service.upload(
                             bucket_name,
                             segmented_upload,
@@ -903,19 +906,19 @@ def upload_to_bucket(
         report actions
         CSV formatted
         header:
-        LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM
+        LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS
         """
         if link:
             log_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}"'
         else:
             log_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}"'
         if link:
-            log_string += ',n/a'
+            log_string += ',"n/a"'
         else:
-            log_string += f',{checksum_string}'
+            log_string += f',"{checksum_string}"'
 
         # for no zip contents
-        log_string += ',n/a'
+        log_string += ',"n/a"'
 
         with open(log, 'a') as f:
             f.write(log_string + '\n')
@@ -1024,8 +1027,9 @@ def upload_to_bucket_collated(
         header:
         LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS
         """
+        sep = ','  # separator
         log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}","'
-        f'{checksum_string}","{",".join(zip_contents)}"'
+        f'{checksum_string}","{sep.join(zip_contents)}"'
 
         with open(log, 'a') as f:
             f.write(log_string + '\n')
@@ -1043,8 +1047,8 @@ def upload_to_bucket_collated(
         if hasattr(file_data, 'seek'):
             file_data.seek(0)
 
-        dprint(f'Uploading zip file "{filename}" for {folder} to {bucket_name}/{object_key}, {file_data_size} '
-              f'bytes, checksum = True, dryrun = {dryrun}', flush=True)
+        dprint(f'Uploading zip file "{filename}" for {folder} to {bucket_name}/{object_key}, '
+               f'{file_data_size} bytes, checksum = True, dryrun = {dryrun}', flush=True)
         """
         - Upload the file to the bucket
         """
@@ -1064,7 +1068,7 @@ def upload_to_bucket_collated(
                 - Upload the file to the bucket
                 """
                 dprint(f'Uploading zip file "{filename}" ({file_data_size} bytes) to '
-                      f'{bucket_name}/{object_key}')
+                       f'{bucket_name}/{object_key}')
                 metadata_value = '|'.join(zip_contents)  # use | as separator
 
                 metadata_object_key = object_key + '.metadata'
@@ -1099,8 +1103,9 @@ def upload_to_bucket_collated(
         header:
         LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS
         """
-        log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}","'
-        f'{checksum_string}","{",".join(zip_contents)}"'
+        sep = ','  # separator
+        log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}",'
+        f'"{checksum_string}","{sep.join(zip_contents)}"'
         while True:
             if responses[0] and responses[1]:
                 if responses[0]['status'] == 201 and responses[1]['status'] == 201:
