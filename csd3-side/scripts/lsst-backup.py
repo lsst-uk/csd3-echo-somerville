@@ -53,7 +53,7 @@ def my_lit_eval(x: object) -> object:
     Safely evaluates a string containing a Python literal expression.
 
     This function attempts to evaluate the input string `x` as a Python literal
-    using `ast.literal_eval`. If the evaluation fails with a `ValueError`, the
+    using `ast.literal_eval`. If the evaluation fails with any `Exception`, the
     original input is returned unchanged.
 
     Parameters:
