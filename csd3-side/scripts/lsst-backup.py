@@ -918,6 +918,7 @@ def upload_to_bucket(
 
         # for no zip contents
         log_string += ',"n/a"'
+        dprint(f'log_string: {log_string}', flush=True)
 
         with open(log, 'a') as f:
             f.write(log_string + '\n')
