@@ -462,7 +462,6 @@ def zip_and_upload(
         destination_dir,
         os.path.relpath(f'{local_dir}/collated_{id}.zip', local_dir)
     ])
-    dprint(f'zip_object_key: {zip_object_key}', flush=True)
     if namelist == []:
         dprint('No files to upload in zip file.')
         return False
@@ -966,7 +965,6 @@ def upload_to_bucket_collated(
         format. The format is: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,
         DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY
     """
-    dprint(f'zip_contents in upload_to_bucket_collated: {zip_contents}', flush=True)
     if api == 's3':
         s3 = bm.get_resource()
         bucket = s3.Bucket(bucket_name)
@@ -1027,8 +1025,7 @@ def upload_to_bucket_collated(
         LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS
         """
         sep = ','  # separator
-        log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","'
-        log_string += f'{object_key}","{checksum_string}","{sep.join(zip_contents)}"'
+        log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}","{checksum_string}","{sep.join(zip_contents)}"' # noqa
 
         with open(log, 'a') as f:
             f.write(log_string + '\n')
@@ -1103,7 +1100,7 @@ def upload_to_bucket_collated(
         LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS
         """
         sep = ','  # separator
-        log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}","{checksum_string}","{sep.join(zip_contents)}"'
+        log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}","{checksum_string}","{sep.join(zip_contents)}"' # noqa
         while True:
             if responses[0] and responses[1]:
                 if responses[0]['status'] == 201 and responses[1]['status'] == 201:
@@ -1304,7 +1301,6 @@ def upload_and_callback(
     if collated:
         try:
             dprint(f'Uploading zip containing {file_count} subfolders from {folder}.')
-            dprint(f'zip_contents: {zip_contents}', flush=True)
             result = upload_to_bucket_collated(
                 s3,
                 bucket_name,
