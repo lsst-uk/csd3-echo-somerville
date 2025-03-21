@@ -796,7 +796,7 @@ def upload_to_bucket(
 
         # for no zip contents
         log_string += ',"n/a"'
-        dprint(f'log_string: {log_string}', flush=True)
+        dprint(f'log_string 799: {log_string}', flush=True)
         with open(log, 'a') as f:
             f.write(log_string + '\n')
 
@@ -918,7 +918,7 @@ def upload_to_bucket(
 
         # for no zip contents
         log_string += ',"n/a"'
-        dprint(f'log_string: {log_string}', flush=True)
+        dprint(f'log_string 921: {log_string}', flush=True)
 
         with open(log, 'a') as f:
             f.write(log_string + '\n')
@@ -1031,7 +1031,7 @@ def upload_to_bucket_collated(
         sep = ','  # separator
         log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","'
         log_string += f'{object_key}","{checksum_string}","{sep.join(zip_contents)}"'
-        dprint(f'log_string: {log_string}', flush=True)
+        dprint(f'log_string 1034: {log_string}', flush=True)
 
         with open(log, 'a') as f:
             f.write(log_string + '\n')
@@ -1114,7 +1114,7 @@ def upload_to_bucket_collated(
                     break
         with open(log, 'a') as f:
             f.write(log_string + '\n')
-        dprint(f'log_string: {log_string}', flush=True)
+        dprint(f'log_string 1117: {log_string}', flush=True)
         return True
 
 
