@@ -450,7 +450,6 @@ def zip_and_upload(
     #############
     zip_data, namelist = zip_folders(local_dir, file_paths, use_compression, dryrun, id, mem_per_worker)
     dprint('Created zipFile in memory', flush=True)
-    dprint(f'namelist: {namelist}', flush=True)
     ###############
     # upload part #
     ###############
@@ -625,9 +624,6 @@ def upload_to_bucket(
     Returns:
         bool: True if the file was uploaded, False if not.
     """
-    dprint(f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, checksum = True, '
-           f'dryrun = {dryrun}, api = {api} local_dir = {local_dir}, s3 = {s3}', flush=True)
-
     if api == 's3':  # Need to make a new S3 connection
         s3 = bm.get_resource()
         s3_client = bm.get_client()
@@ -797,7 +793,7 @@ def upload_to_bucket(
 
         # for no zip contents
         log_string += ',"n/a"'
-        
+
         # for upload time
         log_string += ',None'
         with open(log, 'a') as f:
