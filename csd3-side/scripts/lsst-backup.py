@@ -1106,8 +1106,8 @@ def upload_to_bucket_collated(
         LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS
         """
         sep = ','  # separator
-        log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}",'
-        f'"{checksum_string}","{sep.join(zip_contents)}"'
+        log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}","{checksum_string}","{sep.join(zip_contents)}"'
+        dprint(f'folder: {folder}, filename: {filename}, file_data_size: {file_data_size}, bucket_name: {bucket_name}, object_key: {object_key}, checksum_string: {checksum_string}, zip_contents: {zip_contents}', flush=True)
         while True:
             if responses[0] and responses[1]:
                 if responses[0]['status'] == 201 and responses[1]['status'] == 201:
