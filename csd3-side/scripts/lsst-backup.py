@@ -2121,7 +2121,7 @@ if __name__ == '__main__':
     print(f'Running on {uname.stdout.decode().strip()}')
 
     # Initiate timing
-    start = datetime.now()
+    start_main = datetime.now()
 
     # allow top-level folder to be provided with S3-folder == ''
     if sub_dirs == '':
@@ -2233,17 +2233,17 @@ if __name__ == '__main__':
     ) as client:
         print(f'Dask Client: {client}', flush=True)
         print(f'Dashboard: {client.dashboard_link}', flush=True)
-        print(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}')
+        print(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start_main}')
         print(f'Using {nprocs} processes.')
         print(f'Getting current object list for {bucket_name}. This may take some time.\nStarting at '
-              f'{datetime.now()}, elapsed time = {datetime.now() - start}', flush=True)
+              f'{datetime.now()}, elapsed time = {datetime.now() - start_main}', flush=True)
 
         if api == 's3':
             current_objects = bm.object_list(bucket, prefix=destination_dir, count=True)
         elif api == 'swift':
             current_objects = bm.object_list_swift(s3, bucket_name, prefix=destination_dir, count=True)
         print()
-        print(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', flush=True)
+        print(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start_main}', flush=True)
 
         current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_objects})
 
@@ -2255,7 +2255,7 @@ if __name__ == '__main__':
             )
             print(f"Current objects (with matching prefix; excluding collated zips): "
                   f"{num_objs}", flush=True)
-            print(f'Obtaining current object metadata, elapsed time = {datetime.now() - start}', flush=True)
+            print(f'Obtaining current object metadata, elapsed time = {datetime.now() - start_main}', flush=True)
             if api == 's3':
                 current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(
                     find_metadata,
@@ -2274,11 +2274,11 @@ if __name__ == '__main__':
             print(flush=True)
         else:
             current_objects['METADATA'] = None
-        print(f'Done, elapsed time = {datetime.now() - start}', flush=True)
+        print(f'Done, elapsed time = {datetime.now() - start_main}', flush=True)
 
         # check if log exists in the bucket, download and append if it does
         print(f'Checking for existing log files in bucket {bucket_name}, elapsed time = '
-              f'{datetime.now() - start}', flush=True)
+              f'{datetime.now() - start_main}', flush=True)
         if current_objects['CURRENT_OBJECTS'].isin([log]).any():
             print(f'Log file {log} already exists in bucket. Downloading.')
             if api == 's3':
@@ -2291,7 +2291,7 @@ if __name__ == '__main__':
                 bucket.download_file(previous_log, log)
             elif api == 'swift':
                 bm.download_file_swift(s3, bucket_name, previous_log, log)
-        print(f'Done, elapsed time = {datetime.now() - start}', flush=True)
+        print(f'Done, elapsed time = {datetime.now() - start_main}', flush=True)
 
         if api == 's3':
             s3 = None
@@ -2306,7 +2306,7 @@ if __name__ == '__main__':
         global_retry_limit = 10
         while remaining_uploads and retries <= global_retry_limit:
             print(
-                f'Processing files in {local_dir}, elapsed time = {datetime.now() - start}, '
+                f'Processing files in {local_dir}, elapsed time = {datetime.now() - start_main}, '
                 f'try number: {retries+1}',
                 flush=True
             )
@@ -2368,7 +2368,7 @@ if __name__ == '__main__':
     print('Completing logging.')
 
     # Complete
-    final_time = datetime.now() - start
+    final_time = datetime.now() - start_main
     final_time_seconds = float(final_time.total_seconds())
     try:
         logdf = pd.read_csv(log)
@@ -2427,7 +2427,7 @@ if __name__ == '__main__':
     upload_time_per_file = final_upload_time_seconds / file_count
     upload_time_per_file_expand_zips = final_upload_time_seconds / file_count_expand_zips
 
-    print(f'Finished at {datetime.now()}, elapsed time = {datetime.now() - start}')
+    print(f'Finished at {datetime.now()}, elapsed time = {datetime.now() - start_main}')
     print(f'Total: {len(logdf)} files; {(final_size):.2f} MiB')
     print(
         f'Overall speed including setup time: {(total_transfer_speed):.2f} MiB/s; '
