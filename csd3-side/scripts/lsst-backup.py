@@ -547,7 +547,7 @@ def zip_folders(
                 namelist = zip_file.namelist()
             if zipped_size > mem_per_worker:
                 dprint(f'WARNING: Zipped size of {zipped_size} bytes exceeds memory per core of '
-                      f'{mem_per_worker} bytes.')
+                       f'{mem_per_worker} bytes.')
         except MemoryError as e:
             dprint(f'Error zipping: {e}')
             dprint(f'Namespace: {globals()}')
@@ -868,6 +868,7 @@ def upload_to_bucket(
                             segmented_upload.append(so)
                         dprint(f'Uploading {filename} to {bucket_name}/{object_key} in '
                                f'{n_segments} parts.', flush=True)
+                        upload_start = datetime.now()
                         _ = swift_service.upload(
                             bucket_name,
                             segmented_upload,
@@ -879,11 +880,13 @@ def upload_to_bucket(
                                 'segment_container': bucket_name + '-segments'
                             }
                         )
+                        upload_time = datetime.now() - upload_start
                     else:
                         """
                         - Upload the file to the bucket
                         """
                         dprint(f'Uploading {filename} to {bucket_name}/{object_key}')
+                        upload_start = datetime.now()
                         s3.put_object(
                             container=bucket_name,
                             contents=file_data,
@@ -891,6 +894,7 @@ def upload_to_bucket(
                             obj=object_key,
                             etag=checksum_string
                         )
+                        upload_time = datetime.now() - upload_start
                 except Exception as e:
                     dprint(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
                     return False
@@ -903,7 +907,7 @@ def upload_to_bucket(
         report actions
         CSV formatted
         header:
-        LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS
+        LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,UPLOAD_TIME
         """
         if link:
             log_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}"'
@@ -916,6 +920,9 @@ def upload_to_bucket(
 
         # for no zip contents
         log_string += ',"n/a"'
+
+        # upload time
+        log_string += f',{upload_time.total_seconds()}'
 
         with open(log, 'a') as f:
             f.write(log_string + '\n')
@@ -1070,6 +1077,7 @@ def upload_to_bucket_collated(
                 metadata_object_key = object_key + '.metadata'
                 dprint(f'Writing zip contents to {metadata_object_key}.', flush=True)
                 responses = [{}, {}]
+                upload_start = datetime.now()
                 s3.put_object(
                     container=bucket_name,
                     contents=metadata_value,
@@ -1078,6 +1086,7 @@ def upload_to_bucket_collated(
                     headers={'x-object-meta-corresponding-zip': object_key},
                     response_dict=responses[0]
                 )
+                upload_time = datetime.now() - upload_start
                 s3.put_object(
                     container=bucket_name,
                     contents=file_data,
@@ -1097,10 +1106,10 @@ def upload_to_bucket_collated(
         report actions
         CSV formatted
         header:
-        LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS
+        LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,UPLOAD_TIME
         """
         sep = ','  # separator
-        log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}","{checksum_string}","{sep.join(zip_contents)}"' # noqa
+        log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}","{checksum_string}","{sep.join(zip_contents)}","{upload_time.total_seconds()}"' # noqa
         while True:
             if responses[0] and responses[1]:
                 if responses[0]['status'] == 201 and responses[1]['status'] == 201:
@@ -1225,9 +1234,9 @@ def print_stats(
         elapsed_seconds = elapsed.seconds + elapsed.microseconds / 1e6
         avg_file_size = total_size / file_count / 1024**2
         dprint(f'{file_count} files (avg {avg_file_size:.2f} MiB/file) uploaded in {elapsed_seconds:.2f} '
-              f'seconds, {elapsed_seconds/file_count:.2f} s/file', flush=True)
+               f'seconds, {elapsed_seconds/file_count:.2f} s/file', flush=True)
         dprint(f'{total_size / 1024**2:.2f} MiB uploaded in {elapsed_seconds:.2f} seconds, '
-              f'{total_size / 1024**2 / elapsed_seconds:.2f} MiB/s', flush=True)
+               f'{total_size / 1024**2 / elapsed_seconds:.2f} MiB/s', flush=True)
     except ZeroDivisionError:
         pass
 
@@ -2149,7 +2158,7 @@ if __name__ == '__main__':
             print(f'Created backup log file {log}')
             with open(log, 'a') as logfile:  # don't open as 'w' in case this is a continuation
                 logfile.write(
-                    'LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS\n'
+                    'LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,UPLOAD_TIME\n' # noqa
                 )
 
     # Setup bucket
@@ -2360,32 +2369,16 @@ if __name__ == '__main__':
 
     # Complete
     final_time = datetime.now() - start
-    final_time_seconds = final_time.seconds + final_time.microseconds / 1e6
-    # final_upload_time_seconds = sum([ut.seconds + ut.microseconds / 1e6 for ut in upload_times])
-    print(f'Total time: {final_time_seconds} s')
-    # print(f'Total time spent on data transfer: {final_upload_time_seconds:.2f} s')
-    # print(f'Total time spent on data processing: {(final_time_seconds - final_upload_time_seconds):.2f} s')
-
+    final_time_seconds = float(final_time.total_seconds())
     try:
         logdf = pd.read_csv(log)
     except Exception as e:
         print(f'Error reading log file {log}: {e}')
         sys.exit()
-    # logdf = logdf.drop_duplicates(subset='DESTINATION_KEY', keep='last')
-    # logdf = logdf.reset_index(drop=True)
-    # logdf.to_csv(log, index=False)
+    logdf = logdf.drop_duplicates(subset='DESTINATION_KEY', keep='last')
+    logdf = logdf.reset_index(drop=True)
+    logdf.to_csv(log, index=False)
 
-    # def upload_to_bucket(
-    # s3,
-    # bucket_name,
-    # api,
-    # local_dir,
-    # folder,
-    # filename,
-    # object_key,
-    # dryrun,
-    # log
-    # Upload log file
     if not dryrun:
         print('Uploading log file.')
         upload_to_bucket(
@@ -2399,15 +2392,18 @@ if __name__ == '__main__':
             False,  # dryrun
             os.path.dirname(log) + 'temp_log_file.log',
         )
-
+    final_upload_time_seconds = float(logdf['UPLOAD_TIME'].astype('float').sum())
     final_size = logdf["FILE_SIZE"].sum() / 1024**2
     file_count = len(logdf)
+
+    print(f'Total time: {final_time_seconds:.0f} s')
+    print(f'Total time spent on data transfer: {final_upload_time_seconds:.0f} s')
+    print(f'Total time spent on data processing: {(final_time_seconds - final_upload_time_seconds):.0f} s')
     print(f'Final size: {final_size:.2f} MiB.')
     print(f'Uploaded {file_count} files including zips.')
     file_count_expand_zips = 0
     for zc in logdf['ZIP_CONTENTS']:
         if isinstance(zc, str):
-            print(f'zc {zc}')
             if isinstance(zc, list):
                 file_count_expand_zips += len(zc)
             else:
@@ -2420,16 +2416,16 @@ if __name__ == '__main__':
         total_transfer_speed = final_size / final_time_seconds
     else:
         total_transfer_speed = 0
-    # if final_upload_time_seconds > 0:
-    #     uploading_transfer_speed = final_size / final_upload_time_seconds
-    # else:
-    #     uploading_transfer_speed = 0
+    if final_upload_time_seconds > 0:
+        uploading_transfer_speed = final_size / final_upload_time_seconds
+    else:
+        uploading_transfer_speed = 0
 
     total_time_per_file = final_time_seconds / file_count
     total_time_per_file_expand_zips = final_time_seconds / file_count_expand_zips
 
-    # upload_time_per_file = final_upload_time_seconds / file_count
-    # upload_time_per_file_expand_zips = final_upload_time_seconds / file_count_expand_zips
+    upload_time_per_file = final_upload_time_seconds / file_count
+    upload_time_per_file_expand_zips = final_upload_time_seconds / file_count_expand_zips
 
     print(f'Finished at {datetime.now()}, elapsed time = {datetime.now() - start}')
     print(f'Total: {len(logdf)} files; {(final_size):.2f} MiB')
@@ -2437,7 +2433,7 @@ if __name__ == '__main__':
         f'Overall speed including setup time: {(total_transfer_speed):.2f} MiB/s; '
         f'{total_time_per_file:.2f} s/file uploaded; {total_time_per_file_expand_zips:.2f} s/file on CSD3'
     )
-    # print(
-    #     f'Upload speed: {(uploading_transfer_speed):.2f} MiB/s; {upload_time_per_file:.2f} '
-    #     f's/file uploaded; {upload_time_per_file_expand_zips:.2f} s/file on CSD3'
-    # )
+    print(
+        f'Upload speed: {(uploading_transfer_speed):.2f} MiB/s; {upload_time_per_file:.2f} '
+        f's/file uploaded; {upload_time_per_file_expand_zips:.2f} s/file on CSD3'
+    )
