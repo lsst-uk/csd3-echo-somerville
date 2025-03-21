@@ -27,8 +27,7 @@ import bucket_manager.bucket_manager as bm
 import swiftclient
 import sys
 import os
-from itertools import repeat
-from datetime import datetime, timedelta
+from datetime import datetime
 import hashlib
 import base64
 import pandas as pd
@@ -41,7 +40,7 @@ import warnings
 from psutil import virtual_memory as mem
 import argparse
 from dask import dataframe as dd
-from dask.distributed import Client, get_client, wait, as_completed, Future
+from dask.distributed import Client, get_client, wait, as_completed
 from dask.distributed import print as dprint
 import subprocess
 from typing import List
@@ -1434,7 +1433,6 @@ def process_files(
     processing_start = datetime.now()
     total_size_uploaded = 0
     total_files_uploaded = 0
-    upload_times = []
     i = 0
 
     # recursive loop over local folder
@@ -1442,9 +1440,6 @@ def process_files(
     total_all_files = 0
     folder_num = 0
     file_num = 0
-    # upload_futures = []
-    # zul_futures = []
-    failed = []
     max_zip_batch_size = 128 * 1024**2
     size = 0
     at_least_one_batch = False
@@ -2243,7 +2238,10 @@ if __name__ == '__main__':
         elif api == 'swift':
             current_objects = bm.object_list_swift(s3, bucket_name, prefix=destination_dir, count=True)
         print()
-        print(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start_main}', flush=True)
+        print(
+            f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start_main}',
+            flush=True
+        )
 
         current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_objects})
 
@@ -2255,7 +2253,10 @@ if __name__ == '__main__':
             )
             print(f"Current objects (with matching prefix; excluding collated zips): "
                   f"{num_objs}", flush=True)
-            print(f'Obtaining current object metadata, elapsed time = {datetime.now() - start_main}', flush=True)
+            print(
+                f'Obtaining current object metadata, elapsed time = {datetime.now() - start_main}',
+                flush=True
+            )
             if api == 's3':
                 current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(
                     find_metadata,
@@ -2368,8 +2369,8 @@ if __name__ == '__main__':
     print('Completing logging.')
 
     # Complete
-    final_time = datetime.now() - start_main
-    final_time_seconds = float(final_time.total_seconds())
+    final_time = float((datetime.now() - start_main).total_seconds())
+
     try:
         logdf = pd.read_csv(log)
     except Exception as e:
@@ -2396,9 +2397,9 @@ if __name__ == '__main__':
     final_size = logdf["FILE_SIZE"].sum() / 1024**2
     file_count = len(logdf)
 
-    print(f'Total time: {final_time_seconds:.0f} s')
+    print(f'Total time: {final_time:.0f} s')
     print(f'Total time spent on data transfer: {final_upload_time_seconds:.0f} s')
-    print(f'Total time spent on data processing: {(final_time_seconds - final_upload_time_seconds):.0f} s')
+    print(f'Total time spent on data processing: {(final_time - final_upload_time_seconds):.0f} s')
     print(f'Final size: {final_size:.2f} MiB.')
     print(f'Uploaded {file_count} files including zips.')
     file_count_expand_zips = 0
@@ -2412,8 +2413,8 @@ if __name__ == '__main__':
             file_count_expand_zips += 1
     print(f'Files on CSD3: {file_count_expand_zips}.')
 
-    if final_time_seconds > 0:
-        total_transfer_speed = final_size / final_time_seconds
+    if final_time > 0:
+        total_transfer_speed = final_size / final_time
     else:
         total_transfer_speed = 0
     if final_upload_time_seconds > 0:
@@ -2421,8 +2422,8 @@ if __name__ == '__main__':
     else:
         uploading_transfer_speed = 0
 
-    total_time_per_file = final_time_seconds / file_count
-    total_time_per_file_expand_zips = final_time_seconds / file_count_expand_zips
+    total_time_per_file = final_time / file_count
+    total_time_per_file_expand_zips = final_time / file_count_expand_zips
 
     upload_time_per_file = final_upload_time_seconds / file_count
     upload_time_per_file_expand_zips = final_upload_time_seconds / file_count_expand_zips
