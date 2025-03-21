@@ -447,8 +447,6 @@ def zip_and_upload(
     """
     file_paths = my_lit_eval(row['paths'])
     id = row['id']
-    with open('a_temp_file.txt', 'w') as f:
-        f.write(f'{file_paths}')
 
     #############
     #  zip part #
@@ -1032,6 +1030,7 @@ def upload_to_bucket_collated(
         sep = ','  # separator
         log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","'
         log_string += f'{object_key}","{checksum_string}","{sep.join(zip_contents)}"'
+        dprint(f'log_string: {log_string}', flush=True)
 
         with open(log, 'a') as f:
             f.write(log_string + '\n')
