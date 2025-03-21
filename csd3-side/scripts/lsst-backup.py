@@ -2397,9 +2397,8 @@ if __name__ == '__main__':
     final_size = logdf["FILE_SIZE"].sum() / 1024**2
     file_count = len(logdf)
 
-    print(f'Total time: {final_time:.0f} s')
-    print(f'Total time spent on data transfer: {final_upload_time_seconds:.0f} s')
-    print(f'Total time spent on data processing: {(final_time - final_upload_time_seconds):.0f} s')
+    print(f'Total time (walltime): {final_time:.0f} s')
+    print(f'Total time spent on parallel data transfer (cpu time): {final_upload_time_seconds:.0f} s')
     print(f'Final size: {final_size:.2f} MiB.')
     print(f'Uploaded {file_count} files including zips.')
     file_count_expand_zips = 0
