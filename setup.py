@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 # note only the contents of the "bucket_manager" folder are installable
 setup(
     name='bucket-manager',
-    version='0.4.0.dev6',
+    version='0.4.0.dev9',
     packages=find_packages(),
     description='Helper functions for using an s3 bucket',
     author='Dave McKay',

@@ -46,7 +46,6 @@ import subprocess
 from typing import List
 warnings.filterwarnings('ignore')
 
-
 def my_lit_eval(x: object) -> object:
     """
     Safely evaluates a string containing a Python literal expression.
@@ -412,7 +411,6 @@ def zip_and_upload(
     Zips a list of files and uploads the resulting zip file to an S3 bucket.
 
     Args:
-
         row (pd.Series): List of file paths to be included in the zip file,
         with columns id,object_names,paths,size,type,upload,uploaded.
 
@@ -461,6 +459,7 @@ def zip_and_upload(
         destination_dir,
         os.path.relpath(f'{local_dir}/collated_{id}.zip', local_dir)
     ])
+
     if namelist == []:
         dprint('No files to upload in zip file.')
         return False
@@ -547,6 +546,7 @@ def zip_folders(
             if zipped_size > mem_per_worker:
                 dprint(f'WARNING: Zipped size of {zipped_size} bytes exceeds memory per core of '
                        f'{mem_per_worker} bytes.')
+
         except MemoryError as e:
             dprint(f'Error zipping: {e}')
             dprint(f'Namespace: {globals()}')
@@ -627,6 +627,7 @@ def upload_to_bucket(
     """
     dprint(f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, checksum = True, '
            f'dryrun = {dryrun}, api = {api} local_dir = {local_dir}, s3 = {s3}', flush=True)
+
     if api == 's3':  # Need to make a new S3 connection
         s3 = bm.get_resource()
         s3_client = bm.get_client()
@@ -651,6 +652,7 @@ def upload_to_bucket(
                        f'{mem_per_worker} bytes.', flush=True)
                 dprint('Running upload_object.py.', flush=True)
                 dprint('This upload WILL NOT be checksummed or tracked!', flush=True)
+
                 del file_data
                 # Ensure consistent path to upload_object.py
                 upload_object_path = os.path.join(
@@ -677,6 +679,7 @@ def upload_to_bucket(
                     env=os.environ,
                     preexec_fn=os.setsid
                 )
+
                 dprint(f'Running upload_object.py for {filename}.', flush=True)
                 log_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}","n/a","n/a"'
                 with open(log, 'a') as f:
@@ -781,7 +784,7 @@ def upload_to_bucket(
         report actions
         CSV formatted
         header:
-        LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS
+        LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,UPLOAD_TIME
         """
         if link:
             log_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}"'
@@ -794,6 +797,9 @@ def upload_to_bucket(
 
         # for no zip contents
         log_string += ',"n/a"'
+        
+        # for upload time
+        log_string += ',None'
         with open(log, 'a') as f:
             f.write(log_string + '\n')
 
@@ -865,6 +871,7 @@ def upload_to_bucket(
                         segmented_upload = [filename]
                         for so in segment_objects:
                             segmented_upload.append(so)
+
                         dprint(f'Uploading {filename} to {bucket_name}/{object_key} in '
                                f'{n_segments} parts.', flush=True)
                         upload_start = datetime.now()
@@ -886,6 +893,7 @@ def upload_to_bucket(
                         """
                         dprint(f'Uploading {filename} to {bucket_name}/{object_key}')
                         upload_start = datetime.now()
+
                         s3.put_object(
                             container=bucket_name,
                             contents=file_data,
@@ -893,6 +901,7 @@ def upload_to_bucket(
                             obj=object_key,
                             etag=checksum_string
                         )
+
                         upload_time = datetime.now() - upload_start
                 except Exception as e:
                     dprint(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
@@ -1028,10 +1037,10 @@ def upload_to_bucket_collated(
         report actions
         CSV formatted
         header:
-        LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS
+        LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,UPLOAD_TIME
         """
         sep = ','  # separator
-        log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}","{checksum_string}","{sep.join(zip_contents)}"' # noqa
+        log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}","{checksum_string}","{sep.join(zip_contents)}",None' # noqa
 
         with open(log, 'a') as f:
             f.write(log_string + '\n')
@@ -1085,6 +1094,7 @@ def upload_to_bucket_collated(
                     headers={'x-object-meta-corresponding-zip': object_key},
                     response_dict=responses[0]
                 )
+
                 upload_time = datetime.now() - upload_start
                 s3.put_object(
                     container=bucket_name,
@@ -1470,6 +1480,7 @@ def process_files(
             print('Exiting. To prevent this behavior and force per-file verification, set '
                   '`--no-file-count-stop` to True.', flush=True)
             sys.exit()
+
     if not os.path.exists(local_list_file):
         print(f'Preparing to upload {total_all_files} files in {total_all_folders} folders from {local_dir} '
               f'to {bucket_name}/{destination_dir}.', flush=True)
@@ -1770,8 +1781,6 @@ def process_files(
                 )
                 to_collate = to_collate.compute()
 
-                # print(to_collate['upload'], flush=True)
-
             else:
                 pass
 
@@ -1780,6 +1789,7 @@ def process_files(
             to_collate.to_csv(local_list_file, index=False)
         else:
             print('Collate list not saved.', flush=True)
+
     if at_least_one_batch or at_least_one_individual:
         if len(to_collate) > 0:
             to_collate['object_names'] = to_collate['object_names'].apply(my_lit_eval).astype(object)

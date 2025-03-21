@@ -5,9 +5,9 @@ Helper functions for using an s3 bucket
 """
 import boto3
 import os
-from botocore.exceptions import ClientError
 import swiftclient
 import swiftclient.service
+
 
 def print_buckets(resource) -> None:
     """
@@ -22,7 +22,8 @@ def print_buckets(resource) -> None:
     for b in resource.buckets.all():
         print(b.name)
 
-def check_keys(api: str ='swift') -> None:
+
+def check_keys(api: str = 'swift') -> None:
     """
     Retrieves the access key and secret key for the specified API.
 
@@ -53,6 +54,7 @@ def check_keys(api: str ='swift') -> None:
     else:
         raise ValueError(f'Invalid API: {api}')
 
+
 def get_resource():
     """
     Creates and returns an S3 resource object for the specified S3 endpoint.
@@ -66,10 +68,12 @@ def get_resource():
     An S3 resource object.
     """
     try:
-        creds = {'access_key': os.environ['S3_ACCESS_KEY'],
+        creds = {
+            'access_key': os.environ['S3_ACCESS_KEY'],
             'secret_key': os.environ['S3_SECRET_KEY'],
-            'host_url': os.environ['S3_HOST_URL']}
-    except KeyError as e:
+            'host_url': os.environ['S3_HOST_URL']
+        }
+    except KeyError:
         raise KeyError('Set S3_ACCESS_KEY, S3_SECRET_KEY and S3_HOST_URL environment variables.')
     session = boto3.Session(
         aws_access_key_id=creds['access_key'],
@@ -80,6 +84,7 @@ def get_resource():
         endpoint_url=creds['host_url'],
         verify=False  # Disable SSL verification for non-AWS S3 endpoints
     )
+
 
 def get_client():
     """
@@ -94,10 +99,12 @@ def get_client():
     An S3 client object.
     """
     try:
-        creds = {'access_key': os.environ['S3_ACCESS_KEY'],
+        creds = {
+            'access_key': os.environ['S3_ACCESS_KEY'],
             'secret_key': os.environ['S3_SECRET_KEY'],
-            'host_url': os.environ['S3_HOST_URL']}
-    except KeyError as e:
+            'host_url': os.environ['S3_HOST_URL']
+        }
+    except KeyError:
         raise KeyError('Set S3_ACCESS_KEY, S3_SECRET_KEY and S3_HOST_URL environment variables.')
     session = boto3.Session(
         aws_access_key_id=creds['access_key'],
@@ -109,6 +116,7 @@ def get_client():
         verify=False  # Disable SSL verification for non-AWS S3 endpoints
     )
 
+
 def bucket_list(resource) -> list[str]:
     """
     Returns a list of bucket names in the S3 endpoint.
@@ -119,7 +127,8 @@ def bucket_list(resource) -> list[str]:
     Returns:
     A list of bucket names.
     """
-    return [ b.name for b in resource.buckets.all() ]
+    return [b.name for b in resource.buckets.all()]
+
 
 def bucket_list_swift(conn: swiftclient.Connection) -> list[str]:
     """
@@ -131,7 +140,8 @@ def bucket_list_swift(conn: swiftclient.Connection) -> list[str]:
     Returns:
     A list of container names.
     """
-    return [ c['name'] for c in conn.get_account()[1] ]
+    return [c['name'] for c in conn.get_account()[1]]
+
 
 def create_bucket(resource, bucket_name: str) -> bool:
     """
@@ -149,6 +159,25 @@ def create_bucket(resource, bucket_name: str) -> bool:
         print(e)
     return True
 
+
+def create_bucket_swift(conn: swiftclient.Connection, container_name: str) -> bool:
+    """
+    Creates a new container in the Swift endpoint.
+
+    Parameters:
+    - conn: swiftclient.client.Connection object.
+    - container_name: The name of the container to create.
+
+    Returns:
+    True if the container was created successfully, False otherwise.
+    """
+    try:
+        conn.put_container(container_name)
+    except Exception as e:
+        print(e)
+    return True
+
+
 def print_objects(bucket) -> None:
     """
     Prints the keys of all objects in the specified bucket.
@@ -161,6 +190,7 @@ def print_objects(bucket) -> None:
     """
     for obj in bucket.objects.all():
         print(obj.key)
+
 
 def object_list(bucket, prefix='', count=False) -> list[str]:
     """
@@ -183,7 +213,14 @@ def object_list(bucket, prefix='', count=False) -> list[str]:
                 print(f'Existing objects: {o}', end='\r', flush=True)
     return keys
 
-def object_list_swift(conn: swiftclient.Connection, container_name: str, prefix : str = None, full_listing: bool = True, count: bool = False) -> list[str]:
+
+def object_list_swift(
+    conn: swiftclient.Connection,
+    container_name: str,
+    prefix: str = None,
+    full_listing: bool = True,
+    count: bool = False
+) -> list[str]:
     """
     Returns a list of keys of all objects in the specified bucket.
 
@@ -197,13 +234,14 @@ def object_list_swift(conn: swiftclient.Connection, container_name: str, prefix 
     keys = []
     if count:
         o = 0
-    for obj in conn.get_container(container_name,prefix=prefix,full_listing=full_listing)[1]:
+    for obj in conn.get_container(container_name, prefix=prefix, full_listing=full_listing)[1]:
         keys.append(obj['name'])
         if count:
             o += 1
             if o % 10000 == 0:
                 print(f'Existing objects: {o}', end='\r', flush=True)
     return keys
+
 
 def print_containers_swift(conn: swiftclient.Connection) -> None:
     """
@@ -218,9 +256,11 @@ def print_containers_swift(conn: swiftclient.Connection) -> None:
     for container in conn.get_account()[1]:
         print(container['name'])
 
+
 def print_contents_swift(conn: swiftclient.Connection, container_name: str) -> None:
     """
-    Prints the names, sizes, and last modified timestamps of all objects in the specified container.
+    Prints the names, sizes, and last modified timestamps of all objects in
+    the specified container.
 
     Parameters:
     - container_name: The name of the Swift container.
@@ -231,9 +271,11 @@ def print_contents_swift(conn: swiftclient.Connection, container_name: str) -> N
     for data in conn.get_container(container_name)[1]:
         print('{0}\t{1}\t{2}'.format(data['name'], data['bytes'], data['last_modified']))
 
+
 def get_conn_swift() -> swiftclient.Connection:
     """
-    Creates and returns a Swift connection object for the specified Swift endpoint.
+    Creates and returns a Swift connection object for the specified Swift
+    endpoint.
 
     Requires the following environment variables to be set:
     - ST_USER: The Swift user.
@@ -244,10 +286,12 @@ def get_conn_swift() -> swiftclient.Connection:
     A Swift connection object.
     """
     try:
-        creds = {'user': os.environ['ST_USER'],
+        creds = {
+            'user': os.environ['ST_USER'],
             'key': os.environ['ST_KEY'],
-            'authurl': os.environ['ST_AUTH']}
-    except KeyError as e:
+            'authurl': os.environ['ST_AUTH']
+        }
+    except KeyError:
         raise KeyError('Set ST_USER, ST_KEY and ST_AUTH environment variables.')
     return swiftclient.Connection(
         user=creds['user'],
@@ -255,9 +299,11 @@ def get_conn_swift() -> swiftclient.Connection:
         authurl=creds['authurl']
     )
 
+
 def get_service_swift() -> swiftclient.service.SwiftService:
     """
-    Creates and returns a Swift service object for the specified Swift endpoint.
+    Creates and returns a Swift service object for the specified Swift
+    endpoint.
 
     Parameters:
     - user: The Swift user.
@@ -268,10 +314,12 @@ def get_service_swift() -> swiftclient.service.SwiftService:
     A Swift service object.
     """
     try:
-        creds = {'user': os.environ['ST_USER'],
-             'key': os.environ['ST_KEY'],
-             'authurl': os.environ['ST_AUTH']}
-    except KeyError as e:
+        creds = {
+            'user': os.environ['ST_USER'],
+            'key': os.environ['ST_KEY'],
+            'authurl': os.environ['ST_AUTH']
+        }
+    except KeyError:
         raise KeyError('Set ST_USER, ST_KEY and ST_AUTH environment variables.')
     return swiftclient.service.SwiftService(
         {
@@ -285,10 +333,17 @@ def get_service_swift() -> swiftclient.service.SwiftService:
         }
     )
 
+
 def get_SwiftUploadObject(source, object_name=None, options=None) -> swiftclient.service.SwiftUploadObject:
     return swiftclient.service.SwiftUploadObject(source, object_name, options)
 
-def download_file_swift(conn: swiftclient.Connection, container_name: str, object_name: str, local_path: str) -> None:
+
+def download_file_swift(
+    conn: swiftclient.Connection,
+    container_name: str,
+    object_name: str,
+    local_path: str
+) -> None:
     """
     Downloads a file from the specified container.
 
