@@ -2437,10 +2437,12 @@ if __name__ == '__main__':
     print(f'Finished at {datetime.now()}, elapsed time = {datetime.now() - start_main}')
     print(f'Total: {len(logdf)} files; {(final_size):.2f} MiB')
     print(
-        f'Upload speed (based on CPU time): {(uploading_transfer_speed):.2f} MiB/s; {upload_time_per_file:.2f} '
+        f'Upload speed (based on CPU time): {(uploading_transfer_speed):.2f} '
+        f'MiB/s; {upload_time_per_file:.2f} '
         f's/file uploaded; {upload_time_per_file_expand_zips:.2f} s/file on CSD3'
     )
     print(
-        f'Upload speed (based on walltime, includes data processing time): {(total_transfer_speed):.2f} MiB/s; {total_time_per_file:.2f} '
+        f'Upload speed (based on walltime, includes data processing time): {(total_transfer_speed):.2f} '
+        f'MiB/s; {total_time_per_file:.2f} '
         f's/file uploaded; {total_time_per_file_expand_zips:.2f} s/file on CSD3'
     )
