@@ -1867,7 +1867,7 @@ def process_files(
                         mem_per_worker,
                         log,
                     ),
-                    meta=('zip_uploads', pd.DataFrame)
+                    meta=('zip_uploads', pd.Series(dtype=bool))
                 )
             else:
                 print('No zip uploads.', flush=True)
@@ -1889,7 +1889,7 @@ def process_files(
                         mem_per_worker,
                         log,
                     ),
-                    meta=('file_uploads', pd.DataFrame)
+                    meta=('file_uploads', pd.Series(dtype=bool))
                 )
             else:
                 print('No file uploads.', flush=True)
