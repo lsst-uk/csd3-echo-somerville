@@ -1914,6 +1914,7 @@ def process_files(
             print('Some uploads failed.', flush=True)
         return all_uploads_successful
     else:
+        print('Nothing to upload.', flush=True)
         return None
 
 
