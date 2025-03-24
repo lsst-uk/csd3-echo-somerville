@@ -1826,7 +1826,7 @@ def process_files(
                 zip_uploads = uploads[uploads['type'] == 'zip'].apply(
                     zip_and_upload,
                     axis=1,
-                    meta=('zip_uploads', pd.DataFrame([], [], uploads.columns)),
+                    meta=('zip_uploads', bool),
                     args=(
                         s3,
                         bucket_name,
@@ -1849,7 +1849,7 @@ def process_files(
                 file_uploads = uploads[uploads['type'] == 'file'].apply(
                     upload_files_from_series,
                     axis=1,
-                    meta=('file_uploads', pd.DataFrame([], [], uploads.columns)),
+                    meta=('file_uploads', bool),
                     args=(
                         s3,
                         bucket_name,
