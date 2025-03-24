@@ -318,41 +318,67 @@ def extract_and_upload(key: str, conn: swiftclient.Connection, bucket_name: str)
     try:
         if uploaded:
             dprint(
-                f'Extracted and uploaded contents of {key} ({num_files} files, total size: {size/1024**2:.2f} MiB) in {duration:.2f} s ({(size/1024**2/duration):.2f} MiB/s if all files were uploaded).', flush=True
+                f'Extracted and uploaded contents of {key} ({num_files} files, '
+                f'total size: {size/1024**2:.2f} MiB) in {duration:.2f} s '
+                f'({(size/1024**2/duration):.2f} MiB/s if all files were uploaded).', flush=True
             )
         else:
-            dprint(f'Extracted contents of {key} ({num_files} files, total size: {size/1024**2:.2f} MiB) in {duration:.2f} s (no uploads required)', flush=True)
+            dprint(f'Extracted contents of {key} ({num_files} files, '
+                   f'total size: {size/1024**2:.2f} MiB) in {duration:.2f} s '
+                   '(no uploads required)', flush=True)
     except ZeroDivisionError:
         if uploaded:
-            dprint(f'Extracted and uploaded contents of {key} ({num_files} files, total size: {size/1024**2:.2f} MiB) in {duration:.2f} s', flush=True)
+            dprint(f'Extracted and uploaded contents of {key} ({num_files} files, '
+                   f'total size: {size/1024**2:.2f} MiB) in {duration:.2f} s', flush=True)
         else:
-            dprint(f'Extracted contents of {key} ({num_files} files, total size: {size/1024**2:.2f} MiB) in {duration:.2f} s (no uploads required)', flush=True)
+            dprint(f'Extracted contents of {key} ({num_files} files, '
+                   f'total size: {size/1024**2:.2f} MiB) in {duration:.2f} s '
+                   '(no uploads required)', flush=True)
 
     return done
 
 
 def main():
     """
-    Main function to process collated zip files in an S3 bucket on echo.stfc.ac.uk.
+    Main function to process collated zip files in an S3 bucket on
+    echo.stfc.ac.uk.
+
     This script performs the following tasks:
-    1. Parses command-line arguments to determine the S3 bucket name, whether to list zip files,
-        whether to extract and upload zip files, and the maximum number of processes to use.
-    2. Validates the provided arguments and sets up the necessary configurations.
-    3. Connects to the specified S3 bucket and retrieves the list of objects.
-    4. Uses Dask to parallelize the processing of the objects in the bucket.
-    5. Identifies zip files and optionally lists them.
-    6. Extracts and uploads the contents of the zip files if specified.
+        1. Parses command-line arguments to determine the S3 bucket name,
+           whether to list zip files, whether to extract and upload zip
+           files, and the maximum number of processes to use.
+
+        2. Validates the provided arguments and sets up the necessary
+           configurations.
+
+        3. Connects to the specified S3 bucket and retrieves the list of
+        objects.
+
+        4. Uses Dask to parallelize the processing of the objects in the
+        bucket.
+
+        5. Identifies zip files and optionally lists them.
+
+        6. Extracts and uploads the contents of the zip files if specified.
+
     Command-line arguments:
          --bucket-name, -b: Name of the S3 bucket (required).
+
          --list-zips, -l: List the zip files in the bucket.
-         --extract, -e: Extract and upload zip files whose contents are not found in the bucket.
-         --nprocs, -n: Maximum number of processes to use for extraction and upload (default: 6).
+
+         --extract, -e: Extract and upload zip files whose contents are not
+                        found in the bucket.
+
+         --nprocs, -n: Maximum number of processes to use for extraction and
+                       upload (default: 6).
     Raises:
-         SystemExit: If invalid arguments are provided or if the bucket is not found.
+         SystemExit: If invalid arguments are provided or if the bucket is not
+         found.
     """
     all_start = datetime.now()
     print(f'Start time: {all_start}.')
     epilog = ''
+
     class MyParser(argparse.ArgumentParser):
         def error(self, message):
             sys.stderr.write(f'error: {message}\n\n')
@@ -363,11 +389,38 @@ def main():
         epilog=epilog,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument('--bucket-name','-b', type=str, help='Name of the S3 bucket.', required=True)
-    parser.add_argument('--list-zips','-l', action='store_true', help='List the zip files.')
-    parser.add_argument('--extract','-e', action='store_true', help='Extract and upload zip files for which the contents are not found in the bucket.')
-    parser.add_argument('--nprocs','-n', type=int, help='Maximum number of processes to use for extraction and upload.', default=6)
-    parser.add_argument('--recover','-r', action='store_true', help='Recover from a previous run. Will only work if data.parquet is copied to the working directory.')
+    parser.add_argument(
+        '--bucket-name',
+        '-b',
+        type=str,
+        help='Name of the S3 bucket.',
+        required=True
+    )
+    parser.add_argument(
+        '--list-zips',
+        '-l',
+        action='store_true',
+        help='List the zip files.'
+    )
+    parser.add_argument(
+        '--extract',
+        '-e',
+        action='store_true',
+        help='Extract and upload zip files for which the contents are not found in the bucket.'
+    )
+    parser.add_argument(
+        '--nprocs',
+        '-n',
+        type=int,
+        help='Maximum number of processes to use for extraction and upload.',
+        default=6
+    )
+    parser.add_argument(
+        '--recover',
+        '-r',
+        action='store_true',
+        help='Recover from a previous run. Will only work if data.parquet is copied to the working directory.'
+    )
 
     args = parser.parse_args()
     bucket_name = args.bucket_name
@@ -398,14 +451,15 @@ def main():
         nprocs = args.nprocs
         if nprocs < 1:
             nprocs = 1
-        elif nprocs > (cpu_count() - 1): # allow one core for __main__ and system processes
-            print(f'Maximum number of processes set to {nprocs} but only {cpu_count() - 1} available. Setting to {cpu_count() - 1}.')
+        elif nprocs > (cpu_count() - 1):  # allow one core for __main__ and system processes
+            print(f'Maximum number of processes set to {nprocs} but only {cpu_count() - 1} available. '
+                  f'Setting to {cpu_count() - 1}.')
             nprocs = cpu_count() - 1
     else:
         nprocs = 6
     threads_per_worker = 8
-    n_workers = nprocs//threads_per_worker
-    mem_per_worker = 64*1024**3//n_workers # limit to 64 GiB total memory
+    n_workers = nprocs // threads_per_worker
+    mem_per_worker = 64 * 1024**3 // n_workers  # limit to 64 GiB total memory
 
     # Setup bucket object
     try:
@@ -424,37 +478,41 @@ def main():
     print(f'Using bucket {bucket_name}.')
     if not recover:
         print('Getting key list...')
-        keys = pd.DataFrame.from_dict({'key':object_list_swift(conn, bucket_name, count=True)})
+        keys = pd.DataFrame.from_dict({'key': object_list_swift(conn, bucket_name, count=True)})
         print(keys.head())
 
-    with Client(n_workers=n_workers,threads_per_worker=threads_per_worker,memory_limit=mem_per_worker) as client:
+    with Client(
+        n_workers=n_workers,
+        threads_per_worker=threads_per_worker,
+        memory_limit=mem_per_worker
+    ) as client:
         # dask.set_options(get=dask.local.get_sync)
         dprint(f'Dask Client: {client}', flush=True)
         dprint(f'Dashboard: {client.dashboard_link}', flush=True)
         dprint(f'Using {n_workers} workers, each with {threads_per_worker} threads, on {nprocs} CPUs.')
 
         if not recover:
-            #Dask Dataframe of all keys
-            keys_df = dd.from_pandas(keys, chunksize=1000000) # this works - high chunksize allows parquet to be written
+            # Dask Dataframe of all keys
+            # high chunksize allows enough mem for parquet to be written
+            keys_df = dd.from_pandas(keys, chunksize=1000000)
             if extract:
                 keys_only_df = keys_df['key'].copy()
                 keys_only_df = client.persist(keys_only_df)
             del keys
             # dprint(keys_df)
-            #Discover if key is a zipfile
+            # Discover if key is a zipfile
             keys_df['is_zipfile'] = keys_df['key'].apply(match_key, meta=('is_zipfile', 'bool'))
 
-        #check, compute and write to parquet
-        # keys_df = client.persist(keys_df) # persist to memory to make the following faster
+        # check, compute and write to parquet
 
         if list_zips:
-            keys_df = keys_df.compute() # effectively to_pandas
+            keys_df = keys_df.compute()  # effectively to_pandas
             check = keys_df['is_zipfile'].any()
             if not check:
                 dprint('No zipfiles found. Exiting.')
                 sys.exit()
             dprint('Zip files found:')
-            dprint(keys_df[keys_df['is_zipfile'] == True]['key'])
+            dprint(keys_df[keys_df['is_zipfile'] == True]['key'])  # noqa
             print(f'Done. Runtime: {datetime.now() - all_start}.')
             sys.exit()
 
@@ -465,21 +523,41 @@ def main():
                 if not check:
                     dprint('No zipfiles found. Exiting.')
                     sys.exit()
-                #Get metadata for zipfiles
-                keys_df['contents'] = keys_df[keys_df['is_zipfile'] == True]['key'].apply(find_metadata_swift, conn=conn, bucket_name=bucket_name, meta=('contents', 'str'))
-                keys_df[keys_df['is_zipfile'] == False]['contents'] = ''
+                # Get metadata for zipfiles
+                keys_df['contents'] = keys_df[keys_df['is_zipfile'] == True]['key'].apply(  # noqa
+                    find_metadata_swift,
+                    conn=conn,
+                    bucket_name=bucket_name,
+                    meta=('contents', 'str')
+                )
+                keys_df[keys_df['is_zipfile'] == False]['contents'] = ''  # noqa
 
-                #Prepend zipfile path to contents
+                # Prepend zipfile path to contents
                 # dprint(keys_df)
-                keys_df[keys_df['is_zipfile'] == True]['contents'] = keys_df[keys_df['is_zipfile'] == True].apply(prepend_zipfile_path_to_contents, meta=('contents', 'str'), axis=1)
-                keys_series = keys_df['key'].compute()
-                keys_df['extract'] = keys_df.apply(verify_zip_contents, meta=('extract', 'bool'), keys_series=keys_series, axis=1)
+                keys_df[
+                    keys_df['is_zipfile'] == True  # noqa
+                ]['contents'] = keys_df[
+                    keys_df['is_zipfile'] == True  # noqa
+                ].apply(
+                    prepend_zipfile_path_to_contents,
+                    meta=('contents', 'str'),
+                    axis=1
+                )
 
-                # all wrangling and decision making done - write to parquet for lazy unzipping
+                keys_series = keys_df['key'].compute()
+                keys_df['extract'] = keys_df.apply(
+                    verify_zip_contents,
+                    meta=('extract', 'bool'),
+                    keys_series=keys_series,
+                    axis=1
+                )
+
+                # all wrangling and decision making done - write to parquet
+                # for lazy unzipping
                 # only require key and extract boolean
                 pq = get_random_parquet_path()
                 dprint(f'tmp folder is {pq}')
-                keys_df = keys_df[['key','extract']]
+                keys_df = keys_df[['key', 'extract']]
                 keys_df.to_parquet(pq, schema=pa.schema([
                     ('key', pa.string()),
                     ('extract', pa.bool_()),
@@ -493,19 +571,31 @@ def main():
                 dprint(f'Recovering from previous run. Using {os.path.abspath(pq)}.')
 
             dprint('Extracting zip files...')
-            keys_df = dd.read_parquet(pq,dtype={'key':'str', 'extract': 'bool'}, chunksize=100000) # small chunks to avoid memory issues
+            keys_df = dd.read_parquet(
+                pq,
+                dtype={'key': 'str', 'extract': 'bool'},
+                chunksize=100000
+            )  # small chunks to avoid memory issues
 
             dprint('Zip files extracted and uploaded:')
-            keys_df['extracted_and_uploaded'] = keys_df[keys_df['extract'] == True]['key'].apply(extract_and_upload, conn=conn, bucket_name=bucket_name, meta=('extracted_and_uploaded', 'bool'))
+            keys_df['extracted_and_uploaded'] = keys_df[keys_df['extract'] == True]['key'].apply(  # noqa
+                extract_and_upload,
+                conn=conn,
+                bucket_name=bucket_name,
+                meta=('extracted_and_uploaded', 'bool')
+            )
             # with annotate(resources={'MEMORY': 10e9}):
-            extracted_and_uploaded = keys_df[keys_df['extract'] == True]['extracted_and_uploaded'].compute()
-            del(keys_df)
+            extracted_and_uploaded = keys_df[
+                keys_df['extract'] == True  # noqa
+            ]['extracted_and_uploaded'].compute()
+            del keys_df
             gc.collect()
             if extracted_and_uploaded.all():
                 dprint('All zip files extracted and uploaded.')
                 rm_parquet(pq)
 
     print(f'Done. Runtime: {datetime.now() - all_start}.')
+
 
 if __name__ == '__main__':
     main()
