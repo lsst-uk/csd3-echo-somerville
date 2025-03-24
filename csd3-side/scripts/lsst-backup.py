@@ -1683,6 +1683,9 @@ def process_files(
                     print(f'Number of zip files: {len(zip_batch_files)}', flush=True)
         print(f'Done traversing {local_dir}.', flush=True)
 
+    print(f'At least one batch: {at_least_one_batch}', flush=True)
+    print(f'At least one individual: {at_least_one_individual}', flush=True)
+
     if at_least_one_batch or at_least_one_individual:
         ###############################
         # CHECK HERE FOR ZIP CONTENTS #
