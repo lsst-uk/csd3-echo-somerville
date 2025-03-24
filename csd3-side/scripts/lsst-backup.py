@@ -1909,8 +1909,8 @@ def process_files(
     ################################
         # print(zip_uploads)
         # print(file_uploads)
-        zip_uploads.to_csv('zip_uploads.csv')
-        file_uploads.to_csv('file_uploads.csv')
+        # zip_uploads.to_csv('zip_uploads.csv')
+        # file_uploads.to_csv('file_uploads.csv')
         if len(zip_uploads) > 0 and len(file_uploads) > 0:
             all_uploads_successful = bool(zip_uploads.all()) * bool(file_uploads.all())
         elif len(zip_uploads) > 0:
