@@ -1796,7 +1796,10 @@ def process_files(
             to_collate['type'] = to_collate['type'].astype(str)
             to_collate['size'] = to_collate['size'].astype(int)
             client.scatter(to_collate)
-
+            print(to_collate)
+            print(to_collate[
+                to_collate['upload'] == True # noqa
+            ])
             uploads = dd.from_pandas(to_collate[
                 to_collate['upload'] == True # noqa
             ],
