@@ -1773,6 +1773,8 @@ def process_files(
                 )
                 to_collate = to_collate.compute()
 
+                print(to_collate['upload'])
+
                 if not to_collate['upload'].any():
                     print('No files to upload.', flush=True)
                     sys.exit()
