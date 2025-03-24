@@ -1775,8 +1775,8 @@ def process_files(
                         current_objects,
                         destination_dir,
                     ),
+                    meta=('upload', bool),
                     axis=1,
-                    meta=('upload', pd.Series(dtype=bool))
                 )
                 to_collate = to_collate.compute()
 
