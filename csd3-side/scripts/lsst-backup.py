@@ -1822,6 +1822,8 @@ def process_files(
             print('Uploading...', flush=True)
             # uploads['uploaded'] = False
             # uploads['uploaded'] = uploads['uploaded'].astype(bool)
+            uploads = uploads.compute()
+            client.scatter(uploads)
             if len(uploads[uploads['type'] == 'zip']) > 0:
                 zip_uploads = uploads[uploads['type'] == 'zip'].apply(
                     zip_and_upload,
@@ -1869,9 +1871,11 @@ def process_files(
                 file_uploads = pd.DataFrame([], [], uploads.columns)
             print(type(zip_uploads))
             print(type(file_uploads))
-            uploads = uploads.compute()
-            zip_uploads = zip_uploads.compute()
-            file_uploads = file_uploads.compute()
+
+            if isinstance(zip_uploads, dd.DataFrame):
+                zip_uploads = zip_uploads.compute()
+            if isinstance(file_uploads, dd.DataFrame):
+                file_uploads = file_uploads.compute()
             # uploads[uploads['type'] == 'file']['uploaded'] = file_uploads
             # uploads[uploads['type'] == 'zip']['uploaded'] = zip_uploads
 
