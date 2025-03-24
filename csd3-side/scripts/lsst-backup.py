@@ -1869,6 +1869,10 @@ def process_files(
     ################################
     # Return bool as upload status #
     ################################
+        print(zip_uploads)
+        print(file_uploads)
+        zip_uploads.to_csv('zip_uploads.csv')
+        file_uploads.to_csv('file_uploads.csv')
         all_uploads_successful = bool(zip_uploads.all()) * bool(file_uploads.all())
         del uploads
         if all_uploads_successful:
