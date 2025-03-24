@@ -1713,10 +1713,13 @@ def process_files(
             to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers']) * 2)
             to_collate['upload'] = to_collate.apply(
                 compare_zip_contents_bool,
-                current_objects,
-                destination_dir,
-                meta=('upload', bool),
                 axis=1,
+                args=(
+                    current_objects,
+                    destination_dir
+                ),
+                meta=('upload', bool),
+
             )
             to_collate = to_collate.compute()
             print(to_collate, flush=True)
