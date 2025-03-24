@@ -1711,8 +1711,7 @@ def process_files(
             })
             to_collate = to_collate.where(to_collate['size'] > 0).dropna()
             to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers']) * 2)
-            to_collate['upload_file'] = True
-            to_collate['upload_zip'] = to_collate.apply(
+            to_collate['upload'] = to_collate.apply(
                 compare_zip_contents_bool,
                 current_objects,
                 destination_dir,
@@ -1720,6 +1719,8 @@ def process_files(
                 axis=1
             )
             to_collate = to_collate.compute()
+            print(to_collate)
+            print(to_collate['upload'])
             # Convert strings representations of lists back to lists
             to_collate['object_names'] = to_collate['object_names'].apply(my_lit_eval).astype(object)
             to_collate['id'] = to_collate['id'].astype(int)
@@ -1737,7 +1738,6 @@ def process_files(
             )
 
         else:
-            print(f'Loading local file list from {local_list_file} 1740.', flush=True)
             if not current_objects.empty:
                 client.scatter(current_objects)
                 # Pandas
