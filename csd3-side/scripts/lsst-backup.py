@@ -2237,7 +2237,7 @@ if __name__ == '__main__':
     print(f'Using {api.capitalize()} API with host {s3_host}')
 
     if api == 's3':
-        s3 = bm.get_resource()
+        s3 = bm.get_client()
         bucket_list = bm.bucket_list(s3)
     elif api == 'swift':
         s3 = bm.get_conn_swift()
