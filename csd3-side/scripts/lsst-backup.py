@@ -1863,8 +1863,8 @@ def process_files(
             uploads = uploads.compute()
             zip_uploads = zip_uploads.compute()
             file_uploads = file_uploads.compute()
-            uploads[uploads['type'] == 'file']['uploaded'] = file_uploads
-            uploads[uploads['type'] == 'zip']['uploaded'] = zip_uploads
+            # uploads[uploads['type'] == 'file']['uploaded'] = file_uploads
+            # uploads[uploads['type'] == 'zip']['uploaded'] = zip_uploads
 
     ################################
     # Return bool as upload status #

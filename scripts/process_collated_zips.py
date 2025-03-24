@@ -1,36 +1,32 @@
 #!/usr/bin/env python
 # coding: utf-8
-#D.McKay Jun 2024
+# D.McKay Jun 2024
 
 from datetime import datetime
 import sys
 import os
-
 from multiprocessing import cpu_count
 from distributed import Client
 from distributed import print as dprint
 from dask import dataframe as dd
-from dask import annotate
 import gc
-
 import pyarrow as pa
 import pandas as pd
 from numpy.random import randint
-
 import io
 import zipfile
 import warnings
-
 import swiftclient.exceptions
-warnings.filterwarnings('ignore')
 import hashlib
-
 import bucket_manager.bucket_manager as bm
 import swiftclient
 import os
 import argparse
 import re
 import shutil
+
+warnings.filterwarnings('ignore')
+
 
 def get_md5_hash(data: bytes) -> str:
     """
@@ -41,6 +37,7 @@ def get_md5_hash(data: bytes) -> str:
         str: The MD5 hash of the data.
     """
     return hashlib.md5(data).hexdigest()
+
 
 def get_random_dir() -> str:
     """
@@ -53,6 +50,7 @@ def get_random_dir() -> str:
     """
     return f'/tmp/{randint(0,1e6):06d}'
 
+
 def get_random_parquet_path() -> str:
     """
     Generates a random file path for a Parquet file.
@@ -64,13 +62,17 @@ def get_random_parquet_path() -> str:
     """
     return f'/tmp/{randint(0,1e6):06d}/data.parquet'
 
+
 def rm_parquet(path: str) -> None:
     """
-    Remove the parent directory of the given path if it is a directory and not a symbolic link.
+    Remove the parent directory of the given path if it is a directory and not
+    a symbolic link.
     If the parent is not a directory but exists, remove it as a file.
-    Designed to work with temporary directories created by the get_random_parquet_path function.
+    Designed to work with temporary directories created by the
+    get_random_parquet_path function.
     Args:
-        path (str): The path to a file or directory whose parent directory is to be removed.
+        path (str): The path to a file or directory whose parent directory is
+        to be removed.
     Returns:
         None
     """
@@ -81,38 +83,52 @@ def rm_parquet(path: str) -> None:
     elif os.path.exists(parent):
         os.remove(parent)
 
+
 def find_metadata_swift(key: str, conn: swiftclient.Connection, bucket_name: str) -> str:
     """
     Retrieve metadata for a given key from a Swift container.
-    This function attempts to retrieve metadata for a specified key from a Swift container.
-    It handles both '.zip' files and other types of files differently. If the key ends with
-    '.zip', it tries to fetch the metadata either by getting the object or by checking the
-    object's headers. The metadata is expected to be a string separated by '|'.
+    This function attempts to retrieve metadata for a specified key from a
+    Swift container.
+    It handles both '.zip' files and other types of files differently. If the
+    key ends with '.zip', it tries to fetch the metadata either by getting the
+    object or by checking the object's headers. The metadata is expected to be
+    a string separated by '|'.
+
     Args:
         key (str): The key for which metadata is to be retrieved.
+
         conn: The connection object to the Swift service.
+
         container_name (str): The name of the container in the Swift service.
+
     Returns:
         str: '|'-separated metadata strings if found, otherwise None.
     """
 
-    if type(key) == str:
+    if isinstance(key, str):
         existing_zip_contents = None
         if key.endswith('.zip'):
             try:
-                existing_zip_contents = str(conn.get_object(bucket_name,''.join([key,'.metadata']))[1].decode('UTF-8')) #.split('|') # use | as separator
-                dprint(f'Using zip-contents-object, {"".join([key,".metadata"])} for object {key}.')
-            except Exception as e:
+                existing_zip_contents = str(
+                    conn.get_object(bucket_name, ''.join([key, '.metadata']))[1].decode('UTF-8')
+                )  # .split('|') # use | as separator
+                dprint(f'Using zip-contents-object, {"".join([key, ".metadata"])} for object {key}.')
+            except Exception:
                 try:
-                    existing_zip_contents = conn.head_object(bucket_name,key)['x-object-meta-zip-contents'] #.split('|') # use | as separator
+                    existing_zip_contents = conn.head_object(
+                        bucket_name,
+                        key
+                    )['x-object-meta-zip-contents']  # .split('|') # use | as separator
                     dprint(f'Using zip-contents metadata for {key}.')
                 except KeyError:
                     return None
-                except Exception as e:
+                except Exception:
                     return None
             if existing_zip_contents is not None:
-                if not '|' in existing_zip_contents:
-                    existing_zip_contents = '|'.join(existing_zip_contents.split(',')) # some older metadata may have used commas as separators
+                if '|' not in existing_zip_contents:
+                    existing_zip_contents = '|'.join(
+                        existing_zip_contents.split(',')
+                    )  # some older metadata may have used commas as separators
                 return existing_zip_contents
             else:
                 return None
@@ -121,21 +137,36 @@ def find_metadata_swift(key: str, conn: swiftclient.Connection, bucket_name: str
     else:
         return None
 
-def object_list_swift(conn: swiftclient.Connection, container_name: str, prefix : str = '', full_listing: bool = True, count: bool = False) -> list[str]:
-    """
-    Returns a list of keys of all objects in the specified bucket.
 
-    Parameters:
-    - conn: swiftlient.Connection object.
-    - container_name: The name of the Swift container.
+def object_list_swift(
+    conn: swiftclient.Connection,
+    container_name: str,
+    prefix: str = '',
+    full_listing: bool = True,
+    count: bool = False
+) -> list[str]:
+    """List objects in a Swift container.
 
-    Returns:
-    A list of object keys.
-    """
+        Args:
+            conn: Swift connection object.
+
+            container_name: Name of the container.
+
+            prefix: Only list objects starting with this prefix.
+            Defaults to ''.
+
+            full_listing:  Whether to get a full listing. Defaults to True.
+
+            count: Whether to print a running count of objects listed.
+            Defaults to False.
+
+        Returns:
+            A list of object names in the container.
+        """
     keys = []
     if count:
         o = 0
-    for obj in conn.get_container(container_name,prefix=prefix,full_listing=full_listing)[1]:
+    for obj in conn.get_container(container_name, prefix=prefix, full_listing=full_listing)[1]:
         keys.append(obj['name'])
         if count:
             o += 1
@@ -143,6 +174,7 @@ def object_list_swift(conn: swiftclient.Connection, container_name: str, prefix 
                 dprint(f'Existing objects: {o}', end='\r', flush=True)
     print()
     return keys
+
 
 def match_key(key):
     pattern = re.compile(r'.*collated_\d+\.zip$')
@@ -152,18 +184,24 @@ def match_key(key):
     else:
         return False
 
+
 def verify_zip_contents(row: pd.Series, keys_series: pd.Series) -> bool:
     """
-    Verifies the contents of a zip file based on the provided row and keys series.
+    Verifies the contents of a zip file based on the provided row and keys
+    series.
+
     Args:
-        row (pd.Series): A pandas Series containing information about the zip file,
-                         including 'key', 'is_zipfile', and 'contents'.
-        keys_series (pd.Series): A pandas Series containing keys to check against the zip file contents.
+        row (pd.Series): A pandas Series containing information about the zip
+        file, including 'key', 'is_zipfile', and 'contents'.
+
+        keys_series (pd.Series): A pandas Series containing keys to check
+        against the zip file contents.
+
     Returns:
         bool: True if the zip file needs to be extracted, False otherwise.
     """
     contents = row['contents']
-    if type(contents) == str:
+    if isinstance(contents, str):
         contents = contents.split('|')
     extract = False
     if row['is_zipfile']:
@@ -180,13 +218,17 @@ def verify_zip_contents(row: pd.Series, keys_series: pd.Series) -> bool:
 
     return extract
 
+
 def prepend_zipfile_path_to_contents(row: pd.Series) -> str:
     """
     Prepends the path of the zip file to the contents of the given row.
-    This function takes a pandas Series object representing a row, extracts the path from the 'key' column,
-    and prepends it to the 'contents' column. The modified 'contents' value is then returned.
+    This function takes a pandas Series object representing a row, extracts
+    the path from the 'key' column, and prepends it to the 'contents' column.
+    The modified 'contents' value is then returned.
     Args:
-        row (pd.Series): A pandas Series object containing at least 'key' and 'contents' columns.
+        row (pd.Series): A pandas Series object containing at least 'key' and
+        'contents' columns.
+
     Returns:
         str: The modified 'contents' value with the prepended path.
     """
@@ -196,18 +238,29 @@ def prepend_zipfile_path_to_contents(row: pd.Series) -> str:
     prepended = [f'{path_stub}/{c}' for c in contents]
     return '|'.join(prepended)
 
+
 def extract_and_upload(key: str, conn: swiftclient.Connection, bucket_name: str) -> bool:
     """
-    Extracts the contents of a zip file from an object storage bucket and uploads the extracted files back to the bucket if not already present.
-    Files will be skipped if they are already present and have the same MD5 hash, or if they are segmented.
+    Extracts the contents of a zip file from an object storage bucket and
+    uploads the extracted files back to the bucket if not already present.
+    Files will be skipped if they are already present and have the same MD5
+    hash, or if they are segmented.
     Args:
         key (str): The key (path) of the zip file in the object storage bucket.
-        conn (swiftclient.Connection): The connection object to interact with the object storage.
-        bucket_name (str): The name of the bucket where the zip file is stored and where the extracted files will be uploaded.
+
+        conn (swiftclient.Connection): The connection object to interact with
+        the object storage.
+
+        bucket_name (str): The name of the bucket where the zip file is stored
+        and where the extracted files will be uploaded.
+
     Returns:
-        bool: True if the extraction and upload process is completed successfully, False otherwise.
+        bool: True if the extraction and upload process is completed
+        successfully, False otherwise.
+
     Raises:
-        swiftclient.exceptions.ClientException: If there is an error interacting with the object storage.
+        swiftclient.exceptions.ClientException: If there is an error
+        interacting with the object storage.
     """
     done = False
     start = datetime.now()
@@ -215,7 +268,7 @@ def extract_and_upload(key: str, conn: swiftclient.Connection, bucket_name: str)
     uploaded = False
     # dprint(f'Extracting {row["key"]}...', flush=True)
     path_stub = '/'.join(key.split('/')[:-1])
-    zipfile_data = io.BytesIO(conn.get_object(bucket_name,key)[1])
+    zipfile_data = io.BytesIO(conn.get_object(bucket_name, key)[1])
     with zipfile.ZipFile(zipfile_data) as zf:
         num_files = len(zf.namelist())
         for content_file in zf.namelist():
@@ -226,27 +279,32 @@ def extract_and_upload(key: str, conn: swiftclient.Connection, bucket_name: str)
             content_key = path_stub + '/' + content_file
             content_md5 = get_md5_hash(content_file_data.read())
             content_file_data.seek(0)
-            # Previous check for existing content consider whether _all_ of the files in a zip have been uploaded.
-            # Here we check individual files and only upload if the md5s differ.
+            # Previous check for existing content consider whether _all_ of
+            # the files in a zip have been uploaded.
+            # Here we check individual files and only upload if the md5s
+            # differ.
             try:
-                existing_content = conn.head_object(bucket_name,content_key)
+                existing_content = conn.head_object(bucket_name, content_key)
                 existing_md5 = existing_content['etag']
                 if existing_md5 == content_md5:
                     dprint(f'Skipping {content_key} ({existing_md5} == {content_md5})')
                     continue
                 elif existing_md5 != content_md5 and '-' in existing_md5:
-                    dprint(f'Skipping {content_key} (exists, but segmented - replacement not currently supported).')
+                    dprint(
+                        f'Skipping {content_key} (exists, but segmented - replacement not '
+                        'currently supported).'
+                    )
                     continue
                 else:
                     dprint(f'Uploading {content_key} ({existing_md5} != {content_md5}).')
                     # dprint('Content differs. Uploading.')
-                    conn.put_object(bucket_name,content_key,content_file_data)
+                    conn.put_object(bucket_name, content_key, content_file_data)
                     uploaded = True
             except swiftclient.exceptions.ClientException as e:
                 if e.http_status == 404:
                     # dprint('Object not found. Uploading.')
                     dprint(f'Uploading {content_key} (not found).')
-                    conn.put_object(bucket_name,content_key,content_file_data)
+                    conn.put_object(bucket_name, content_key, content_file_data)
                     uploaded = True
                 else:
                     raise
@@ -259,7 +317,9 @@ def extract_and_upload(key: str, conn: swiftclient.Connection, bucket_name: str)
     duration = (end - start).microseconds / 1e6 + (end - start).seconds
     try:
         if uploaded:
-            dprint(f'Extracted and uploaded contents of {key} ({num_files} files, total size: {size/1024**2:.2f} MiB) in {duration:.2f} s ({(size/1024**2/duration):.2f} MiB/s if all files were uploaded).', flush=True)
+            dprint(
+                f'Extracted and uploaded contents of {key} ({num_files} files, total size: {size/1024**2:.2f} MiB) in {duration:.2f} s ({(size/1024**2/duration):.2f} MiB/s if all files were uploaded).', flush=True
+            )
         else:
             dprint(f'Extracted contents of {key} ({num_files} files, total size: {size/1024**2:.2f} MiB) in {duration:.2f} s (no uploads required)', flush=True)
     except ZeroDivisionError:
