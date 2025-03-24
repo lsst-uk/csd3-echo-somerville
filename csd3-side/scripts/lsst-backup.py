@@ -1860,6 +1860,8 @@ def process_files(
                     log,
                 )
             )
+            print(type(zip_uploads))
+            print(type(file_uploads))
             uploads = uploads.compute()
             zip_uploads = zip_uploads.compute()
             file_uploads = file_uploads.compute()
