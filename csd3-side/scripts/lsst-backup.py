@@ -1709,11 +1709,11 @@ def process_files(
             to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers']) * 2)
             to_collate['upload_file'] = True
             to_collate['upload_zip'] = to_collate.apply(
-                lambda x: compare_zip_contents_bool(
-                    x,
-                    current_objects,
-                    destination_dir),
-                meta=('upload', bool)
+                compare_zip_contents_bool,
+                current_objects,
+                destination_dir,
+                meta=('upload', bool),
+                axis=1
             )
             to_collate = to_collate.compute()
             # Convert strings representations of lists back to lists
