@@ -189,7 +189,7 @@ def compare_zip_contents(
 
 
 def compare_zip_contents_bool(
-    collate_object_names,
+    row,
     current_objects: pd.DataFrame,
     destination_dir: str
 ) -> bool:
@@ -212,40 +212,45 @@ def compare_zip_contents_bool(
         bool: True if the zip file needs to be uploaded or reuploaded, False
         if the zip file already exists and the file lists match.
     """
+    if row['type'] == 'zip':
+        if isinstance(row['object_names'], str):
+            collate_object_names = my_lit_eval(row['object_names'])
+        return_bool = True
+        if isinstance(collate_object_names, str):
+            try:
+                collate_object_names = my_lit_eval(collate_object_names)
+            except Exception as e:
+                dprint(f'Warning: literal_eval failed with error: {e}', flush=True)
+                dprint('Defaulting to upload for this file list.', flush=True)
+                return True
+        assert isinstance(collate_object_names, list), 'collate_object_names is not a list: '
+        f'type=={type(collate_object_names)}'
+        dprint('Comparing zip contents with current object.', flush=True)
+        if not current_objects.empty:
+            cmp = [x.replace(destination_dir + '/', '') for x in collate_object_names]
+            isin = current_objects['METADATA'].isin([cmp])
+            search_res = current_objects[current_objects['METADATA'].isin([cmp])]
+            if isin.any():
+                id = search_res.index[0]
+                existing_zip_contents = current_objects[isin]['METADATA'].values[0]
 
-    return_bool = True
-    if isinstance(collate_object_names, str):
-        try:
-            collate_object_names = my_lit_eval(collate_object_names)
-        except Exception as e:
-            dprint(f'Warning: literal_eval failed with error: {e}', flush=True)
-            dprint('Defaulting to upload for this file list.', flush=True)
-            return True
-    assert isinstance(collate_object_names, list), 'collate_object_names is not a list: '
-    f'type=={type(collate_object_names)}'
-    dprint('Comparing zip contents with current object.', flush=True)
-    if not current_objects.empty:
-        cmp = [x.replace(destination_dir + '/', '') for x in collate_object_names]
-        isin = current_objects['METADATA'].isin([cmp])
-        search_res = current_objects[current_objects['METADATA'].isin([cmp])]
-        if isin.any():
-            id = search_res.index[0]
-            existing_zip_contents = current_objects[isin]['METADATA'].values[0]
+                if all([x in existing_zip_contents for x in cmp]):
+                    dprint(f'Zip file {destination_dir}/collated_{id}.zip already exists and file lists '
+                           'match - skipping.', flush=True)
+                    return_bool = False
 
-            if all([x in existing_zip_contents for x in cmp]):
-                dprint(f'Zip file {destination_dir}/collated_{id}.zip already exists and file lists match '
-                       '- skipping.', flush=True)
-                return_bool = False
+                else:
+                    dprint(f'Zip file {destination_dir}/collated_{id}.zip already exists but file lists '
+                           'do not match - reuploading.', flush=True)
+                    return_bool = True
 
             else:
-                dprint(f'Zip file {destination_dir}/collated_{id}.zip already exists but file lists do not '
-                       'match - reuploading.', flush=True)
+                dprint('Zip file does not exist - uploading.', flush=True)
                 return_bool = True
 
-        else:
-            dprint('Zip file does not exist - uploading.', flush=True)
-            return_bool = True
-    return return_bool
+        return return_bool
+    else:
+        return isntin(row['object_names'], current_objects['METADATA'])
 
 
 def to_rds_path(home_path: str, local_dir: str) -> str:
@@ -1702,10 +1707,8 @@ def process_files(
             })
             to_collate = to_collate.where(to_collate['size'] > 0).dropna()
             to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers']) * 2)
-            to_collate[to_collate['type'] == 'file']['upload'] = True
-            to_collate[to_collate['type'] == 'zip']['upload'] = to_collate[
-                to_collate['type'] == 'zip'
-            ]['object_names'].apply(
+            to_collate['upload_file'] = True
+            to_collate['upload_zip'] = to_collate.apply(
                 lambda x: compare_zip_contents_bool(
                     x,
                     current_objects,
@@ -1760,20 +1763,12 @@ def process_files(
                 # - this could be re-written to using vectorised operations
 
                 print('Created Dask dataframe for to_collate.', flush=True)
-                print('Comparing existing zips to collate list.', flush=True)
-                to_collate['upload'] = to_collate[to_collate['type'] == 'file']['object_names'].apply(
-                    lambda x: isntin(
-                        x,
-                        current_objects['CURRENT_OBJECTS'],
-                    ),
-                    meta=('upload', pd.Series(dtype=bool))
-                )
-                to_collate['upload'] = to_collate[to_collate['type'] == 'zip']['object_names'].apply(
-                    lambda x: compare_zip_contents_bool(
-                        x,
-                        current_objects,
-                        destination_dir
-                    ),
+                print('Comparing existing objects to collate list.', flush=True)
+                to_collate['upload'] = to_collate.apply(
+                    compare_zip_contents_bool,
+                    current_objects,
+                    destination_dir,
+                    axis=1,
                     meta=('upload', pd.Series(dtype=bool))
                 )
                 to_collate = to_collate.compute()
