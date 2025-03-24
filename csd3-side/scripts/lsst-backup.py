@@ -1892,8 +1892,8 @@ def process_files(
             else:
                 print('No file uploads.', flush=True)
                 file_uploads = pd.DataFrame([], [], uploads.columns)
-            # print(type(zip_uploads))
-            # print(type(file_uploads))
+            print(type(zip_uploads))
+            print(type(file_uploads))
             uploads = uploads.compute()
             client.scatter(uploads)
 
