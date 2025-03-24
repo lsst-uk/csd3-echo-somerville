@@ -1771,12 +1771,12 @@ def process_files(
                 print('Comparing existing objects to collate list.', flush=True)
                 to_collate['upload'] = to_collate.apply(
                     compare_zip_contents_bool,
+                    axis=1,
                     args=(
                         current_objects,
                         destination_dir,
                     ),
                     meta=('upload', bool),
-                    axis=1,
                 )
                 to_collate = to_collate.compute()
 
