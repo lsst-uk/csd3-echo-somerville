@@ -1869,7 +1869,7 @@ def process_files(
     ################################
     # Return bool as upload status #
     ################################
-        all_uploads_successful = bool(zip_uploads.all() * file_uploads.all())
+        all_uploads_successful = bool(zip_uploads.all()) * bool(file_uploads.all())
         del uploads
         if all_uploads_successful:
             print('All uploads successful.', flush=True)
