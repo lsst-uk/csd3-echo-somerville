@@ -1692,6 +1692,7 @@ def process_files(
         ###############################
 
         if not os.path.exists(local_list_file):
+            print('Creating collate list. 1695', flush=True)
             to_collate = pd.DataFrame.from_dict({
                 'id': [i for i in range(len(zip_batch_object_names) + len(individual_object_names))],
                 'object_names': zip_batch_object_names + individual_object_names,
@@ -1736,6 +1737,7 @@ def process_files(
             )
 
         else:
+            print(f'Loading local file list from {local_list_file} 1740.', flush=True)
             if not current_objects.empty:
                 client.scatter(current_objects)
                 # Pandas
