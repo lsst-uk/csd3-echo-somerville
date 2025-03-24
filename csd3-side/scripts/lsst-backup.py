@@ -1715,8 +1715,8 @@ def process_files(
                 compare_zip_contents_bool,
                 current_objects,
                 destination_dir,
+                axis=1,
                 meta=('upload', bool),
-                # axis=1
             )
             to_collate = to_collate.compute()
             print(to_collate, flush=True)
