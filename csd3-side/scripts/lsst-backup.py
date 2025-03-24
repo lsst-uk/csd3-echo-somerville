@@ -1853,7 +1853,6 @@ def process_files(
                 zip_uploads = uploads[uploads['type'] == 'zip'].apply(
                     zip_and_upload,
                     axis=1,
-                    meta=('zip_uploads', bool),
                     args=(
                         s3,
                         bucket_name,
@@ -1867,7 +1866,8 @@ def process_files(
                         processing_start,
                         mem_per_worker,
                         log,
-                    )
+                    ),
+                    meta=('zip_uploads', bool)
                 )
             else:
                 print('No zip uploads.', flush=True)
@@ -1876,7 +1876,6 @@ def process_files(
                 file_uploads = uploads[uploads['type'] == 'file'].apply(
                     upload_files_from_series,
                     axis=1,
-                    meta=('file_uploads', bool),
                     args=(
                         s3,
                         bucket_name,
@@ -1889,7 +1888,8 @@ def process_files(
                         total_files_uploaded,
                         mem_per_worker,
                         log,
-                    )
+                    ),
+                    meta=('file_uploads', bool)
                 )
             else:
                 print('No file uploads.', flush=True)
