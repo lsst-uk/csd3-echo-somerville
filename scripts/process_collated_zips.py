@@ -20,7 +20,6 @@ import swiftclient.exceptions
 import hashlib
 import bucket_manager.bucket_manager as bm
 import swiftclient
-import os
 import argparse
 import re
 import shutil
