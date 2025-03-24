@@ -2237,7 +2237,7 @@ if __name__ == '__main__':
     print(f'Using {api.capitalize()} API with host {s3_host}')
 
     if api == 's3':
-        s3 = bm.get_client()
+        s3 = bm.get_resource()
         bucket_list = bm.bucket_list(s3)
     elif api == 'swift':
         s3 = bm.get_conn_swift()
@@ -2246,7 +2246,8 @@ if __name__ == '__main__':
     if bucket_name not in bucket_list:
         if not dryrun:
             if api == 's3':
-                s3.create_bucket(Bucket=bucket_name)
+                botoclient = bm.get_client()
+                botoclient.create_bucket(Bucket=bucket_name)
             elif api == 'swift':
                 s3.put_container(bucket_name)
             print(f'Added bucket: {bucket_name}')
