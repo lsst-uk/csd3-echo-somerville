@@ -1683,12 +1683,16 @@ def process_files(
                     print(f'Number of zip files: {len(zip_batch_files)}', flush=True)
         print(f'Done traversing {local_dir}.', flush=True)
 
+    print(f'At least one batch: {at_least_one_batch}', flush=True)
+    print(f'At least one individual: {at_least_one_individual}', flush=True)
+
     if at_least_one_batch or at_least_one_individual:
         ###############################
         # CHECK HERE FOR ZIP CONTENTS #
         ###############################
 
         if not os.path.exists(local_list_file):
+            print('Creating collate list. 1695', flush=True)
             to_collate = pd.DataFrame.from_dict({
                 'id': [i for i in range(len(zip_batch_object_names) + len(individual_object_names))],
                 'object_names': zip_batch_object_names + individual_object_names,
@@ -1707,15 +1711,19 @@ def process_files(
             })
             to_collate = to_collate.where(to_collate['size'] > 0).dropna()
             to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers']) * 2)
-            to_collate['upload_file'] = True
-            to_collate['upload_zip'] = to_collate.apply(
-                lambda x: compare_zip_contents_bool(
-                    x,
+            to_collate['upload'] = to_collate.apply(
+                compare_zip_contents_bool,
+                axis=1,
+                args=(
                     current_objects,
-                    destination_dir),
-                meta=('upload', bool)
+                    destination_dir
+                ),
+                meta=('upload', bool),
+
             )
             to_collate = to_collate.compute()
+            print(to_collate, flush=True)
+            print(to_collate['upload'], flush=True)
             # Convert strings representations of lists back to lists
             to_collate['object_names'] = to_collate['object_names'].apply(my_lit_eval).astype(object)
             to_collate['id'] = to_collate['id'].astype(int)
@@ -1766,14 +1774,16 @@ def process_files(
                 print('Comparing existing objects to collate list.', flush=True)
                 to_collate['upload'] = to_collate.apply(
                     compare_zip_contents_bool,
-                    current_objects,
-                    destination_dir,
                     axis=1,
-                    meta=('upload', pd.Series(dtype=bool))
+                    args=(
+                        current_objects,
+                        destination_dir,
+                    ),
+                    meta=('upload', bool),
                 )
                 to_collate = to_collate.compute()
 
-                print(to_collate['upload'])
+                # print(to_collate['upload'])
 
                 if not to_collate['upload'].any():
                     print('No files to upload.', flush=True)
@@ -1802,10 +1812,10 @@ def process_files(
                 return False
 
             client.scatter(to_collate)
-            print(to_collate)
-            print(to_collate[
-                to_collate['upload'] == True # noqa
-            ])
+            # print(to_collate)
+            # print(to_collate[
+            #     to_collate['upload'] == True # noqa
+            # ])
             uploads = dd.from_pandas(to_collate[
                 to_collate['upload'] == True # noqa
             ],
@@ -1831,19 +1841,16 @@ def process_files(
             print('Uploading...', flush=True)
             # uploads['uploaded'] = False
             # uploads['uploaded'] = uploads['uploaded'].astype(bool)
-            uploads = uploads.compute()
-            client.scatter(uploads)
-            print('uploads type')
-            print(uploads['type'])
-            print('uploads type zip')
-            print(uploads[uploads['type'].eq('zip')])
-            print('uploads type file')
-            print(uploads[uploads['type'] == 'file'])
+            # print('uploads type')
+            # print(uploads['type'])
+            # print('uploads type zip')
+            # print(uploads[uploads['type'].eq('zip')])
+            # print('uploads type file')
+            # print(uploads[uploads['type'] == 'file'])
             if len(uploads[uploads['type'] == 'zip']) > 0:
                 zip_uploads = uploads[uploads['type'] == 'zip'].apply(
                     zip_and_upload,
                     axis=1,
-                    meta=('zip_uploads', bool),
                     args=(
                         s3,
                         bucket_name,
@@ -1857,16 +1864,16 @@ def process_files(
                         processing_start,
                         mem_per_worker,
                         log,
-                    )
+                    ),
+                    meta=('zip_uploads', bool)
                 )
             else:
                 print('No zip uploads.', flush=True)
-                zip_uploads = pd.DataFrame([], [], uploads.columns)
-            if len(uploads[uploads['type'] == 'zip']) > 0:
+                zip_uploads = pd.Series([], dtype=bool)
+            if len(uploads[uploads['type'] == 'file']) > 0:
                 file_uploads = uploads[uploads['type'] == 'file'].apply(
                     upload_files_from_series,
                     axis=1,
-                    meta=('file_uploads', bool),
                     args=(
                         s3,
                         bucket_name,
@@ -1879,17 +1886,20 @@ def process_files(
                         total_files_uploaded,
                         mem_per_worker,
                         log,
-                    )
+                    ),
+                    meta=('file_uploads', bool)
                 )
             else:
                 print('No file uploads.', flush=True)
-                file_uploads = pd.DataFrame([], [], uploads.columns)
+                file_uploads = pd.Series([], dtype=bool)
             print(type(zip_uploads))
             print(type(file_uploads))
+            uploads = uploads.compute()
+            client.scatter(uploads)
 
-            if isinstance(zip_uploads, dd.DataFrame):
+            if isinstance(zip_uploads, dd.Series):
                 zip_uploads = zip_uploads.compute()
-            if isinstance(file_uploads, dd.DataFrame):
+            if isinstance(file_uploads, dd.Series):
                 file_uploads = file_uploads.compute()
             # uploads[uploads['type'] == 'file']['uploaded'] = file_uploads
             # uploads[uploads['type'] == 'zip']['uploaded'] = zip_uploads
@@ -1897,15 +1907,15 @@ def process_files(
     ################################
     # Return bool as upload status #
     ################################
-        print(zip_uploads)
-        print(file_uploads)
-        zip_uploads.to_csv('zip_uploads.csv')
-        file_uploads.to_csv('file_uploads.csv')
-        if not zip_uploads.empty and not file_uploads.empty:
+        # print(zip_uploads)
+        # print(file_uploads)
+        # zip_uploads.to_csv('zip_uploads.csv')
+        # file_uploads.to_csv('file_uploads.csv')
+        if len(zip_uploads) > 0 and len(file_uploads) > 0:
             all_uploads_successful = bool(zip_uploads.all()) * bool(file_uploads.all())
-        elif not zip_uploads.empty:
+        elif len(zip_uploads) > 0:
             all_uploads_successful = bool(zip_uploads.all())
-        elif not file_uploads.empty:
+        elif len(file_uploads) > 0:
             all_uploads_successful = bool(file_uploads.all())
         else:
             all_uploads_successful = None
@@ -2236,9 +2246,12 @@ if __name__ == '__main__':
     if bucket_name not in bucket_list:
         if not dryrun:
             if api == 's3':
-                s3.create_bucket(Bucket=bucket_name)
+                r = s3.Bucket(bucket_name).create()
+                print(r)
+                bucket = s3.Bucket(bucket_name)
             elif api == 'swift':
                 s3.put_container(bucket_name)
+                bucket = None
             print(f'Added bucket: {bucket_name}')
     else:
         if not dryrun:
@@ -2247,11 +2260,6 @@ if __name__ == '__main__':
         else:
             print(f'Bucket exists: {bucket_name}')
             print('dryrun == True, so continuing.')
-
-    if api == 's3':
-        bucket = s3.Bucket(bucket_name)
-    elif api == 'swift':
-        bucket = None
 
     success = False
 
