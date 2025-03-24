@@ -1824,8 +1824,10 @@ def process_files(
             # uploads['uploaded'] = uploads['uploaded'].astype(bool)
             uploads = uploads.compute()
             client.scatter(uploads)
+            print('uploads type')
+            print(uploads['type'])
             print('uploads type zip')
-            print(uploads[uploads['type'] == 'zip'])
+            print(uploads[uploads['type'].eq('zip')])
             print('uploads type file')
             print(uploads[uploads['type'] == 'file'])
             if len(uploads[uploads['type'] == 'zip']) > 0:
