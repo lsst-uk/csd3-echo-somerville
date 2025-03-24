@@ -1783,7 +1783,7 @@ def process_files(
                 )
                 to_collate = to_collate.compute()
 
-                print(to_collate['upload'])
+                # print(to_collate['upload'])
 
                 if not to_collate['upload'].any():
                     print('No files to upload.', flush=True)
@@ -1812,10 +1812,10 @@ def process_files(
                 return False
 
             client.scatter(to_collate)
-            print(to_collate)
-            print(to_collate[
-                to_collate['upload'] == True # noqa
-            ])
+            # print(to_collate)
+            # print(to_collate[
+            #     to_collate['upload'] == True # noqa
+            # ])
             uploads = dd.from_pandas(to_collate[
                 to_collate['upload'] == True # noqa
             ],
@@ -1841,12 +1841,12 @@ def process_files(
             print('Uploading...', flush=True)
             # uploads['uploaded'] = False
             # uploads['uploaded'] = uploads['uploaded'].astype(bool)
-            print('uploads type')
-            print(uploads['type'])
-            print('uploads type zip')
-            print(uploads[uploads['type'].eq('zip')])
-            print('uploads type file')
-            print(uploads[uploads['type'] == 'file'])
+            # print('uploads type')
+            # print(uploads['type'])
+            # print('uploads type zip')
+            # print(uploads[uploads['type'].eq('zip')])
+            # print('uploads type file')
+            # print(uploads[uploads['type'] == 'file'])
             if len(uploads[uploads['type'] == 'zip']) > 0:
                 zip_uploads = uploads[uploads['type'] == 'zip'].apply(
                     zip_and_upload,
@@ -1892,8 +1892,8 @@ def process_files(
             else:
                 print('No file uploads.', flush=True)
                 file_uploads = pd.DataFrame([], [], uploads.columns)
-            print(type(zip_uploads))
-            print(type(file_uploads))
+            # print(type(zip_uploads))
+            # print(type(file_uploads))
             uploads = uploads.compute()
             client.scatter(uploads)
 
@@ -1907,15 +1907,15 @@ def process_files(
     ################################
     # Return bool as upload status #
     ################################
-        print(zip_uploads)
-        print(file_uploads)
+        # print(zip_uploads)
+        # print(file_uploads)
         zip_uploads.to_csv('zip_uploads.csv')
         file_uploads.to_csv('file_uploads.csv')
-        if not zip_uploads.empty and not file_uploads.empty:
+        if len(zip_uploads) > 0 and len(file_uploads) > 0:
             all_uploads_successful = bool(zip_uploads.all()) * bool(file_uploads.all())
-        elif not zip_uploads.empty:
+        elif len(zip_uploads) > 0:
             all_uploads_successful = bool(zip_uploads.all())
-        elif not file_uploads.empty:
+        elif len(file_uploads) > 0:
             all_uploads_successful = bool(file_uploads.all())
         else:
             all_uploads_successful = None
