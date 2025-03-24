@@ -1820,46 +1820,53 @@ def process_files(
                     "individual files.", flush=True)
 
             print('Uploading...', flush=True)
-            uploads['uploaded'] = False
-            uploads['uploaded'] = uploads['uploaded'].astype(bool)
-
-            zip_uploads = uploads[uploads['type'] == 'zip'].apply(
-                zip_and_upload,
-                axis=1,
-                meta=('zip_uploads', pd.DataFrame([], [], uploads.columns)),
-                args=(
-                    s3,
-                    bucket_name,
-                    api,
-                    destination_dir,
-                    local_dir,
-                    total_size_uploaded,
-                    total_files_uploaded,
-                    use_compression,
-                    dryrun,
-                    processing_start,
-                    mem_per_worker,
-                    log,
+            # uploads['uploaded'] = False
+            # uploads['uploaded'] = uploads['uploaded'].astype(bool)
+            if len(uploads[uploads['type'] == 'zip']) > 0:
+                zip_uploads = uploads[uploads['type'] == 'zip'].apply(
+                    zip_and_upload,
+                    axis=1,
+                    meta=('zip_uploads', pd.DataFrame([], [], uploads.columns)),
+                    args=(
+                        s3,
+                        bucket_name,
+                        api,
+                        destination_dir,
+                        local_dir,
+                        total_size_uploaded,
+                        total_files_uploaded,
+                        use_compression,
+                        dryrun,
+                        processing_start,
+                        mem_per_worker,
+                        log,
+                    )
                 )
-            )
-            file_uploads = uploads[uploads['type'] == 'file'].apply(
-                upload_files_from_series,
-                axis=1,
-                meta=('file_uploads', pd.DataFrame([], [], uploads.columns)),
-                args=(
-                    s3,
-                    bucket_name,
-                    api,
-                    local_dir,
-                    dryrun,
-                    processing_start,
-                    1,
-                    total_size_uploaded,
-                    total_files_uploaded,
-                    mem_per_worker,
-                    log,
+            else:
+                print('No zip uploads.', flush=True)
+                zip_uploads = pd.DataFrame([], [], uploads.columns)
+            if len(uploads[uploads['type'] == 'zip']) > 0:
+                file_uploads = uploads[uploads['type'] == 'file'].apply(
+                    upload_files_from_series,
+                    axis=1,
+                    meta=('file_uploads', pd.DataFrame([], [], uploads.columns)),
+                    args=(
+                        s3,
+                        bucket_name,
+                        api,
+                        local_dir,
+                        dryrun,
+                        processing_start,
+                        1,
+                        total_size_uploaded,
+                        total_files_uploaded,
+                        mem_per_worker,
+                        log,
+                    )
                 )
-            )
+            else:
+                print('No file uploads.', flush=True)
+                file_uploads = pd.DataFrame([], [], uploads.columns)
             print(type(zip_uploads))
             print(type(file_uploads))
             uploads = uploads.compute()
