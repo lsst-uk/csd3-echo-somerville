@@ -1872,7 +1872,7 @@ def process_files(
             else:
                 print('No zip uploads.', flush=True)
                 zip_uploads = pd.DataFrame([], [], uploads.columns)
-            if len(uploads[uploads['type'] == 'zip']) > 0:
+            if len(uploads[uploads['type'] == 'file']) > 0:
                 file_uploads = uploads[uploads['type'] == 'file'].apply(
                     upload_files_from_series,
                     axis=1,
