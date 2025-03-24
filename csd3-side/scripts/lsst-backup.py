@@ -1715,8 +1715,8 @@ def process_files(
                 compare_zip_contents_bool,
                 current_objects,
                 destination_dir,
-                axis=1,
                 meta=('upload', bool),
+                axis=1,
             )
             to_collate = to_collate.compute()
             print(to_collate, flush=True)
@@ -1771,8 +1771,10 @@ def process_files(
                 print('Comparing existing objects to collate list.', flush=True)
                 to_collate['upload'] = to_collate.apply(
                     compare_zip_contents_bool,
-                    current_objects,
-                    destination_dir,
+                    args=(
+                        current_objects,
+                        destination_dir,
+                    ),
                     axis=1,
                     meta=('upload', pd.Series(dtype=bool))
                 )
