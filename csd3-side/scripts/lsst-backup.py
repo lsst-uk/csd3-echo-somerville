@@ -223,7 +223,7 @@ def compare_zip_contents_bool(
             return True
     assert isinstance(collate_object_names, list), 'collate_object_names is not a list: '
     f'type=={type(collate_object_names)}'
-
+    dprint('Comparing zip contents with current object.', flush=True)
     if not current_objects.empty:
         cmp = [x.replace(destination_dir + '/', '') for x in collate_object_names]
         isin = current_objects['METADATA'].isin([cmp])
@@ -1799,6 +1799,11 @@ def process_files(
             to_collate['upload'] = to_collate['upload'].astype(bool)
             to_collate['type'] = to_collate['type'].astype(str)
             to_collate['size'] = to_collate['size'].astype(int)
+
+            if not to_collate['upload'].any():
+                print('No files to upload.', flush=True)
+                return False
+
             client.scatter(to_collate)
             print(to_collate)
             print(to_collate[
