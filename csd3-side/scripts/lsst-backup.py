@@ -2246,10 +2246,12 @@ if __name__ == '__main__':
     if bucket_name not in bucket_list:
         if not dryrun:
             if api == 's3':
-                botoclient = bm.get_client()
-                botoclient.create_bucket(Bucket=bucket_name)
+                r = s3.Bucket(bucket_name).create()
+                print(r)
+                bucket = s3.Bucket(bucket_name)
             elif api == 'swift':
                 s3.put_container(bucket_name)
+                bucket = None
             print(f'Added bucket: {bucket_name}')
     else:
         if not dryrun:
@@ -2258,11 +2260,6 @@ if __name__ == '__main__':
         else:
             print(f'Bucket exists: {bucket_name}')
             print('dryrun == True, so continuing.')
-
-    if api == 's3':
-        bucket = s3.Bucket(bucket_name)
-    elif api == 'swift':
-        bucket = None
 
     success = False
 
