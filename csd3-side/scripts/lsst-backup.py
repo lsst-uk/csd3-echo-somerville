@@ -1716,11 +1716,11 @@ def process_files(
                 current_objects,
                 destination_dir,
                 meta=('upload', bool),
-                axis=1
+                # axis=1
             )
             to_collate = to_collate.compute()
-            print(to_collate)
-            print(to_collate['upload'])
+            print(to_collate, flush=True)
+            print(to_collate['upload'], flush=True)
             # Convert strings representations of lists back to lists
             to_collate['object_names'] = to_collate['object_names'].apply(my_lit_eval).astype(object)
             to_collate['id'] = to_collate['id'].astype(int)
