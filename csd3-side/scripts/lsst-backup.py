@@ -1865,7 +1865,7 @@ def process_files(
                         mem_per_worker,
                         log,
                     ),
-                    # meta=('zip_uploads', bool)
+                    meta=('zip_uploads', bool)
                 )
             else:
                 print('No zip uploads.', flush=True)
@@ -1887,7 +1887,7 @@ def process_files(
                         mem_per_worker,
                         log,
                     ),
-                    # meta=('file_uploads', bool)
+                    meta=('file_uploads', bool)
                 )
             else:
                 print('No file uploads.', flush=True)
