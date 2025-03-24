@@ -1886,7 +1886,14 @@ def process_files(
         print(file_uploads)
         zip_uploads.to_csv('zip_uploads.csv')
         file_uploads.to_csv('file_uploads.csv')
-        all_uploads_successful = bool(zip_uploads.all()) * bool(file_uploads.all())
+        if not zip_uploads.empty and not file_uploads.empty:
+            all_uploads_successful = bool(zip_uploads.all()) * bool(file_uploads.all())
+        elif not zip_uploads.empty:
+            all_uploads_successful = bool(zip_uploads.all())
+        elif not file_uploads.empty:
+            all_uploads_successful = bool(file_uploads.all())
+        else:
+            all_uploads_successful = None
         del uploads
         if all_uploads_successful:
             print('All uploads successful.', flush=True)
