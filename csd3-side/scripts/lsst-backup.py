@@ -1526,16 +1526,19 @@ def process_files(
 
     # Generate new columns with Dask apply
     # Basic object names
+    print('Generating object names.', flush=True)
     ddf['object_names'] = ddf['paths'].apply(
         lambda x: os.sep.join([destination_dir, os.path.relpath(x, local_dir)]),
         meta=('object_names', 'str')
     )
     # Check for symlinks
+    print('Checking for symlinks.', flush=True)
     ddf['islink'] = ddf['paths'].apply(
         os.path.islink,
         meta=('islink', 'bool')
     )
     # If symlink, change object name to include '.symlink'
+    print('Changing object names for symlinks.', flush=True)
     ddf['object_names'] = ddf.apply(
         lambda x: f'{x["object_names"]}.symlink' if x['islink'] else x['object_names'],
         axis=1,
@@ -1554,6 +1557,7 @@ def process_files(
     #                 # add real file to symlink_obj_names list
     #                 symlink_obj_names.append(symlink_obj_name)
     # Add symlink target paths
+    print('Adding symlink target paths.', flush=True)
     targets = ddf[ddf['islink'] == True]['paths'].apply(
         lambda x: to_rds_path(os.path.realpath(x), local_dir),
         meta=('paths', 'str')
@@ -1569,7 +1573,7 @@ def process_files(
     targets['islink'] = False
     print(targets, flush=True)
     # Add symlink target paths to ddf
-    ddf = ddf.merge(targets, on='paths', how='left')
+    ddf = dd.concat([ddf, targets])
     print(ddf.compute(), flush=True)
     exit()
 
