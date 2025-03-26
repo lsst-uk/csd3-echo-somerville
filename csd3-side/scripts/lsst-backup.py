@@ -1470,7 +1470,7 @@ def process_files(
     done_first = False
     print(f'Analysing local dataset {local_dir}.', flush=True)
     for folder, sub_folders, files in os.walk(local_dir, topdown=True):
-        print(f'in {folder}', flush=True)
+        print(f'in {folder}, folder count: {total_all_folders}', flush=True)
         if exclude.isin([folder]).any():
             continue
         if len(files) == 0 and len(sub_folders) == 0:
