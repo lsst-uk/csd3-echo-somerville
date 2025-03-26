@@ -1506,12 +1506,12 @@ def process_files(
     print()
     df = df.reset_index(drop=True)
     ddf = dd.from_pandas(df, npartitions=1)
-    df.to_csv('test.csv')
+
     print(f'Folders: {total_all_folders} Files: {len(df)}', flush=True)
     print('Analysing local dataset complete.', flush=True)
-    print(df.head(), flush=True)
+    # print(df.head(), flush=True)
     del df
-    exit()
+
     if file_count_stop and len(current_objects) > 0:
         total_non_collate_zip = len(
             current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_') == False] # noqa
@@ -1524,204 +1524,251 @@ def process_files(
                   '`--no-file-count-stop` to True.', flush=True)
             sys.exit()
 
+    # Generate new columns with Dask apply
+    # Basic object names
+    ddf['object_names'] = ddf['paths'].apply(
+        lambda x: os.sep.join([destination_dir, os.path.relpath(x, local_dir)]),
+        axis=1,
+        meta=('object_names', 'str')
+    )
+    # Check for symlinks
+    ddf['islink'] = ddf['paths'].apply(
+        os.path.islink,
+        axis=1,
+        meta=('islink', 'bool')
+    )
+    # If symlink, change object name to include '.symlink'
+    ddf['object_names'] = ddf.apply(
+        lambda x: f'{x["object_names"]}.symlink' if x['islink'] else x['object_names'],
+        axis=1,
+        meta=('object_names', 'str')
+    )
+    # for i in range(len(folder_files)):
+    #             if os.path.islink(folder_files[i]):
+    #                 # rename link in object_names
+    #                 symlink_obj_name = object_names[i]
+    #                 object_names[i] = '.'.join([object_names[i], 'symlink'])
+    #                 # add symlink target to symlink_targets list
+    #                 # using target dir as-is can cause permissions issues
+    #                 # replace /home path with /rds path uses as local_dir
+    #                 target = to_rds_path(os.path.realpath(folder_files[i]), local_dir)
+    #                 symlink_targets.append(target)
+    #                 # add real file to symlink_obj_names list
+    #                 symlink_obj_names.append(symlink_obj_name)
+    # Add symlink target paths
+    targets = ddf[ddf['islink'] == True]['paths'].apply(
+        lambda x: to_rds_path(os.path.realpath(x), local_dir),
+        meta=('paths', 'str')
+    ).compute()
+    targets['object_names'] = targets['paths'].apply(
+        lambda x: os.sep.join([destination_dir, os.path.relpath(x, local_dir)]),
+        axis=1,
+    )
+    targets['islink'] = False
+
+    # Add symlink target paths to ddf
+    ddf = ddf.merge(targets, on='paths', how='left')
+    print(ddf)
+    exit()
+
     if not os.path.exists(local_list_file):
         print(f'Preparing to upload {total_all_files} files in {total_all_folders} folders from {local_dir} '
               f'to {bucket_name}/{destination_dir}.', flush=True)
-        for folder, sub_folders, files in os.walk(local_dir, topdown=False):
-            folder_num += 1
-            file_num += len(files)
-            print(f'Processing {folder_num}/{total_all_folders} folders; {file_num}/{total_all_files} files '
-                  f'in {local_dir}.', flush=True)
+        # for folder, sub_folders, files in os.walk(local_dir, topdown=False):
+        #     folder_num += 1
+        #     file_num += len(files)
+        #     print(f'Processing {folder_num}/{total_all_folders} folders; {file_num}/{total_all_files} files '
+        #           f'in {local_dir}.', flush=True)
 
-            # check if folder is in the exclude list
-            if len(files) == 0 and len(sub_folders) == 0:
-                print('Skipping subfolder - no files or subfolders.', flush=True)
-                continue
-            elif len(files) == 0:
-                print('Skipping subfolder - no files.', flush=True)
-                continue
-            if exclude.isin([folder]).any():
-                print(f'Skipping subfolder {folder} - excluded.', flush=True)
-                continue
-            # remove subfolders in exclude list
-            if len(sub_folders) > 0:
-                len_pre_exclude = len(sub_folders)
-                sub_folders[:] = [
-                    sub_folder for sub_folder in sub_folders if not exclude.isin([sub_folder]).any()
-                ]
-                print(f'Skipping {len_pre_exclude - len(sub_folders)} subfolders in {folder} - excluded. '
-                      f'{len(sub_folders)} subfolders remaining.', flush=True)
+        #     # check if folder is in the exclude list
+        #     if len(files) == 0 and len(sub_folders) == 0:
+        #         print('Skipping subfolder - no files or subfolders.', flush=True)
+        #         continue
+        #     elif len(files) == 0:
+        #         print('Skipping subfolder - no files.', flush=True)
+        #         continue
+        #     if exclude.isin([folder]).any():
+        #         print(f'Skipping subfolder {folder} - excluded.', flush=True)
+        #         continue
+        #     # remove subfolders in exclude list
+        #     if len(sub_folders) > 0:
+        #         len_pre_exclude = len(sub_folders)
+        #         sub_folders[:] = [
+        #             sub_folder for sub_folder in sub_folders if not exclude.isin([sub_folder]).any()
+        #         ]
+        #         print(f'Skipping {len_pre_exclude - len(sub_folders)} subfolders in {folder} - excluded. '
+        #               f'{len(sub_folders)} subfolders remaining.', flush=True)
 
-            folder_files = [os.sep.join([folder, filename]) for filename in files]
+        #     folder_files = [os.sep.join([folder, filename]) for filename in files]
 
-            if len(folder_files) == 0:
-                print('Skipping subfolder - no files - see permissions warning(s).', flush=True)
-                continue
-            for filename in folder_files:
-                if exclude.isin([os.path.relpath(filename, local_dir)]).any():
-                    print(f'Skipping file {filename} - excluded.', flush=True)
-                    folder_files.remove(filename)
-                    if len(folder_files) == 0:
-                        print('Skipping subfolder - no files - see exclusions.', flush=True)
-                    continue
-            sizes_futures = [client.submit(filesize, filename) for filename in folder_files]
-            sizes = client.gather(sizes_futures)
-            print(f'sizes: {sizes}', flush=True)
-            total_filesize = sum(sizes)
-            print(f'total_filesize: {total_filesize}', flush=True)
-            if total_filesize > 0:
-                mean_filesize = total_filesize / len(files)
-            else:
-                mean_filesize = 0
+        #     if len(folder_files) == 0:
+        #         print('Skipping subfolder - no files - see permissions warning(s).', flush=True)
+        #         continue
+        #     for filename in folder_files:
+        #         if exclude.isin([os.path.relpath(filename, local_dir)]).any():
+        #             print(f'Skipping file {filename} - excluded.', flush=True)
+        #             folder_files.remove(filename)
+        #             if len(folder_files) == 0:
+        #                 print('Skipping subfolder - no files - see exclusions.', flush=True)
+        #             continue
+        #     sizes_futures = [client.submit(filesize, filename) for filename in folder_files]
+        #     sizes = client.gather(sizes_futures)
+        #     print(f'sizes: {sizes}', flush=True)
+        #     total_filesize = sum(sizes)
+        #     print(f'total_filesize: {total_filesize}', flush=True)
+        #     if total_filesize > 0:
+        #         mean_filesize = total_filesize / len(files)
+        #     else:
+        #         mean_filesize = 0
 
-            # check if any subfolders contain no subfolders and < 4 files
-            if len(sub_folders) > 0:
-                for sub_folder in sub_folders:
-                    sub_folder_path = os.path.join(folder, sub_folder)
-                    _, sub_sub_folders, sub_files = next(os.walk(sub_folder_path), ([], [], []))
-                    subfolder_files = [os.sep.join([sub_folder_path, filename]) for filename in sub_files]
-                    subsize_futures = [client.submit(filesize, filename) for filename in subfolder_files]
-                    subfiles_sizes = client.gather(subsize_futures)
-                    total_subfilesize = sum(subfiles_sizes)
-                    if not sub_sub_folders and len(sub_files) < 4 and total_subfilesize < 96 * 1024**2:
-                        sub_folders.remove(sub_folder)  # not sure what the effect of this is
-                        # upload files in subfolder "as is" i.e., no zipping
+        #     # check if any subfolders contain no subfolders and < 4 files
+        #     if len(sub_folders) > 0:
+        #         for sub_folder in sub_folders:
+        #             sub_folder_path = os.path.join(folder, sub_folder)
+        #             _, sub_sub_folders, sub_files = next(os.walk(sub_folder_path), ([], [], []))
+        #             subfolder_files = [os.sep.join([sub_folder_path, filename]) for filename in sub_files]
+        #             subsize_futures = [client.submit(filesize, filename) for filename in subfolder_files]
+        #             subfiles_sizes = client.gather(subsize_futures)
+        #             total_subfilesize = sum(subfiles_sizes)
+        #             if not sub_sub_folders and len(sub_files) < 4 and total_subfilesize < 96 * 1024**2:
+        #                 sub_folders.remove(sub_folder)  # not sure what the effect of this is
+        #                 # upload files in subfolder "as is" i.e., no zipping
 
-            # check folder isn't empty
-            print(f'Processing {len(folder_files)} files (total size: {total_filesize:.0f} B) in {folder} '
-                  f'with {len(sub_folders)} subfolders.', flush=True)
+        #     # check folder isn't empty
+        #     print(f'Processing {len(folder_files)} files (total size: {total_filesize:.0f} B) in {folder} '
+        #           f'with {len(sub_folders)} subfolders.', flush=True)
 
-            # keys to files on s3
-            object_names = [
-                os.sep.join(
-                    [destination_dir, os.path.relpath(filename, local_dir)]
-                ) for filename in folder_files
-            ]
-            init_len = len(object_names)
+        #     # keys to files on s3
+        #     object_names = [
+        #         os.sep.join(
+        #             [destination_dir, os.path.relpath(filename, local_dir)]
+        #         ) for filename in folder_files
+        #     ]
+        #     init_len = len(object_names)
 
-            if not global_collate:
-                if not current_objects.empty:
-                    if set(object_names).issubset(current_objects['CURRENT_OBJECTS']):
-                        # all files in this subfolder already in bucket
-                        print('Skipping subfolder - all files exist.', flush=True)
-                        continue
+        #     if not global_collate:
+        #         if not current_objects.empty:
+        #             if set(object_names).issubset(current_objects['CURRENT_OBJECTS']):
+        #                 # all files in this subfolder already in bucket
+        #                 print('Skipping subfolder - all files exist.', flush=True)
+        #                 continue
 
-            if mean_filesize > max_zip_batch_size or not global_collate:
-                print('Individual upload.', flush=True)
-                at_least_one_individual = True
-                # all files within folder
-                # if uploading file individually, remove existing files from
-                # object_names
-                if not current_objects.empty:
-                    for oni, on in enumerate(object_names):
-                        if current_objects['CURRENT_OBJECTS'].isin([on]).any() or current_objects[
-                            'CURRENT_OBJECTS'
-                        ].isin([f'{on}.symlink']).any():
-                            object_names.remove(on)
-                            del folder_files[oni]
-                pre_linkcheck_file_count = len(object_names)
-                if init_len - pre_linkcheck_file_count > 0:
-                    print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.', flush=True)
+        #     if mean_filesize > max_zip_batch_size or not global_collate:
+        #         print('Individual upload.', flush=True)
+        #         at_least_one_individual = True
+        #         # all files within folder
+        #         # if uploading file individually, remove existing files from
+        #         # object_names
+        #         if not current_objects.empty:
+        #             for oni, on in enumerate(object_names):
+        #                 if current_objects['CURRENT_OBJECTS'].isin([on]).any() or current_objects[
+        #                     'CURRENT_OBJECTS'
+        #                 ].isin([f'{on}.symlink']).any():
+        #                     object_names.remove(on)
+        #                     del folder_files[oni]
+        #         pre_linkcheck_file_count = len(object_names)
+        #         if init_len - pre_linkcheck_file_count > 0:
+        #             print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.', flush=True)
 
-                # always do this AFTER removing "current_objects" to avoid
-                # re-uploading
-                symlink_targets = []
-                symlink_obj_names = []
-                for i in range(len(folder_files)):
-                    if os.path.islink(folder_files[i]):
-                        # rename link in object_names
-                        symlink_obj_name = object_names[i]
-                        object_names[i] = '.'.join([object_names[i], 'symlink'])
-                        # add symlink target to symlink_targets list
-                        # using target dir as-is can cause permissions issues
-                        # replace /home path with /rds path uses as local_dir
-                        target = to_rds_path(os.path.realpath(folder_files[i]), local_dir)
-                        symlink_targets.append(target)
-                        # add real file to symlink_obj_names list
-                        symlink_obj_names.append(symlink_obj_name)
+        #         # always do this AFTER removing "current_objects" to avoid
+        #         # re-uploading
+        #         symlink_targets = []
+        #         symlink_obj_names = []
+        #         for i in range(len(folder_files)):
+        #             if os.path.islink(folder_files[i]):
+        #                 # rename link in object_names
+        #                 symlink_obj_name = object_names[i]
+        #                 object_names[i] = '.'.join([object_names[i], 'symlink'])
+        #                 # add symlink target to symlink_targets list
+        #                 # using target dir as-is can cause permissions issues
+        #                 # replace /home path with /rds path uses as local_dir
+        #                 target = to_rds_path(os.path.realpath(folder_files[i]), local_dir)
+        #                 symlink_targets.append(target)
+        #                 # add real file to symlink_obj_names list
+        #                 symlink_obj_names.append(symlink_obj_name)
 
-                folder_files.extend(symlink_targets)
-                object_names.extend(symlink_obj_names)
+        #         folder_files.extend(symlink_targets)
+        #         object_names.extend(symlink_obj_names)
 
-                file_count = len(object_names)
+        #         file_count = len(object_names)
 
-                folder_files_sizes_futures = [client.submit(filesize, filename) for filename in folder_files]
-                folder_files_sizes = client.gather(folder_files_sizes_futures)
-                folder_files_size = np.sum(np.array(folder_files_sizes))
-                total_size_uploaded += folder_files_size
-                total_files_uploaded += file_count
-                print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks '
-                      'renamed to <filename>.symlink', flush=True)
+        #         folder_files_sizes_futures = [client.submit(filesize, filename) for filename in folder_files]
+        #         folder_files_sizes = client.gather(folder_files_sizes_futures)
+        #         folder_files_size = np.sum(np.array(folder_files_sizes))
+        #         total_size_uploaded += folder_files_size
+        #         total_files_uploaded += file_count
+        #         print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks '
+        #               'renamed to <filename>.symlink', flush=True)
 
-                print(f'{file_count} files (total size: {folder_files_size/1024**2:.0f} MiB) in '
-                      f'{folder} will be uploaded individually to {bucket_name}.', flush=True)
-                print(f'Individual files objects names: {object_names}', flush=True)
+        #         print(f'{file_count} files (total size: {folder_files_size/1024**2:.0f} MiB) in '
+        #               f'{folder} will be uploaded individually to {bucket_name}.', flush=True)
+        #         print(f'Individual files objects names: {object_names}', flush=True)
 
-                individual_files.extend([[ff] for ff in folder_files])
-                individual_object_names.extend([[on] for on in object_names])
-                individual_files_sizes.extend(folder_files_sizes)
+        #         individual_files.extend([[ff] for ff in folder_files])
+        #         individual_object_names.extend([[on] for on in object_names])
+        #         individual_files_sizes.extend(folder_files_sizes)
 
-            # small files in folder
-            elif mean_filesize <= max_zip_batch_size and len(folder_files) > 0 and global_collate:
-                print('Collated upload.', flush=True)
-                at_least_one_batch = True
-                if not os.path.exists(local_list_file):
-                    # Extract all zips before continuation.
-                    # Existing object removal
-                    if not current_objects.empty:
-                        for oni, on in enumerate(object_names):
-                            if current_objects['CURRENT_OBJECTS'].isin([on]).any() or current_objects[
-                                'CURRENT_OBJECTS'
-                            ].isin([f'{on}.symlink']).any():
-                                object_names.remove(on)
-                                del folder_files[oni]
+        #     # small files in folder
+        #     elif mean_filesize <= max_zip_batch_size and len(folder_files) > 0 and global_collate:
+        #         print('Collated upload.', flush=True)
+        #         at_least_one_batch = True
+        #         if not os.path.exists(local_list_file):
+        #             # Extract all zips before continuation.
+        #             # Existing object removal
+        #             if not current_objects.empty:
+        #                 for oni, on in enumerate(object_names):
+        #                     if current_objects['CURRENT_OBJECTS'].isin([on]).any() or current_objects[
+        #                         'CURRENT_OBJECTS'
+        #                     ].isin([f'{on}.symlink']).any():
+        #                         object_names.remove(on)
+        #                         del folder_files[oni]
 
-                    symlink_targets = []
-                    symlink_obj_names = []
-                    for i in range(len(folder_files)):
-                        if os.path.islink(folder_files[i]):
-                            # rename link in object_names
-                            symlink_obj_name = object_names[i]
-                            object_names[i] = '.'.join([object_names[i], 'symlink'])
-                            # add symlink target to symlink_targets list
-                            # using target dir as-is can cause permissions
-                            # issues
-                            # replace /home path with /rds path uses as
-                            # local_dir
-                            target = to_rds_path(os.path.realpath(folder_files[i]), local_dir)
-                            symlink_targets.append(target)
-                            # add real file to symlink_obj_names list
-                            symlink_obj_names.append(symlink_obj_name)
+        #             symlink_targets = []
+        #             symlink_obj_names = []
+        #             for i in range(len(folder_files)):
+        #                 if os.path.islink(folder_files[i]):
+        #                     # rename link in object_names
+        #                     symlink_obj_name = object_names[i]
+        #                     object_names[i] = '.'.join([object_names[i], 'symlink'])
+        #                     # add symlink target to symlink_targets list
+        #                     # using target dir as-is can cause permissions
+        #                     # issues
+        #                     # replace /home path with /rds path uses as
+        #                     # local_dir
+        #                     target = to_rds_path(os.path.realpath(folder_files[i]), local_dir)
+        #                     symlink_targets.append(target)
+        #                     # add real file to symlink_obj_names list
+        #                     symlink_obj_names.append(symlink_obj_name)
 
-                    # append symlink_targets and symlink_obj_names to
-                    # folder_files and object_names
-                    folder_files.extend(symlink_targets)
-                    object_names.extend(symlink_obj_names)
+        #             # append symlink_targets and symlink_obj_names to
+        #             # folder_files and object_names
+        #             folder_files.extend(symlink_targets)
+        #             object_names.extend(symlink_obj_names)
 
-                    file_count = len(object_names)
-                    # always do this AFTER removing "current_objects"
-                    # to avoid re-uploading
-                    # Find sizes
-                    size_futures = [client.submit(filesize, x) for x in folder_files]
-                    sizes = client.gather(size_futures)
+        #             file_count = len(object_names)
+        #             # always do this AFTER removing "current_objects"
+        #             # to avoid re-uploading
+        #             # Find sizes
+        #             size_futures = [client.submit(filesize, x) for x in folder_files]
+        #             sizes = client.gather(size_futures)
 
-                    # Level n collation
-                    # size = 0
-                    for i, filename in enumerate(folder_files):
-                        s = sizes[i]
-                        size += s
-                        if size <= max_zip_batch_size:
-                            zip_batch_files[-1].append(filename)
-                            zip_batch_object_names[-1].append(object_names[i])
-                            zip_batch_sizes[-1] += s
-                        else:
-                            zip_batch_files.append([filename])
-                            zip_batch_object_names.append([object_names[i]])
-                            zip_batch_sizes.append(s)
-                            size = s
-                    print(f'Batch {len(zip_batch_files)}: {len(zip_batch_files[-1])} files, '
-                          f'{zip_batch_sizes[-1]/1024**2:.0f} MiB', flush=True)
-                    print(f'Number of zip files: {len(zip_batch_files)}', flush=True)
+        #             # Level n collation
+        #             # size = 0
+        #             for i, filename in enumerate(folder_files):
+        #                 s = sizes[i]
+        #                 size += s
+        #                 if size <= max_zip_batch_size:
+        #                     zip_batch_files[-1].append(filename)
+        #                     zip_batch_object_names[-1].append(object_names[i])
+        #                     zip_batch_sizes[-1] += s
+        #                 else:
+        #                     zip_batch_files.append([filename])
+        #                     zip_batch_object_names.append([object_names[i]])
+        #                     zip_batch_sizes.append(s)
+        #                     size = s
+        #             print(f'Batch {len(zip_batch_files)}: {len(zip_batch_files[-1])} files, '
+        #                   f'{zip_batch_sizes[-1]/1024**2:.0f} MiB', flush=True)
+        #             print(f'Number of zip files: {len(zip_batch_files)}', flush=True)
         print(f'Done traversing {local_dir}.', flush=True)
 
     print(f'At least one batch: {at_least_one_batch}', flush=True)
