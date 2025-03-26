@@ -1533,7 +1533,6 @@ def process_files(
     # Check for symlinks
     ddf['islink'] = ddf['paths'].apply(
         os.path.islink,
-        axis=1,
         meta=('islink', 'bool')
     )
     # If symlink, change object name to include '.symlink'
