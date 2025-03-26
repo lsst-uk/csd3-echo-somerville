@@ -1528,7 +1528,6 @@ def process_files(
     # Basic object names
     ddf['object_names'] = ddf['paths'].apply(
         lambda x: os.sep.join([destination_dir, os.path.relpath(x, local_dir)]),
-        axis=1,
         meta=('object_names', 'str')
     )
     # Check for symlinks
