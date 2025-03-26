@@ -1501,7 +1501,7 @@ def process_files(
                 ]
             )
         total_all_folders += 1
-        if total_all_folders % 900 == 0:
+        if total_all_folders % 500 == 0:
             # avoid hitting the recursion limit
             ddf = ddf.compute().reset_index(drop=True)
             ddf = dd.from_pandas(ddf)
