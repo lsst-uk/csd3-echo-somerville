@@ -1480,39 +1480,37 @@ def process_files(
             print('Skipping subfolder - no files.', flush=True)
             continue
         if not done_first:
-            ddf = dd.from_pandas(
-                pd.DataFrame(
-                    {
-                        'paths': [os.path.join(folder, filename) for filename in files]
-                    }
-                )
+            df = pd.DataFrame(
+                {
+                    'paths': [os.path.join(folder, filename) for filename in files]
+                }
             )
         else:
-            ddf = dd.concat(
+            df = pd.concat(
                 [
-                    ddf,
-                    dd.from_pandas(
-                        pd.DataFrame(
-                            {
-                                'paths': [os.path.join(folder, filename) for filename in files]
-                            }
-                        )
+                    df,
+                    pd.DataFrame(
+                        {
+                            'paths': [os.path.join(folder, filename) for filename in files]
+                        }
                     )
                 ]
             )
         total_all_folders += 1
-        if total_all_folders % 500 == 0:
-            # avoid hitting the recursion limit
-            ddf = ddf.compute().reset_index(drop=True)
-            ddf = dd.from_pandas(ddf)
+        # if total_all_folders % 500 == 0:
+        #     # avoid hitting the recursion limit
+        #     ddf = ddf.compute().reset_index(drop=True)
+        #     ddf = dd.from_pandas(ddf)
 
         done_first = True
     print()
-    all_files = ddf.compute().reset_index(drop=True)
-    all_files.to_csv('test.csv')
-    print(f'Folders: {total_all_folders} Files: {len(all_files)}', flush=True)
+    df = df.reset_index(drop=True)
+    ddf = dd.from_pandas(df, npartitions=1)
+    df.to_csv('test.csv')
+    print(f'Folders: {total_all_folders} Files: {len(df)}', flush=True)
     print('Analysing local dataset complete.', flush=True)
-    print(all_files.head(), flush=True)
+    print(df.head(), flush=True)
+    del df
     exit()
     if file_count_stop and len(current_objects) > 0:
         total_non_collate_zip = len(
