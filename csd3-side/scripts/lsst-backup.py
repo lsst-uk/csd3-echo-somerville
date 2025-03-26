@@ -1576,10 +1576,7 @@ def process_files(
             local_dir,
             destination_dir,
         ),
-        meta=(
-            'targets',
-            ddf,
-        )
+        meta=ddf
     ).compute()
     print(targets, flush=True)
     # Add symlink target paths to ddf
