@@ -1566,7 +1566,7 @@ def process_files(
     ddf = dd.concat([ddf, targets])
     ddf = ddf.compute()
     ddf.reset_index(drop=True, inplace=True)
-    ddf.to_csv(save_local_file + 'test', index=False)
+    ddf.to_csv('test_filesandlinks.csv', index=False)
     print(ddf, flush=True)
     exit()
 
