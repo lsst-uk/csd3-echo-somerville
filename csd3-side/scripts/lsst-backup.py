@@ -1544,21 +1544,11 @@ def process_files(
         axis=1,
         meta=('object_names', 'str')
     )
-    # for i in range(len(folder_files)):
-    #             if os.path.islink(folder_files[i]):
-    #                 # rename link in object_names
-    #                 symlink_obj_name = object_names[i]
-    #                 object_names[i] = '.'.join([object_names[i], 'symlink'])
-    #                 # add symlink target to symlink_targets list
-    #                 # using target dir as-is can cause permissions issues
-    #                 # replace /home path with /rds path uses as local_dir
-    #                 target = to_rds_path(os.path.realpath(folder_files[i]), local_dir)
-    #                 symlink_targets.append(target)
-    #                 # add real file to symlink_obj_names list
-    #                 symlink_obj_names.append(symlink_obj_name)
     # Add symlink target paths
     print('Adding symlink target paths.', flush=True)
-    targets = ddf[ddf['islink'] == True]['paths'].apply(
+    targets = ddf[
+        ddf['islink'] == True # noqa
+    ]['paths'].apply(
         lambda x: to_rds_path(os.path.realpath(x), local_dir),
         meta=('paths', 'str')
     ).compute()
@@ -1574,7 +1564,10 @@ def process_files(
     print(targets, flush=True)
     # Add symlink target paths to ddf
     ddf = dd.concat([ddf, targets])
-    print(ddf.compute(), flush=True)
+    ddf = ddf.compute()
+    ddf.reset_index(drop=True, inplace=True)
+    ddf.to_csv(save_local_file + 'test', index=False)
+    print(ddf, flush=True)
     exit()
 
     if not os.path.exists(local_list_file):
