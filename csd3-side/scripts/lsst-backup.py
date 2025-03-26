@@ -47,6 +47,22 @@ from typing import List
 warnings.filterwarnings('ignore')
 
 
+def follow_symlinks(path: str, local_dir: str, destination_dir: str) -> pd.DataFrame:
+    """
+    Follows symlinks in a directory and returns a DataFrame containing the
+    new path and generated object_name.
+    """
+    target = to_rds_path(os.path.realpath(path), local_dir)
+    object_name = os.sep.join([destination_dir, os.path.relpath(path, local_dir)])
+    return {
+        pd.DataFrame({
+            'paths': [target],
+            'object_names': [object_name],
+            'islink': [False]
+        })
+    }
+
+
 def my_lit_eval(x: object) -> object:
     """
     Safely evaluates a string containing a Python literal expression.
@@ -1546,25 +1562,30 @@ def process_files(
     )
     # Add symlink target paths
     print('Adding symlink target paths.', flush=True)
-    targets = ddf[
+    # targets = ddf[
+    #     ddf['islink'] == True # noqa
+    # ]['paths'].apply(
+    #     lambda x: to_rds_path(os.path.realpath(x), local_dir),
+    #     meta=('paths', 'str')
+    # ).compute()
+    targets = targets = ddf[
         ddf['islink'] == True # noqa
     ]['paths'].apply(
-        lambda x: to_rds_path(os.path.realpath(x), local_dir),
-        meta=('paths', 'str')
+        follow_symlinks,
+        args=(
+            local_dir,
+            destination_dir,
+        ),
+        meta=(
+            'targets',
+            pd.DataFrame['paths', 'object_names', 'islink']
+        )
     ).compute()
-    targets = pd.DataFrame(
-        {
-            'paths': targets,
-            'object_names': targets.apply(
-                lambda x: os.sep.join([destination_dir, os.path.relpath(x, local_dir)]),
-            )
-        }
-    )
-    targets['islink'] = False
     print(targets, flush=True)
     # Add symlink target paths to ddf
     ddf = dd.concat([ddf, targets])
     ddf = ddf.compute()
+    del targets
     ddf.reset_index(drop=True, inplace=True)
     ddf.to_csv('test_filesandlinks.csv', index=False)
     print(ddf, flush=True)
