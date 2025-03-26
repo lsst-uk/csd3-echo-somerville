@@ -1463,14 +1463,54 @@ def process_files(
     individual_object_names = []
     individual_files_sizes = []
 
+    # Traversal with Pandas and Dask
+    # Do absolute minimal work during traversal - get paths only
+    # All other operations will be parallelised later
+    # ddf = dd.from_pandas(pd.DataFrame([], columns=['paths']), npartitions=1)
+    done_first = False
     print(f'Analysing local dataset {local_dir}.', flush=True)
     for folder, sub_folders, files in os.walk(local_dir, topdown=True):
+        if exclude.isin([folder]).any():
+            continue
+        if len(files) == 0 and len(sub_folders) == 0:
+            print('Skipping subfolder - no files or subfolders.', flush=True)
+            continue
+        elif len(files) == 0:
+            print('Skipping subfolder - no files.', flush=True)
+            continue
+        if not done_first:
+            ddf = dd.from_pandas(
+                pd.DataFrame(
+                    {
+                        'paths': [os.path.join(folder, filename) for filename in files]
+                    }
+                )
+            )
+        else:
+            ddf = dd.concat(
+                [
+                    ddf,
+                    dd.from_pandas(
+                        pd.DataFrame(
+                            {
+                                'paths': [os.path.join(folder, filename) for filename in files]
+                            }
+                        )
+                    )
+                ]
+            )
         total_all_folders += 1
-        total_all_files += len(files)
         if total_all_folders % 1000 == 0:
             print('.', end='', flush=True)
+
+        done_first = True
     print()
-    print(f'Folders: {total_all_folders} Files: {total_all_files}', flush=True)
+    all_files = ddf.compute().reset_index(drop=True)
+    all_files.to_csv('test.csv')
+    print(f'Folders: {total_all_folders} Files: {len(all_files)}', flush=True)
+    print('Analysing local dataset complete.', flush=True)
+    print(all_files.head(), flush=True)
+    exit()
     if file_count_stop and len(current_objects) > 0:
         total_non_collate_zip = len(
             current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_') == False] # noqa
