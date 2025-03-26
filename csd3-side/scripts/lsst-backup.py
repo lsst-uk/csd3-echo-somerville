@@ -1578,7 +1578,7 @@ def process_files(
         ),
         meta=(
             'targets',
-            pd.DataFrame,
+            ddf,
         )
     ).compute()
     print(targets, flush=True)
