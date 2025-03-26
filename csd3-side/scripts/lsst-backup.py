@@ -1508,7 +1508,7 @@ def process_files(
     ddf = dd.from_pandas(df, npartitions=1)
 
     print(f'Folders: {total_all_folders} Files: {len(df)}', flush=True)
-    print('Analysing local dataset complete.', flush=True)
+    # print('Analysing local dataset complete.', flush=True)
     # print(df.head(), flush=True)
     del df
 
@@ -1558,15 +1558,19 @@ def process_files(
         lambda x: to_rds_path(os.path.realpath(x), local_dir),
         meta=('paths', 'str')
     ).compute()
-    targets['object_names'] = targets['paths'].apply(
-        lambda x: os.sep.join([destination_dir, os.path.relpath(x, local_dir)]),
-        axis=1,
+    targets = pd.DataFrame(
+        {
+            'paths': targets,
+            'object_names': targets.apply(
+                lambda x: os.sep.join([destination_dir, os.path.relpath(x, local_dir)]),
+            )
+        }
     )
     targets['islink'] = False
-
+    print(targets, flush=True)
     # Add symlink target paths to ddf
     ddf = ddf.merge(targets, on='paths', how='left')
-    print(ddf)
+    print(ddf.compute(), flush=True)
     exit()
 
     if not os.path.exists(local_list_file):
