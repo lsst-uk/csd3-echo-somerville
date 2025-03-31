@@ -1579,8 +1579,8 @@ def process_files(
     print(targets, flush=True)
     print(type(targets), flush=True)
     # Add symlink target paths to ddf
-    ddf = dd.concat([ddf, targets])
     ddf = ddf.compute()
+    ddf = dd.merge([ddf, targets])
     del targets
     ddf.reset_index(drop=True, inplace=True)
     ddf.to_csv('test_filesandlinks.csv', index=False)
