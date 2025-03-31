@@ -54,13 +54,19 @@ def follow_symlinks(path: str, local_dir: str, destination_dir: str) -> pd.DataF
     """
     target = to_rds_path(os.path.realpath(path), local_dir)
     object_name = os.sep.join([destination_dir, os.path.relpath(path, local_dir)])
+    return_dict = {
+        'paths': [target],
+        'object_names': [object_name],
+        'islink': [True]
+    }
     return_df = pd.DataFrame.from_dict({
         'paths': [target],
         'object_names': [object_name],
         'islink': [False]
     })
     dprint(return_df, flush=True)
-    return return_df
+    dprint(return_dict, flush=True)
+    return return_dict
 
 
 def my_lit_eval(x: object) -> object:
@@ -1576,19 +1582,19 @@ def process_files(
             local_dir,
             destination_dir,
         ),
-        meta=('targets', str),
-        # meta=pd.DataFrame(
-        #     {
-        #         'paths': pd.Series(dtype='str'),
-        #         'object_names': pd.Series(dtype='str'),
-        #         'islink': pd.Series(dtype='bool')
-        #     }
-        # )
+        # meta=('targets', str),
+        meta=pd.DataFrame(
+            {
+                'paths': pd.Series(dtype='str'),
+                'object_names': pd.Series(dtype='str'),
+                'islink': pd.Series(dtype='bool')
+            }
+        )
     )
     print(targets, flush=True)
     print(f'type(targets): {type(targets)}', flush=True)
     targets.to_csv('test_targets.csv', index=False)
-    targets = targets.compute().iloc[0]
+    targets = targets.compute().iloc[:]
     print(f'type(targets) after compute: {type(targets)}', flush=True)
     targets.to_csv('test_targets_after_compute.csv', index=False)
     targets = targets.reset_index(drop=True)
