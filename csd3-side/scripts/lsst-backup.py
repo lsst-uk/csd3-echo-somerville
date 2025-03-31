@@ -1577,8 +1577,9 @@ def process_files(
         meta=ddf
     ).compute()
     print(targets, flush=True)
+    print(type(targets), flush=True)
     # Add symlink target paths to ddf
-    ddf = dd.concat([ddf, targets.compute()])
+    ddf = dd.concat([ddf, targets])
     ddf = ddf.compute()
     del targets
     ddf.reset_index(drop=True, inplace=True)
