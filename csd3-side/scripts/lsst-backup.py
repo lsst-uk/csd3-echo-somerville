@@ -1574,7 +1574,7 @@ def process_files(
             local_dir,
             destination_dir,
         ),
-        meta=pd.DataFrame()
+        meta=ddf
     ).compute()
     print(targets, flush=True)
     print(type(targets), flush=True)
