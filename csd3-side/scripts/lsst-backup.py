@@ -1574,7 +1574,13 @@ def process_files(
             local_dir,
             destination_dir,
         ),
-        meta=pd.core.series.Series()
+        meta=pd.core.frame.DataFrame(
+            {
+                'paths': pd.Series(dtype='str'),
+                'object_names': pd.Series(dtype='str'),
+                'islink': pd.Series(dtype='bool')
+            }
+        )
     )
     print(targets, flush=True)
     print(type(targets), flush=True)
@@ -1583,7 +1589,7 @@ def process_files(
     print(type(targets), flush=True)
     # Add symlink target paths to ddf
     ddf = ddf.compute()
-    ddf = pd.concat([ddf, targets], axis=1)
+    ddf = pd.merge([ddf, targets], axis=1)
     del targets
     ddf.reset_index(drop=True, inplace=True)
     ddf.to_csv('test_filesandlinks.csv', index=False)
