@@ -1585,6 +1585,8 @@ def process_files(
     print(targets, flush=True)
     print(type(targets), flush=True)
     targets = targets.compute()
+    targets = targets.reset_index(drop=True)
+    targets.to_csv('test_targets.csv', index=False)
     print(targets, flush=True)
     print(type(targets), flush=True)
     # Add symlink target paths to ddf
