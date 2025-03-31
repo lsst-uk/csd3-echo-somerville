@@ -1576,7 +1576,7 @@ def process_files(
             local_dir,
             destination_dir,
         ),
-        meta=('targets', pd.core.series.Series),
+        meta=('targets', str),
         # meta=pd.DataFrame(
         #     {
         #         'paths': pd.Series(dtype='str'),
