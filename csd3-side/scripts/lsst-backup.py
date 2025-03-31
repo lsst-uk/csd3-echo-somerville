@@ -1583,7 +1583,7 @@ def process_files(
     print(type(targets), flush=True)
     # Add symlink target paths to ddf
     ddf = ddf.compute()
-    ddf = pd.concat([ddf, targets])
+    ddf = pd.concat([ddf, targets], axis=1)
     del targets
     ddf.reset_index(drop=True, inplace=True)
     ddf.to_csv('test_filesandlinks.csv', index=False)
