@@ -66,7 +66,7 @@ def follow_symlinks(path: str, local_dir: str, destination_dir: str) -> pd.DataF
     })
     dprint(return_df, flush=True)
     dprint(return_dict, flush=True)
-    return return_dict
+    return return_df
 
 
 def my_lit_eval(x: object) -> object:
