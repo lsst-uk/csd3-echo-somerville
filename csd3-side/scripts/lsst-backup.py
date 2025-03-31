@@ -55,9 +55,9 @@ def follow_symlinks(path: str, local_dir: str, destination_dir: str) -> pd.DataF
     target = to_rds_path(os.path.realpath(path), local_dir)
     object_name = os.sep.join([destination_dir, os.path.relpath(path, local_dir)])
     return_dict = {
-        'paths': [target],
-        'object_names': [object_name],
-        'islink': [False]
+        'paths': target,
+        'object_names': object_name,
+        'islink': False
     }
     return_df = pd.DataFrame.from_dict({
         'paths': [target],
@@ -68,7 +68,7 @@ def follow_symlinks(path: str, local_dir: str, destination_dir: str) -> pd.DataF
     dprint(return_df, flush=True)
     dprint(return_dict, flush=True)
     dprint(return_tuple, flush=True)
-    return return_tuple
+    return return_dict
 
 
 def my_lit_eval(x: object) -> object:
