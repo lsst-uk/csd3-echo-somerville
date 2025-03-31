@@ -1594,7 +1594,7 @@ def process_files(
     print(targets, flush=True)
     print(f'type(targets): {type(targets)}', flush=True)
     targets.to_csv('test_targets.csv', index=False)
-    targets = targets.compute().iloc[:]
+    targets = targets.compute()
     print(f'type(targets) after compute: {type(targets)}', flush=True)
     targets.to_csv('test_targets_after_compute.csv', index=False)
     targets = targets.reset_index(drop=True)
