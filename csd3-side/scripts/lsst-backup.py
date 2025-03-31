@@ -1574,8 +1574,11 @@ def process_files(
             local_dir,
             destination_dir,
         ),
-        meta=ddf
-    ).compute()
+        meta=pd.core.series.Series()
+    )
+    print(targets, flush=True)
+    print(type(targets), flush=True)
+    targets = targets.compute()
     print(targets, flush=True)
     print(type(targets), flush=True)
     # Add symlink target paths to ddf
