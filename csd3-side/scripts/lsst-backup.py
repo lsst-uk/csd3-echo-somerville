@@ -1585,7 +1585,7 @@ def process_files(
             destination_dir,
         ),
         # meta=('targets', str),
-        meta=('targets', dict)
+        meta=('targets', 'dict')
     )
     print(targets, flush=True)
     print(f'type(targets): {type(targets)}', flush=True)
