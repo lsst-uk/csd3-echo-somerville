@@ -1574,8 +1574,8 @@ def process_files(
             local_dir,
             destination_dir,
         ),
-        meta=('object_names', 'str')
-    )
+        meta=ddf
+    ).compute()
     print(targets, flush=True)
     # Add symlink target paths to ddf
     ddf = dd.concat([ddf, targets.compute()])
