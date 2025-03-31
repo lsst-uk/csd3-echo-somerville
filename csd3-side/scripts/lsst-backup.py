@@ -54,11 +54,13 @@ def follow_symlinks(path: str, local_dir: str, destination_dir: str) -> pd.DataF
     """
     target = to_rds_path(os.path.realpath(path), local_dir)
     object_name = os.sep.join([destination_dir, os.path.relpath(path, local_dir)])
-    return pd.DataFrame.from_dict({
+    return_df = pd.DataFrame.from_dict({
         'paths': [target],
         'object_names': [object_name],
         'islink': [False]
     })
+    dprint(return_df,flush=True)
+    return return_df
 
 
 def my_lit_eval(x: object) -> object:
@@ -1574,7 +1576,7 @@ def process_files(
             local_dir,
             destination_dir,
         ),
-        meta=pd.core.frame.DataFrame(
+        meta=pd.DataFrame(
             {
                 'paths': pd.Series(dtype='str'),
                 'object_names': pd.Series(dtype='str'),
