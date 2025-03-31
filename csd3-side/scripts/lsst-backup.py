@@ -1568,7 +1568,7 @@ def process_files(
     #     lambda x: to_rds_path(os.path.realpath(x), local_dir),
     #     meta=('paths', 'str')
     # ).compute()
-    targets = targets = ddf[
+    targets = ddf[
         ddf['islink'] == True # noqa
     ]['paths'].apply(
         follow_symlinks,
@@ -1576,7 +1576,7 @@ def process_files(
             local_dir,
             destination_dir,
         ),
-        meta=ddf
+        meta=bool
     ).compute()
     print(targets, flush=True)
     # Add symlink target paths to ddf
