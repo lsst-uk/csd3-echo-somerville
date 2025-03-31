@@ -59,7 +59,7 @@ def follow_symlinks(path: str, local_dir: str, destination_dir: str) -> pd.DataF
         'object_names': [object_name],
         'islink': [False]
     })
-    dprint(return_df,flush=True)
+    dprint(return_df, flush=True)
     return return_df
 
 
@@ -1586,9 +1586,9 @@ def process_files(
     )
     print(targets, flush=True)
     print(type(targets), flush=True)
+    targets.to_csv('test_targets.csv', index=False)
     targets = targets.compute()
     targets = targets.reset_index(drop=True)
-    targets.to_csv('test_targets.csv', index=False)
     print(targets, flush=True)
     print(type(targets), flush=True)
     # Add symlink target paths to ddf
