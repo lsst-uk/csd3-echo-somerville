@@ -1576,13 +1576,14 @@ def process_files(
             local_dir,
             destination_dir,
         ),
-        meta=pd.DataFrame(
-            {
-                'paths': pd.Series(dtype='str'),
-                'object_names': pd.Series(dtype='str'),
-                'islink': pd.Series(dtype='bool')
-            }
-        )
+        meta=pd.Series,
+        # meta=pd.DataFrame(
+        #     {
+        #         'paths': pd.Series(dtype='str'),
+        #         'object_names': pd.Series(dtype='str'),
+        #         'islink': pd.Series(dtype='bool')
+        #     }
+        # )
     )
     print(targets, flush=True)
     print(f'type(targets): {type(targets)}', flush=True)
