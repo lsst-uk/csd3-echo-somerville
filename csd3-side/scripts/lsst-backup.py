@@ -1637,9 +1637,9 @@ def process_files(
         #             print(f'Number of zip files: {len(zip_batch_files)}', flush=True)
 
         cumulative_size = 0
-        batches = []
-        batch = []
-        batch_number = []
+        batches = [None]
+        batch = [None]
+        batch_number = [None]
         for row in ddf.iterrows():
             if row[1]['individual_upload']:
                 batch_number.append(0)
@@ -1652,12 +1652,16 @@ def process_files(
                 else:
                     batch.append(1)
                     cumulative_size += size
+                    if row[1].name == ddf.index[-1]:
+                        batches.append(1)
                 batch_number.append(len(batches))
+            print(f'row: {row[1].local_path} - batch: {len(batches)} - cumulative_size: {cumulative_size} - size: {size} - individual_upload: {row[1]["individual_upload"]}')
         del batch, batches, cumulative_size
-        zip_batch = pd.Series(batch_number, name='zip_batch', dtype='int')
+        zip_batch = pd.Series(batch_number[1:], name='zip_batch', dtype='int')
         print(zip_batch, flush=True)
         ddf['zip_batch'] = zip_batch
         del zip_batch
+        ddf = ddf.compute()
         print(ddf, flush=True)
         ddf.to_csv('test_ddf.csv', index=False)
         exit()
