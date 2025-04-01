@@ -1612,8 +1612,8 @@ def process_files(
         )
 
         print('Computing dataframe.', flush=True)
-        # compute up to this point, but keep as ddf
-        ddf = ddf.persist()
+        # compute up to this point
+        ddf = ddf.compute()
         ddf = ddf.reset_index(drop=True)
 
         # Decide collated upload batches
@@ -1661,7 +1661,7 @@ def process_files(
         print(zip_batch, flush=True)
         ddf['zip_batch'] = zip_batch
         del zip_batch
-        ddf = ddf.compute()
+
         print(ddf, flush=True)
         ddf.to_csv('test_ddf.csv', index=False)
         exit()
