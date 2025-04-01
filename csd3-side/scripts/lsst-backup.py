@@ -1588,11 +1588,12 @@ def process_files(
     targets = targets.compute()
 
     # Add symlink target paths to ddf
-
+    # here still dd
     ddf = dd.concat([ddf, targets])
-    ddf = ddf.reset_index(drop=True)
     del targets
     ddf = ddf.compute()
+    # now pd
+    ddf = ddf.reset_index(drop=True)
     print(ddf)
     ddf.to_csv('test_ddf.csv', index=False)
     exit()
