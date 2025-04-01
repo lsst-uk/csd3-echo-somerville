@@ -1768,19 +1768,21 @@ def process_files(
             # uploads['size'] = uploads['size'].astype(int)
 
             # call zip_folder in parallel
+            num_zip_batches = to_collate['zip_batch'].max().compute()
             print(to_collate, flush=True)
-            print(to_collate['zip_batch'].max(), flush=True)
+            print(num_zip_batches, flush=True)
             print(len(to_collate[to_collate['zip_batch'] == 0]), flush=True)
+
             print(f"Zipping and uploading "
-                    f"{to_collate['zip_batch'].max()} " # noqa
+                    f"{num_zip_batches} " # noqa
                     "batches.", flush=True)
             print(f"Uploading "
                     f"{len(to_collate[to_collate['individual_upload'] == True])} " # noqa
                     "individual files.", flush=True)
             print(f'Total: {len(to_collate)}', flush=True)
-            print(f"Average files per zip batch: {(len(to_collate[to_collate['individual_upload'] == False]) / to_collate['zip_batch'].max()):.2f}", flush=True)
+            print(f"Average files per zip batch: {(len(to_collate[to_collate['individual_upload'] == False]) / num_zip_batches):.2f}", flush=True)
             print('Uploading...', flush=True)
-
+            exit()
             # uploads['uploaded'] = False
             # uploads['uploaded'] = uploads['uploaded'].astype(bool)
             # print('uploads type')
