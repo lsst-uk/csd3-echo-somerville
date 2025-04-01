@@ -59,16 +59,16 @@ def follow_symlinks(path: str, local_dir: str, destination_dir: str) -> pd.DataF
         'object_names': object_name,
         'islink': False
     }
-    return_df = pd.DataFrame.from_dict({
-        'paths': [target],
-        'object_names': [object_name],
-        'islink': [False]
-    })
+    return_ser = pd.Series(
+        target,
+        object_name,
+        False
+    )
     return_tuple = (target, object_name, False)
-    dprint(return_df, flush=True)
+    dprint(return_ser, flush=True)
     dprint(return_dict, flush=True)
     dprint(return_tuple, flush=True)
-    return return_dict
+    return return_ser
 
 
 def my_lit_eval(x: object) -> object:
@@ -1584,8 +1584,7 @@ def process_files(
             local_dir,
             destination_dir,
         ),
-        # meta=('targets', str),
-        meta=('targets', object)
+        meta=('targets', pd.Series(dtype='object'))
     )
     print(targets, flush=True)
     print(f'type(targets): {type(targets)}', flush=True)
