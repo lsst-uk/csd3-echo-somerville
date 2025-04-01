@@ -60,9 +60,16 @@ def follow_symlinks(path: str, local_dir: str, destination_dir: str) -> pd.DataF
         'islink': False
     }
     return_ser = pd.Series(
-        target,
-        object_name,
-        False
+        [
+            target,
+            object_name,
+            False
+        ],
+        index=[
+            'paths',
+            'object_names',
+            'islink'
+        ]
     )
     return_tuple = (target, object_name, False)
     dprint(return_ser, flush=True)
