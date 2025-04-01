@@ -1777,7 +1777,7 @@ def process_files(
             print(f"Uploading "
                     f"{len(to_collate[to_collate['individual_upload'] == True])} " # noqa
                     "individual files.", flush=True)
-
+            print(f'Total: {len(to_collate)}', flush=True)
             print('Uploading...', flush=True)
             exit()
             # uploads['uploaded'] = False
