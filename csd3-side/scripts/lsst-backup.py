@@ -47,18 +47,13 @@ from typing import List
 warnings.filterwarnings('ignore')
 
 
-def follow_symlinks(path: str, local_dir: str, destination_dir: str) -> pd.DataFrame:
+def follow_symlinks(path: str, local_dir: str, destination_dir: str) -> pd.Series:
     """
     Follows symlinks in a directory and returns a DataFrame containing the
     new path and generated object_name.
     """
     target = to_rds_path(os.path.realpath(path), local_dir)
     object_name = os.sep.join([destination_dir, os.path.relpath(path, local_dir)])
-    return_dict = {
-        'paths': target,
-        'object_names': object_name,
-        'islink': False
-    }
     return_ser = pd.Series(
         [
             target,
@@ -71,10 +66,6 @@ def follow_symlinks(path: str, local_dir: str, destination_dir: str) -> pd.DataF
             'islink'
         ]
     )
-    return_tuple = (target, object_name, False)
-    dprint(return_ser, flush=True)
-    dprint(return_dict, flush=True)
-    dprint(return_tuple, flush=True)
     return return_ser
 
 
@@ -1593,23 +1584,17 @@ def process_files(
         ),
         meta=pd.Series(dtype='object')
     )
-    print(targets, flush=True)
-    print(f'type(targets): {type(targets)}', flush=True)
-    # targets.to_csv('test_targets.csv', index=False)
-    # targets_df = pd.DataFrame([targets['paths'].compute(),targets['object_names'].compute(),targets['islink'].compute()], columns=['paths','object_names','islink'])
+
     targets = targets.compute()
-    print(f'type(targets) after compute: {type(targets)}', flush=True)
-    targets.to_csv('test_targets_after_compute.csv', index=False)
-    targets = targets.reset_index(drop=True)
-    print(targets, flush=True)
-    print(type(targets), flush=True)
+
     # Add symlink target paths to ddf
-    ddf = ddf.compute()
+
     ddf = pd.concat([ddf, targets])
+    ddf = ddf.reset_index(drop=True)
     del targets
-    ddf.reset_index(drop=True, inplace=True)
-    ddf.to_csv('test_filesandlinks.csv', index=False)
-    print(ddf, flush=True)
+    ddf = ddf.compute()
+    print(ddf)
+    ddf.to_csv('test_ddf.csv', index=False)
     exit()
 
     if not os.path.exists(local_list_file):
