@@ -1778,7 +1778,7 @@ def process_files(
                     f"{len(to_collate[to_collate['individual_upload'] == True])} " # noqa
                     "individual files.", flush=True)
             print(f'Total: {len(to_collate)}', flush=True)
-            print(f"Average files per zip batch: {(len(to_collate) - len(to_collate[to_collate['zip_batch'] > 0])) / len(to_collate[to_collate['zip_batch'] > 0]):.2f}", flush=True)
+            print(f"Average files per zip batch: {len(to_collate[to_collate['individual_upload'] == False]) / len(to_collate[to_collate['zip_batch'] > 0]):.2f}", flush=True)
             print('Uploading...', flush=True)
             exit()
             # uploads['uploaded'] = False
