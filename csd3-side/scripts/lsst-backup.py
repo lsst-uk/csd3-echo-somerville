@@ -1654,9 +1654,10 @@ def process_files(
                     cumulative_size += size
                 batch_number.append(len(batches))
         del batch, batches, cumulative_size
-        zip_batch = pd.Series(batch_number, name='zip_batch')
+        zip_batch = pd.Series(batch_number, name='zip_batch', dtype='int')
         print(zip_batch, flush=True)
         ddf['zip_batch'] = zip_batch
+        del zip_batch
         print(ddf, flush=True)
         ddf.to_csv('test_ddf.csv', index=False)
         exit()
