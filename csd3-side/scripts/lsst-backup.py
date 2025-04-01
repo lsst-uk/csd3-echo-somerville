@@ -1770,9 +1770,10 @@ def process_files(
             # call zip_folder in parallel
             print(to_collate, flush=True)
             print(to_collate['zip_batch'].max().compute(), flush=True)
+            print(len(to_collate[to_collate['zip_batch'] == 0]), flush=True)
             print(f"Zipping and uploading "
-                    f"{len(to_collate[to_collate['zip_batch'] > 0])} " # noqa
-                    "batches.", flush=True)
+                    f"{to_collate['zip_batch'].max().compute()} " # noqa
+                    "batches.", flush=True)1
             print(f"Uploading "
                     f"{len(to_collate[to_collate['individual_upload'] == True])} " # noqa
                     "individual files.", flush=True)
