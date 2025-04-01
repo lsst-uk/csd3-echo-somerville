@@ -1591,15 +1591,31 @@ def process_files(
 
         # Drop any files that are already on S3
         if not current_objects.empty:
-            # just_ons = ddf['object_names'].compute()
+            print('Removing files already on S3.', flush=True)
             ddf = ddf[ddf['object_names'].isin(current_objects['CURRENT_OBJECTS']) == False] # noqa
             # del just_ons
+
+        # Get size of each file
+        print('Getting file sizes.', flush=True)
+        ddf['size'] = ddf.apply(
+            lambda x: os.path.getsize(x['paths']) if not x['islink'] else 0,
+            meta=('size', 'int')
+        )
+
+        # Decide individual uploads
+        ddf['individual_upload'] = ddf.apply(
+            lambda x: True if x['size'] > max_zip_batch_size / 2 else False,
+            meta=('individual_upload', 'bool')
+        )
 
         ddf = ddf.compute()
         # now pd
         ddf = ddf.reset_index(drop=True)
         print(ddf)
         ddf.to_csv('test_ddf.csv', index=False)
+        exit()
+        # Batch into zips and individual files
+
 
 
         # print(f'Preparing to upload {total_all_files} files in {total_all_folders} folders from {local_dir} '
