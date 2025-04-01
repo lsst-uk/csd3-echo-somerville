@@ -1735,7 +1735,7 @@ def process_files(
             },
             na_filter=False,
             keep_default_na=False,
-        ).persist()
+        ).compute()
         if len(to_collate) > 0:
             # to_collate['object_names'] = to_collate['object_names'].apply(my_lit_eval).astype(object)
             # to_collate['id'] = to_collate['id'].astype(int)
@@ -1769,10 +1769,10 @@ def process_files(
 
             # call zip_folder in parallel
             print(to_collate, flush=True)
-            print(to_collate['zip_batch'].max().compute(), flush=True)
+            print(to_collate['zip_batch'].max(), flush=True)
             print(len(to_collate[to_collate['zip_batch'] == 0]), flush=True)
             print(f"Zipping and uploading "
-                    f"{to_collate['zip_batch'].max().compute()} " # noqa
+                    f"{to_collate['zip_batch'].max()} " # noqa
                     "batches.", flush=True)
             print(f"Uploading "
                     f"{len(to_collate[to_collate['individual_upload'] == True])} " # noqa
