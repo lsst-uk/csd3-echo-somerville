@@ -1642,7 +1642,7 @@ def process_files(
         batch_number = []
         for row in ddf.iterrows():
             if row[1]['individual_upload']:
-                batch_number.append(None)
+                batch_number.append(0)
             else:
                 size = row[1]['size']
                 if cumulative_size + size > max_zip_batch_size:
