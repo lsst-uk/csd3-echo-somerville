@@ -1604,15 +1604,56 @@ def process_files(
         )
 
         # Decide individual uploads
+        print('Deciding individual uploads.', flush=True)
         ddf['individual_upload'] = ddf.apply(
             lambda x: True if x['size'] > max_zip_batch_size / 2 else False,
             meta=('individual_upload', 'bool'),
             axis=1
         )
 
-        ddf = ddf.compute()
-        # now pd
+        print('Computing dataframe.', flush=True)
+        # compute up to this point, but keep as ddf
+        ddf = ddf.persist()
         ddf = ddf.reset_index(drop=True)
+
+        # Decide collated upload batches
+        print('Deciding collated upload batches.', flush=True)
+        #             # Level n collation
+        #             # size = 0
+        #             for i, filename in enumerate(folder_files):
+        #                 s = sizes[i]
+        #                 size += s
+        #                 if size <= max_zip_batch_size:
+        #                     zip_batch_files[-1].append(filename)
+        #                     zip_batch_object_names[-1].append(object_names[i])
+        #                     zip_batch_sizes[-1] += s
+        #                 else:
+        #                     zip_batch_files.append([filename])
+        #                     zip_batch_object_names.append([object_names[i]])
+        #                     zip_batch_sizes.append(s)
+        #                     size = s
+        #             print(f'Batch {len(zip_batch_files)}: {len(zip_batch_files[-1])} files, '
+        #                   f'{zip_batch_sizes[-1]/1024**2:.0f} MiB', flush=True)
+        #             print(f'Number of zip files: {len(zip_batch_files)}', flush=True)
+
+        cumulative_size = 0
+        batches = []
+        batch = []
+        batch_number = []
+        for row in ddf[ddf['individual_upload'] == False].iterrows():
+            size = row[1]['size']
+            if cumulative_size + size > max_zip_batch_size:
+                batches.append(1)
+                batch = [1]
+                cumulative_size = size
+            else:
+                batch.append(1)
+                cumulative_size += size
+            batch_number.append(len(batches))
+        del batch, batches, cumulative_size
+        batch = pd.Series(batch_number, name='batch')
+        print(batch)
+
         print(ddf)
         ddf.to_csv('test_ddf.csv', index=False)
         exit()
