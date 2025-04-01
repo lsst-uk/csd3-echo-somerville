@@ -1735,7 +1735,7 @@ def process_files(
             },
             na_filter=False,
             keep_default_na=False,
-        ).compute()
+        ).persist()
         if len(to_collate) > 0:
             # to_collate['object_names'] = to_collate['object_names'].apply(my_lit_eval).astype(object)
             # to_collate['id'] = to_collate['id'].astype(int)
@@ -1780,7 +1780,7 @@ def process_files(
             print(f'Total: {len(to_collate)}', flush=True)
             print(f"Average files per zip batch: {(len(to_collate[to_collate['individual_upload'] == False]) / to_collate['zip_batch'].max()):.2f}", flush=True)
             print('Uploading...', flush=True)
-            exit()
+
             # uploads['uploaded'] = False
             # uploads['uploaded'] = uploads['uploaded'].astype(bool)
             # print('uploads type')
