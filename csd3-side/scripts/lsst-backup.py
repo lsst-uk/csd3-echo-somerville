@@ -1584,7 +1584,7 @@ def process_files(
             local_dir,
             destination_dir,
         ),
-        meta=('targets', pd.Series(dtype='object'))
+        meta=pd.Series(dtype='object')
     )
     print(targets, flush=True)
     print(f'type(targets): {type(targets)}', flush=True)
