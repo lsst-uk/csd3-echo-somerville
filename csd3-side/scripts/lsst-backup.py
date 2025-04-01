@@ -1595,7 +1595,7 @@ def process_files(
             print(just_ons, flush=True)
             print(current_objects, flush=True)
             print('Removing files already on S3.', flush=True)
-            print(current_objects.isin(just_ons)) # noqa
+            print(just_ons.isin(current_objects)) # noqa
             exit()
             ddf = ddf[current_objects.isin(ddf['object_names']) == False] # noqa
 
