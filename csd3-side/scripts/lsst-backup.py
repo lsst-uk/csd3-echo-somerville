@@ -1591,7 +1591,7 @@ def process_files(
 
         # Drop any files that are already on S3
         if not current_objects.empty:
-            just_ons = dd['object_names'].compute()
+            just_ons = ddf['object_names'].compute()
             print(just_ons, flush=True)
             print(current_objects, flush=True)
             print('Removing files already on S3.', flush=True)
