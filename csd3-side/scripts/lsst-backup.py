@@ -1768,6 +1768,8 @@ def process_files(
             # uploads['size'] = uploads['size'].astype(int)
 
             # call zip_folder in parallel
+            print(to_collate, flush=True)
+            print(to_collate['zip_batch'].max(), flush=True)
             print(f"Zipping and uploading "
                     f"{len(to_collate[to_collate['zip_batch'] > 0])} " # noqa
                     "batches.", flush=True)
