@@ -1591,7 +1591,9 @@ def process_files(
 
         # Drop any files that are already on S3
         if not current_objects.empty:
-            ddf = ddf[current_objects['CURRENT_OBJECTS'].isin(ddf['object_names']) == False] # noqa
+            just_ons = ddf['object_names'].compute()
+            ddf = ddf[current_objects['CURRENT_OBJECTS'].isin(just_ons) == False] # noqa
+            del just_ons
 
         ddf = ddf.compute()
         # now pd
