@@ -1773,7 +1773,7 @@ def process_files(
             print(len(to_collate[to_collate['zip_batch'] == 0]), flush=True)
             print(f"Zipping and uploading "
                     f"{to_collate['zip_batch'].max().compute()} " # noqa
-                    "batches.", flush=True)1
+                    "batches.", flush=True)
             print(f"Uploading "
                     f"{len(to_collate[to_collate['individual_upload'] == True])} " # noqa
                     "individual files.", flush=True)
