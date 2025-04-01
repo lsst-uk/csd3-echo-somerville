@@ -1640,21 +1640,24 @@ def process_files(
         batches = []
         batch = []
         batch_number = []
-        for row in ddf[ddf['individual_upload'] == False].iterrows():
-            size = row[1]['size']
-            if cumulative_size + size > max_zip_batch_size:
-                batches.append(1)
-                batch = [1]
-                cumulative_size = size
+        for row in ddf.iterrows():
+            if row[1]['individual_upload']:
+                batch_number.append(None)
             else:
-                batch.append(1)
-                cumulative_size += size
-            batch_number.append(len(batches))
+                size = row[1]['size']
+                if cumulative_size + size > max_zip_batch_size:
+                    batches.append(1)
+                    batch = [1]
+                    cumulative_size = size
+                else:
+                    batch.append(1)
+                    cumulative_size += size
+                batch_number.append(len(batches))
         del batch, batches, cumulative_size
-        batch = pd.Series(batch_number, name='batch')
-        print(batch)
-
-        print(ddf)
+        zip_batch = pd.Series(batch_number, name='zip_batch')
+        print(zip_batch, flush=True)
+        ddf['zip_batch'] = zip_batch
+        print(ddf, flush=True)
         ddf.to_csv('test_ddf.csv', index=False)
         exit()
         # Batch into zips and individual files
