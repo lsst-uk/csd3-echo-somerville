@@ -1778,6 +1778,7 @@ def process_files(
                     f"{len(to_collate[to_collate['individual_upload'] == True])} " # noqa
                     "individual files.", flush=True)
             print(f'Total: {len(to_collate)}', flush=True)
+            print(to_collate[to_collate['zip_batch'] == 0][to_collate['individual_upload'] == False], flush=True)
             print('Uploading...', flush=True)
             exit()
             # uploads['uploaded'] = False
