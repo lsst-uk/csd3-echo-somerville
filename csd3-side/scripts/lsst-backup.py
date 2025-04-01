@@ -1729,7 +1729,7 @@ def process_files(
                 'paths': 'str',
                 'object_names': 'str',
                 'islink': 'bool',
-                'size': 'int'
+                'size': 'int',
                 'individual_upload': 'bool',
                 'zip_batch': 'int',
             },
