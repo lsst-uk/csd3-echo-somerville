@@ -1489,118 +1489,119 @@ def process_files(
     # Do absolute minimal work during traversal - get paths only
     # All other operations will be parallelised later
     # ddf = dd.from_pandas(pd.DataFrame([], columns=['paths']), npartitions=1)
-    done_first = False
-    print(f'Analysing local dataset {local_dir}.', flush=True)
-    for folder, sub_folders, files in os.walk(local_dir, topdown=True):
-        print(f'in {folder}, folder count: {total_all_folders}', flush=True)
-        if exclude.isin([folder]).any():
-            continue
-        if len(files) == 0 and len(sub_folders) == 0:
-            print('Skipping subfolder - no files or subfolders.', flush=True)
-            continue
-        elif len(files) == 0:
-            print('Skipping subfolder - no files.', flush=True)
-            continue
-        if not done_first:
-            df = pd.DataFrame(
-                {
-                    'paths': [os.path.join(folder, filename) for filename in files]
-                }
-            )
-        else:
-            df = pd.concat(
-                [
-                    df,
-                    pd.DataFrame(
-                        {
-                            'paths': [os.path.join(folder, filename) for filename in files]
-                        }
-                    )
-                ]
-            )
-        total_all_folders += 1
-        # if total_all_folders % 500 == 0:
-        #     # avoid hitting the recursion limit
-        #     ddf = ddf.compute().reset_index(drop=True)
-        #     ddf = dd.from_pandas(ddf)
-
-        done_first = True
-    print()
-    df = df.reset_index(drop=True)
-    ddf = dd.from_pandas(df, npartitions=1)
-
-    print(f'Folders: {total_all_folders} Files: {len(df)}', flush=True)
-    # print('Analysing local dataset complete.', flush=True)
-    # print(df.head(), flush=True)
-    del df
-
-    if file_count_stop and len(current_objects) > 0:
-        total_non_collate_zip = len(
-            current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_') == False] # noqa
-        )
-        if total_non_collate_zip == total_all_files:
-            print(f'Number of existing objects (excluding collated zips) equal to number of local files '
-                  f'given the same prefix ({total_all_files}).')
-            print('This is a soft verification that the entire local dataset has been uploaded previously.')
-            print('Exiting. To prevent this behavior and force per-file verification, set '
-                  '`--no-file-count-stop` to True.', flush=True)
-            sys.exit()
-
-    # Generate new columns with Dask apply
-    # Basic object names
-    print('Generating object names.', flush=True)
-    ddf['object_names'] = ddf['paths'].apply(
-        lambda x: os.sep.join([destination_dir, os.path.relpath(x, local_dir)]),
-        meta=('object_names', 'str')
-    )
-    # Check for symlinks
-    print('Checking for symlinks.', flush=True)
-    ddf['islink'] = ddf['paths'].apply(
-        os.path.islink,
-        meta=('islink', 'bool')
-    )
-    # If symlink, change object name to include '.symlink'
-    print('Changing object names for symlinks.', flush=True)
-    ddf['object_names'] = ddf.apply(
-        lambda x: f'{x["object_names"]}.symlink' if x['islink'] else x['object_names'],
-        axis=1,
-        meta=('object_names', 'str')
-    )
-    # Add symlink target paths
-    print('Adding symlink target paths.', flush=True)
-    # targets = ddf[
-    #     ddf['islink'] == True # noqa
-    # ]['paths'].apply(
-    #     lambda x: to_rds_path(os.path.realpath(x), local_dir),
-    #     meta=('paths', 'str')
-    # ).compute()
-    targets = ddf[
-        ddf['islink'] == True # noqa
-    ]['paths'].apply(
-        follow_symlinks,
-        args=(
-            local_dir,
-            destination_dir,
-        ),
-        meta=pd.Series(dtype='object')
-    )
-
-    targets = targets.compute()
-
-    # Add symlink target paths to ddf
-    # here still dd
-    ddf = dd.concat([ddf, targets])
-    del targets
-    ddf = ddf.compute()
-    # now pd
-    ddf = ddf.reset_index(drop=True)
-    print(ddf)
-    ddf.to_csv('test_ddf.csv', index=False)
-    exit()
-
     if not os.path.exists(local_list_file):
-        print(f'Preparing to upload {total_all_files} files in {total_all_folders} folders from {local_dir} '
-              f'to {bucket_name}/{destination_dir}.', flush=True)
+        done_first = False
+        print(f'Analysing local dataset {local_dir}.', flush=True)
+        for folder, sub_folders, files in os.walk(local_dir, topdown=True):
+            print(f'in {folder}, folder count: {total_all_folders}', flush=True)
+            if exclude.isin([folder]).any():
+                continue
+            if len(files) == 0 and len(sub_folders) == 0:
+                print('Skipping subfolder - no files or subfolders.', flush=True)
+                continue
+            elif len(files) == 0:
+                print('Skipping subfolder - no files.', flush=True)
+                continue
+            if not done_first:
+                df = pd.DataFrame(
+                    {
+                        'paths': [os.path.join(folder, filename) for filename in files]
+                    }
+                )
+            else:
+                df = pd.concat(
+                    [
+                        df,
+                        pd.DataFrame(
+                            {
+                                'paths': [os.path.join(folder, filename) for filename in files]
+                            }
+                        )
+                    ]
+                )
+            total_all_folders += 1
+            # if total_all_folders % 500 == 0:
+            #     # avoid hitting the recursion limit
+            #     ddf = ddf.compute().reset_index(drop=True)
+            #     ddf = dd.from_pandas(ddf)
+
+            done_first = True
+        # print()
+        total_all_files = len(df)
+        df = df.reset_index(drop=True)
+        ddf = dd.from_pandas(df, npartitions=1)
+
+        print(f'Folders: {total_all_folders} Files: {total_all_files}', flush=True)
+        # print('Analysing local dataset complete.', flush=True)
+        # print(df.head(), flush=True)
+        del df
+
+        if file_count_stop and len(current_objects) > 0:
+            total_non_collate_zip = len(
+                current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_') == False] # noqa
+            )
+            if total_non_collate_zip == total_all_files:
+                print(f'Number of existing objects (excluding collated zips) equal to number of local files '
+                      f'given the same prefix ({total_all_files}).')
+                print('This is a soft verification that the entire local dataset has been uploaded '
+                      'previously.')
+                print('Exiting. To prevent this behavior and force per-file verification, set '
+                      '`--no-file-count-stop` to True.', flush=True)
+                sys.exit()
+
+        # Generate new columns with Dask apply
+        # Basic object names
+        print('Generating object names.', flush=True)
+        ddf['object_names'] = ddf['paths'].apply(
+            lambda x: os.sep.join([destination_dir, os.path.relpath(x, local_dir)]),
+            meta=('object_names', 'str')
+        )
+        # Check for symlinks
+        print('Checking for symlinks.', flush=True)
+        ddf['islink'] = ddf['paths'].apply(
+            os.path.islink,
+            meta=('islink', 'bool')
+        )
+        # If symlink, change object name to include '.symlink'
+        print('Changing object names for symlinks.', flush=True)
+        ddf['object_names'] = ddf.apply(
+            lambda x: f'{x["object_names"]}.symlink' if x['islink'] else x['object_names'],
+            axis=1,
+            meta=('object_names', 'str')
+        )
+        # Add symlink target paths
+        print('Adding symlink target paths.', flush=True)
+        targets = ddf[
+            ddf['islink'] == True # noqa
+        ]['paths'].apply(
+            follow_symlinks,
+            args=(
+                local_dir,
+                destination_dir,
+            ),
+            meta=pd.Series(dtype='object')
+        )
+
+        targets = targets.compute()
+
+        # Add symlink target paths to ddf
+        # here still dd
+        ddf = dd.concat([ddf, targets])
+        del targets
+
+        # Drop any files that are already on S3
+        if not current_objects.empty:
+            ddf = ddf[current_objects.isin([ddf['object_names']]).any() == False] # noqa
+
+        ddf = ddf.compute()
+        # now pd
+        ddf = ddf.reset_index(drop=True)
+        print(ddf)
+        ddf.to_csv('test_ddf.csv', index=False)
+
+
+        # print(f'Preparing to upload {total_all_files} files in {total_all_folders} folders from {local_dir} '
+        #       f'to {bucket_name}/{destination_dir}.', flush=True)
         # for folder, sub_folders, files in os.walk(local_dir, topdown=False):
         #     folder_num += 1
         #     file_num += len(files)
