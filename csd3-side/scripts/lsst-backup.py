@@ -1599,13 +1599,15 @@ def process_files(
         print('Getting file sizes.', flush=True)
         ddf['size'] = ddf.apply(
             lambda x: os.path.getsize(x['paths']) if not x['islink'] else 0,
-            meta=('size', 'int')
+            meta=('size', 'int'),
+            axis=1
         )
 
         # Decide individual uploads
         ddf['individual_upload'] = ddf.apply(
             lambda x: True if x['size'] > max_zip_batch_size / 2 else False,
-            meta=('individual_upload', 'bool')
+            meta=('individual_upload', 'bool'),
+            axis=1
         )
 
         ddf = ddf.compute()
