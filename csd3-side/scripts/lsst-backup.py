@@ -47,6 +47,31 @@ from typing import List
 warnings.filterwarnings('ignore')
 
 
+def list_aggredator(x):
+    """Concatenates a list of strings into a single comma-separated string.
+
+        Args:
+            x (list): A list of strings to be joined.
+
+        Returns:
+            str: A string containing the elements of the input list, separated by commas.
+        """
+    try:
+        s = ','.join(x)
+    except TypeError:
+        raise TypeError(
+            f'Expected a list of strings, but got {type(x)}: {x}'
+        )
+    return '|'.join(x)
+
+
+def set_type(row: pd.Series, max_zip_batch_size) -> pd.Series:
+    if row['size'] > max_zip_batch_size / 2:
+        return 'file'
+    else:
+        return 'zip'
+
+
 def follow_symlinks(path: str, local_dir: str, destination_dir: str) -> pd.Series:
     """
     Follows symlinks in a directory and returns a DataFrame containing the
@@ -1468,7 +1493,7 @@ def process_files(
     total_size_uploaded = 0
     total_files_uploaded = 0
     i = 0
-
+    upload_list_file = local_list_file.replace('local-file-list.csv', 'upload-file-list.csv')
     # recursive loop over local folder
     total_all_folders = 0
     total_all_files = 0
@@ -1489,7 +1514,7 @@ def process_files(
     # Do absolute minimal work during traversal - get paths only
     # All other operations will be parallelised later
     # ddf = dd.from_pandas(pd.DataFrame([], columns=['paths']), npartitions=1)
-    if not os.path.exists(local_list_file):
+    if not os.path.exists(local_list_file) or not os.path.exists(upload_file_list):
         done_first = False
         print(f'Analysing local dataset {local_dir}.', flush=True)
         for folder, sub_folders, files in os.walk(local_dir, topdown=True):
@@ -1603,13 +1628,15 @@ def process_files(
             axis=1
         )
 
-        # Decide individual uploads
+        # Decide types of upload
         print('Deciding individual uploads.', flush=True)
-        ddf['individual_upload'] = ddf.apply(
-            lambda x: True if x['size'] > max_zip_batch_size / 2 else False,
-            meta=('individual_upload', 'bool'),
+        ddf['type'] = ddf.apply(
+            set_type,
+            meta=('type', 'str'),
             axis=1
         )
+        ddf['upload'] = True
+        ddf['uploaded'] = False
 
         print('Computing dataframe.', flush=True)
         # compute up to this point
@@ -1641,15 +1668,15 @@ def process_files(
                 batch_number.append(len(batches))
             print(f'row: {row[1].name} - batch: {len(batches)} - cumulative_size: {cumulative_size} - size: {size} - individual_upload: {row[1]["individual_upload"]}')
         del batch, batches, cumulative_size
-        zip_batch = pd.Series(batch_number[1:], name='zip_batch', dtype='int')
+        zip_batch = pd.Series(batch_number[1:], name='id', dtype='int')
         print(zip_batch, flush=True)
-        ddf['zip_batch'] = zip_batch
+        ddf['id'] = zip_batch
         del zip_batch
 
         print(ddf, flush=True)
         if save_local_file:
-            ddf.to_csv(local_list_file, index=False)
-        at_least_one_batch = ddf['zip_batch'].isin([1]).any()
+            ddf.to_csv('' + local_list_file, index=False)
+        at_least_one_batch = ddf['id'].isin([1]).any()
         at_least_one_individual = ddf['individual_upload'].isin([True]).any()
         print(f'At least one batch: {at_least_one_batch}', flush=True)
         print(f'At least one individual: {at_least_one_individual}', flush=True)
@@ -1657,73 +1684,9 @@ def process_files(
         print(f'Done traversing {local_dir}.', flush=True)
 
     if at_least_one_batch or at_least_one_individual:
-        ###############################
-        # CHECK HERE FOR ZIP CONTENTS #
-        ###############################
-
-        # i
-
-        # else:
-        #     if not current_objects.empty:
-        #         client.scatter(current_objects)
-        #         # Pandas
-        #         to_collate = pd.read_csv(local_list_file).drop('upload', axis=1)
-
-        #         # Convert strings representations of lists back to lists
-        #         to_collate[
-        #             to_collate['type'] == 'zip'
-        #         ]['object_names'] = to_collate[
-        #             to_collate['type'] == 'zip'
-        #         ]['object_names'].apply(my_lit_eval)
-
-        #         to_collate[
-        #             to_collate['type'] == 'zip'
-        #         ]['paths'] = to_collate[
-        #             to_collate['type'] == 'zip'
-        #         ]['paths'].apply(my_lit_eval)
-
-        #         to_collate = to_collate.drop_duplicates(subset='id', keep='first')
-        #         # print(len(to_collate))
-        #         to_collate = dd.from_pandas(
-        #             to_collate,
-        #             npartitions=len(client.scheduler_info()['workers']) * 2
-        #         )
-
-        #         print(f'Loaded local file list from {local_list_file}.', flush=True)
-        #         # now using pandas for both current_objects and to_collate
-        #         # - this could be re-written to using vectorised operations
-
-        #         print('Created Dask dataframe for to_collate.', flush=True)
-        #         print('Comparing existing objects to collate list.', flush=True)
-        #         to_collate['upload'] = to_collate.apply(
-        #             compare_zip_contents_bool,
-        #             axis=1,
-        #             args=(
-        #                 current_objects,
-        #                 destination_dir,
-        #             ),
-        #             meta=('upload', bool),
-        #         )
-        #         to_collate = to_collate.compute()
-
-        #         # print(to_collate['upload'])
-
-        #         if not to_collate['upload'].any():
-        #             print('No files to upload.', flush=True)
-        #             sys.exit()
-
-        #     else:
-        #         pass
-
-        # if save_local_file:
-        #     print(f'Saving local file list list to {local_list_file}, len={len(to_collate)}.', flush=True)
-        #     to_collate.to_csv(local_list_file, index=False)
-        # else:
-        #     print('Collate list not saved.', flush=True)
-
         # if at_least_one_batch or at_least_one_individual:
         # paths,object_names,islink,size,individual_upload,zip_batch
-        to_collate = dd.read_csv(
+        ddf = dd.read_csv(
             local_list_file,
             dtype={
                 'paths': 'str',
@@ -1731,11 +1694,29 @@ def process_files(
                 'islink': 'bool',
                 'size': 'int',
                 'individual_upload': 'bool',
-                'zip_batch': 'int',
+                'id': 'int',
+                'type': 'str',
+                'upload': 'bool',
+                'uploaded': 'bool',
             },
-            na_filter=False,
-            keep_default_na=False,
-        ).persist()
+        )
+
+        # ddf = ddf.persist()
+        # individual
+        ind_files = ddf[ddf['individual_upload'].isin([True])].drop(['individual_upload', 'islink'], axis=1)
+        ind_files['id'] = None
+        # to_collate
+        zips = ddf['id' > 0]['id'].astype(int).drop_duplicates()
+        zips['paths'] = ddf['id' > 0]['paths'].groupby(ddf['id']).agg(list_aggredator).values
+        zips['object_names'] = ddf['id' > 0]['object_names'].groupby(ddf['id']).agg(list_aggredator).values
+        zips['size'] = ddf['id' > 0]['size'].groupby(ddf['id']).sum().values
+
+        to_collate = dd.concat([zips, ind_files], axis=0).reset_index(drop=True)
+        print(to_collate, flush=True)
+
+        to_collate.to_csv(upload_list_file, index=False)
+        exit()
+
         if len(to_collate) > 0:
             # to_collate['object_names'] = to_collate['object_names'].apply(my_lit_eval).astype(object)
             # to_collate['id'] = to_collate['id'].astype(int)
@@ -1773,16 +1754,24 @@ def process_files(
             print(num_zip_batches, flush=True)
             print(len(to_collate[to_collate['zip_batch'] == 0]), flush=True)
 
-            print(f"Zipping and uploading "
-                    f"{num_zip_batches} " # noqa
-                    "batches.", flush=True)
-            print(f"Uploading "
-                    f"{len(to_collate[to_collate['individual_upload'] == True])} " # noqa
-                    "individual files.", flush=True)
+            print(
+                f"Zipping and uploading "
+                f"{num_zip_batches} " # noqa
+                "batches.", flush=True
+            )
+            print(
+                f"Uploading "
+                f"{len(to_collate[to_collate['individual_upload'] == True])} " # noqa
+                "individual files.", flush=True
+            )
             print(f'Total: {len(to_collate)}', flush=True)
-            print(f"Average files per zip batch: {(len(to_collate[to_collate['individual_upload'] == False]) / num_zip_batches):.2f}", flush=True)
+            print(
+                f"Average files per zip batch: "
+                f"{(len(to_collate[to_collate['individual_upload'] == False]) / num_zip_batches):.2f}",
+                flush=True
+            )
             print('Uploading...', flush=True)
-            exit()
+            # exit()
             # uploads['uploaded'] = False
             # uploads['uploaded'] = uploads['uploaded'].astype(bool)
             # print('uploads type')
@@ -1791,6 +1780,11 @@ def process_files(
             # print(uploads[uploads['type'].eq('zip')])
             # print('uploads type file')
             # print(uploads[uploads['type'] == 'file'])
+            to_collate_zips = to_collate[
+                to_collate['zip_batch'] > 0 # noqa
+            ]['zip_batch', 'object_names', 'paths', 'size'].drop_duplicates()
+            zip_uploads = dd([])
+            # id,object_names,paths,size,type,upload,uploaded.
             if len(uploads[uploads['type'] == 'zip']) > 0:
                 zip_uploads = uploads[uploads['type'] == 'zip'].apply(
                     zip_and_upload,
