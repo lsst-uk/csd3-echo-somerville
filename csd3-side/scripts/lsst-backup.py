@@ -47,7 +47,7 @@ from typing import List
 warnings.filterwarnings('ignore')
 
 
-def list_aggredator(x):
+def list_aggregator(x):
     """Concatenates a list of strings into a single comma-separated string.
 
         Args:
@@ -57,12 +57,12 @@ def list_aggredator(x):
             str: A string containing the elements of the input list, separated by commas.
         """
     try:
-        s = ','.join(x)
+        s = '|'.join(x)
     except TypeError:
         raise TypeError(
             f'Expected a list of strings, but got {type(x)}: {x}'
         )
-    return '|'.join(x)
+    return s
 
 
 def set_type(row: pd.Series, max_zip_batch_size) -> pd.Series:
@@ -1710,8 +1710,8 @@ def process_files(
         ind_files['id'] = None
         # to_collate
         zips = ddf[ddf['id'] > 0]['id'].astype(int).drop_duplicates()
-        zips['paths'] = ddf[ddf['id'] > 0]['paths'].groupby(ddf['id']).agg(list_aggredator).values
-        zips['object_names'] = ddf[ddf['id'] > 0]['object_names'].groupby(ddf['id']).agg(list_aggredator).values
+        zips['paths'] = ddf[ddf['id'] > 0]['paths'].groupby(ddf['id']).agg(list_aggregator).values
+        zips['object_names'] = ddf[ddf['id'] > 0]['object_names'].groupby(ddf['id']).agg(list_aggregator).values
         zips['size'] = ddf[ddf['id'] > 0]['size'].groupby(ddf['id']).sum().values
 
         to_collate = dd.concat([zips, ind_files], axis=0).reset_index(drop=True)
