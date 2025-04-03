@@ -58,13 +58,14 @@ def list_aggregation(x) -> str:
         str: The aggregated string.
     """
     if isinstance(x[0], list):
-        return '|'.join(x[0])
+        print('|'.join(x[0]))
     else:
-        return x[0]
+        print(x[0])
     # dprint(x, flush=True)
     # dprint([y[0] for y in x], flush=True)
     # dprint('|'.join([y[1] for y in x]), flush=True)
     # return '|'.join([y[0] for y in x])
+    return x[0]
 
 
 def set_type(row: pd.Series, max_zip_batch_size) -> pd.Series:
