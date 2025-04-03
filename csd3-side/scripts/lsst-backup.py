@@ -1714,7 +1714,7 @@ def process_files(
             # lambda x: x.values        # finalize by settings the values of the generated Series
         )
         zips = ddf[ddf['id'] > 0]['id'].astype(int).drop_duplicates()
-        print(ddf[ddf['id'] > 0]['paths'].groupby(ddf['id']).agg(dd_list_aggregation).compute(), flush=True)
+        print(ddf[ddf['id'] > 0]['paths'].groupby('id').agg(dd_list_aggregation).compute(), flush=True)
         exit()
         zips['paths'] = ddf[ddf['id'] > 0]['paths'].groupby(ddf['id']).agg(dd_list_aggregation)
         zips['object_names'] = ddf[ddf['id'] > 0]['object_names'].groupby(ddf['id']).agg(dd_list_aggregation)
