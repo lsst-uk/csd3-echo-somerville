@@ -57,7 +57,7 @@ def list_aggregation(x) -> str:
     Returns:
         str: The aggregated string.
     """
-    print(x['paths'])
+    print(x.name)
     # if isinstance(x['paths'], list):
     #     print('|'.join(x['']))
     # else:
