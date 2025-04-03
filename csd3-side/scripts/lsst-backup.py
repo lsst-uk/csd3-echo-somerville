@@ -47,7 +47,7 @@ from typing import List
 warnings.filterwarnings('ignore')
 
 
-def list_aggregation(x: list[str]) -> str:
+def list_aggregation(x) -> str:
     """
     Aggregates a list of strings into a single string separated by commas.
 
@@ -57,10 +57,7 @@ def list_aggregation(x: list[str]) -> str:
     Returns:
         str: The aggregated string.
     """
-    if isinstance(x, list):
-        return '|'.join(x)
-    else:
-        return x
+    return '|'.join(x.values)
 
 
 def set_type(row: pd.Series, max_zip_batch_size) -> pd.Series:
@@ -1731,7 +1728,7 @@ def process_files(
 
         # For more information see dask GH issue #1876.
 
-        id_ddf = ddf[ddf['id'] > 0][['id','paths','object_names']].groupby('id').agg(dd_list_aggregation)
+        id_ddf = ddf[ddf['id'] > 0][['id', 'paths', 'object_names']].groupby('id').agg(dd_list_aggregation)
         print(id_ddf.compute(), flush=True)
         id_ddf.to_csv('id_ddf.csv', index=False)
         # zips = ddf[ddf['id'] > 0]['id'].astype(int).drop_duplicates()
