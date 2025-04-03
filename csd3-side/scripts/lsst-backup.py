@@ -1732,7 +1732,7 @@ def process_files(
         # For more information see dask GH issue #1876.
 
         id_ddf = ddf[ddf['id'] > 0][['id','paths','object_names']].groupby('id').agg(dd_list_aggregation)
-        print(id_ddf.compute().compute(), flush=True)
+        print(id_ddf.compute(), flush=True)
         # zips = ddf[ddf['id'] > 0]['id'].astype(int).drop_duplicates()
         # print(ddf[ddf['id'] > 0].groupby('id').agg(dd_list_aggregation).compute(), flush=True)
         exit()
