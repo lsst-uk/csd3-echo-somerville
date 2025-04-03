@@ -57,12 +57,13 @@ def list_aggregation(x) -> str:
     Returns:
         str: The aggregated string.
     """
-    if isinstance(x[0], list):
-        print('|'.join(x[0]))
-    else:
-        print(x[0])
-    # dprint(x, flush=True)
-    # dprint([y[0] for y in x], flush=True)
+    print(x['paths'])
+    # if isinstance(x['paths'], list):
+    #     print('|'.join(x['']))
+    # else:
+    #     print(x[0])
+    # # dprint(x, flush=True)
+    # # dprint([y[0] for y in x], flush=True)
     # dprint('|'.join([y[1] for y in x]), flush=True)
     # return '|'.join([y[0] for y in x])
     return x[0]
