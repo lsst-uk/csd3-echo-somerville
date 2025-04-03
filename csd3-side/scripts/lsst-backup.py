@@ -1693,7 +1693,7 @@ def process_files(
         # to_collate
         list_aggregation = dd.Aggregation(
             'list_aggregation',
-            lambda li: li,  # chunks are aggregated into strings with str.join('|')
+            lambda li: li.str.join('|'),  # chunks are aggregated into strings with str.join('|')
             lambda li: li,  # strings are aggregated into a single string with str.join('|')
             lambda x: x.values        # finalize by settings the values of the generated Series
         )
