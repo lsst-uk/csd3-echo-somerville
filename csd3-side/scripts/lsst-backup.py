@@ -1496,7 +1496,7 @@ def process_files(
     # Do absolute minimal work during traversal - get paths only
     # All other operations will be parallelised later
     # ddf = dd.from_pandas(pd.DataFrame([], columns=['paths']), npartitions=1)
-    if not os.path.exists(local_list_file) or not os.path.exists(upload_file_list):
+    if not os.path.exists(local_list_file) or not os.path.exists(upload_list_file):
         done_first = False
         print(f'Analysing local dataset {local_dir}.', flush=True)
         fc = 0
@@ -1507,10 +1507,10 @@ def process_files(
             if exclude.isin([folder]).any():
                 continue
             if len(files) == 0 and len(sub_folders) == 0:
-                print('Skipping subfolder - no files or subfolders.', flush=True)
+                # print('Skipping subfolder - no files or subfolders.', flush=True)
                 continue
             elif len(files) == 0:
-                print('Skipping subfolder - no files.', flush=True)
+                # print('Skipping subfolder - no files.', flush=True)
                 continue
             if not done_first:
                 df = pd.DataFrame(
@@ -1691,7 +1691,7 @@ def process_files(
         ind_files = ddf[ddf['type'] == 'file'].drop('islink', axis=1)
         ind_files['id'] = None
         # to_collate
-        list_aggregation = dd.Aggredation(
+        list_aggregation = dd.Aggregation(
             'list_aggregation',
             lambda li: '|'.join(li),  # chunks are aggregated into strings with str.join('|')
             lambda li: '|'.join(li),  # strings are aggregated into a single string with str.join('|')
