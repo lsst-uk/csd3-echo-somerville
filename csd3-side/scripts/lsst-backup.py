@@ -1709,10 +1709,10 @@ def process_files(
         ind_files = ddf[ddf['type'] == 'file'].drop('islink', axis=1)
         ind_files['id'] = None
         # to_collate
-        zips = ddf['id' > 0]['id'].astype(int).drop_duplicates()
-        zips['paths'] = ddf['id' > 0]['paths'].groupby(ddf['id']).agg(list_aggredator).values
-        zips['object_names'] = ddf['id' > 0]['object_names'].groupby(ddf['id']).agg(list_aggredator).values
-        zips['size'] = ddf['id' > 0]['size'].groupby(ddf['id']).sum().values
+        zips = ddf[ddf['id'] > 0]['id'].astype(int).drop_duplicates()
+        zips['paths'] = ddf[ddf['id'] > 0]['paths'].groupby(ddf['id']).agg(list_aggredator).values
+        zips['object_names'] = ddf[ddf['id'] > 0]['object_names'].groupby(ddf['id']).agg(list_aggredator).values
+        zips['size'] = ddf[ddf['id'] > 0]['size'].groupby(ddf['id']).sum().values
 
         to_collate = dd.concat([zips, ind_files], axis=0).reset_index(drop=True)
         print(to_collate, flush=True)
