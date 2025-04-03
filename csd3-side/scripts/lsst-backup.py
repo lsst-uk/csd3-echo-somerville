@@ -1693,8 +1693,8 @@ def process_files(
         # to_collate
         list_aggregation = dd.Aggregation(
             'list_aggregation',
-            lambda li: print(li[0]),  # chunks are aggregated into strings with str.join('|')
-            lambda li: print(li),  # strings are aggregated into a single string with str.join('|')
+            lambda li: li,  # chunks are aggregated into strings with str.join('|')
+            lambda li: li,  # strings are aggregated into a single string with str.join('|')
             lambda x: x.values        # finalize by settings the values of the generated Series
         )
         zips = ddf[ddf['id'] > 0]['id'].astype(int).drop_duplicates()
