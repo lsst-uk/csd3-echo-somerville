@@ -47,6 +47,22 @@ from typing import List
 warnings.filterwarnings('ignore')
 
 
+def list_aggregation(x: list[str]) -> str:
+    """
+    Aggregates a list of strings into a single string separated by commas.
+
+    Args:
+        x (list[str]): The list of strings to aggregate.
+
+    Returns:
+        str: The aggregated string.
+    """
+    if isinstance(x, list):
+        return '|'.join(x)
+    else:
+        return x
+
+
 def set_type(row: pd.Series, max_zip_batch_size) -> pd.Series:
     if row['size'] > max_zip_batch_size / 2:
         return 'file'
@@ -1691,15 +1707,15 @@ def process_files(
         ind_files = ddf[ddf['type'] == 'file'].drop('islink', axis=1)
         ind_files['id'] = None
         # to_collate
-        list_aggregation = dd.Aggregation(
+        dd_list_aggregation = dd.Aggregation(
             'list_aggregation',
-            lambda li: li.agg(str.join('|')),  # chunks are aggregated into strings with str.join('|')
-            lambda li: li,  # strings are aggregated into a single string with str.join('|')
-            lambda x: x.values        # finalize by settings the values of the generated Series
+            list_aggregation,  # chunks are aggregated into strings with str.join('|')
+            list_aggregation,  # strings are aggregated into a single string with str.join('|')
+            # lambda x: x.values        # finalize by settings the values of the generated Series
         )
         zips = ddf[ddf['id'] > 0]['id'].astype(int).drop_duplicates()
-        zips['paths'] = ddf[ddf['id'] > 0]['paths'].groupby(ddf['id']).agg(list_aggregation)
-        zips['object_names'] = ddf[ddf['id'] > 0]['object_names'].groupby(ddf['id']).agg(list_aggregation)
+        zips['paths'] = ddf[ddf['id'] > 0]['paths'].groupby(ddf['id']).agg(dd_list_aggregation)
+        zips['object_names'] = ddf[ddf['id'] > 0]['object_names'].groupby(ddf['id']).agg(dd_list_aggregation)
         zips['size'] = ddf[ddf['id'] > 0]['size'].groupby(ddf['id']).sum().values
 
         to_collate = dd.concat([zips, ind_files], axis=0).reset_index(drop=True)
