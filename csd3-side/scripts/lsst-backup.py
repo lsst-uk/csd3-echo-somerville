@@ -1710,8 +1710,8 @@ def process_files(
         ind_files['id'] = None
         # to_collate
         zips = ddf[ddf['id'] > 0]['id'].astype(int).drop_duplicates()
-        zips['paths'] = ddf[ddf['id'] > 0]['paths'].groupby(ddf['id']).agg(list_aggregator).values
-        zips['object_names'] = ddf[ddf['id'] > 0]['object_names'].groupby(ddf['id']).agg(list_aggregator).values
+        zips['paths'] = ddf[ddf['id'] > 0]['paths'].groupby(ddf['id']).apply(list_aggregator).values
+        zips['object_names'] = ddf[ddf['id'] > 0]['object_names'].groupby(ddf['id']).apply(list_aggregator).values
         zips['size'] = ddf[ddf['id'] > 0]['size'].groupby(ddf['id']).sum().values
 
         to_collate = dd.concat([zips, ind_files], axis=0).reset_index(drop=True)
