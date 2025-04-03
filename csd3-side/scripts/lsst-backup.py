@@ -57,7 +57,7 @@ def list_aggregation(x) -> str:
     Returns:
         str: The aggregated string.
     """
-    dprint(x, flush=True)
+    dprint(x.agg(str.join('|')), flush=True)
     return '|'.join(x)
 
 
