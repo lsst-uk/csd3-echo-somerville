@@ -1632,6 +1632,7 @@ def process_files(
         print('Deciding individual uploads.', flush=True)
         ddf['type'] = ddf.apply(
             set_type,
+            args=(max_zip_batch_size,),
             meta=('type', 'str'),
             axis=1
         )
