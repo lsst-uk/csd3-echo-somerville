@@ -57,7 +57,7 @@ def list_aggregation(x) -> str:
     Returns:
         str: The aggregated string.
     """
-    dprint(x.agg(str.join('|')), flush=True)
+    dprint(x, flush=True)
     return '|'.join(x)
 
 
@@ -1729,8 +1729,8 @@ def process_files(
 
         # For more information see dask GH issue #1876.
 
-        id_ddf = ddf[ddf['id'] > 0][['id', 'paths', 'object_names']].groupby('id').agg(dd_list_aggregation)
-        print(id_ddf.compute(), flush=True)
+        id_ddf = ddf[ddf['id'] > 0].groupby('id').agg(dd_list_aggregation).compute()
+        print(id_ddf, flush=True)
         id_ddf.to_csv('id_ddf.csv', index=False)
         # zips = ddf[ddf['id'] > 0]['id'].astype(int).drop_duplicates()
         # print(ddf[ddf['id'] > 0].groupby('id').agg(dd_list_aggregation).compute(), flush=True)
