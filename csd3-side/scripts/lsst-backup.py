@@ -1713,8 +1713,28 @@ def process_files(
             list_aggregation,  # strings are aggregated into a single string with str.join('|')
             # lambda x: x.values        # finalize by settings the values of the generated Series
         )
-        zips = ddf[ddf['id'] > 0]['id'].astype(int).drop_duplicates()
-        print(ddf[ddf['id'] > 0]['paths'].groupby('id').agg(dd_list_aggregation).compute(), flush=True)
+
+        ### ValueError: Grouping by an unaligned column is unsafe and unsupported.
+        # This can be caused by filtering only one of the object or
+        # grouping key. For example, the following works in pandas,
+        # but not in dask:
+
+        # df[df.foo < 0].groupby(df.bar)
+
+        # This can be avoided by either filtering beforehand, or
+        # passing in the name of the column instead:
+
+        # df2 = df[df.foo < 0]
+        # df2.groupby(df2.bar)
+        # # or
+        # df[df.foo < 0].groupby('bar')
+
+        # For more information see dask GH issue #1876.
+
+        id_ddf = ddf[ddf['id'] > 0]['id','paths','object_names'].groupby('id').agg(dd_list_aggregation)
+        print(id_ddf.compute().compute(), flush=True)
+        # zips = ddf[ddf['id'] > 0]['id'].astype(int).drop_duplicates()
+        # print(ddf[ddf['id'] > 0].groupby('id').agg(dd_list_aggregation).compute(), flush=True)
         exit()
         zips['paths'] = ddf[ddf['id'] > 0]['paths'].groupby(ddf['id']).agg(dd_list_aggregation)
         zips['object_names'] = ddf[ddf['id'] > 0]['object_names'].groupby(ddf['id']).agg(dd_list_aggregation)
