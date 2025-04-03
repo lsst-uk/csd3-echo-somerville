@@ -57,7 +57,7 @@ def list_aggregation(x) -> str:
     Returns:
         str: The aggregated string.
     """
-    return '|'.join(x.values)
+    return '|'.join(x)
 
 
 def set_type(row: pd.Series, max_zip_batch_size) -> pd.Series:
