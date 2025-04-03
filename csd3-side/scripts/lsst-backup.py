@@ -47,24 +47,6 @@ from typing import List
 warnings.filterwarnings('ignore')
 
 
-def list_aggregator(x):
-    """Concatenates a list of strings into a single comma-separated string.
-
-        Args:
-            x (list): A list of strings to be joined.
-
-        Returns:
-            str: A string containing the elements of the input list, separated by commas.
-        """
-    try:
-        s = '|'.join(x)
-    except TypeError:
-        raise TypeError(
-            f'Expected a list of strings, but got {type(x)}: {x}'
-        )
-    return s
-
-
 def set_type(row: pd.Series, max_zip_batch_size) -> pd.Series:
     if row['size'] > max_zip_batch_size / 2:
         return 'file'
@@ -1709,9 +1691,15 @@ def process_files(
         ind_files = ddf[ddf['type'] == 'file'].drop('islink', axis=1)
         ind_files['id'] = None
         # to_collate
+        list_aggregation = dd.Aggredation(
+            'list_aggregation',
+            lambda li: '|'.join(li),  # chunks are aggregated into strings with str.join('|')
+            lambda li: '|'.join(li),  # strings are aggregated into a single string with str.join('|')
+            lambda x: x.values        # finalize by settings the values of the generated Series
+        )
         zips = ddf[ddf['id'] > 0]['id'].astype(int).drop_duplicates()
-        zips['paths'] = ddf[ddf['id'] > 0]['paths'].groupby(ddf['id']).agg(lambda x: list_aggregator(x)).values
-        zips['object_names'] = ddf[ddf['id'] > 0]['object_names'].groupby(ddf['id']).agg(lambda x: list_aggregator(x)).values
+        zips['paths'] = ddf[ddf['id'] > 0]['paths'].groupby(ddf['id']).agg(list_aggregation)
+        zips['object_names'] = ddf[ddf['id'] > 0]['object_names'].groupby(ddf['id']).agg(list_aggregation)
         zips['size'] = ddf[ddf['id'] > 0]['size'].groupby(ddf['id']).sum().values
 
         to_collate = dd.concat([zips, ind_files], axis=0).reset_index(drop=True)
