@@ -1733,6 +1733,7 @@ def process_files(
 
         id_ddf = ddf[ddf['id'] > 0][['id','paths','object_names']].groupby('id').agg(dd_list_aggregation)
         print(id_ddf.compute(), flush=True)
+        id_ddf.to_csv('id_ddf.csv', index=False)
         # zips = ddf[ddf['id'] > 0]['id'].astype(int).drop_duplicates()
         # print(ddf[ddf['id'] > 0].groupby('id').agg(dd_list_aggregation).compute(), flush=True)
         exit()
