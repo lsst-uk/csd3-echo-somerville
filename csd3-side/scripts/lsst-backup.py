@@ -1697,17 +1697,16 @@ def process_files(
                 'object_names': 'str',
                 'islink': 'bool',
                 'size': 'int',
-                'individual_upload': 'bool',
-                'id': 'int',
                 'type': 'str',
                 'upload': 'bool',
                 'uploaded': 'bool',
+                'id': 'int',
             },
         )
 
         # ddf = ddf.persist()
         # individual
-        ind_files = ddf[ddf['individual_upload'].isin([True])].drop(['individual_upload', 'islink'], axis=1)
+        ind_files = ddf[ddf['type'] == 'file'].drop('islink', axis=1)
         ind_files['id'] = None
         # to_collate
         zips = ddf['id' > 0]['id'].astype(int).drop_duplicates()
