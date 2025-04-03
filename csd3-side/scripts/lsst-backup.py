@@ -1517,8 +1517,11 @@ def process_files(
     if not os.path.exists(local_list_file) or not os.path.exists(upload_file_list):
         done_first = False
         print(f'Analysing local dataset {local_dir}.', flush=True)
+        fc = 0
         for folder, sub_folders, files in os.walk(local_dir, topdown=True):
-            print(f'in {folder}, folder count: {total_all_folders}', flush=True)
+            fc += 1
+            if fc % 1000 == 0:
+                print(f'in {folder}, folder count: {total_all_folders}', flush=True)
             if exclude.isin([folder]).any():
                 continue
             if len(files) == 0 and len(sub_folders) == 0:
@@ -1653,7 +1656,7 @@ def process_files(
         batch = [None]
         batch_number = [None]
         for row in ddf.iterrows():
-            if row[1]['individual_upload']:
+            if row[1]['type'] == 'file':
                 batch_number.append(0)
             else:
                 size = row[1]['size']
@@ -1667,7 +1670,7 @@ def process_files(
                     if row[1].name == ddf.index[-1]:
                         batches.append(1)
                 batch_number.append(len(batches))
-            print(f'row: {row[1].name} - batch: {len(batches)} - cumulative_size: {cumulative_size} - size: {size} - individual_upload: {row[1]["individual_upload"]}')
+            print(f'row: {row[1].name} - batch: {len(batches)} - cumulative_size: {cumulative_size} - size: {size} - individual_upload: {True if row[1]["type"] == "file" else False}', flush=True)
         del batch, batches, cumulative_size
         zip_batch = pd.Series(batch_number[1:], name='id', dtype='int')
         print(zip_batch, flush=True)
@@ -1677,8 +1680,8 @@ def process_files(
         print(ddf, flush=True)
         if save_local_file:
             ddf.to_csv('' + local_list_file, index=False)
-        at_least_one_batch = ddf['id'].isin([1]).any()
-        at_least_one_individual = ddf['individual_upload'].isin([True]).any()
+        at_least_one_batch = ddf['type'].isin(['zip']).any()
+        at_least_one_individual = ddf['type'].isin(['file']).any()
         print(f'At least one batch: {at_least_one_batch}', flush=True)
         print(f'At least one individual: {at_least_one_individual}', flush=True)
         del ddf
