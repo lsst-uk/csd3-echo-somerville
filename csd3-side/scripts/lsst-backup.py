@@ -1764,7 +1764,7 @@ def process_files(
         uploads = uploads.persist()
 
         # call zip_folder in parallel
-        num_zip_batches = uploads['zip_batch'].max().compute()
+        num_zip_batches = uploads['id'].max().compute()
         print(uploads, flush=True)
         # print(num_zip_batches, flush=True)
         # print(len(to_collate[to_collate['zip_batch'] == 0]), flush=True)
