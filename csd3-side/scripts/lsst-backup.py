@@ -499,7 +499,7 @@ def zip_and_upload(
     Returns:
         bool: True if a zip was created and uploaded, False if not..
     """
-    file_paths = my_lit_eval(row['paths'])
+    file_paths = row['paths'].split('|')
     id = row['id']
 
     #############
@@ -1496,23 +1496,23 @@ def process_files(
     processing_start = datetime.now()
     total_size_uploaded = 0
     total_files_uploaded = 0
-    i = 0
+    # i = 0
     upload_list_file = local_list_file.replace('local-file-list.csv', 'upload-file-list.csv')
     # recursive loop over local folder
     total_all_folders = 0
     total_all_files = 0
-    folder_num = 0
-    file_num = 0
+    # folder_num = 0
+    # file_num = 0
     max_zip_batch_size = 128 * 1024**2
     size = 0
     at_least_one_batch = False
     at_least_one_individual = False
-    zip_batch_files = [[]]
-    zip_batch_object_names = [[]]
-    zip_batch_sizes = [0]
-    individual_files = []
-    individual_object_names = []
-    individual_files_sizes = []
+    # zip_batch_files = [[]]
+    # zip_batch_object_names = [[]]
+    # zip_batch_sizes = [0]
+    # individual_files = []
+    # individual_object_names = []
+    # individual_files_sizes = []
 
     # Traversal with Pandas and Dask
     # Do absolute minimal work during traversal - get paths only
@@ -1529,7 +1529,10 @@ def process_files(
             if exclude.isin([folder]).any():
                 continue
             if len(files) == 0 and len(sub_folders) == 0:
-                # print('Skipping subfolder - no files or subfolders.', flush=True)
+                # print(
+                # 'Skipping subfolder - no files or subfolders.',
+                # flush = True
+                # )
                 continue
             elif len(files) == 0:
                 # print('Skipping subfolder - no files.', flush=True)
@@ -1674,7 +1677,14 @@ def process_files(
                     if row[1].name == ddf.index[-1]:
                         batches.append(1)
                 batch_number.append(len(batches))
-            print(f'row: {row[1].name} - batch: {len(batches)} - cumulative_size: {cumulative_size} - size: {size} - individual_upload: {True if row[1]["type"] == "file" else False}', flush=True)
+            print(
+                f'row: {row[1].name} - '
+                f'batch: {len(batches)} - '
+                f'cumulative_size: {cumulative_size} - '
+                f'size: {size} - '
+                f'individual_upload: {True if row[1]["type"] == "file" else False}',
+                flush=True
+            )
         del batch, batches, cumulative_size
         zip_batch = pd.Series(batch_number[1:], name='id', dtype='int')
         print(zip_batch, flush=True)
@@ -1714,7 +1724,8 @@ def process_files(
         ind_files['id'] = None
         # to_collate
 
-        ### ValueError: Grouping by an unaligned column is unsafe and unsupported.
+        # ValueError: Grouping by an unaligned column is unsafe and
+        # unsupported.
         # This can be caused by filtering only one of the object or
         # grouping key. For example, the following works in pandas,
         # but not in dask:
@@ -1746,136 +1757,105 @@ def process_files(
         zips['paths'] = zips['paths'].apply(lambda x: '|'.join(x), meta=('paths', 'str'))
         zips['object_names'] = zips['object_names'].apply(lambda x: '|'.join(x), meta=('object_names', 'str'))
 
-        to_collate = dd.concat([zips, ind_files], axis=0).reset_index(drop=True)
-        print(to_collate, flush=True)
+        uploads = dd.concat([zips, ind_files], axis=0).reset_index(drop=True)
+        print(uploads, flush=True)
 
-        to_collate.compute().to_csv(upload_list_file, index=False)
-        exit()
+        uploads.compute().to_csv(upload_list_file, index=False)
+        uploads = uploads.persist()
 
-        if len(to_collate) > 0:
-            # to_collate['object_names'] = to_collate['object_names'].apply(my_lit_eval).astype(object)
-            # to_collate['id'] = to_collate['id'].astype(int)
-            # to_collate['paths'] = to_collate['paths'].apply(my_lit_eval).astype(object)
-            # to_collate['upload'] = to_collate['upload'].astype(bool)
-            # to_collate['type'] = to_collate['type'].astype(str)
-            # to_collate['size'] = to_collate['size'].astype(int)
+        # call zip_folder in parallel
+        num_zip_batches = uploads['zip_batch'].max().compute()
+        print(uploads, flush=True)
+        # print(num_zip_batches, flush=True)
+        # print(len(to_collate[to_collate['zip_batch'] == 0]), flush=True)
 
-            # if not to_collate['upload'].any():
-            #     print('No files to upload.', flush=True)
-            #     return False
-
-            # client.scatter(to_collate)
-            # print(to_collate)
-            # print(to_collate[
-            #     to_collate['upload'] == True # noqa
-            # ])
-            # uploads = dd.from_pandas(to_collate[
-            #     to_collate['upload'] == True # noqa
-            # ],
-            #     npartitions=len(
-            #         client.scheduler_info()['workers']
-            # ) * 2,
-            # )
-            # uploads['object_names'] = uploads['object_names'].apply(my_lit_eval).astype(object)
-            # uploads['id'] = uploads['id'].astype(int)
-            # uploads['paths'] = uploads['paths'].apply(my_lit_eval).astype(object)
-            # uploads['upload'] = uploads['upload'].astype(bool)
-            # uploads['type'] = uploads['type'].astype(str)
-            # uploads['size'] = uploads['size'].astype(int)
-
-            # call zip_folder in parallel
-            num_zip_batches = to_collate['zip_batch'].max().compute()
-            print(to_collate, flush=True)
-            print(num_zip_batches, flush=True)
-            print(len(to_collate[to_collate['zip_batch'] == 0]), flush=True)
-
-            print(
-                f"Zipping and uploading "
-                f"{num_zip_batches} " # noqa
-                "batches.", flush=True
+        print(
+            f"Zipping and uploading "
+            f"{num_zip_batches} " # noqa
+            "batches.", flush=True
+        )
+        print(
+            f"Uploading "
+            f"{len(uploads[uploads['type'] == 'file'])} " # noqa
+            "individual files.", flush=True
+        )
+        print(f'Total: {len(uploads)}', flush=True)
+        print(
+            f"Average files per zip batch: "
+            f"{(len(uploads[uploads['type'] == 'zip']) / num_zip_batches):.2f}",
+            flush=True
+        )
+        print('Uploading...', flush=True)
+        # exit()
+        # uploads['uploaded'] = False
+        # uploads['uploaded'] = uploads['uploaded'].astype(bool)
+        # print('uploads type')
+        # print(uploads['type'])
+        # print('uploads type zip')
+        # print(uploads[uploads['type'].eq('zip')])
+        # print('uploads type file')
+        # print(uploads[uploads['type'] == 'file'])
+        # to_collate_zips = to_collate[
+        #     to_collate['zip_batch'] > 0 # noqa
+        # ]['zip_batch', 'object_names', 'paths', 'size'].drop_duplicates()
+        # zip_uploads = dd([])
+        # id,object_names,paths,size,type,upload,uploaded.
+        if len(uploads[uploads['type'] == 'zip']) > 0:
+            zip_uploads = uploads[uploads['type'] == 'zip'].apply(
+                zip_and_upload,
+                axis=1,
+                args=(
+                    s3,
+                    bucket_name,
+                    api,
+                    destination_dir,
+                    local_dir,
+                    total_size_uploaded,
+                    total_files_uploaded,
+                    use_compression,
+                    dryrun,
+                    processing_start,
+                    mem_per_worker,
+                    log,
+                ),
+                meta=('zip_uploads', bool)
             )
-            print(
-                f"Uploading "
-                f"{len(to_collate[to_collate['individual_upload'] == True])} " # noqa
-                "individual files.", flush=True
+        else:
+            print('No zip uploads.', flush=True)
+            zip_uploads = pd.Series([], dtype=bool)
+        if len(uploads[uploads['type'] == 'file']) > 0:
+            file_uploads = uploads[uploads['type'] == 'file'].apply(
+                upload_files_from_series,
+                axis=1,
+                args=(
+                    s3,
+                    bucket_name,
+                    api,
+                    local_dir,
+                    dryrun,
+                    processing_start,
+                    1,
+                    total_size_uploaded,
+                    total_files_uploaded,
+                    mem_per_worker,
+                    log,
+                ),
+                meta=('file_uploads', bool)
             )
-            print(f'Total: {len(to_collate)}', flush=True)
-            print(
-                f"Average files per zip batch: "
-                f"{(len(to_collate[to_collate['individual_upload'] == False]) / num_zip_batches):.2f}",
-                flush=True
-            )
-            print('Uploading...', flush=True)
-            # exit()
-            # uploads['uploaded'] = False
-            # uploads['uploaded'] = uploads['uploaded'].astype(bool)
-            # print('uploads type')
-            # print(uploads['type'])
-            # print('uploads type zip')
-            # print(uploads[uploads['type'].eq('zip')])
-            # print('uploads type file')
-            # print(uploads[uploads['type'] == 'file'])
-            to_collate_zips = to_collate[
-                to_collate['zip_batch'] > 0 # noqa
-            ]['zip_batch', 'object_names', 'paths', 'size'].drop_duplicates()
-            zip_uploads = dd([])
-            # id,object_names,paths,size,type,upload,uploaded.
-            if len(uploads[uploads['type'] == 'zip']) > 0:
-                zip_uploads = uploads[uploads['type'] == 'zip'].apply(
-                    zip_and_upload,
-                    axis=1,
-                    args=(
-                        s3,
-                        bucket_name,
-                        api,
-                        destination_dir,
-                        local_dir,
-                        total_size_uploaded,
-                        total_files_uploaded,
-                        use_compression,
-                        dryrun,
-                        processing_start,
-                        mem_per_worker,
-                        log,
-                    ),
-                    meta=('zip_uploads', bool)
-                )
-            else:
-                print('No zip uploads.', flush=True)
-                zip_uploads = pd.Series([], dtype=bool)
-            if len(uploads[uploads['type'] == 'file']) > 0:
-                file_uploads = uploads[uploads['type'] == 'file'].apply(
-                    upload_files_from_series,
-                    axis=1,
-                    args=(
-                        s3,
-                        bucket_name,
-                        api,
-                        local_dir,
-                        dryrun,
-                        processing_start,
-                        1,
-                        total_size_uploaded,
-                        total_files_uploaded,
-                        mem_per_worker,
-                        log,
-                    ),
-                    meta=('file_uploads', bool)
-                )
-            else:
-                print('No file uploads.', flush=True)
-                file_uploads = pd.Series([], dtype=bool)
-            print(type(zip_uploads))
-            print(type(file_uploads))
-            uploads = uploads.compute()
-            client.scatter(uploads)
+        else:
+            print('No file uploads.', flush=True)
+            file_uploads = pd.Series([], dtype=bool)
+        print(type(zip_uploads))
+        print(type(file_uploads))
+        # uploads = uploads.compute()
+        # client.scatter(uploads)
 
-            if isinstance(zip_uploads, dd.Series):
-                zip_uploads = zip_uploads.compute()
-            if isinstance(file_uploads, dd.Series):
-                file_uploads = file_uploads.compute()
-            # uploads[uploads['type'] == 'file']['uploaded'] = file_uploads
-            # uploads[uploads['type'] == 'zip']['uploaded'] = zip_uploads
+        if isinstance(zip_uploads, dd.Series):
+            zip_uploads = zip_uploads.compute()
+        if isinstance(file_uploads, dd.Series):
+            file_uploads = file_uploads.compute()
+        # uploads[uploads['type'] == 'file']['uploaded'] = file_uploads
+        # uploads[uploads['type'] == 'zip']['uploaded'] = zip_uploads
 
     ################################
     # Return bool as upload status #
