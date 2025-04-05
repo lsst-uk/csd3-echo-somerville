@@ -1731,7 +1731,7 @@ def process_files(
 
         # For more information see dask GH issue #1876.
 
-        zips = ddf[ddf['id'] > 0].groupby(ddf['id']).agg(
+        zips = ddf[ddf['id'] > 0].groupby(ddf.id).agg(
             {
                 'paths': 'list',
                 'object_names': 'list',
