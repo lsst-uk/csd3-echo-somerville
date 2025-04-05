@@ -1713,12 +1713,6 @@ def process_files(
         ind_files = ddf[ddf['type'] == 'file'].drop('islink', axis=1)
         ind_files['id'] = None
         # to_collate
-        dd_list_aggregation = dd.Aggregation(
-            'list_aggregation',
-            list_aggregation,  # chunks are aggregated into strings with str.join('|')
-            list_aggregation,  # strings are aggregated into a single string with str.join('|')
-            # lambda x: x.values        # finalize by settings the values of the generated Series
-        )
 
         ### ValueError: Grouping by an unaligned column is unsafe and unsupported.
         # This can be caused by filtering only one of the object or
@@ -1737,15 +1731,25 @@ def process_files(
 
         # For more information see dask GH issue #1876.
 
-        id_ddf = ddf[ddf['id'] > 0].groupby('id').agg(dd_list_aggregation).compute()
-        print(id_ddf, flush=True)
-        id_ddf.to_csv('id_ddf.csv', index=False)
+        zips = ddf[ddf['id'] > 0].groupby(ddf['id']).agg(
+            {
+                'paths': 'list',
+                'object_names': 'list',
+                'islink': 'first',
+                'size': 'sum',
+                'type': 'first',
+                'upload': 'first',
+                'uploaded': 'first',
+                'id': 'first',
+            }
+        )
+        # print(id_ddf, flush=True)
+        # id_ddf.to_csv('id_ddf.csv', index=False)
         # zips = ddf[ddf['id'] > 0]['id'].astype(int).drop_duplicates()
         # print(ddf[ddf['id'] > 0].groupby('id').agg(dd_list_aggregation).compute(), flush=True)
-        exit()
-        zips['paths'] = ddf[ddf['id'] > 0]['paths'].groupby(ddf['id']).agg(dd_list_aggregation)
-        zips['object_names'] = ddf[ddf['id'] > 0]['object_names'].groupby(ddf['id']).agg(dd_list_aggregation)
-        zips['size'] = ddf[ddf['id'] > 0]['size'].groupby(ddf['id']).sum().values
+        # exit()
+        zips['paths'] = zips['paths'].apply(lambda x: '|'.join(x), meta=('paths', 'str'))
+        zips['object_names'] = zips['object_names'].apply(lambda x: '|'.join(x), meta=('object_names', 'str'))
 
         to_collate = dd.concat([zips, ind_files], axis=0).reset_index(drop=True)
         print(to_collate, flush=True)
