@@ -1743,18 +1743,13 @@ def process_files(
                 'id': 'first',
             }
         )
-        # print(id_ddf, flush=True)
-        # id_ddf.to_csv('id_ddf.csv', index=False)
-        # zips = ddf[ddf['id'] > 0]['id'].astype(int).drop_duplicates()
-        # print(ddf[ddf['id'] > 0].groupby('id').agg(dd_list_aggregation).compute(), flush=True)
-        # exit()
         zips['paths'] = zips['paths'].apply(lambda x: '|'.join(x), meta=('paths', 'str'))
         zips['object_names'] = zips['object_names'].apply(lambda x: '|'.join(x), meta=('object_names', 'str'))
 
         to_collate = dd.concat([zips, ind_files], axis=0).reset_index(drop=True)
         print(to_collate, flush=True)
 
-        to_collate.to_csv(upload_list_file, index=False)
+        to_collate.compute().to_csv(upload_list_file, index=False)
         exit()
 
         if len(to_collate) > 0:
