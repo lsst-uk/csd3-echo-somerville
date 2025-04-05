@@ -1766,8 +1766,6 @@ def process_files(
         # call zip_folder in parallel
         num_zip_batches = uploads['id'].max().compute()
         print(uploads, flush=True)
-        # print(num_zip_batches, flush=True)
-        # print(len(to_collate[to_collate['zip_batch'] == 0]), flush=True)
 
         print(
             f"Zipping and uploading "
@@ -1786,20 +1784,7 @@ def process_files(
             flush=True
         )
         print('Uploading...', flush=True)
-        # exit()
-        # uploads['uploaded'] = False
-        # uploads['uploaded'] = uploads['uploaded'].astype(bool)
-        # print('uploads type')
-        # print(uploads['type'])
-        # print('uploads type zip')
-        # print(uploads[uploads['type'].eq('zip')])
-        # print('uploads type file')
-        # print(uploads[uploads['type'] == 'file'])
-        # to_collate_zips = to_collate[
-        #     to_collate['zip_batch'] > 0 # noqa
-        # ]['zip_batch', 'object_names', 'paths', 'size'].drop_duplicates()
-        # zip_uploads = dd([])
-        # id,object_names,paths,size,type,upload,uploaded.
+
         if len(uploads[uploads['type'] == 'zip']) > 0:
             zip_uploads = uploads[uploads['type'] == 'zip'].apply(
                 zip_and_upload,
@@ -1847,23 +1832,15 @@ def process_files(
             file_uploads = pd.Series([], dtype=bool)
         print(type(zip_uploads))
         print(type(file_uploads))
-        # uploads = uploads.compute()
-        # client.scatter(uploads)
 
         if isinstance(zip_uploads, dd.Series):
             zip_uploads = zip_uploads.compute()
         if isinstance(file_uploads, dd.Series):
             file_uploads = file_uploads.compute()
-        # uploads[uploads['type'] == 'file']['uploaded'] = file_uploads
-        # uploads[uploads['type'] == 'zip']['uploaded'] = zip_uploads
 
     ################################
     # Return bool as upload status #
     ################################
-        # print(zip_uploads)
-        # print(file_uploads)
-        # zip_uploads.to_csv('zip_uploads.csv')
-        # file_uploads.to_csv('file_uploads.csv')
         if len(zip_uploads) > 0 and len(file_uploads) > 0:
             all_uploads_successful = bool(zip_uploads.all()) * bool(file_uploads.all())
         elif len(zip_uploads) > 0:
