@@ -1730,8 +1730,8 @@ def process_files(
         # df[df.foo < 0].groupby('bar')
 
         # For more information see dask GH issue #1876.
-
-        zips = ddf[ddf['id'] > 0].groupby(ddf.id).agg(
+        zips = ddf[ddf['id'] > 0]
+        zips = zips.groupby(zips['id']).agg(
             {
                 'paths': 'list',
                 'object_names': 'list',
