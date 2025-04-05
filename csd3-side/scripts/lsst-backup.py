@@ -47,6 +47,57 @@ from typing import List
 warnings.filterwarnings('ignore')
 
 
+def list_aggregation(x) -> str:
+    """
+    Aggregates a list of strings into a single string separated by commas.
+
+    Args:
+        x (list[str]): The list of strings to aggregate.
+
+    Returns:
+        str: The aggregated string.
+    """
+    print(x.name)
+    # if isinstance(x['paths'], list):
+    #     print('|'.join(x['']))
+    # else:
+    #     print(x[0])
+    # # dprint(x, flush=True)
+    # # dprint([y[0] for y in x], flush=True)
+    # dprint('|'.join([y[1] for y in x]), flush=True)
+    # return '|'.join([y[0] for y in x])
+    return x[0]
+
+
+def set_type(row: pd.Series, max_zip_batch_size) -> pd.Series:
+    if row['size'] > max_zip_batch_size / 2:
+        return 'file'
+    else:
+        return 'zip'
+
+
+def follow_symlinks(path: str, local_dir: str, destination_dir: str) -> pd.Series:
+    """
+    Follows symlinks in a directory and returns a DataFrame containing the
+    new path and generated object_name.
+    """
+    target = to_rds_path(os.path.realpath(path), local_dir)
+    object_name = os.sep.join([destination_dir, os.path.relpath(path, local_dir)])
+    return_ser = pd.Series(
+        [
+            target,
+            object_name,
+            False
+        ],
+        index=[
+            'paths',
+            'object_names',
+            'islink'
+        ]
+    )
+    return return_ser
+
+
 def my_lit_eval(x: object) -> object:
     """
     Safely evaluates a string containing a Python literal expression.
@@ -448,7 +499,7 @@ def zip_and_upload(
     Returns:
         bool: True if a zip was created and uploaded, False if not..
     """
-    file_paths = my_lit_eval(row['paths'])
+    file_paths = row['paths'].split('|')
     id = row['id']
 
     #############
@@ -1445,472 +1496,333 @@ def process_files(
     processing_start = datetime.now()
     total_size_uploaded = 0
     total_files_uploaded = 0
-    i = 0
-
+    # i = 0
+    upload_list_file = local_list_file.replace('local-file-list.csv', 'upload-file-list.csv')
     # recursive loop over local folder
     total_all_folders = 0
     total_all_files = 0
-    folder_num = 0
-    file_num = 0
+    # folder_num = 0
+    # file_num = 0
     max_zip_batch_size = 128 * 1024**2
     size = 0
     at_least_one_batch = False
     at_least_one_individual = False
-    zip_batch_files = [[]]
-    zip_batch_object_names = [[]]
-    zip_batch_sizes = [0]
-    individual_files = []
-    individual_object_names = []
-    individual_files_sizes = []
+    # zip_batch_files = [[]]
+    # zip_batch_object_names = [[]]
+    # zip_batch_sizes = [0]
+    # individual_files = []
+    # individual_object_names = []
+    # individual_files_sizes = []
 
-    print(f'Analysing local dataset {local_dir}.', flush=True)
-    for folder, sub_folders, files in os.walk(local_dir, topdown=True):
-        total_all_folders += 1
-        total_all_files += len(files)
-        if total_all_folders % 1000 == 0:
-            print('.', end='', flush=True)
-    print()
-    print(f'Folders: {total_all_folders} Files: {total_all_files}', flush=True)
-    if file_count_stop and len(current_objects) > 0:
-        total_non_collate_zip = len(
-            current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_') == False] # noqa
-        )
-        if total_non_collate_zip == total_all_files:
-            print(f'Number of existing objects (excluding collated zips) equal to number of local files '
-                  f'given the same prefix ({total_all_files}).')
-            print('This is a soft verification that the entire local dataset has been uploaded previously.')
-            print('Exiting. To prevent this behavior and force per-file verification, set '
-                  '`--no-file-count-stop` to True.', flush=True)
-            sys.exit()
-
-    if not os.path.exists(local_list_file):
-        print(f'Preparing to upload {total_all_files} files in {total_all_folders} folders from {local_dir} '
-              f'to {bucket_name}/{destination_dir}.', flush=True)
-        for folder, sub_folders, files in os.walk(local_dir, topdown=False):
-            folder_num += 1
-            file_num += len(files)
-            print(f'Processing {folder_num}/{total_all_folders} folders; {file_num}/{total_all_files} files '
-                  f'in {local_dir}.', flush=True)
-
-            # check if folder is in the exclude list
+    # Traversal with Pandas and Dask
+    # Do absolute minimal work during traversal - get paths only
+    # All other operations will be parallelised later
+    # ddf = dd.from_pandas(pd.DataFrame([], columns=['paths']), npartitions=1)
+    if not os.path.exists(local_list_file) or not os.path.exists(upload_list_file):
+        done_first = False
+        print(f'Analysing local dataset {local_dir}.', flush=True)
+        fc = 0
+        for folder, sub_folders, files in os.walk(local_dir, topdown=True):
+            fc += 1
+            if fc % 1000 == 0:
+                print(f'in {folder}, folder count: {total_all_folders}', flush=True)
+            if exclude.isin([folder]).any():
+                continue
             if len(files) == 0 and len(sub_folders) == 0:
-                print('Skipping subfolder - no files or subfolders.', flush=True)
+                # print(
+                # 'Skipping subfolder - no files or subfolders.',
+                # flush = True
+                # )
                 continue
             elif len(files) == 0:
-                print('Skipping subfolder - no files.', flush=True)
+                # print('Skipping subfolder - no files.', flush=True)
                 continue
-            if exclude.isin([folder]).any():
-                print(f'Skipping subfolder {folder} - excluded.', flush=True)
-                continue
-            # remove subfolders in exclude list
-            if len(sub_folders) > 0:
-                len_pre_exclude = len(sub_folders)
-                sub_folders[:] = [
-                    sub_folder for sub_folder in sub_folders if not exclude.isin([sub_folder]).any()
-                ]
-                print(f'Skipping {len_pre_exclude - len(sub_folders)} subfolders in {folder} - excluded. '
-                      f'{len(sub_folders)} subfolders remaining.', flush=True)
-
-            folder_files = [os.sep.join([folder, filename]) for filename in files]
-
-            if len(folder_files) == 0:
-                print('Skipping subfolder - no files - see permissions warning(s).', flush=True)
-                continue
-            for filename in folder_files:
-                if exclude.isin([os.path.relpath(filename, local_dir)]).any():
-                    print(f'Skipping file {filename} - excluded.', flush=True)
-                    folder_files.remove(filename)
-                    if len(folder_files) == 0:
-                        print('Skipping subfolder - no files - see exclusions.', flush=True)
-                    continue
-            sizes_futures = [client.submit(filesize, filename) for filename in folder_files]
-            sizes = client.gather(sizes_futures)
-            print(f'sizes: {sizes}', flush=True)
-            total_filesize = sum(sizes)
-            print(f'total_filesize: {total_filesize}', flush=True)
-            if total_filesize > 0:
-                mean_filesize = total_filesize / len(files)
+            if not done_first:
+                df = pd.DataFrame(
+                    {
+                        'paths': [os.path.join(folder, filename) for filename in files]
+                    }
+                )
             else:
-                mean_filesize = 0
+                df = pd.concat(
+                    [
+                        df,
+                        pd.DataFrame(
+                            {
+                                'paths': [os.path.join(folder, filename) for filename in files]
+                            }
+                        )
+                    ]
+                )
+            total_all_folders += 1
+            # if total_all_folders % 500 == 0:
+            #     # avoid hitting the recursion limit
+            #     ddf = ddf.compute().reset_index(drop=True)
+            #     ddf = dd.from_pandas(ddf)
 
-            # check if any subfolders contain no subfolders and < 4 files
-            if len(sub_folders) > 0:
-                for sub_folder in sub_folders:
-                    sub_folder_path = os.path.join(folder, sub_folder)
-                    _, sub_sub_folders, sub_files = next(os.walk(sub_folder_path), ([], [], []))
-                    subfolder_files = [os.sep.join([sub_folder_path, filename]) for filename in sub_files]
-                    subsize_futures = [client.submit(filesize, filename) for filename in subfolder_files]
-                    subfiles_sizes = client.gather(subsize_futures)
-                    total_subfilesize = sum(subfiles_sizes)
-                    if not sub_sub_folders and len(sub_files) < 4 and total_subfilesize < 96 * 1024**2:
-                        sub_folders.remove(sub_folder)  # not sure what the effect of this is
-                        # upload files in subfolder "as is" i.e., no zipping
+            done_first = True
+        # print()
+        total_all_files = len(df)
+        df = df.reset_index(drop=True)
+        ddf = dd.from_pandas(df, npartitions=1)
 
-            # check folder isn't empty
-            print(f'Processing {len(folder_files)} files (total size: {total_filesize:.0f} B) in {folder} '
-                  f'with {len(sub_folders)} subfolders.', flush=True)
+        print(f'Folders: {total_all_folders} Files: {total_all_files}', flush=True)
+        # print('Analysing local dataset complete.', flush=True)
+        # print(df.head(), flush=True)
+        del df
 
-            # keys to files on s3
-            object_names = [
-                os.sep.join(
-                    [destination_dir, os.path.relpath(filename, local_dir)]
-                ) for filename in folder_files
-            ]
-            init_len = len(object_names)
+        if file_count_stop and len(current_objects) > 0:
+            total_non_collate_zip = len(
+                current_objects[current_objects['CURRENT_OBJECTS'].str.contains('collated_') == False] # noqa
+            )
+            if total_non_collate_zip == total_all_files:
+                print(f'Number of existing objects (excluding collated zips) equal to number of local files '
+                      f'given the same prefix ({total_all_files}).')
+                print('This is a soft verification that the entire local dataset has been uploaded '
+                      'previously.')
+                print('Exiting. To prevent this behavior and force per-file verification, set '
+                      '`--no-file-count-stop` to True.', flush=True)
+                sys.exit()
 
-            if not global_collate:
-                if not current_objects.empty:
-                    if set(object_names).issubset(current_objects['CURRENT_OBJECTS']):
-                        # all files in this subfolder already in bucket
-                        print('Skipping subfolder - all files exist.', flush=True)
-                        continue
+        # Generate new columns with Dask apply
+        # Basic object names
+        print('Generating object names.', flush=True)
+        ddf['object_names'] = ddf['paths'].apply(
+            lambda x: os.sep.join([destination_dir, os.path.relpath(x, local_dir)]),
+            meta=('object_names', 'str')
+        )
+        # Check for symlinks
+        print('Checking for symlinks.', flush=True)
+        ddf['islink'] = ddf['paths'].apply(
+            os.path.islink,
+            meta=('islink', 'bool')
+        )
+        # If symlink, change object name to include '.symlink'
+        print('Changing object names for symlinks.', flush=True)
+        ddf['object_names'] = ddf.apply(
+            lambda x: f'{x["object_names"]}.symlink' if x['islink'] else x['object_names'],
+            axis=1,
+            meta=('object_names', 'str')
+        )
+        # Add symlink target paths
+        print('Adding symlink target paths.', flush=True)
+        targets = ddf[
+            ddf['islink'] == True # noqa
+        ]['paths'].apply(
+            follow_symlinks,
+            args=(
+                local_dir,
+                destination_dir,
+            ),
+            meta=pd.Series(dtype='object')
+        )
 
-            if mean_filesize > max_zip_batch_size or not global_collate:
-                print('Individual upload.', flush=True)
-                at_least_one_individual = True
-                # all files within folder
-                # if uploading file individually, remove existing files from
-                # object_names
-                if not current_objects.empty:
-                    for oni, on in enumerate(object_names):
-                        if current_objects['CURRENT_OBJECTS'].isin([on]).any() or current_objects[
-                            'CURRENT_OBJECTS'
-                        ].isin([f'{on}.symlink']).any():
-                            object_names.remove(on)
-                            del folder_files[oni]
-                pre_linkcheck_file_count = len(object_names)
-                if init_len - pre_linkcheck_file_count > 0:
-                    print(f'Skipping {init_len - pre_linkcheck_file_count} existing files.', flush=True)
+        targets = targets.compute()
 
-                # always do this AFTER removing "current_objects" to avoid
-                # re-uploading
-                symlink_targets = []
-                symlink_obj_names = []
-                for i in range(len(folder_files)):
-                    if os.path.islink(folder_files[i]):
-                        # rename link in object_names
-                        symlink_obj_name = object_names[i]
-                        object_names[i] = '.'.join([object_names[i], 'symlink'])
-                        # add symlink target to symlink_targets list
-                        # using target dir as-is can cause permissions issues
-                        # replace /home path with /rds path uses as local_dir
-                        target = to_rds_path(os.path.realpath(folder_files[i]), local_dir)
-                        symlink_targets.append(target)
-                        # add real file to symlink_obj_names list
-                        symlink_obj_names.append(symlink_obj_name)
+        # Add symlink target paths to ddf
+        # here still dd
+        ddf = dd.concat([ddf, targets])
+        del targets
 
-                folder_files.extend(symlink_targets)
-                object_names.extend(symlink_obj_names)
+        # Drop any files that are already on S3
+        if not current_objects.empty:
+            print('Removing files already on S3.', flush=True)
+            ddf = ddf[ddf['object_names'].isin(current_objects['CURRENT_OBJECTS']) == False] # noqa
+            # del just_ons
 
-                file_count = len(object_names)
+        # Get size of each file
+        print('Getting file sizes.', flush=True)
+        ddf['size'] = ddf.apply(
+            lambda x: os.path.getsize(x['paths']) if not x['islink'] else 0,
+            meta=('size', 'int'),
+            axis=1
+        )
 
-                folder_files_sizes_futures = [client.submit(filesize, filename) for filename in folder_files]
-                folder_files_sizes = client.gather(folder_files_sizes_futures)
-                folder_files_size = np.sum(np.array(folder_files_sizes))
-                total_size_uploaded += folder_files_size
-                total_files_uploaded += file_count
-                print(f'{file_count - pre_linkcheck_file_count} symlinks replaced with files. Symlinks '
-                      'renamed to <filename>.symlink', flush=True)
+        # Decide types of upload
+        print('Deciding individual uploads.', flush=True)
+        ddf['type'] = ddf.apply(
+            set_type,
+            args=(max_zip_batch_size,),
+            meta=('type', 'str'),
+            axis=1
+        )
+        ddf['upload'] = True
+        ddf['uploaded'] = False
 
-                print(f'{file_count} files (total size: {folder_files_size/1024**2:.0f} MiB) in '
-                      f'{folder} will be uploaded individually to {bucket_name}.', flush=True)
-                print(f'Individual files objects names: {object_names}', flush=True)
+        print('Computing dataframe.', flush=True)
+        # compute up to this point
+        ddf = ddf.compute()
+        ddf = ddf.reset_index(drop=True)
 
-                individual_files.extend([[ff] for ff in folder_files])
-                individual_object_names.extend([[on] for on in object_names])
-                individual_files_sizes.extend(folder_files_sizes)
+        # Decide collated upload batches
+        print('Deciding collated upload batches.', flush=True)
 
-            # small files in folder
-            elif mean_filesize <= max_zip_batch_size and len(folder_files) > 0 and global_collate:
-                print('Collated upload.', flush=True)
-                at_least_one_batch = True
-                if not os.path.exists(local_list_file):
-                    # Extract all zips before continuation.
-                    # Existing object removal
-                    if not current_objects.empty:
-                        for oni, on in enumerate(object_names):
-                            if current_objects['CURRENT_OBJECTS'].isin([on]).any() or current_objects[
-                                'CURRENT_OBJECTS'
-                            ].isin([f'{on}.symlink']).any():
-                                object_names.remove(on)
-                                del folder_files[oni]
+        # Generate zip batches - neccesarily iterative.
+        cumulative_size = 0
+        batches = [None]
+        batch = [None]
+        batch_number = [None]
+        for row in ddf.iterrows():
+            if row[1]['type'] == 'file':
+                batch_number.append(0)
+            else:
+                size = row[1]['size']
+                if cumulative_size + size > max_zip_batch_size:
+                    batches.append(1)
+                    batch = [1]
+                    cumulative_size = size
+                else:
+                    batch.append(1)
+                    cumulative_size += size
+                    if row[1].name == ddf.index[-1]:
+                        batches.append(1)
+                batch_number.append(len(batches))
+            print(
+                f'row: {row[1].name} - '
+                f'batch: {len(batches)} - '
+                f'cumulative_size: {cumulative_size} - '
+                f'size: {size} - '
+                f'individual_upload: {True if row[1]["type"] == "file" else False}',
+                flush=True
+            )
+        del batch, batches, cumulative_size
+        zip_batch = pd.Series(batch_number[1:], name='id', dtype='int')
+        print(zip_batch, flush=True)
+        ddf['id'] = zip_batch
+        del zip_batch
 
-                    symlink_targets = []
-                    symlink_obj_names = []
-                    for i in range(len(folder_files)):
-                        if os.path.islink(folder_files[i]):
-                            # rename link in object_names
-                            symlink_obj_name = object_names[i]
-                            object_names[i] = '.'.join([object_names[i], 'symlink'])
-                            # add symlink target to symlink_targets list
-                            # using target dir as-is can cause permissions
-                            # issues
-                            # replace /home path with /rds path uses as
-                            # local_dir
-                            target = to_rds_path(os.path.realpath(folder_files[i]), local_dir)
-                            symlink_targets.append(target)
-                            # add real file to symlink_obj_names list
-                            symlink_obj_names.append(symlink_obj_name)
-
-                    # append symlink_targets and symlink_obj_names to
-                    # folder_files and object_names
-                    folder_files.extend(symlink_targets)
-                    object_names.extend(symlink_obj_names)
-
-                    file_count = len(object_names)
-                    # always do this AFTER removing "current_objects"
-                    # to avoid re-uploading
-                    # Find sizes
-                    size_futures = [client.submit(filesize, x) for x in folder_files]
-                    sizes = client.gather(size_futures)
-
-                    # Level n collation
-                    # size = 0
-                    for i, filename in enumerate(folder_files):
-                        s = sizes[i]
-                        size += s
-                        if size <= max_zip_batch_size:
-                            zip_batch_files[-1].append(filename)
-                            zip_batch_object_names[-1].append(object_names[i])
-                            zip_batch_sizes[-1] += s
-                        else:
-                            zip_batch_files.append([filename])
-                            zip_batch_object_names.append([object_names[i]])
-                            zip_batch_sizes.append(s)
-                            size = s
-                    print(f'Batch {len(zip_batch_files)}: {len(zip_batch_files[-1])} files, '
-                          f'{zip_batch_sizes[-1]/1024**2:.0f} MiB', flush=True)
-                    print(f'Number of zip files: {len(zip_batch_files)}', flush=True)
+        print(ddf, flush=True)
+        if save_local_file:
+            ddf.to_csv('' + local_list_file, index=False)
+        at_least_one_batch = ddf['type'].isin(['zip']).any()
+        at_least_one_individual = ddf['type'].isin(['file']).any()
+        print(f'At least one batch: {at_least_one_batch}', flush=True)
+        print(f'At least one individual: {at_least_one_individual}', flush=True)
+        del ddf
         print(f'Done traversing {local_dir}.', flush=True)
 
-    print(f'At least one batch: {at_least_one_batch}', flush=True)
-    print(f'At least one individual: {at_least_one_individual}', flush=True)
-
     if at_least_one_batch or at_least_one_individual:
-        ###############################
-        # CHECK HERE FOR ZIP CONTENTS #
-        ###############################
+        # if at_least_one_batch or at_least_one_individual:
+        # paths,object_names,islink,size,individual_upload,zip_batch
+        ddf = dd.read_csv(
+            local_list_file,
+            dtype={
+                'paths': 'str',
+                'object_names': 'str',
+                'islink': 'bool',
+                'size': 'int',
+                'type': 'str',
+                'upload': 'bool',
+                'uploaded': 'bool',
+                'id': 'int',
+            },
+        )
 
-        if not os.path.exists(local_list_file):
-            print('Creating collate list. 1695', flush=True)
-            to_collate = pd.DataFrame.from_dict({
-                'id': [i for i in range(len(zip_batch_object_names) + len(individual_object_names))],
-                'object_names': zip_batch_object_names + individual_object_names,
-                'paths': zip_batch_files + individual_files,
-                'size': zip_batch_sizes + individual_files_sizes,
-                'type': [
-                    'zip' for _ in range(len(zip_batch_object_names))
-                ] + [
-                    'file' for _ in range(len(individual_files))
-                ],
-                'upload': [
-                    False for _ in range(len(zip_batch_object_names))
-                ] + [
-                    True for _ in range(len(individual_files))
-                ]
-            })
-            to_collate = to_collate.where(to_collate['size'] > 0).dropna()
-            to_collate = dd.from_pandas(to_collate, npartitions=len(client.scheduler_info()['workers']) * 2)
-            to_collate['upload'] = to_collate.apply(
-                compare_zip_contents_bool,
+        # individual
+        ind_files = ddf[ddf['type'] == 'file'].drop('islink', axis=1)
+        ind_files['id'] = None
+
+        # For more information see dask GH issue #1876.
+        zips = ddf[ddf['id'] > 0]
+        zips = zips.groupby(zips['id']).agg(
+            {
+                'paths': 'list',
+                'object_names': 'list',
+                'islink': 'first',
+                'size': 'sum',
+                'type': 'first',
+                'upload': 'first',
+                'uploaded': 'first',
+                'id': 'first',
+            }
+        )
+        zips['paths'] = zips['paths'].apply(lambda x: '|'.join(x), meta=('paths', 'str'))
+        zips['object_names'] = zips['object_names'].apply(lambda x: '|'.join(x), meta=('object_names', 'str'))
+
+        uploads = dd.concat([zips, ind_files], axis=0).reset_index(drop=True)
+        print(uploads, flush=True)
+
+        uploads.compute().to_csv(upload_list_file, index=False)
+        uploads = uploads.persist()
+
+        # call zip_folder in parallel
+        num_zip_batches = uploads['id'].max().compute()
+        print(uploads, flush=True)
+
+        print(
+            f"Zipping and uploading "
+            f"{num_zip_batches} " # noqa
+            "batches.", flush=True
+        )
+        print(
+            f"Uploading "
+            f"{len(uploads[uploads['type'] == 'file'])} " # noqa
+            "individual files.", flush=True
+        )
+        print(f'Total: {len(uploads)}', flush=True)
+        print(
+            f"Average files per zip batch: "
+            f"{(len(uploads[uploads['type'] == 'zip']) / num_zip_batches):.2f}",
+            flush=True
+        )
+        print('Uploading...', flush=True)
+
+        if len(uploads[uploads['type'] == 'zip']) > 0:
+            zip_uploads = uploads[uploads['type'] == 'zip'].apply(
+                zip_and_upload,
                 axis=1,
                 args=(
-                    current_objects,
-                    destination_dir
+                    s3,
+                    bucket_name,
+                    api,
+                    destination_dir,
+                    local_dir,
+                    total_size_uploaded,
+                    total_files_uploaded,
+                    use_compression,
+                    dryrun,
+                    processing_start,
+                    mem_per_worker,
+                    log,
                 ),
-                meta=('upload', bool),
-
+                meta=('zip_uploads', bool)
             )
-            to_collate = to_collate.compute()
-            print(to_collate, flush=True)
-            print(to_collate['upload'], flush=True)
-            # Convert strings representations of lists back to lists
-            to_collate['object_names'] = to_collate['object_names'].apply(my_lit_eval).astype(object)
-            to_collate['id'] = to_collate['id'].astype(int)
-            to_collate['paths'] = to_collate['paths'].apply(my_lit_eval).astype(object)
-            to_collate['upload'] = to_collate['upload'].astype(bool)
-            to_collate['type'] = to_collate['type'].astype(str)
-            to_collate['size'] = to_collate['size'].astype(int)
-            del (
-                zip_batch_files,
-                zip_batch_object_names,
-                zip_batch_sizes,
-                individual_files,
-                individual_object_names,
-                individual_files_sizes
-            )
-
         else:
-            if not current_objects.empty:
-                client.scatter(current_objects)
-                # Pandas
-                to_collate = pd.read_csv(local_list_file).drop('upload', axis=1)
-
-                # Convert strings representations of lists back to lists
-                to_collate[
-                    to_collate['type'] == 'zip'
-                ]['object_names'] = to_collate[
-                    to_collate['type'] == 'zip'
-                ]['object_names'].apply(my_lit_eval)
-
-                to_collate[
-                    to_collate['type'] == 'zip'
-                ]['paths'] = to_collate[
-                    to_collate['type'] == 'zip'
-                ]['paths'].apply(my_lit_eval)
-
-                to_collate = to_collate.drop_duplicates(subset='id', keep='first')
-                # print(len(to_collate))
-                to_collate = dd.from_pandas(
-                    to_collate,
-                    npartitions=len(client.scheduler_info()['workers']) * 2
-                )
-
-                print(f'Loaded local file list from {local_list_file}.', flush=True)
-                # now using pandas for both current_objects and to_collate
-                # - this could be re-written to using vectorised operations
-
-                print('Created Dask dataframe for to_collate.', flush=True)
-                print('Comparing existing objects to collate list.', flush=True)
-                to_collate['upload'] = to_collate.apply(
-                    compare_zip_contents_bool,
-                    axis=1,
-                    args=(
-                        current_objects,
-                        destination_dir,
-                    ),
-                    meta=('upload', bool),
-                )
-                to_collate = to_collate.compute()
-
-                # print(to_collate['upload'])
-
-                if not to_collate['upload'].any():
-                    print('No files to upload.', flush=True)
-                    sys.exit()
-
-            else:
-                pass
-
-        if save_local_file:
-            print(f'Saving local file list list to {local_list_file}, len={len(to_collate)}.', flush=True)
-            to_collate.to_csv(local_list_file, index=False)
-        else:
-            print('Collate list not saved.', flush=True)
-
-    if at_least_one_batch or at_least_one_individual:
-        if len(to_collate) > 0:
-            to_collate['object_names'] = to_collate['object_names'].apply(my_lit_eval).astype(object)
-            to_collate['id'] = to_collate['id'].astype(int)
-            to_collate['paths'] = to_collate['paths'].apply(my_lit_eval).astype(object)
-            to_collate['upload'] = to_collate['upload'].astype(bool)
-            to_collate['type'] = to_collate['type'].astype(str)
-            to_collate['size'] = to_collate['size'].astype(int)
-
-            if not to_collate['upload'].any():
-                print('No files to upload.', flush=True)
-                return False
-
-            client.scatter(to_collate)
-            # print(to_collate)
-            # print(to_collate[
-            #     to_collate['upload'] == True # noqa
-            # ])
-            uploads = dd.from_pandas(to_collate[
-                to_collate['upload'] == True # noqa
-            ],
-                npartitions=len(
-                    client.scheduler_info()['workers']
-            ) * 2,
+            print('No zip uploads.', flush=True)
+            zip_uploads = pd.Series([], dtype=bool)
+        if len(uploads[uploads['type'] == 'file']) > 0:
+            file_uploads = uploads[uploads['type'] == 'file'].apply(
+                upload_files_from_series,
+                axis=1,
+                args=(
+                    s3,
+                    bucket_name,
+                    api,
+                    local_dir,
+                    dryrun,
+                    processing_start,
+                    1,
+                    total_size_uploaded,
+                    total_files_uploaded,
+                    mem_per_worker,
+                    log,
+                ),
+                meta=('file_uploads', bool)
             )
-            uploads['object_names'] = uploads['object_names'].apply(my_lit_eval).astype(object)
-            uploads['id'] = uploads['id'].astype(int)
-            uploads['paths'] = uploads['paths'].apply(my_lit_eval).astype(object)
-            uploads['upload'] = uploads['upload'].astype(bool)
-            uploads['type'] = uploads['type'].astype(str)
-            uploads['size'] = uploads['size'].astype(int)
+        else:
+            print('No file uploads.', flush=True)
+            file_uploads = pd.Series([], dtype=bool)
+        print(type(zip_uploads))
+        print(type(file_uploads))
 
-            # call zip_folder in parallel
-            print(f"Zipping and uploading "
-                    f"{len(to_collate[to_collate['type'] == 'zip'])} " # noqa
-                    "batches.", flush=True)
-            print(f"Uploading "
-                    f"{len(to_collate[to_collate['type'] == 'file'])} " # noqa
-                    "individual files.", flush=True)
-
-            print('Uploading...', flush=True)
-            # uploads['uploaded'] = False
-            # uploads['uploaded'] = uploads['uploaded'].astype(bool)
-            # print('uploads type')
-            # print(uploads['type'])
-            # print('uploads type zip')
-            # print(uploads[uploads['type'].eq('zip')])
-            # print('uploads type file')
-            # print(uploads[uploads['type'] == 'file'])
-            if len(uploads[uploads['type'] == 'zip']) > 0:
-                zip_uploads = uploads[uploads['type'] == 'zip'].apply(
-                    zip_and_upload,
-                    axis=1,
-                    args=(
-                        s3,
-                        bucket_name,
-                        api,
-                        destination_dir,
-                        local_dir,
-                        total_size_uploaded,
-                        total_files_uploaded,
-                        use_compression,
-                        dryrun,
-                        processing_start,
-                        mem_per_worker,
-                        log,
-                    ),
-                    meta=('zip_uploads', bool)
-                )
-            else:
-                print('No zip uploads.', flush=True)
-                zip_uploads = pd.Series([], dtype=bool)
-            if len(uploads[uploads['type'] == 'file']) > 0:
-                file_uploads = uploads[uploads['type'] == 'file'].apply(
-                    upload_files_from_series,
-                    axis=1,
-                    args=(
-                        s3,
-                        bucket_name,
-                        api,
-                        local_dir,
-                        dryrun,
-                        processing_start,
-                        1,
-                        total_size_uploaded,
-                        total_files_uploaded,
-                        mem_per_worker,
-                        log,
-                    ),
-                    meta=('file_uploads', bool)
-                )
-            else:
-                print('No file uploads.', flush=True)
-                file_uploads = pd.Series([], dtype=bool)
-            print(type(zip_uploads))
-            print(type(file_uploads))
-            uploads = uploads.compute()
-            client.scatter(uploads)
-
-            if isinstance(zip_uploads, dd.Series):
-                zip_uploads = zip_uploads.compute()
-            if isinstance(file_uploads, dd.Series):
-                file_uploads = file_uploads.compute()
-            # uploads[uploads['type'] == 'file']['uploaded'] = file_uploads
-            # uploads[uploads['type'] == 'zip']['uploaded'] = zip_uploads
+        if isinstance(zip_uploads, dd.Series):
+            zip_uploads = zip_uploads.compute()
+        if isinstance(file_uploads, dd.Series):
+            file_uploads = file_uploads.compute()
 
     ################################
     # Return bool as upload status #
     ################################
-        # print(zip_uploads)
-        # print(file_uploads)
-        # zip_uploads.to_csv('zip_uploads.csv')
-        # file_uploads.to_csv('file_uploads.csv')
         if len(zip_uploads) > 0 and len(file_uploads) > 0:
             all_uploads_successful = bool(zip_uploads.all()) * bool(file_uploads.all())
         elif len(zip_uploads) > 0:
