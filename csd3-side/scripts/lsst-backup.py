@@ -1718,27 +1718,9 @@ def process_files(
             },
         )
 
-        # ddf = ddf.persist()
         # individual
         ind_files = ddf[ddf['type'] == 'file'].drop('islink', axis=1)
         ind_files['id'] = None
-        # to_collate
-
-        # ValueError: Grouping by an unaligned column is unsafe and
-        # unsupported.
-        # This can be caused by filtering only one of the object or
-        # grouping key. For example, the following works in pandas,
-        # but not in dask:
-
-        # df[df.foo < 0].groupby(df.bar)
-
-        # This can be avoided by either filtering beforehand, or
-        # passing in the name of the column instead:
-
-        # df2 = df[df.foo < 0]
-        # df2.groupby(df2.bar)
-        # # or
-        # df[df.foo < 0].groupby('bar')
 
         # For more information see dask GH issue #1876.
         zips = ddf[ddf['id'] > 0]
