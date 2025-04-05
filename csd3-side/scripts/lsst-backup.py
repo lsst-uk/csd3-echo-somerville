@@ -1526,7 +1526,7 @@ def process_files(
             fc += 1
             if fc % 1000 == 0:
                 print(f'in {folder}, folder count: {total_all_folders}', flush=True)
-            if exclude.isin([folder]).any():
+            if exclude.isin([folder]).any():  # could this be taken out?
                 continue
             if len(files) == 0 and len(sub_folders) == 0:
                 # print(
@@ -1538,7 +1538,7 @@ def process_files(
                 # print('Skipping subfolder - no files.', flush=True)
                 continue
             if not done_first:
-                df = pd.DataFrame(
+                df = pd.DataFrame(  # could this be daskified?
                     {
                         'paths': [os.path.join(folder, filename) for filename in files]
                     }
