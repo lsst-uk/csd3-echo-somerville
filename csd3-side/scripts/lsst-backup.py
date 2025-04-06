@@ -1519,57 +1519,63 @@ def process_files(
     # All other operations will be parallelised later
     # ddf = dd.from_pandas(pd.DataFrame([], columns=['paths']), npartitions=1)
     if not os.path.exists(local_list_file) or not os.path.exists(upload_list_file):
-        done_first = False
+        # done_first = False
         print(f'Analysing local dataset {local_dir}.', flush=True)
         fc = 0
-        for folder, sub_folders, files in os.walk(local_dir, topdown=True):
-            fc += 1
-            if fc % 1000 == 0:
-                print(f'in {folder}, folder count: {total_all_folders}', flush=True)
-            if exclude.isin([folder]).any():  # could this be taken out?
-                continue
-            if len(files) == 0 and len(sub_folders) == 0:
-                # print(
-                # 'Skipping subfolder - no files or subfolders.',
-                # flush = True
-                # )
-                continue
-            elif len(files) == 0:
-                # print('Skipping subfolder - no files.', flush=True)
-                continue
-            if not done_first:
-                df = pd.DataFrame(  # could this be daskified?
-                    {
-                        'paths': [os.path.join(folder, filename) for filename in files]
-                    }
-                )
-            else:
-                df = pd.concat(
-                    [
-                        df,
-                        pd.DataFrame(
-                            {
-                                'paths': [os.path.join(folder, filename) for filename in files]
-                            }
-                        )
-                    ]
-                )
-            total_all_folders += 1
-            # if total_all_folders % 500 == 0:
-            #     # avoid hitting the recursion limit
-            #     ddf = ddf.compute().reset_index(drop=True)
-            #     ddf = dd.from_pandas(ddf)
+        with open('temp_file_list.csv', 'a') as f:
+            f.write('paths\n')
+            for folder, sub_folders, files in os.walk(local_dir, topdown=True):
+                fc += 1
+                if fc % 1000 == 0:
+                    print(f'in {folder}, folder count: {total_all_folders}', flush=True)
+                if exclude.isin([folder]).any():  # could this be taken out?
+                    continue
+                if len(files) == 0 and len(sub_folders) == 0:
+                    # print(
+                    # 'Skipping subfolder - no files or subfolders.',
+                    # flush = True
+                    # )
+                    continue
+                elif len(files) == 0:
+                    # print('Skipping subfolder - no files.', flush=True)
+                    continue
+                # if not done_first:
+                #     df = pd.DataFrame(  # could this be daskified?
+                #         {
+                #             'paths': [os.path.join(folder, filename) for filename in files]
+                #         }
+                #     )
+                # else:
+                #     df = pd.concat(
+                #         [
+                #             df,
+                #             pd.DataFrame(
+                #                 {
+                #                     'paths': [os.path.join(folder, filename) for filename in files]
+                #                 }
+                #             )
+                #         ]
+                #     )
+                paths = [os.path.join(folder, filename) for filename in files]
+                for path in paths:
+                    f.write(path + '\n')
+                total_all_folders += 1
+                # if total_all_folders % 500 == 0:
+                #     # avoid hitting the recursion limit
+                #     ddf = ddf.compute().reset_index(drop=True)
+                #     ddf = dd.from_pandas(ddf)
 
-            done_first = True
+                # done_first = True
         # print()
-        total_all_files = len(df)
-        df = df.reset_index(drop=True)
-        ddf = dd.from_pandas(df, npartitions=1)
+        # total_all_files = len(df)
+        # df = df.reset_index(drop=True)
+        ddf = dd.read_csv('temp_file_list.csv', npartitions=1000)
+        total_all_files = len(ddf)
 
         print(f'Folders: {total_all_folders} Files: {total_all_files}', flush=True)
         # print('Analysing local dataset complete.', flush=True)
         # print(df.head(), flush=True)
-        del df
+        # del df
 
         if file_count_stop and len(current_objects) > 0:
             total_non_collate_zip = len(
