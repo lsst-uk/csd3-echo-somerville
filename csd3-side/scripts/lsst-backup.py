@@ -1569,7 +1569,7 @@ def process_files(
         # print()
         # total_all_files = len(df)
         # df = df.reset_index(drop=True)
-        ddf = dd.read_csv('temp_file_list.csv', npartitions=1000)
+        ddf = dd.read_csv('temp_file_list.csv', dtype={'paths': 'str'})
         total_all_files = len(ddf)
 
         print(f'Folders: {total_all_folders} Files: {total_all_files}', flush=True)
