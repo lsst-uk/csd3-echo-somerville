@@ -1823,10 +1823,10 @@ def process_files(
         print(type(zip_uploads))
         print(type(file_uploads))
 
-        if isinstance(zip_uploads, dd.Series) and isinstance(file_uploads, dd.Series):
-            client.compute(zip_uploads, file_uploads)
-        # if isinstance(file_uploads, dd.Series):
-        #     file_uploads = file_uploads.compute()
+        if isinstance(zip_uploads, dd.Series):
+            file_uploads = zip_uploads.compute()
+        if isinstance(file_uploads, dd.Series):
+            file_uploads = file_uploads.compute()
 
     ################################
     # Return bool as upload status #
