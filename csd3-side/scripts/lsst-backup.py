@@ -2200,7 +2200,6 @@ if __name__ == '__main__':
         n_workers=n_workers,
         threads_per_worker=threads_per_worker,
         memory_limit=mem_per_worker,
-        asynchronous=True,
     ) as client:
         print(f'Dask Client: {client}', flush=True)
         print(f'Dashboard: {client.dashboard_link}', flush=True)
