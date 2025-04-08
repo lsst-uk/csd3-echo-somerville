@@ -1425,7 +1425,7 @@ def upload_and_callback(
 
 
 # KEY FUNCTION TO FIND ALL FILES AND ORGANISE UPLOADS #
-def process_files(
+async def process_files(
     s3,
     bucket_name,
     api,
@@ -1625,7 +1625,7 @@ def process_files(
             meta=pd.Series(dtype='object')
         )
 
-        targets = targets.compute(scheduler="processes")
+        targets = targets.compute()
 
         # Add symlink target paths to ddf
         # here still dd
@@ -1659,7 +1659,7 @@ def process_files(
 
         print('Computing dataframe.', flush=True)
         # compute up to this point
-        ddf = ddf.compute(scheduler="processes")
+        ddf = ddf.compute()
         ddf = ddf.reset_index(drop=True)
 
         # Decide collated upload batches
@@ -1750,7 +1750,7 @@ def process_files(
         uploads = dd.concat([zips, ind_files], axis=0).reset_index(drop=True)
         print(uploads, flush=True)
 
-        uploads.compute(scheduler="processes").to_csv(upload_list_file, index=False)
+        uploads.compute().to_csv(upload_list_file, index=False)
         uploads = uploads.persist()
 
         # call zip_folder in parallel
@@ -1823,10 +1823,10 @@ def process_files(
         print(type(zip_uploads))
         print(type(file_uploads))
 
-        if isinstance(zip_uploads, dd.Series):
-            zip_uploads = zip_uploads.compute()
-        if isinstance(file_uploads, dd.Series):
-            file_uploads = file_uploads.compute()
+        if isinstance(zip_uploads, dd.Series) and isinstance(file_uploads, dd.Series):
+            await client.compute(zip_uploads, file_uploads)
+        # if isinstance(file_uploads, dd.Series):
+        #     file_uploads = file_uploads.compute()
 
     ################################
     # Return bool as upload status #
@@ -2199,7 +2199,8 @@ if __name__ == '__main__':
     with Client(
         n_workers=n_workers,
         threads_per_worker=threads_per_worker,
-        memory_limit=mem_per_worker
+        memory_limit=mem_per_worker,
+        asynchronous=True,
     ) as client:
         print(f'Dask Client: {client}', flush=True)
         print(f'Dashboard: {client.dashboard_link}', flush=True)
@@ -2246,7 +2247,7 @@ if __name__ == '__main__':
                     conn=s3,
                     container_name=bucket_name,
                 )
-                current_objects = current_objects.compute(scheduler="processes")
+                current_objects = current_objects.compute()
             print(flush=True)
         else:
             current_objects['METADATA'] = None
