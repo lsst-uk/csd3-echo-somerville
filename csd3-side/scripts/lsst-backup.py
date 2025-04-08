@@ -1824,7 +1824,7 @@ def process_files(
         print(type(file_uploads))
 
         if isinstance(zip_uploads, dd.Series):
-            file_uploads = zip_uploads.compute()
+            zip_uploads = zip_uploads.compute()
         if isinstance(file_uploads, dd.Series):
             file_uploads = file_uploads.compute()
 
@@ -1832,23 +1832,23 @@ def process_files(
     # Return bool as upload status #
     ################################
         return True
-    #     if len(zip_uploads) > 0 and len(file_uploads) > 0:
-    #         all_uploads_successful = bool(zip_uploads.all()) * bool(file_uploads.all())
-    #     elif len(zip_uploads) > 0:
-    #         all_uploads_successful = bool(zip_uploads.all())
-    #     elif len(file_uploads) > 0:
-    #         all_uploads_successful = bool(file_uploads.all())
-    #     else:
-    #         all_uploads_successful = None
-    #     del uploads
-    #     if all_uploads_successful:
-    #         print('All uploads successful.', flush=True)
-    #     else:
-    #         print('Some uploads failed.', flush=True)
-    #     return all_uploads_successful
-    # else:
-    #     print('Nothing to upload.', flush=True)
-    #     return None
+        if len(zip_uploads) > 0 and len(file_uploads) > 0:
+            all_uploads_successful = bool(zip_uploads.all()) * bool(file_uploads.all())
+        elif len(zip_uploads) > 0:
+            all_uploads_successful = bool(zip_uploads.all())
+        elif len(file_uploads) > 0:
+            all_uploads_successful = bool(file_uploads.all())
+        else:
+            all_uploads_successful = None
+        del uploads
+        if all_uploads_successful:
+            print('All uploads successful.', flush=True)
+        else:
+            print('Some uploads failed.', flush=True)
+        return all_uploads_successful
+    else:
+        print('Nothing to upload.', flush=True)
+        return None
 
 
 ##########################################
