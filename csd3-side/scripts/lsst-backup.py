@@ -1625,7 +1625,7 @@ def process_files(
             meta=pd.Series(dtype='object')
         )
 
-        targets = targets.compute()
+        targets = targets.compute(scheduler="processes")
 
         # Add symlink target paths to ddf
         # here still dd
@@ -1659,7 +1659,7 @@ def process_files(
 
         print('Computing dataframe.', flush=True)
         # compute up to this point
-        ddf = ddf.compute()
+        ddf = ddf.compute(scheduler="processes")
         ddf = ddf.reset_index(drop=True)
 
         # Decide collated upload batches
@@ -1750,11 +1750,11 @@ def process_files(
         uploads = dd.concat([zips, ind_files], axis=0).reset_index(drop=True)
         print(uploads, flush=True)
 
-        uploads.compute().to_csv(upload_list_file, index=False)
+        uploads.compute(scheduler="processes").to_csv(upload_list_file, index=False)
         uploads = uploads.persist()
 
         # call zip_folder in parallel
-        num_zip_batches = uploads['id'].max().compute()
+        num_zip_batches = uploads['id'].max().compute(scheduler="processes")
         print(uploads, flush=True)
 
         print(
@@ -1824,9 +1824,9 @@ def process_files(
         print(type(file_uploads))
 
         if isinstance(zip_uploads, dd.Series):
-            zip_uploads = zip_uploads.compute()
+            zip_uploads = zip_uploads.compute(scheduler="processes")
         if isinstance(file_uploads, dd.Series):
-            file_uploads = file_uploads.compute()
+            file_uploads = file_uploads.compute(scheduler="processes")
 
     ################################
     # Return bool as upload status #
@@ -2244,9 +2244,9 @@ if __name__ == '__main__':
                 current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(
                     find_metadata_swift,
                     conn=s3,
-                    container_name=bucket_name
+                    container_name=bucket_name,
                 )
-                current_objects = current_objects.compute()
+                current_objects = current_objects.compute(scheduler="processes")
             print(flush=True)
         else:
             current_objects['METADATA'] = None
