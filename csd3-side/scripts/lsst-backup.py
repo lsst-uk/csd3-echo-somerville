@@ -1425,7 +1425,7 @@ def upload_and_callback(
 
 
 # KEY FUNCTION TO FIND ALL FILES AND ORGANISE UPLOADS #
-async def process_files(
+def process_files(
     s3,
     bucket_name,
     api,
@@ -1824,7 +1824,7 @@ async def process_files(
         print(type(file_uploads))
 
         if isinstance(zip_uploads, dd.Series) and isinstance(file_uploads, dd.Series):
-            await client.compute(zip_uploads, file_uploads)
+            client.compute(zip_uploads, file_uploads)
         # if isinstance(file_uploads, dd.Series):
         #     file_uploads = file_uploads.compute()
 
@@ -2308,8 +2308,7 @@ if __name__ == '__main__':
                         file_count_stop
                     )
                 elif api == 'swift':
-                    client.sync(
-                        process_files,
+                    upload_successful = process_files(
                         s3,
                         bucket_name,
                         api,
