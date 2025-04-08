@@ -1824,9 +1824,9 @@ def process_files(
         print(type(file_uploads))
 
         if isinstance(zip_uploads, dd.Series):
-            zip_uploads = zip_uploads.compute(scheduler="processes")
+            zip_uploads = zip_uploads.compute()
         if isinstance(file_uploads, dd.Series):
-            file_uploads = file_uploads.compute(scheduler="processes")
+            file_uploads = file_uploads.compute()
 
     ################################
     # Return bool as upload status #
