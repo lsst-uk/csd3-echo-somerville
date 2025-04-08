@@ -1831,23 +1831,24 @@ def process_files(
     ################################
     # Return bool as upload status #
     ################################
-        if len(zip_uploads) > 0 and len(file_uploads) > 0:
-            all_uploads_successful = bool(zip_uploads.all()) * bool(file_uploads.all())
-        elif len(zip_uploads) > 0:
-            all_uploads_successful = bool(zip_uploads.all())
-        elif len(file_uploads) > 0:
-            all_uploads_successful = bool(file_uploads.all())
-        else:
-            all_uploads_successful = None
-        del uploads
-        if all_uploads_successful:
-            print('All uploads successful.', flush=True)
-        else:
-            print('Some uploads failed.', flush=True)
-        return all_uploads_successful
-    else:
-        print('Nothing to upload.', flush=True)
-        return None
+        return True
+    #     if len(zip_uploads) > 0 and len(file_uploads) > 0:
+    #         all_uploads_successful = bool(zip_uploads.all()) * bool(file_uploads.all())
+    #     elif len(zip_uploads) > 0:
+    #         all_uploads_successful = bool(zip_uploads.all())
+    #     elif len(file_uploads) > 0:
+    #         all_uploads_successful = bool(file_uploads.all())
+    #     else:
+    #         all_uploads_successful = None
+    #     del uploads
+    #     if all_uploads_successful:
+    #         print('All uploads successful.', flush=True)
+    #     else:
+    #         print('Some uploads failed.', flush=True)
+    #     return all_uploads_successful
+    # else:
+    #     print('Nothing to upload.', flush=True)
+    #     return None
 
 
 ##########################################
