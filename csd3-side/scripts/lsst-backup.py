@@ -2309,23 +2309,26 @@ if __name__ == '__main__':
                         file_count_stop
                     )
                 elif api == 'swift':
-                    upload_successful = process_files(
-                        s3,
-                        bucket_name,
-                        api,
-                        current_objects,
-                        exclude,
-                        local_dir,
-                        destination_dir,
-                        dryrun,
-                        log,
-                        global_collate,
-                        use_compression,
-                        client,
-                        mem_per_worker,
-                        local_list_file,
-                        save_local_list,
-                        file_count_stop
+                    client.sync(
+                        process_files,
+                        args=(
+                            s3,
+                            bucket_name,
+                            api,
+                            current_objects,
+                            exclude,
+                            local_dir,
+                            destination_dir,
+                            dryrun,
+                            log,
+                            global_collate,
+                            use_compression,
+                            client,
+                            mem_per_worker,
+                            local_list_file,
+                            save_local_list,
+                            file_count_stop
+                        )
                     )
             if os.path.exists(local_list_file):
                 with open(local_list_file, 'r') as clf:
