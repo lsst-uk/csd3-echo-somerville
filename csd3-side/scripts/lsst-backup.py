@@ -837,7 +837,7 @@ def upload_to_bucket(
         report actions
         CSV formatted
         header:
-        LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,UPLOAD_TIME
+        LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,UPLOAD_TIME,UPLOAD_START,UPLOAD_END
         """
         if link:
             log_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}"'
@@ -852,7 +852,7 @@ def upload_to_bucket(
         log_string += ',"n/a"'
 
         # for upload time
-        log_string += ',None'
+        log_string += ',None,None,None'
         with open(log, 'a') as f:
             f.write(log_string + '\n')
 
@@ -939,7 +939,8 @@ def upload_to_bucket(
                                 'segment_container': bucket_name + '-segments'
                             }
                         )
-                        upload_time = datetime.now() - upload_start
+                        upload_end = datetime.now()
+                        upload_time = upload_end - upload_start
                     else:
                         """
                         - Upload the file to the bucket
@@ -954,8 +955,8 @@ def upload_to_bucket(
                             obj=object_key,
                             etag=checksum_string
                         )
-
-                        upload_time = datetime.now() - upload_start
+                        upload_end = datetime.now()
+                        upload_time = upload_end - upload_start
                 except Exception as e:
                     dprint(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
                     return False
@@ -968,7 +969,7 @@ def upload_to_bucket(
         report actions
         CSV formatted
         header:
-        LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,UPLOAD_TIME
+        LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,UPLOAD_TIME,UPLOAD_START,UPLOAD_END
         """
         if link:
             log_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}"'
@@ -983,7 +984,7 @@ def upload_to_bucket(
         log_string += ',"n/a"'
 
         # upload time
-        log_string += f',{upload_time.total_seconds()}'
+        log_string += f',"{upload_time.total_seconds()}","{upload_start}","{upload_end}"'
 
         with open(log, 'a') as f:
             f.write(log_string + '\n')
@@ -1090,10 +1091,10 @@ def upload_to_bucket_collated(
         report actions
         CSV formatted
         header:
-        LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,UPLOAD_TIME
+        LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,UPLOAD_TIME,UPLOAD_START,UPLOAD_END
         """
         sep = ','  # separator
-        log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}","{checksum_string}","{sep.join(zip_contents)}",None' # noqa
+        log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}","{checksum_string}","{sep.join(zip_contents)}",None,None,None' # noqa
 
         with open(log, 'a') as f:
             f.write(log_string + '\n')
@@ -1148,7 +1149,8 @@ def upload_to_bucket_collated(
                     response_dict=responses[0]
                 )
 
-                upload_time = datetime.now() - upload_start
+                upload_end = datetime.now()
+                upload_time = upload_end - upload_start
                 s3.put_object(
                     container=bucket_name,
                     contents=file_data,
@@ -1168,10 +1170,10 @@ def upload_to_bucket_collated(
         report actions
         CSV formatted
         header:
-        LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,UPLOAD_TIME
+        LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,UPLOAD_TIME,UPLOAD_START,UPLOAD_END
         """
         sep = ','  # separator
-        log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}","{checksum_string}","{sep.join(zip_contents)}","{upload_time.total_seconds()}"' # noqa
+        log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}","{checksum_string}","{sep.join(zip_contents)}","{upload_time.total_seconds()}","{upload_start}","{upload_end}"' # noqa
         while True:
             if responses[0] and responses[1]:
                 if responses[0]['status'] == 201 and responses[1]['status'] == 201:
@@ -2128,7 +2130,7 @@ if __name__ == '__main__':
             print(f'Created backup log file {log}')
             with open(log, 'a') as logfile:  # don't open as 'w' in case this is a continuation
                 logfile.write(
-                    'LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,UPLOAD_TIME\n' # noqa
+                    'LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,UPLOAD_TIME,UPLOAD_START,UPLOAD_END\n' # noqa
                 )
 
     # Setup bucket
