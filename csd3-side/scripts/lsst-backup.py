@@ -1756,7 +1756,7 @@ def process_files(
         uploads = dd.concat([zips, ind_files], axis=0).reset_index(drop=True)
         print(uploads, flush=True)
 
-        uploads = uploads.map_partitions(lambda p: p.compute())
+        uploads = uploads.map_partitions(lambda p: p).compute()
         num_zip_batches = uploads['id'].max()
         uploads.to_csv(upload_list_file, index=False)
         uploads = dd.from_pandas(
