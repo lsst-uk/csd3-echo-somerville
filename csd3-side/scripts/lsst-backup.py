@@ -1809,7 +1809,8 @@ def process_files(
                     mem_per_worker,
                     log,
                     # ),
-                    axis=1
+                    axis=1,
+                    meta=('zip_uploads', bool),
                     # s3=s3,
                     # bucket_name=bucket_name,
                     # api=api,
@@ -1847,6 +1848,7 @@ def process_files(
                     log,
                     # ),
                     axis=1,
+                    meta=('file_uploads', bool),
                 )
             )
         else:
