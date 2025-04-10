@@ -1794,6 +1794,7 @@ def process_files(
                 lambda partition: partition.apply(
                     zip_and_upload,
                     axis=1,
+                    meta=('zip_uploads', bool),
                     args=(
                         s3,
                         bucket_name,
@@ -1808,7 +1809,6 @@ def process_files(
                         mem_per_worker,
                         log,
                     ),
-                    meta=('zip_uploads', bool)
                 )
             )
         else:
@@ -1819,6 +1819,7 @@ def process_files(
                 lambda partition: partition.apply(
                     upload_files_from_series,
                     axis=1,
+                    meta=('file_uploads', bool),
                     args=(
                         s3,
                         bucket_name,
@@ -1832,7 +1833,6 @@ def process_files(
                         mem_per_worker,
                         log,
                     ),
-                    meta=('file_uploads', bool)
                 )
             )
         else:
