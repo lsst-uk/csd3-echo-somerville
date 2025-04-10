@@ -40,6 +40,7 @@ import warnings
 from psutil import virtual_memory as mem
 import argparse
 from dask import dataframe as dd
+from dask import compute
 from dask.distributed import Client, get_client, wait, as_completed
 from dask.distributed import print as dprint
 import subprocess
@@ -1707,6 +1708,11 @@ def process_files(
         print(f'At least one batch: {at_least_one_batch}', flush=True)
         print(f'At least one individual: {at_least_one_individual}', flush=True)
         del ddf
+        try:
+            os.remove('temp_file_list.csv')
+        except Exception as e:
+            print(f'Error removing temp_file_list.csv: {e}', flush=True)
+            pass
         print(f'Done traversing {local_dir}.', flush=True)
 
     if at_least_one_batch or at_least_one_individual:
@@ -1750,11 +1756,17 @@ def process_files(
         uploads = dd.concat([zips, ind_files], axis=0).reset_index(drop=True)
         print(uploads, flush=True)
 
-        uploads.compute().to_csv(upload_list_file, index=False)
-        uploads = uploads.persist()
+        uploads = uploads.map_partitions().compute()
+        num_zip_batches = uploads['id'].max()
+        uploads.to_csv(upload_list_file, index=False)
+        uploads = dd.from_pandas(
+            uploads,
+            npartitions=len(uploads) // sum(
+                [t['nthreads'] for t in client.scheduler_info()['workers'].values()]
+            ) * 1000 + 1
+        )
 
         # call zip_folder in parallel
-        num_zip_batches = uploads['id'].max().compute()
         print(uploads, flush=True)
 
         print(
@@ -1774,72 +1786,74 @@ def process_files(
             flush=True
         )
         print('Uploading...', flush=True)
+        # zip_uploads = uploads[uploads['type'] == 'zip']
+        # file_uploads = uploads[uploads['type'] == 'file']
 
-        if len(uploads[uploads['type'] == 'zip']) > 0:
-            zip_uploads = uploads[uploads['type'] == 'zip'].apply(
-                zip_and_upload,
-                axis=1,
-                args=(
-                    s3,
-                    bucket_name,
-                    api,
-                    destination_dir,
-                    local_dir,
-                    total_size_uploaded,
-                    total_files_uploaded,
-                    use_compression,
-                    dryrun,
-                    processing_start,
-                    mem_per_worker,
-                    log,
-                ),
-                meta=('zip_uploads', bool)
+        if at_least_one_batch:
+            zip_uploads = uploads[uploads['type'] == 'zip'].map_partitions(
+                lambda partition: partition.apply(
+                    zip_and_upload,
+                    axis=1,
+                    args=(
+                        s3,
+                        bucket_name,
+                        api,
+                        destination_dir,
+                        local_dir,
+                        total_size_uploaded,
+                        total_files_uploaded,
+                        use_compression,
+                        dryrun,
+                        processing_start,
+                        mem_per_worker,
+                        log,
+                    ),
+                    meta=('zip_uploads', bool)
+                )
             )
         else:
             print('No zip uploads.', flush=True)
-            zip_uploads = pd.Series([], dtype=bool)
-        if len(uploads[uploads['type'] == 'file']) > 0:
-            file_uploads = uploads[uploads['type'] == 'file'].apply(
-                upload_files_from_series,
-                axis=1,
-                args=(
-                    s3,
-                    bucket_name,
-                    api,
-                    local_dir,
-                    dryrun,
-                    processing_start,
-                    1,
-                    total_size_uploaded,
-                    total_files_uploaded,
-                    mem_per_worker,
-                    log,
-                ),
-                meta=('file_uploads', bool)
+            # zip_uploads = pd.Series([], dtype=bool)
+        if at_least_one_individual:
+            file_uploads = uploads[uploads['type'] == 'file'].map_partitions(
+                lambda partition: partition.apply(
+                    upload_files_from_series,
+                    axis=1,
+                    args=(
+                        s3,
+                        bucket_name,
+                        api,
+                        local_dir,
+                        dryrun,
+                        processing_start,
+                        1,
+                        total_size_uploaded,
+                        total_files_uploaded,
+                        mem_per_worker,
+                        log,
+                    ),
+                    meta=('file_uploads', bool)
+                )
             )
         else:
             print('No file uploads.', flush=True)
-            file_uploads = pd.Series([], dtype=bool)
-        print(type(zip_uploads))
-        print(type(file_uploads))
+            # file_uploads = pd.Series([], dtype=bool)
 
-        if isinstance(zip_uploads, dd.Series):
-            zip_uploads = zip_uploads.compute()
-        if isinstance(file_uploads, dd.Series):
-            file_uploads = file_uploads.compute()
-
-    ################################
-    # Return bool as upload status #
-    ################################
-        return True
-        if len(zip_uploads) > 0 and len(file_uploads) > 0:
+        if at_least_one_batch and at_least_one_individual:
+            zip_uploads, file_uploads = compute(zip_uploads, file_uploads)
             all_uploads_successful = bool(zip_uploads.all()) * bool(file_uploads.all())
-        elif len(zip_uploads) > 0:
+        elif at_least_one_batch:
+            zip_uploads = zip_uploads.compute()
             all_uploads_successful = bool(zip_uploads.all())
-        elif len(file_uploads) > 0:
+        elif at_least_one_individual:
+            file_uploads = file_uploads.compute()
             all_uploads_successful = bool(file_uploads.all())
         else:
             all_uploads_successful = None
+
+        ################################
+        # Return bool as upload status #
+        ################################
         del uploads
         if all_uploads_successful:
             print('All uploads successful.', flush=True)
