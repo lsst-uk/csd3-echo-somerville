@@ -1763,7 +1763,7 @@ def process_files(
             uploads,
             npartitions=len(uploads) // sum(
                 [t['nthreads'] for t in client.scheduler_info()['workers'].values()]
-            ) * 1000 + 1
+            )
         )
 
         # call zip_folder in parallel
