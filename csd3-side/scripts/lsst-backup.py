@@ -1793,22 +1793,23 @@ def process_files(
             zip_uploads = uploads[uploads['type'] == 'zip'].map_partitions(
                 lambda partition: partition.apply(
                     zip_and_upload,
-                    axis=1,
+                    # axis=1,
                     # meta=('zip_uploads', bool),
-                    args=(
-                        s3,
-                        bucket_name,
-                        api,
-                        destination_dir,
-                        local_dir,
-                        total_size_uploaded,
-                        total_files_uploaded,
-                        use_compression,
-                        dryrun,
-                        processing_start,
-                        mem_per_worker,
-                        log,
-                    )
+                    # args=(
+                    s3,
+                    bucket_name,
+                    api,
+                    destination_dir,
+                    local_dir,
+                    total_size_uploaded,
+                    total_files_uploaded,
+                    use_compression,
+                    dryrun,
+                    processing_start,
+                    mem_per_worker,
+                    log,
+                    # ),
+                    axis=1
                     # s3=s3,
                     # bucket_name=bucket_name,
                     # api=api,
@@ -1830,21 +1831,22 @@ def process_files(
             file_uploads = uploads[uploads['type'] == 'file'].map_partitions(
                 lambda partition: partition.apply(
                     upload_files_from_series,
-                    axis=1,
+                    # axis=1,
                     # meta=('file_uploads', bool),
-                    args=(
-                        s3,
-                        bucket_name,
-                        api,
-                        local_dir,
-                        dryrun,
-                        processing_start,
-                        1,
-                        total_size_uploaded,
-                        total_files_uploaded,
-                        mem_per_worker,
-                        log,
-                    ),
+                    # args=(
+                    s3,
+                    bucket_name,
+                    api,
+                    local_dir,
+                    dryrun,
+                    processing_start,
+                    1,
+                    total_size_uploaded,
+                    total_files_uploaded,
+                    mem_per_worker,
+                    log,
+                    # ),
+                    axis=1,
                 )
             )
         else:
