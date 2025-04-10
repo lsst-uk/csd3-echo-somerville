@@ -500,6 +500,7 @@ def zip_and_upload(
     Returns:
         bool: True if a zip was created and uploaded, False if not..
     """
+    dprint(row, flush=True)
     file_paths = row['paths'].split('|')
     id = row['id']
 
@@ -1134,7 +1135,7 @@ def upload_to_bucket_collated(
                 - Upload the file to the bucket
                 """
                 dprint(f'Uploading zip file "{filename}" ({file_data_size} bytes) to '
-                       f'{bucket_name}/{object_key}')
+                       f'{bucket_name}/{object_key}', flush=True)
                 metadata_value = '|'.join(zip_contents)  # use | as separator
 
                 metadata_object_key = object_key + '.metadata'
@@ -1795,6 +1796,18 @@ def process_files(
                     zip_and_upload,
                     axis=1,
                     # meta=('zip_uploads', bool),
+                    # s3: swiftclient.Connection | None,
+                    # bucket_name: str,
+                    # api: str,
+                    # destination_dir: str,
+                    # local_dir: str,
+                    # total_size_uploaded: int,
+                    # total_files_uploaded: int,
+                    # use_compression: bool,
+                    # dryrun: bool,
+                    # processing_start: datetime,
+                    # mem_per_worker: int,
+                    # log: str,
                     args=(
                         s3,
                         bucket_name,
