@@ -1259,8 +1259,8 @@ def upload_files_from_series(
         bool: The truth values of upload_and_callback.
     """
     print(row, flush=True)
-    path = row['paths'][0]
-    object_name = row['object_names'][0]
+    path = row['paths']
+    object_name = row['object_names']
     print(path, flush=True)
     print(object_name, flush=True)
     exit()
