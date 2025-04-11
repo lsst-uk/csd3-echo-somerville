@@ -522,32 +522,6 @@ def zip_and_upload(
         dprint('No files to upload in zip file.')
         return False
     else:  # for no subtasks
-          #             s3,
-    #             bucket_name,
-    #             api,
-    #             folder,
-    #             file_name_or_data,
-    #             zip_contents,
-    #             object_key,
-    #             dryrun,
-    #             log
-    # s3,
-    # bucket_name,
-    # api,
-    # local_dir,
-    # folder,
-    # file_name_or_data,
-    # zip_contents,
-    # object_key,
-    # dryrun,
-    # processing_start,
-    # file_count,
-    # folder_files_size,
-    # total_size_uploaded,
-    # total_files_uploaded,
-    # collated,
-    # mem_per_worker,
-    # log
         uploaded = upload_and_callback(
             s3,
             bucket_name,
@@ -1264,32 +1238,6 @@ def upload_files_from_series(
     # print(path, flush=True)
     # print(object_name, flush=True)
     # exit()
-      #             s3,
-    #             bucket_name,
-    #             api,
-    #             folder,
-    #             file_name_or_data,
-    #             zip_contents,
-    #             object_key,
-    #             dryrun,
-    #             log
-    # s3,
-    # bucket_name,
-    # api,
-    # local_dir,
-    # folder,
-    # file_name_or_data,
-    # zip_contents,
-    # object_key,
-    # dryrun,
-    # processing_start,
-    # file_count,
-    # folder_files_size,
-    # total_size_uploaded,
-    # total_files_uploaded,
-    # collated,
-    # mem_per_worker,
-    # log
     return upload_and_callback(
         s3,
         bucket_name,
@@ -1611,7 +1559,9 @@ def process_files(
                 # if not done_first:
                 #     df = pd.DataFrame(  # could this be daskified?
                 #         {
-                #             'paths': [os.path.join(folder, filename) for filename in files]
+                #             'paths': [
+                    # os.path.join(folder, filename) for filename in files
+                    # ]
                 #         }
                 #     )
                 # else:
@@ -1620,7 +1570,9 @@ def process_files(
                 #             df,
                 #             pd.DataFrame(
                 #                 {
-                #                     'paths': [os.path.join(folder, filename) for filename in files]
+                #                     'paths': [
+                    # os.path.join(folder, filename) for filename in files
+                    # ]
                 #                 }
                 #             )
                 #         ]
