@@ -522,6 +522,32 @@ def zip_and_upload(
         dprint('No files to upload in zip file.')
         return False
     else:  # for no subtasks
+          #             s3,
+    #             bucket_name,
+    #             api,
+    #             folder,
+    #             file_name_or_data,
+    #             zip_contents,
+    #             object_key,
+    #             dryrun,
+    #             log
+    # s3,
+    # bucket_name,
+    # api,
+    # local_dir,
+    # folder,
+    # file_name_or_data,
+    # zip_contents,
+    # object_key,
+    # dryrun,
+    # processing_start,
+    # file_count,
+    # folder_files_size,
+    # total_size_uploaded,
+    # total_files_uploaded,
+    # collated,
+    # mem_per_worker,
+    # log
         uploaded = upload_and_callback(
             s3,
             bucket_name,
@@ -1232,8 +1258,38 @@ def upload_files_from_series(
     Returns:
         bool: The truth values of upload_and_callback.
     """
+    print(row, flush=True)
     path = row['paths'][0]
     object_name = row['object_names'][0]
+    print(path, flush=True)
+    print(object_name, flush=True)
+    exit()
+      #             s3,
+    #             bucket_name,
+    #             api,
+    #             folder,
+    #             file_name_or_data,
+    #             zip_contents,
+    #             object_key,
+    #             dryrun,
+    #             log
+    # s3,
+    # bucket_name,
+    # api,
+    # local_dir,
+    # folder,
+    # file_name_or_data,
+    # zip_contents,
+    # object_key,
+    # dryrun,
+    # processing_start,
+    # file_count,
+    # folder_files_size,
+    # total_size_uploaded,
+    # total_files_uploaded,
+    # collated,
+    # mem_per_worker,
+    # log
     return upload_and_callback(
         s3,
         bucket_name,
@@ -1308,6 +1364,15 @@ def print_stats(
 
 
 def upload_and_callback(
+    #             s3,
+    #             bucket_name,
+    #             api,
+    #             folder,
+    #             file_name_or_data,
+    #             zip_contents,
+    #             object_key,
+    #             dryrun,
+    #             log
     s3,
     bucket_name,
     api,
