@@ -1258,12 +1258,12 @@ def upload_files_from_series(
     Returns:
         bool: The truth values of upload_and_callback.
     """
-    print(row, flush=True)
+    # print(row, flush=True)
     path = row['paths']
     object_name = row['object_names']
-    print(path, flush=True)
-    print(object_name, flush=True)
-    exit()
+    # print(path, flush=True)
+    # print(object_name, flush=True)
+    # exit()
       #             s3,
     #             bucket_name,
     #             api,
