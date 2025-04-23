@@ -200,7 +200,7 @@ if __name__ == '__main__':
                 'api': api,
                 'local_path': subfolder,
                 'S3_prefix': prefix,
-                'S3_folder': os.path.join(S3_folder, folder) if S3_folder else None,
+                'S3_folder': os.path.join(S3_folder, folder) if S3_folder else folder,
                 'nprocs': subfolder_nprocs,
                 'threads_per_process': subfolder_threads_per_worker,
                 'no_collate': no_collate,
