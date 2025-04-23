@@ -118,6 +118,21 @@ if __name__ == '__main__':
         print(f'Local path {local_dir} contains:')
         print(contents)
 
+    folder_list = [f for f in contents if os.path.isdir(os.path.join(local_dir, f))]
+    if len(folder_list) == 0:
+        sys.exit(f'Local path {local_dir} does not contain any subfolders.')
+    elif len(folder_list) == 1:
+        sys.exit(f'Local path {local_dir} contains only one subfolder: {folder_list[0]}.'
+                 '\nPlease provide a top-level folder that contains subfolders or upload '
+                 f'{folder_list[0]} directly.')
+    elif len(folder_list) == len(contents):
+        print('All contents of the local path are subfolders.')
+        print('After subfolders are uploaded, there will be no need to upload the top-level folder.')
+    else:
+        print('Some contents of the local path are files.')
+        print('After subfolders are uploaded, the top-level folder will need to be uploaded '
+              '(excluding subfolders).')
+
     print(f'Top-level local path {local_dir}')
     # prefix = args.S3_prefix
     # sub_dirs = args.S3_folder
