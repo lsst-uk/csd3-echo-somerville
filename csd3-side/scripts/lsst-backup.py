@@ -1935,7 +1935,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--api',
         type=str,
-        help='API to use; "S3" or "Swift". Case insensitive.'
+        help='API to use; "S3" or "Swift". Default is "Swift". Case insensitive.'
     )
     parser.add_argument(
         '--bucket-name',
@@ -2080,7 +2080,7 @@ if __name__ == '__main__':
                 if 'api' in config.keys() and not args.api:
                     args.api = config['api']
                 if 'api' not in config.keys() and not args.api:
-                    args.api = 's3'
+                    args.api = 'swift'
 
     if args.save_config and not args.config_file:
         parser.error('A config file must be provided to save the configuration.')
