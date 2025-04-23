@@ -116,8 +116,8 @@ if __name__ == '__main__':
     if len(folder_list) == 0:
         sys.exit(f'Local path {local_dir} does not contain any subfolders.')
     elif len(folder_list) == 1:
-        sys.exit(f'Local path {local_dir} contains only one subfolder: {folder_list[0]}.'
-                 '\nPlease provide a top-level folder that contains subfolders or upload '
+        sys.exit(f'Local path {local_dir} contains only one subfolder: {folder_list[0]}.\n'
+                 'Please provide a top-level folder that contains subfolders or upload '
                  f'{folder_list[0]} directly.')
     elif len(folder_list) == len(contents):
         print('All contents of the local path are subfolders.')
@@ -163,10 +163,13 @@ if __name__ == '__main__':
     print(f'Each subfolder will use nprocs = {subfolder_nprocs}')
     print(f'Each subfolder will use threads_per_worker = {subfolder_threads_per_worker}')
 
-    if subfolder_nprocs * subfolder_threads_per_worker * len(folder_list) > nprocs:
-        print('Warning: The total number of processes and threads for all subfolders exceeds the '
-              'total number of processes and threads available. This may lead to suboptimal '
-              'performance if all are run concurrently.')
+    if subfolder_nprocs * subfolder_threads_per_worker * num_subfolders > nprocs:
+        print('Warning: The total number of processes and threads for all subfolders\n'
+              '(procs * threads * folders = '
+              f'{subfolder_nprocs} * {subfolder_threads_per_worker} * {num_subfolders} = '
+              f'{subfolder_nprocs * subfolder_threads_per_worker * num_subfolders}) '
+              f'exceeds the total available number of processors specified {nprocs}.\n'
+              'This may lead to suboptimal performance if all are run concurrently.')
     print('\n----------------------------------------')
     print('Subfolder config files will be created in the current working directory.')
     print('----------------------------------------')
