@@ -31,7 +31,8 @@ if __name__ == '__main__':
     parser.add_argument(
         '--config-file',
         type=str,
-        help='Top-level YAML configuration file from which subfolder config files will be generated.'
+        help='Top-level YAML configuration file from which subfolder config files will be generated.',
+        required=True,
     )
     parser.add_argument(
         '--dryrun',
@@ -132,7 +133,8 @@ if __name__ == '__main__':
 
     print(f'Total number of processes: {nprocs}')
     print(f'Total threads per workers: {threads_per_worker}')
-    print('An attempt will be made to divide the number of subfolders evenly amoungst processors and threads.')
+    print('An attempt will be made to divide the number of subfolders evenly amoungst processors '
+          'and threads.')
 
     dryrun = args.dryrun
 
