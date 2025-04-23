@@ -160,6 +160,15 @@ if __name__ == '__main__':
     subfolder_threads_per_worker = max(1, subfolder_nprocs // threading_proportion)
     print(f'Each subfolder will use nprocs = {subfolder_nprocs}')
     print(f'Each subfolder will use threads_per_worker = {subfolder_threads_per_worker}')
+    if subfolder_nprocs * subfolder_threads_per_worker * len(folder_list) > nprocs:
+        print('Warning: The total number of processes and threads for all subfolders exceeds the '
+              'total number of processes and threads available. This may lead to suboptimal '
+              'performance.')
+        print('Consider increasing the number of processes or threads per worker, or reducing '
+              'the number of subfolders.')
+    print('\n----------------------------------------')
+    print('Subfolder config files will be created in the current working directory.')
+    print('----------------------------------------')
 
     if not dryrun:
         # Create subfolders and config files
