@@ -109,6 +109,14 @@ if __name__ == '__main__':
 
     if not os.path.exists(local_dir):
         sys.exit(f'Local path {local_dir} does not exist.')
+    elif not os.path.isdir(local_dir) or not os.access(local_dir, os.R_OK):
+        sys.exit(f'Local path {local_dir} is not a directory or is not readable.')
+    elif os.path.abspath(local_dir) != local_dir:
+        sys.exit(f'Local path {local_dir} is not an absolute path.')
+    else:
+        contents = os.listdir(local_dir)
+        print(f'Local path {local_dir} contains:')
+        print(contents)
 
     print(f'Top-level local path {local_dir}')
     # prefix = args.S3_prefix
