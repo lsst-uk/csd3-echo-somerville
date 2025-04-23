@@ -107,9 +107,8 @@ if __name__ == '__main__':
     # bucket_name = args.bucket_name
     # local_dir = args.local_path
 
-    ### RESINSTATE THIS
-    # if not os.path.exists(local_dir):
-    #     sys.exit(f'Local path {local_dir} does not exist.')
+    if not os.path.exists(local_dir):
+        sys.exit(f'Local path {local_dir} does not exist.')
 
     print(f'Top-level local path {local_dir}')
     # prefix = args.S3_prefix
