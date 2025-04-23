@@ -8,6 +8,27 @@ import sys
 import argparse
 import yaml
 
+
+def gen_config(
+    bucket_name, api, subfolder_local_dir, prefix, S3_folder, folder,
+    subfolder_nprocs, subfolder_threads_per_worker, no_collate, upload_dryrun,
+    no_compression, no_file_count_stop, exclude
+):
+    return {
+        'bucket_name': bucket_name,
+        'api': api,
+        'local_path': subfolder_local_dir,
+        'S3_prefix': prefix,
+        'S3_folder': os.path.join(S3_folder, folder) if S3_folder else folder,
+        'nprocs': subfolder_nprocs,
+        'threads_per_process': subfolder_threads_per_worker,
+        'no_collate': no_collate,
+        'dryrun': upload_dryrun,
+        'no_compression': no_compression,
+        'no_file_count_stop': no_file_count_stop,
+        'exclude': exclude,
+    }
+
 ##########################################
 #              Main Function             #
 ##########################################
@@ -147,7 +168,7 @@ if __name__ == '__main__':
         'nprocs': nprocs,
         'threads_per_process': threads_per_worker,
         'no_collate': no_collate,
-        'dryrun': dryrun,
+        'dryrun': upload_dryrun,
         'no_compression': no_compression,
         'no_file_count_stop': no_file_count_stop,
         'exclude': exclude,
@@ -170,62 +191,43 @@ if __name__ == '__main__':
               f'{subfolder_nprocs * subfolder_threads_per_worker * num_subfolders}) '
               f'exceeds the total available number of processors specified {nprocs}.\n'
               'This may lead to suboptimal performance if all are run concurrently.')
-    print('\n----------------------------------------')
+    print('\n------------------------------------------------------------------------')
     print('Subfolder config files will be created in the current working directory.')
-    print('----------------------------------------')
+    print('------------------------------------------------------------------------')
 
-    if not dryrun:
-        # Create subfolders and config files
-        for folder in folder_list:
-            working_subfolder = os.path.join(os.getcwd(), folder)
+    # Create the subfolders and config files
+    for folder in folder_list:
+        working_subfolder = os.path.join(os.getcwd(), folder)
+        subfolder_config_file = os.path.join(working_subfolder, 'config.yaml')
+        subfolder_local_dir = os.path.join(local_dir, folder)
+        subfolder_config = gen_config(
+            bucket_name,
+            api,
+            subfolder_local_dir,
+            prefix,
+            S3_folder,
+            folder,
+            subfolder_nprocs,
+            subfolder_threads_per_worker,
+            no_collate,
+            upload_dryrun,
+            no_compression,
+            no_file_count_stop,
+            exclude
+        )
+        # Write the subfolder config to a YAML file
+        if not dryrun:
             os.makedirs(working_subfolder, exist_ok=True)
-            subfolder_config_file = os.path.join(working_subfolder, 'config.yaml')
-            subfolder_local_dir = os.path.join(local_dir, folder)
-            subfolder_config = {
-                'bucket_name': bucket_name,
-                'api': api,
-                'local_path': subfolder_local_dir,
-                'S3_prefix': prefix,
-                'S3_folder': os.path.join(S3_folder, folder) if S3_folder else folder,
-                'nprocs': subfolder_nprocs,
-                'threads_per_process': subfolder_threads_per_worker,
-                'no_collate': no_collate,
-                'dryrun': dryrun,
-                'no_compression': no_compression,
-                'no_file_count_stop': no_file_count_stop,
-                'exclude': exclude,
-            }
-            # Write the subfolder config to a YAML file
             with open(subfolder_config_file, 'w') as f:
                 yaml.dump(
                     subfolder_config,
-                    f)
+                    f
+                )
             print(f'Created subfolder: {working_subfolder}')
             print(f'Created config file: {subfolder_config_file}')
-            print(f'Subfolder config:\n{subfolder_config}')
-            print('----------------------------------------')
-    else:
-        # Print the subfolder and config file paths
-        for folder in folder_list:
-            working_subfolder = os.path.join(os.getcwd(), folder)
-            subfolder_config_file = os.path.join(working_subfolder, 'config.yaml')
-            subfolder_local_dir = os.path.join(local_dir, folder)
-            subfolder_config = {
-                'bucket_name': bucket_name,
-                'api': api,
-                'local_path': subfolder_local_dir,
-                'S3_prefix': prefix,
-                'S3_folder': os.path.join(S3_folder, folder) if S3_folder else folder,
-                'nprocs': subfolder_nprocs,
-                'threads_per_process': subfolder_threads_per_worker,
-                'no_collate': no_collate,
-                'dryrun': dryrun,
-                'no_compression': no_compression,
-                'no_file_count_stop': no_file_count_stop,
-                'exclude': exclude,
-            }
+        else:
             print(f'Would create subfolder: {working_subfolder}')
             print(f'Would create config file: {subfolder_config_file}')
-            print(f'Subfolder config:\n{subfolder_config}')
-            print('----------------------------------------')
+        print(f'Subfolder config:\n{subfolder_config}')
+        print('----------------------------------------')
     print('----------------------------------------')
