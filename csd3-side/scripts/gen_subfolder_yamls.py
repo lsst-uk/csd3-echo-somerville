@@ -154,7 +154,7 @@ if __name__ == '__main__':
     }
     print(f'Top-level config:\n{top_level_config}')
     num_subfolders = len(folder_list)
-    print(f'Number of subfolders: {len(num_subfolders)}')
+    print(f'Number of subfolders: {num_subfolders}')
 
     subfolder_nprocs = max(4, nprocs // num_subfolders)
     threading_proportion = nprocs // threads_per_worker
