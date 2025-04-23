@@ -164,13 +164,14 @@ if __name__ == '__main__':
     if not dryrun:
         # Create subfolders and config files
         for folder in folder_list:
-            subfolder = os.path.join(os.getcwd(), folder)
-            os.makedirs(subfolder, exist_ok=True)
-            subfolder_config_file = os.path.join(subfolder, 'config.yaml')
+            working_subfolder = os.path.join(os.getcwd(), folder)
+            os.makedirs(working_subfolder, exist_ok=True)
+            subfolder_config_file = os.path.join(working_subfolder, 'config.yaml')
+            subfolder_local_dir = os.path.join(local_dir, folder)
             subfolder_config = {
                 'bucket_name': bucket_name,
                 'api': api,
-                'local_path': subfolder,
+                'local_path': subfolder_local_dir,
                 'S3_prefix': prefix,
                 'S3_folder': os.path.join(S3_folder, folder) if S3_folder else folder,
                 'nprocs': subfolder_nprocs,
@@ -186,19 +187,20 @@ if __name__ == '__main__':
                 yaml.dump(
                     subfolder_config,
                     f)
-            print(f'Created subfolder: {subfolder}')
+            print(f'Created subfolder: {working_subfolder}')
             print(f'Created config file: {subfolder_config_file}')
             print(f'Subfolder config:\n{subfolder_config}')
             print('----------------------------------------')
     else:
         # Print the subfolder and config file paths
         for folder in folder_list:
-            subfolder = os.path.join(os.getcwd(), folder)
-            subfolder_config_file = os.path.join(subfolder, 'config.yaml')
+            working_subfolder = os.path.join(os.getcwd(), folder)
+            subfolder_config_file = os.path.join(working_subfolder, 'config.yaml')
+            subfolder_local_dir = os.path.join(local_dir, folder)
             subfolder_config = {
                 'bucket_name': bucket_name,
                 'api': api,
-                'local_path': subfolder,
+                'local_path': subfolder_local_dir,
                 'S3_prefix': prefix,
                 'S3_folder': os.path.join(S3_folder, folder) if S3_folder else folder,
                 'nprocs': subfolder_nprocs,
@@ -209,7 +211,7 @@ if __name__ == '__main__':
                 'no_file_count_stop': no_file_count_stop,
                 'exclude': exclude,
             }
-            print(f'Would create subfolder: {subfolder}')
+            print(f'Would create subfolder: {working_subfolder}')
             print(f'Would create config file: {subfolder_config_file}')
             print(f'Subfolder config:\n{subfolder_config}')
             print('----------------------------------------')
