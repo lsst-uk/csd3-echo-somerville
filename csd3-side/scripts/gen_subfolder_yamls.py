@@ -153,19 +153,20 @@ if __name__ == '__main__':
         'exclude': exclude,
     }
     print(f'Top-level config:\n{top_level_config}')
+    num_subfolders = len(folder_list)
+    print(f'Number of subfolders: {len(num_subfolders)}')
 
-    subfolder_nprocs = max(4, nprocs // len(folder_list))
+    subfolder_nprocs = max(4, nprocs // num_subfolders)
     threading_proportion = nprocs // threads_per_worker
     # Calculate the number of threads per worker
     subfolder_threads_per_worker = max(1, subfolder_nprocs // threading_proportion)
     print(f'Each subfolder will use nprocs = {subfolder_nprocs}')
     print(f'Each subfolder will use threads_per_worker = {subfolder_threads_per_worker}')
+
     if subfolder_nprocs * subfolder_threads_per_worker * len(folder_list) > nprocs:
         print('Warning: The total number of processes and threads for all subfolders exceeds the '
               'total number of processes and threads available. This may lead to suboptimal '
-              'performance.')
-        print('Consider increasing the number of processes or threads per worker, or reducing '
-              'the number of subfolders.')
+              'performance if all are run concurrently.')
     print('\n----------------------------------------')
     print('Subfolder config files will be created in the current working directory.')
     print('----------------------------------------')
