@@ -96,16 +96,9 @@ if __name__ == '__main__':
                 else:
                     api = 'swift'
     save_config = False
-    # no_checksum = args.no_checksum
-    # if no_checksum:
-    #     parser.error('Please note: the optin to disable file checksum has been deprecated.')
 
-    # save_config = args.save_config
-    # api = args.api.lower()
     if api not in ['s3', 'swift']:
         sys.exit('API must be "S3" or "Swift" (case insensitive).')
-    # bucket_name = args.bucket_name
-    # local_dir = args.local_path
 
     if not os.path.exists(local_dir):
         sys.exit(f'Local path {local_dir} does not exist.')
@@ -134,32 +127,14 @@ if __name__ == '__main__':
               '(excluding subfolders).')
 
     print(f'Top-level local path {local_dir}')
-    # prefix = args.S3_prefix
-    # sub_dirs = args.S3_folder
+
     print(f'Top-level S3_folder {S3_folder if len(S3_folder) > 0 else "None"}')
-    # nprocs = args.nprocs
-    # threads_per_worker = args.threads_per_worker
+
     print(f'Total number of processes: {nprocs}')
     print(f'Total threads per workers: {threads_per_worker}')
     print('An attempt will be made to divide the number of subfolders evenly amoungst processors and threads.')
-    # internally, flag turns *on* collate, but for user no-collate turns it
-    # off - makes flag more intuitive
-    # global_collate = not args.no_collate
-    # upload_dryrun = dryrun
+
     dryrun = args.dryrun
-    # internally, flag turns *on* compression, but for user no-compression
-    # turns it off - makes flag more intuitive
-    # use_compression = not args.no_compression
-    # internally, flag turns *on* file-count-stop, but for user
-    # no-file-count-stop turns it off - makes flag more intuitive
-    # file_count_stop = not args.no_file_count_stop
-
-    # if exclude:
-    #     exclude = pd.Series(exclude)
-    # else:
-    #     exclude = pd.Series([])
-
-    # print(f'Config: {args}')
 
     top_level_config = {
         'bucket_name': bucket_name,
@@ -177,22 +152,63 @@ if __name__ == '__main__':
     }
     print(f'Top-level config:\n{top_level_config}')
 
-    # if save_config:
-        # with open(config_file, 'w') as f:
-        #     yaml.dump(
-        #         {
-        #             'bucket_name': bucket_name,
-        #             'api': api,
-        #             'local_path': local_dir,
-        #             'S3_prefix': prefix,
-        #             'S3_folder': S3_folder,
-        #             'nprocs': nprocs,
-        #             'threads_per_process': threads_per_worker,
-        #             'no_collate': not global_collate,
-        #             'dryrun': dryrun,
-        #             'no_compression': not use_compression,
-        #             'no_file_count_stop': not file_count_stop,
-        #             'exclude': exclude.to_list(),
-        #         },
-        #         f)
-        # sys.exit(0)
+    subfolder_nprocs = max(4, nprocs // len(folder_list))
+    threading_proportion = nprocs // threads_per_worker
+    # Calculate the number of threads per worker
+    subfolder_threads_per_worker = max(1, subfolder_nprocs // threading_proportion)
+    print(f'Each subfolder will use nprocs = {subfolder_nprocs}')
+    print(f'Each subfolder will use threads_per_worker = {subfolder_threads_per_worker}')
+
+    if not dryrun:
+        # Create subfolders and config files
+        for folder in folder_list:
+            subfolder = os.path.join(os.getcwd(), folder)
+            os.makedirs(subfolder, exist_ok=True)
+            subfolder_config_file = os.path.join(subfolder, 'config.yaml')
+            subfolder_config = {
+                'bucket_name': bucket_name,
+                'api': api,
+                'local_path': subfolder,
+                'S3_prefix': prefix,
+                'S3_folder': os.path.join(S3_folder, folder) if S3_folder else None,
+                'nprocs': subfolder_nprocs,
+                'threads_per_process': subfolder_threads_per_worker,
+                'no_collate': no_collate,
+                'dryrun': dryrun,
+                'no_compression': no_compression,
+                'no_file_count_stop': no_file_count_stop,
+                'exclude': exclude,
+            }
+            # Write the subfolder config to a YAML file
+            with open(subfolder_config_file, 'w') as f:
+                yaml.dump(
+                    subfolder_config,
+                    f)
+            print(f'Created subfolder: {subfolder}')
+            print(f'Created config file: {subfolder_config_file}')
+            print(f'Subfolder config:\n{subfolder_config}')
+            print('----------------------------------------')
+    else:
+        # Print the subfolder and config file paths
+        for folder in folder_list:
+            subfolder = os.path.join(os.getcwd(), folder)
+            subfolder_config_file = os.path.join(subfolder, 'config.yaml')
+            subfolder_config = {
+                'bucket_name': bucket_name,
+                'api': api,
+                'local_path': subfolder,
+                'S3_prefix': prefix,
+                'S3_folder': os.path.join(S3_folder, folder) if S3_folder else None,
+                'nprocs': subfolder_nprocs,
+                'threads_per_process': subfolder_threads_per_worker,
+                'no_collate': no_collate,
+                'dryrun': dryrun,
+                'no_compression': no_compression,
+                'no_file_count_stop': no_file_count_stop,
+                'exclude': exclude,
+            }
+            print(f'Would create subfolder: {subfolder}')
+            print(f'Would create config file: {subfolder_config_file}')
+            print(f'Subfolder config:\n{subfolder_config}')
+            print('----------------------------------------')
+    print('----------------------------------------')
