@@ -57,6 +57,14 @@ if __name__ == '__main__':
         required=True,
     )
     parser.add_argument(
+        '--target-parallelism',
+        type=int,
+        default=4,
+        help='The ideal number of jobs to run in parallel - CPUs will be divided by this to yield '
+        'max number of CPUs per job.',
+        required=True,
+    )
+    parser.add_argument(
         '--dryrun',
         default=False,
         action='store_true',
@@ -178,20 +186,36 @@ if __name__ == '__main__':
     num_subfolders = len(folder_list)
     print(f'Number of subfolders: {num_subfolders}')
 
-    subfolder_nprocs = max(4, nprocs // num_subfolders)
+    target_parallelism = args.target_parallelism
+    if target_parallelism < 1:
+        sys.exit('Target parallelism must be greater than 0.')
+    elif target_parallelism > nprocs:
+        sys.exit(f'Target parallelism {target_parallelism} exceeds the number of processors {nprocs}.')
+    else:
+        print(f'Target parallelism: {target_parallelism}')
+    max_nprocs_per_job = nprocs // target_parallelism
+    print(f'Maximum number of processes per job: {max_nprocs_per_job}')
+
     threading_proportion = nprocs // threads_per_worker
     # Calculate the number of threads per worker
-    subfolder_threads_per_worker = max(1, subfolder_nprocs // threading_proportion)
-    print(f'Each subfolder will use nprocs = {subfolder_nprocs}')
+    subfolder_threads_per_worker = max(1, max_nprocs_per_job // threading_proportion)
+    print(f'Each subfolder job will use nprocs = {max_nprocs_per_job}')
     print(f'Each subfolder will use threads_per_worker = {subfolder_threads_per_worker}')
+    if subfolder_threads_per_worker > 1:
+        print(f'Target parallelism of {target_parallelism} and '
+              f'threading proportion of {threading_proportion} is achievable.')
+    else:
+        print(f'Target parallelism of {target_parallelism} and threading '
+              f'proportion of {threading_proportion} is not achievable.\n'
+              'Threads per worker reduced to 1.')
 
-    if subfolder_nprocs * subfolder_threads_per_worker * num_subfolders > nprocs:
-        print('Warning: The total number of processes and threads for all subfolders\n'
-              '(procs * threads * folders = '
-              f'{subfolder_nprocs} * {subfolder_threads_per_worker} * {num_subfolders} = '
-              f'{subfolder_nprocs * subfolder_threads_per_worker * num_subfolders}) '
-              f'exceeds the total available number of processors specified {nprocs}.\n'
-              'This may lead to suboptimal performance if all are run concurrently.')
+    # if max_nprocs_per_job * subfolder_threads_per_worker * num_subfolders > nprocs:
+    #     print('Warning: The total number of processes and threads for all subfolders\n'
+    #           '(procs * threads * folders = '
+    #           f'{subfolder_nprocs} * {subfolder_threads_per_worker} * {num_subfolders} = '
+    #           f'{subfolder_nprocs * subfolder_threads_per_worker * num_subfolders}) '
+    #           f'exceeds the total available number of processors specified {nprocs}.\n'
+    #           'This may lead to suboptimal performance if all are run concurrently.')
     print('\n------------------------------------------------------------------------')
     print('Subfolder config files will be created in the current working directory.')
     print('------------------------------------------------------------------------')
@@ -208,7 +232,7 @@ if __name__ == '__main__':
             prefix,
             S3_folder,
             folder,
-            subfolder_nprocs,
+            max_nprocs_per_job,
             subfolder_threads_per_worker,
             no_collate,
             upload_dryrun,
@@ -231,4 +255,9 @@ if __name__ == '__main__':
             print(f'Would create config file: {subfolder_config_file}')
         print(f'Subfolder config:\n{subfolder_config}')
         print('----------------------------------------')
+    print('All subfolder config files created.')
+    print('If you are happy with the config files, run:')
+    print(f'echo {" ".join(folder_list)} | xargs -n 1 -P {target_parallelism} -I ^^ bash -c '
+          '"name=^^; cd $name; python $CES_HOME/csd3-side/scripts/lsst-backup.py --config-file config.yaml '
+          '> $name.log 2> $name.err')
     print('----------------------------------------')
