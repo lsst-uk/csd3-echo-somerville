@@ -259,6 +259,6 @@ if __name__ == '__main__':
     print('If you are happy with the config files, run:')
     print(f'echo {" ".join(folder_list)} | sed "s/ /\\n/g" | xargs -n 1 -P {target_parallelism} '
           '-I name bash -c '
-          '"cd name; python $CES_HOME/csd3-side/scripts/lsst-backup.py --config-file config.yaml '
+          f'"cd name; python {os.path.dirname(__file__)}/lsst-backup.py --config-file config.yaml '
           '> name.log 2> name.err" &')
     print('----------------------------------------')
