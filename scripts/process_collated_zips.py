@@ -267,7 +267,15 @@ def extract_and_upload(key: str, conn: swiftclient.Connection, bucket_name: str)
     uploaded = False
     # dprint(f'Extracting {row["key"]}...', flush=True)
     path_stub = '/'.join(key.split('/')[:-1])
-    zipfile_data = io.BytesIO(conn.get_object(bucket_name, key)[1])
+    try:
+        zipfile_data = io.BytesIO(conn.get_object(bucket_name, key)[1])
+    except swiftclient.exceptions.ClientException as e:
+        if e.http_status == 404:
+            dprint(f'Object {key} not found - possibly already deleted. '
+                   'Skipping and marking as True to allow clean up.')
+            return True
+        else:
+            raise
     with zipfile.ZipFile(zipfile_data) as zf:
         num_files = len(zf.namelist())
         for content_file in zf.namelist():

@@ -10,5 +10,9 @@
     {
         "name": "LSST-IR-FUSIONtest-upload-None",
         "description": "Bucket to hold dummy data for testing."
+    },
+    {
+        "name": "LSST-IR-FUSION-Butlers_subfolder-test",
+        "description": "Bucket for testing parallel subfolder uploads."
     }
 ]
