@@ -36,7 +36,7 @@ def logprint(msg: str, log: str = None) -> None:
         print(msg, flush=True)
 
 
-def delete_object_swift(obj: str, s3: swiftclient.Connection, log: str = None) -> bool:
+def delete_object_swift(row: pd.Series, s3: swiftclient.Connection, log: str = None) -> bool:
     """
     Deletes an object and its metadata from an S3 bucket.
 
@@ -57,6 +57,7 @@ def delete_object_swift(obj: str, s3: swiftclient.Connection, log: str = None) -
         swiftclient.exceptions.ClientException: If there is an error deleting
         the object's metadata.
     """
+    obj = row['CURRENT_OBJECTS']
     deleted = False
     try:
         s3.delete_object(bucket_name, obj)
@@ -74,7 +75,7 @@ def delete_object_swift(obj: str, s3: swiftclient.Connection, log: str = None) -
 
 
 def verify_zip_objects(
-    zip_obj: str,
+    row: pd.Series,
     s3: swiftclient.Connection,
     bucket_name: str,
     current_objects: pd.Series,
@@ -94,6 +95,7 @@ def verify_zip_objects(
     Returns:
         bool: True if the zip file needs to be extracted, False otherwise.
     """
+    zip_obj = row['CURRENT_OBJECTS']
     zip_data = io.BytesIO(s3.get_object(bucket_name, zip_obj)[1])
     with zipfile.ZipFile(zip_data, 'r') as z:
         contents = z.namelist()
@@ -311,13 +313,16 @@ if __name__ == '__main__':
             if len(current_zips) > 0:
                 if verify:
                     current_zips = dd.from_pandas(current_zips, chunksize=10000)
-                    current_zips['verified'] = current_zips['CURRENT_OBJECTS'].apply(
-                        lambda x: verify_zip_objects(
-                            x,
-                            s3,
-                            bucket_name,
-                            current_objects['CURRENT_OBJECTS'],
-                            log
+                    current_zips['verified'] = current_zips.map_partitions(
+                        lambda partition: partition.apply(
+                            verify_zip_objects,
+                            axis=1,
+                            args=(
+                                s3,
+                                bucket_name,
+                                current_objects['CURRENT_OBJECTS'],
+                                log
+                            ),
                         ),
                         meta=('bool')
                     )
@@ -358,16 +363,27 @@ if __name__ == '__main__':
                         logprint('auto y')
 
                     if verify:
-                        current_zips['DELETED'] = current_zips[current_zips['verified'] == True][  # noqa
-                            'CURRENT_OBJECTS'
-                        ].apply(lambda x: delete_object_swift(x, s3, log), meta=('bool'))
+                        current_zips['DELETED'] = current_zips[current_zips['verified'] == True].map_partitions(  # noqa
+                            lambda partition: partition.apply(
+                                delete_object_swift,
+                                axis=1,
+                                args=(
+                                    s3,
+                                    log
+                                ),
+                            ),
+                            meta=('bool')
+                        )
                         current_zips[current_zips['verified'] == False]['DELETED'] = False  # noqa
                     else:
-                        current_zips['DELETED'] = current_zips['CURRENT_OBJECTS'].apply(
-                            lambda x: delete_object_swift(
-                                x,
-                                s3,
-                                log
+                        current_zips['DELETED'] = current_zips.map_partitions(
+                            lambda partition: partition.apply(
+                                delete_object_swift,
+                                axis=1,
+                                args=(
+                                    s3,
+                                    log
+                                )
                             ),
                             meta=('bool')
                         )
