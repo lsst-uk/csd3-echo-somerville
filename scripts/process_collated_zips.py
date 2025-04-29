@@ -508,6 +508,7 @@ def main():
                 keys_only_df = keys_df['key'].copy()
                 keys_only_df = client.persist(keys_only_df)
             del keys
+            dprint(f'Partitions: {keys_df.npartitions}')
             # dprint(keys_df)
             # Discover if key is a zipfile
             keys_df['is_zipfile'] = keys_df.map_partitions(
