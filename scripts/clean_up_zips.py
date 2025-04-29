@@ -24,7 +24,7 @@ def logprint(msg: str, log: str = None) -> None:
     msg (str): The message to be logged or printed.
 
     log (str, optional): The file path to the log file. If None, the message
-    is printed to the console. Defaults to None.
+        is printed to the console. Defaults to None.
 
     Returns:
     None
@@ -38,24 +38,25 @@ def logprint(msg: str, log: str = None) -> None:
 
 def delete_object_swift(row: pd.Series, s3: swiftclient.Connection, log: str = None) -> bool:
     """
-    Deletes an object and its metadata from an S3 bucket.
+    Deletes an object and its associated metadata from a Swift storage bucket.
 
     Args:
-        obj (str): The name of the object to delete.
-
-        s3 (object): The S3 client object used to perform the deletion.
-
-        log (function, optional): A logging function to record messages.
-        Defaults to None.
+        row (pd.Series): A pandas Series containing object information.
+                         The 'CURRENT_OBJECTS' key should hold the name of the
+                         object to delete.
+        s3 (swiftclient.Connection): A Swift client connection used to interact
+            with the storage.
+        log (str, optional): A log file path or identifier for logging
+            messages. Defaults to None.
 
     Returns:
-        bool: True if the object was successfully deleted, False otherwise.
+        bool: True if the primary object was successfully deleted, False
+        otherwise.
 
-    Raises:
-        Exception: If there is an error deleting the object.
-
-        swiftclient.exceptions.ClientException: If there is an error deleting
-        the object's metadata.
+    Logs:
+        - Logs successful deletions of the object and its metadata.
+        - Logs warnings if the metadata deletion fails.
+        - Prints errors to stderr if the primary object deletion fails.
     """
     obj = row['CURRENT_OBJECTS']
     deleted = False
@@ -82,18 +83,29 @@ def verify_zip_objects(
     log: str
 ) -> bool:
     """
-    Verifies the contents of a zip file based on the provided row and keys
-    series.
+    Verifies if the contents of a zip file stored in an S3 bucket are present
+    in the current list of objects.
 
     Args:
         row (pd.Series): A pandas Series containing information about the zip
-        file, including 'key', 'is_zipfile', and 'contents'.
-
-        keys_series (pd.Series): A pandas Series containing keys to check
-        against the zip file contents.
+        object.
+            The 'CURRENT_OBJECTS' key is expected to hold the zip file path.
+        s3 (swiftclient.Connection): An active connection to the S3 storage.
+        bucket_name (str): The name of the S3 bucket where the zip file is
+            stored.
+        current_objects (pd.Series): A pandas Series containing the list of
+            current objects to verify against.
+        log (str): A log file path or identifier for logging verification
+            results.
 
     Returns:
-        bool: True if the zip file needs to be extracted, False otherwise.
+        bool: True if all contents of the zip file are present in
+        `current_objects`, False otherwise.
+
+    Notes:
+        - The function logs the verification result for each zip file.
+        - The zip file's contents are prefixed with the parent directory path
+          before comparison.
     """
     zip_obj = row['CURRENT_OBJECTS']
     zip_data = io.BytesIO(s3.get_object(bucket_name, zip_obj)[1])

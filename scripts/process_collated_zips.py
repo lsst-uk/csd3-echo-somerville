@@ -94,7 +94,8 @@ def find_metadata_swift(row: pd.Series, conn: swiftclient.Connection, bucket_nam
     a string separated by '|'.
 
     Args:
-        key (str): The key for which metadata is to be retrieved.
+        row (pd.Series): Row of dataframe with a 'key' column which contains
+        the object key.
 
         conn: The connection object to the Swift service.
 
@@ -176,6 +177,19 @@ def object_list_swift(
 
 
 def match_key(row: pd.Series) -> bool:
+    """
+    Determines if the 'key' value in a given pandas Series matches a specific pattern.
+
+    The function checks if the 'key' field in the input row matches the pattern
+    `.*collated_\d+\.zip$`, which corresponds to strings ending with "collated_"
+    followed by one or more digits and the ".zip" extension.
+
+    Args:
+        row (pd.Series): A pandas Series object containing a 'key' field to be checked.
+
+    Returns:
+        bool: True if the 'key' matches the specified pattern, False otherwise.
+    """
     key = row['key']
     pattern = re.compile(r'.*collated_\d+\.zip$')
     if pattern.match(key):
@@ -246,7 +260,8 @@ def extract_and_upload(row: pd.Series, conn: swiftclient.Connection, bucket_name
     Files will be skipped if they are already present and have the same MD5
     hash, or if they are segmented.
     Args:
-        key (str): The key (path) of the zip file in the object storage bucket.
+        row (pd.Series): row of a dataframe with a 'key' column that gives the
+        path of the zip file in the object storage bucket.
 
         conn (swiftclient.Connection): The connection object to interact with
         the object storage.
