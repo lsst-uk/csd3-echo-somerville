@@ -466,7 +466,7 @@ def main():
             nprocs = cpu_count() - 1
     else:
         nprocs = 6
-    threads_per_worker = 8
+    threads_per_worker = 4
     n_workers = nprocs // threads_per_worker
     mem_per_worker = 64 * 1024**3 // n_workers  # limit to 64 GiB total memory
 
