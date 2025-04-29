@@ -508,7 +508,13 @@ def main():
             del keys
             # dprint(keys_df)
             # Discover if key is a zipfile
-            keys_df['is_zipfile'] = keys_df['key'].apply(match_key, meta=('is_zipfile', 'bool'))
+            keys_df['is_zipfile'] = keys_df['key'].map_partitions(
+                lambda partition: partition.apply(
+                    match_key,
+                    axis=1
+                ),
+                meta=('is_zipfile', 'bool')
+            )
 
         # check, compute and write to parquet
 
@@ -531,10 +537,12 @@ def main():
                     dprint('No zipfiles found. Exiting.')
                     sys.exit()
                 # Get metadata for zipfiles
-                keys_df['contents'] = keys_df[keys_df['is_zipfile'] == True]['key'].apply(  # noqa
-                    find_metadata_swift,
-                    conn=conn,
-                    bucket_name=bucket_name,
+                keys_df['contents'] = keys_df[keys_df['is_zipfile'] == True]['key'].map_partitions(  # noqa
+                    lambda partition: partition.apply(
+                        find_metadata_swift,
+                        axis=1,
+                        args=(conn, bucket_name),
+                    ),
                     meta=('contents', 'str')
                 )
                 keys_df[keys_df['is_zipfile'] == False]['contents'] = ''  # noqa
@@ -552,11 +560,13 @@ def main():
                 )
 
                 keys_series = keys_df['key'].compute()
-                keys_df['extract'] = keys_df.apply(
-                    verify_zip_contents,
+                keys_df['extract'] = keys_df.map_partitions(
+                    lambda partition: partition.apply(
+                        verify_zip_contents,
+                        axis=1,
+                        args=(keys_series,),
+                    ),
                     meta=('extract', 'bool'),
-                    keys_series=keys_series,
-                    axis=1
                 )
 
                 # all wrangling and decision making done - write to parquet
@@ -585,10 +595,12 @@ def main():
             )  # small chunks to avoid memory issues
 
             dprint('Zip files extracted and uploaded:')
-            keys_df['extracted_and_uploaded'] = keys_df[keys_df['extract'] == True]['key'].apply(  # noqa
-                extract_and_upload,
-                conn=conn,
-                bucket_name=bucket_name,
+            keys_df['extracted_and_uploaded'] = keys_df[keys_df['extract'] == True]['key'].map_partitions(  # noqa
+                lambda partition: partition.apply(
+                    extract_and_upload,
+                    axis=1,
+                    args=(conn, bucket_name),
+                ),
                 meta=('extracted_and_uploaded', 'bool')
             )
             # with annotate(resources={'MEMORY': 10e9}):
