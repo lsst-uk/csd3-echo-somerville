@@ -83,7 +83,7 @@ def rm_parquet(path: str) -> None:
         os.remove(parent)
 
 
-def find_metadata_swift(key: str, conn: swiftclient.Connection, bucket_name: str) -> str:
+def find_metadata_swift(row: pd.Series, conn: swiftclient.Connection, bucket_name: str) -> str:
     """
     Retrieve metadata for a given key from a Swift container.
     This function attempts to retrieve metadata for a specified key from a
@@ -103,7 +103,7 @@ def find_metadata_swift(key: str, conn: swiftclient.Connection, bucket_name: str
     Returns:
         str: '|'-separated metadata strings if found, otherwise None.
     """
-
+    key = row['key']
     if isinstance(key, str):
         existing_zip_contents = None
         if key.endswith('.zip'):
@@ -175,7 +175,8 @@ def object_list_swift(
     return keys
 
 
-def match_key(key):
+def match_key(row: pd.Series) -> bool:
+    key = row['key']
     pattern = re.compile(r'.*collated_\d+\.zip$')
     if pattern.match(key):
         # dprint(key)
@@ -238,7 +239,7 @@ def prepend_zipfile_path_to_contents(row: pd.Series) -> str:
     return '|'.join(prepended)
 
 
-def extract_and_upload(key: str, conn: swiftclient.Connection, bucket_name: str) -> bool:
+def extract_and_upload(row: pd.Series, conn: swiftclient.Connection, bucket_name: str) -> bool:
     """
     Extracts the contents of a zip file from an object storage bucket and
     uploads the extracted files back to the bucket if not already present.
@@ -261,6 +262,7 @@ def extract_and_upload(key: str, conn: swiftclient.Connection, bucket_name: str)
         swiftclient.exceptions.ClientException: If there is an error
         interacting with the object storage.
     """
+    key = row['key']
     done = False
     start = datetime.now()
     size = 0
@@ -508,7 +510,13 @@ def main():
             del keys
             # dprint(keys_df)
             # Discover if key is a zipfile
-            keys_df['is_zipfile'] = keys_df['key'].apply(match_key, meta=('is_zipfile', 'bool'))
+            keys_df['is_zipfile'] = keys_df.map_partitions(
+                lambda partition: partition.apply(
+                    match_key,
+                    axis=1,
+                ),
+                meta=('is_zipfile', 'bool')
+            )
 
         # check, compute and write to parquet
 
@@ -531,10 +539,15 @@ def main():
                     dprint('No zipfiles found. Exiting.')
                     sys.exit()
                 # Get metadata for zipfiles
-                keys_df['contents'] = keys_df[keys_df['is_zipfile'] == True]['key'].apply(  # noqa
-                    find_metadata_swift,
-                    conn=conn,
-                    bucket_name=bucket_name,
+                keys_df['contents'] = keys_df[keys_df['is_zipfile'] == True].map_partitions(  # noqa
+                    lambda partition: partition.apply(
+                        find_metadata_swift,
+                        axis=1,
+                        args=(
+                            conn,
+                            bucket_name,
+                        ),
+                    ),
                     meta=('contents', 'str')
                 )
                 keys_df[keys_df['is_zipfile'] == False]['contents'] = ''  # noqa
@@ -545,10 +558,12 @@ def main():
                     keys_df['is_zipfile'] == True  # noqa
                 ]['contents'] = keys_df[
                     keys_df['is_zipfile'] == True  # noqa
-                ].apply(
-                    prepend_zipfile_path_to_contents,
+                ].map_partitions(
+                    lambda partition: partition.apply(
+                        prepend_zipfile_path_to_contents,
+                        axis=1
+                    ),
                     meta=('contents', 'str'),
-                    axis=1
                 )
 
                 keys_series = keys_df['key'].compute()
@@ -587,10 +602,15 @@ def main():
             )  # small chunks to avoid memory issues
 
             dprint('Zip files extracted and uploaded:')
-            keys_df['extracted_and_uploaded'] = keys_df[keys_df['extract'] == True]['key'].apply(  # noqa
-                extract_and_upload,
-                conn=conn,
-                bucket_name=bucket_name,
+            keys_df['extracted_and_uploaded'] = keys_df[keys_df['extract'] == True].map_partitions(  # noqa
+                lambda partition: partition.apply(
+                    extract_and_upload,
+                    axis=1,
+                    args=(
+                        conn,
+                        bucket_name,
+                    ),
+                ),
                 meta=('extracted_and_uploaded', 'bool')
             )
             # with annotate(resources={'MEMORY': 10e9}):
