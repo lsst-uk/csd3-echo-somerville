@@ -24,7 +24,7 @@ def logprint(msg: str, log: str = None) -> None:
     msg (str): The message to be logged or printed.
 
     log (str, optional): The file path to the log file. If None, the message
-    is printed to the console. Defaults to None.
+        is printed to the console. Defaults to None.
 
     Returns:
     None
@@ -36,27 +36,29 @@ def logprint(msg: str, log: str = None) -> None:
         print(msg, flush=True)
 
 
-def delete_object_swift(obj: str, s3: swiftclient.Connection, log: str = None) -> bool:
+def delete_object_swift(row: pd.Series, s3: swiftclient.Connection, log: str = None) -> bool:
     """
-    Deletes an object and its metadata from an S3 bucket.
+    Deletes an object and its associated metadata from a Swift storage bucket.
 
     Args:
-        obj (str): The name of the object to delete.
-
-        s3 (object): The S3 client object used to perform the deletion.
-
-        log (function, optional): A logging function to record messages.
-        Defaults to None.
+        row (pd.Series): A pandas Series containing object information.
+                         The 'CURRENT_OBJECTS' key should hold the name of the
+                         object to delete.
+        s3 (swiftclient.Connection): A Swift client connection used to interact
+            with the storage.
+        log (str, optional): A log file path or identifier for logging
+            messages. Defaults to None.
 
     Returns:
-        bool: True if the object was successfully deleted, False otherwise.
+        bool: True if the primary object was successfully deleted, False
+        otherwise.
 
-    Raises:
-        Exception: If there is an error deleting the object.
-
-        swiftclient.exceptions.ClientException: If there is an error deleting
-        the object's metadata.
+    Logs:
+        - Logs successful deletions of the object and its metadata.
+        - Logs warnings if the metadata deletion fails.
+        - Prints errors to stderr if the primary object deletion fails.
     """
+    obj = row['CURRENT_OBJECTS']
     deleted = False
     try:
         s3.delete_object(bucket_name, obj)
@@ -74,26 +76,38 @@ def delete_object_swift(obj: str, s3: swiftclient.Connection, log: str = None) -
 
 
 def verify_zip_objects(
-    zip_obj: str,
+    row: pd.Series,
     s3: swiftclient.Connection,
     bucket_name: str,
     current_objects: pd.Series,
     log: str
 ) -> bool:
     """
-    Verifies the contents of a zip file based on the provided row and keys
-    series.
+    Verifies if the contents of a zip file stored in an S3 bucket are present
+    in the current list of objects.
 
     Args:
         row (pd.Series): A pandas Series containing information about the zip
-        file, including 'key', 'is_zipfile', and 'contents'.
-
-        keys_series (pd.Series): A pandas Series containing keys to check
-        against the zip file contents.
+        object.
+            The 'CURRENT_OBJECTS' key is expected to hold the zip file path.
+        s3 (swiftclient.Connection): An active connection to the S3 storage.
+        bucket_name (str): The name of the S3 bucket where the zip file is
+            stored.
+        current_objects (pd.Series): A pandas Series containing the list of
+            current objects to verify against.
+        log (str): A log file path or identifier for logging verification
+            results.
 
     Returns:
-        bool: True if the zip file needs to be extracted, False otherwise.
+        bool: True if all contents of the zip file are present in
+        `current_objects`, False otherwise.
+
+    Notes:
+        - The function logs the verification result for each zip file.
+        - The zip file's contents are prefixed with the parent directory path
+          before comparison.
     """
+    zip_obj = row['CURRENT_OBJECTS']
     zip_data = io.BytesIO(s3.get_object(bucket_name, zip_obj)[1])
     with zipfile.ZipFile(zip_data, 'r') as z:
         contents = z.namelist()
@@ -311,13 +325,16 @@ if __name__ == '__main__':
             if len(current_zips) > 0:
                 if verify:
                     current_zips = dd.from_pandas(current_zips, chunksize=10000)
-                    current_zips['verified'] = current_zips['CURRENT_OBJECTS'].apply(
-                        lambda x: verify_zip_objects(
-                            x,
-                            s3,
-                            bucket_name,
-                            current_objects['CURRENT_OBJECTS'],
-                            log
+                    current_zips['verified'] = current_zips.map_partitions(
+                        lambda partition: partition.apply(
+                            verify_zip_objects,
+                            axis=1,
+                            args=(
+                                s3,
+                                bucket_name,
+                                current_objects['CURRENT_OBJECTS'],
+                                log
+                            ),
                         ),
                         meta=('bool')
                     )
@@ -358,16 +375,27 @@ if __name__ == '__main__':
                         logprint('auto y')
 
                     if verify:
-                        current_zips['DELETED'] = current_zips[current_zips['verified'] == True][  # noqa
-                            'CURRENT_OBJECTS'
-                        ].apply(lambda x: delete_object_swift(x, s3, log), meta=('bool'))
+                        current_zips['DELETED'] = current_zips[current_zips['verified'] == True].map_partitions(  # noqa
+                            lambda partition: partition.apply(
+                                delete_object_swift,
+                                axis=1,
+                                args=(
+                                    s3,
+                                    log
+                                ),
+                            ),
+                            meta=('bool')
+                        )
                         current_zips[current_zips['verified'] == False]['DELETED'] = False  # noqa
                     else:
-                        current_zips['DELETED'] = current_zips['CURRENT_OBJECTS'].apply(
-                            lambda x: delete_object_swift(
-                                x,
-                                s3,
-                                log
+                        current_zips['DELETED'] = current_zips.map_partitions(
+                            lambda partition: partition.apply(
+                                delete_object_swift,
+                                axis=1,
+                                args=(
+                                    s3,
+                                    log
+                                )
                             ),
                             meta=('bool')
                         )
