@@ -178,14 +178,16 @@ def object_list_swift(
 
 def match_key(row: pd.Series) -> bool:
     """
-    Determines if the 'key' value in a given pandas Series matches a specific pattern.
+    Determines if the 'key' value in a given pandas Series matches a specific
+        pattern.
 
     The function checks if the 'key' field in the input row matches the pattern
-    `.*collated_\d+\.zip$`, which corresponds to strings ending with "collated_"
-    followed by one or more digits and the ".zip" extension.
+    `.*collated_\\d+\\.zip$`, which corresponds to strings ending with
+    "collated_" followed by one or more digits and the ".zip" extension.
 
     Args:
-        row (pd.Series): A pandas Series object containing a 'key' field to be checked.
+        row (pd.Series): A pandas Series object containing a 'key' field to be
+        checked.
 
     Returns:
         bool: True if the 'key' matches the specified pattern, False otherwise.
