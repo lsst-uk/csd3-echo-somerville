@@ -442,6 +442,13 @@ def main():
         default=6
     )
     parser.add_argument(
+        '--prefix',
+        '-p',
+        type=str,
+        help='Prefix to use for the S3 bucket. Defaults to empty string.',
+        default=''
+    )
+    parser.add_argument(
         '--recover',
         '-r',
         action='store_true',
@@ -468,6 +475,11 @@ def main():
             sys.exit()
     else:
         recover = False
+
+    if args.prefix:
+        prefix = args.prefix
+    else:
+        prefix = ''
 
     if list_zips and extract:
         print('Cannot list contents and extract at the same time. Exiting.')
@@ -504,7 +516,7 @@ def main():
     print(f'Using bucket {bucket_name}.')
     if not recover:
         print('Getting key list...')
-        keys = pd.DataFrame.from_dict({'key': object_list_swift(conn, bucket_name, count=True)})
+        keys = pd.DataFrame.from_dict({'key': object_list_swift(conn, bucket_name, prefix, count=True)})
         print(keys.head())
 
     with Client(
