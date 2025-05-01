@@ -329,7 +329,7 @@ def extract_and_upload(row: pd.Series, conn: swiftclient.Connection, bucket_name
             except swiftclient.exceptions.ClientException as e:
                 if e.http_status == 404:
                     # dprint('Object not found. Uploading.')
-                    dprint(f'Uploading {content_key} (not found).')
+                    # dprint(f'Uploading {content_key} (not found).')
                     conn.put_object(bucket_name, content_key, content_file_data)
                     uploaded = True
                 else:
