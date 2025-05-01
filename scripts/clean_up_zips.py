@@ -186,12 +186,12 @@ if __name__ == '__main__':
         help='Answer yes to all prompts. Default is False.'
     )
     parser.add_argument(
-        '--verify',
+        '--verify-skip',
         '-v',
-        default=True,
-        action='store_false',
-        help='Verify the contents of the zip file are in the list of uploaded files *before* deletion. '
-             'Default is True.'
+        default=False,
+        action='store_true',
+        help='Skip verification the contents of the zip file are in the list of uploaded files *before* deletion. '
+             'Default is False.'
     )
     args = parser.parse_args()
 
@@ -216,7 +216,7 @@ if __name__ == '__main__':
     dryrun = args.dryrun
     yes = args.yes
     log_to_file = args.log_to_file
-    verify = args.verify
+    verify = not args.verify_skip  # Default is to verify
 
     print(f'API: {api}, Bucket name: {bucket_name}, Prefix: {prefix}, nprocs: {nprocs}, dryrun: {dryrun}')
 
