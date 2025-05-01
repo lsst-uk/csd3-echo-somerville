@@ -189,7 +189,7 @@ if __name__ == '__main__':
         '--verify',
         '-v',
         default=True,
-        action='store_true',
+        action='store_false',
         help='Verify the contents of the zip file are in the list of uploaded files *before* deletion. '
              'Default is True.'
     )
