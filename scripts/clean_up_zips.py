@@ -308,6 +308,7 @@ if __name__ == '__main__':
             pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_objects}),
             chunksize=10000
         )
+        nparts = current_objects.npartitions
         len_co = len(current_objects)
         logprint(f'Found {len(current_objects)} objects (with matching prefix) in bucket {bucket_name}.',
                  log=log)
@@ -322,7 +323,7 @@ if __name__ == '__main__':
                 ].str.contains(
                     '.zip.metadata'
                 )
-            ]
+            ].repartition(max(nparts // nparts % n_workers, n_workers, nparts // n_workers) // n_workers * n_workers)
             current_objects = current_objects.compute()
             client.scatter(current_objects, broadcast=True)
             print(f'n_partitions: {current_zips.npartitions}')
