@@ -325,6 +325,7 @@ if __name__ == '__main__':
             ]
             current_objects = current_objects.compute()
             client.scatter(current_objects, broadcast=True)
+            print(f'n_partitions: {current_zips.npartitions}')
             len_cz = len(current_zips)
             logprint(
                 f'Found {len_cz} zip files (with matching prefix) in bucket {bucket_name}.',
