@@ -190,7 +190,7 @@ if __name__ == '__main__':
         '-v',
         default=False,
         action='store_true',
-        help='Verify the contents of the zip file are in the list of uploaded files. Default is False.'
+        help='Verify the contents of the zip file are in the list of uploaded files *after* deletion. Default is False.'
     )
     args = parser.parse_args()
 
