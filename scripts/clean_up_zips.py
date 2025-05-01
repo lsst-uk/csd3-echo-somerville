@@ -170,7 +170,7 @@ if __name__ == '__main__':
         '-d',
         default=False,
         action='store_true',
-        help='Perform a dry run without uploading files. Default is False.'
+        help='Perform a dry run without uploading files or deleting zips. Default is False.'
     )
     parser.add_argument(
         '--log-to-file',
