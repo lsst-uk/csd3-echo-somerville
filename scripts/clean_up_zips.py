@@ -303,13 +303,13 @@ if __name__ == '__main__':
         elif api == 'swift':
             current_objects = bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)
         logprint(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', log=log)
-
+        len_co = len(current_objects)
         current_objects = dd.from_pandas(
             pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_objects}),
             chunksize=10000
         )
         nparts = current_objects.npartitions
-        len_co = len(current_objects)
+
         logprint(f'Found {len(current_objects)} objects (with matching prefix) in bucket {bucket_name}.',
                  log=log)
         if len_co > 0:
@@ -323,7 +323,13 @@ if __name__ == '__main__':
                 ].str.contains(
                     '.zip.metadata'
                 )
-            ].repartition(max(nparts // nparts % n_workers, n_workers, nparts // n_workers) // n_workers * n_workers)
+            ].repartition(
+                npartitions=int(
+                    max(
+                        nparts // nparts % n_workers, n_workers, nparts // n_workers
+                    ) // n_workers * n_workers
+                )
+            )
             current_objects = current_objects.compute()
             client.scatter(current_objects, broadcast=True)
             print(f'n_partitions: {current_zips.npartitions}')
