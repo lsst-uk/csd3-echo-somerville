@@ -190,8 +190,8 @@ if __name__ == '__main__':
         '-v',
         default=False,
         action='store_true',
-        help='Skip verification the contents of the zip file are in the list of uploaded files *before* deletion. '
-             'Default is False.'
+        help='Skip verification the contents of the zip file are in the list of uploaded files *before* '
+             'deletion. Default is False.'
     )
     args = parser.parse_args()
 
