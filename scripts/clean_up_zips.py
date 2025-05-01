@@ -304,7 +304,10 @@ if __name__ == '__main__':
             current_objects = bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)
         logprint(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', log=log)
 
-        current_objects = dd.from_pandas(pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_objects}), chunksize=10000)
+        current_objects = dd.from_pandas(
+            pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_objects}),
+            chunksize=10000
+        )
         len_co = len(current_objects)
         logprint(f'Found {len(current_objects)} objects (with matching prefix) in bucket {bucket_name}.',
                  log=log)
@@ -320,7 +323,8 @@ if __name__ == '__main__':
                     '.zip.metadata'
                 )
             ]
-            del current_objects
+            current_objects = current_objects.compute()
+            client.scatter(current_objects, broadcast=True)
             len_cz = len(current_zips)
             logprint(
                 f'Found {len_cz} zip files (with matching prefix) in bucket {bucket_name}.',
