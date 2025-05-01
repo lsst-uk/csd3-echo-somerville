@@ -313,7 +313,7 @@ def extract_and_upload(row: pd.Series, conn: swiftclient.Connection, bucket_name
                 existing_content = conn.head_object(bucket_name, content_key)
                 existing_md5 = existing_content['etag']
                 if existing_md5 == content_md5:
-                    dprint(f'Skipping {content_key} ({existing_md5} == {content_md5})')
+                    # dprint(f'Skipping {content_key} ({existing_md5} == {content_md5})')
                     continue
                 elif existing_md5 != content_md5 and '-' in existing_md5:
                     dprint(
