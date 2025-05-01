@@ -188,9 +188,10 @@ if __name__ == '__main__':
     parser.add_argument(
         '--verify',
         '-v',
-        default=False,
+        default=True,
         action='store_true',
-        help='Verify the contents of the zip file are in the list of uploaded files *after* deletion. Default is False.'
+        help='Verify the contents of the zip file are in the list of uploaded files *before* deletion. '
+             'Default is True.'
     )
     args = parser.parse_args()
 
@@ -303,10 +304,11 @@ if __name__ == '__main__':
             current_objects = bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)
         logprint(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', log=log)
 
-        current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_objects})
+        current_objects = dd.from_pandas(pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_objects}), chunksize=10000)
+        len_co = len(current_objects)
         logprint(f'Found {len(current_objects)} objects (with matching prefix) in bucket {bucket_name}.',
                  log=log)
-        if not current_objects.empty:
+        if len_co > 0:
             current_zips = current_objects[
                 current_objects[
                     'CURRENT_OBJECTS'
@@ -317,14 +319,15 @@ if __name__ == '__main__':
                 ].str.contains(
                     '.zip.metadata'
                 )
-            ].copy()
+            ]
+            del current_objects
+            len_cz = len(current_zips)
             logprint(
-                f'Found {len(current_zips)} zip files (with matching prefix) in bucket {bucket_name}.',
+                f'Found {len_cz} zip files (with matching prefix) in bucket {bucket_name}.',
                 log=log
             )
-            if len(current_zips) > 0:
+            if len_cz > 0:
                 if verify:
-                    current_zips = dd.from_pandas(current_zips, chunksize=10000)
                     current_zips['verified'] = current_zips.map_partitions(
                         lambda partition: partition.apply(
                             verify_zip_objects,
@@ -339,7 +342,7 @@ if __name__ == '__main__':
                         meta=('bool')
                     )
                 if dryrun:
-                    logprint(f'Current objects (with matching prefix): {len(current_objects)}', log=log)
+                    logprint(f'Current objects (with matching prefix): {len_co}', log=log)
                     if verify:
                         current_zips = current_zips.compute()
                         logprint(
@@ -349,21 +352,21 @@ if __name__ == '__main__':
                         )
                     else:
                         logprint(
-                            f'Current zip objects (with matching prefix): {len(current_zips)} '
+                            f'Current zip objects (with matching prefix): {len_cz} '
                             'would be deleted.',
                             log=log
                         )
                     sys.exit()
                 else:
-                    logprint(f'Current objects (with matching prefix): {len(current_objects)}')
+                    logprint(f'Current objects (with matching prefix): {len_co}')
                     if not verify:
                         logprint(
-                            f'Current zip objects (with matching prefix): {len(current_zips)} will be '
+                            f'Current zip objects (with matching prefix): {len_cz} will be '
                             'deleted.'
                         )
                     else:
                         logprint(
-                            f'Current zip objects (with matching prefix): {len(current_zips)} will be '
+                            f'Current zip objects (with matching prefix): {len_cz} will be '
                             'deleted if all contents exist as objects.'
                         )
                     logprint('WARNING! Files are about to be deleted!')
