@@ -631,6 +631,8 @@ def main():
                 chunksize=100000
             )  # small chunks to avoid memory issues
 
+            dprint(keys_df.npartitions)
+
             dprint('Zip files extracted and uploaded:')
             keys_df['extracted_and_uploaded'] = keys_df[keys_df['extract'] == True].map_partitions(  # noqa
                 lambda partition: partition.apply(
