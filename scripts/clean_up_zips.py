@@ -119,6 +119,8 @@ def clean_orphaned_metadata(
     else:
         return False
     zip_obj = str(obj.split('.metadata')[0])
+    logprint(zip_obj, log)
+    logprint(obj, log)
     logprint(f"zip obj match {current_objects[current_objects['CURRENT_OBJECTS'] == zip_obj]}", log)
     in_co = len(current_objects[current_objects['CURRENT_OBJECTS'] == zip_obj])
     if in_co == 0:
