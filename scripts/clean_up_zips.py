@@ -114,7 +114,7 @@ def clean_orphaned_metadata(
         - The function checks if the metadata file exists and deletes it if
           it does not have a corresponding object in `current_objects`.
     """
-    if row['CURRENT_OBJECTS'].str.endswith('.zip.metadata'):
+    if row['CURRENT_OBJECTS'].endswith('.zip.metadata'):
         obj = row['CURRENT_OBJECTS']
     else:
         return False
