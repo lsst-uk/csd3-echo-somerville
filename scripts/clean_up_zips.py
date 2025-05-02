@@ -36,7 +36,13 @@ def logprint(msg: str, log: str = None) -> None:
         print(msg, flush=True)
 
 
-def delete_object_swift(row: pd.Series, s3: swiftclient.Connection, log: str = None) -> bool:
+def delete_object_swift(
+    row: pd.Series,
+    s3: swiftclient.Connection,
+    bucket_name: str,
+    del_metadata: bool = True,
+    log: str = None
+) -> bool:
     """
     Deletes an object and its associated metadata from a Swift storage bucket.
 
@@ -44,8 +50,11 @@ def delete_object_swift(row: pd.Series, s3: swiftclient.Connection, log: str = N
         row (pd.Series): A pandas Series containing object information.
                          The 'CURRENT_OBJECTS' key should hold the name of the
                          object to delete.
+        bucket_name (str): The name of the Swift bucket.
         s3 (swiftclient.Connection): A Swift client connection used to interact
             with the storage.
+        del_metadata (bool, optional): Whether to delete the associated
+            metadata object, i.e., .zip.metadata for .zip.
         log (str, optional): A log file path or identifier for logging
             messages. Defaults to None.
 
@@ -67,12 +76,56 @@ def delete_object_swift(row: pd.Series, s3: swiftclient.Connection, log: str = N
     except Exception as e:
         print(f'Error deleting {obj}: {e}', file=sys.stderr)
         return False
-    try:
-        s3.delete_object(bucket_name, f'{obj}.metadata')
-        logprint(f'Deleted {obj}.metadata', log)
-    except swiftclient.exceptions.ClientException as e:
-        logprint(f'WARNING: Error deleting {obj}.metadata: {e.msg}', log)
+    if del_metadata:
+        try:
+            s3.delete_object(bucket_name, f'{obj}.metadata')
+            logprint(f'Deleted {obj}.metadata', log)
+        except swiftclient.exceptions.ClientException as e:
+            logprint(f'WARNING: Error deleting {obj}.metadata: {e.msg}', log)
     return deleted
+
+
+def clean_orphaned_metadata(
+    row: pd.Series,
+    s3: swiftclient.Connection,
+    bucket_name: str,
+    current_objects: pd.Series,
+    log: str
+) -> bool:
+    """
+    Cleans up orphaned metadata files in a Swift storage bucket.
+
+    Args:
+        row (pd.Series): A pandas Series containing object information.
+            The 'CURRENT_OBJECTS' key should hold the name of the object to
+            check.
+        s3 (swiftclient.Connection): A Swift client connection used to interact
+            with the storage.
+        bucket_name (str): The name of the Swift bucket.
+        current_objects (pd.Series): A pandas Series containing the list of
+            current objects in the bucket.
+        log (str): A log file path or identifier for logging messages.
+
+    Returns:
+        True if the object is a metadata object, has no parent zip object,
+        and is successfully deleted.
+
+    Notes:
+        - The function checks if the metadata file exists and deletes it if
+          it does not have a corresponding object in `current_objects`.
+    """
+    if row['CURRENT_OBJECTS'].str.endswith('.zip.metadata'):
+        obj = row['CURRENT_OBJECTS']
+    else:
+        return False
+    zip_obj = obj.split('.metadata')[0]
+    if zip_obj not in current_objects:
+        try:
+            delete_object_swift(row, s3, bucket_name, del_metadata=False, log=log)
+            logprint(f'Deleted {obj} as {zip_obj} does not exist', log)
+        except swiftclient.exceptions.ClientException as e:
+            logprint(f'WARNING: Error deleting {obj}: {e.msg}', log)
+    return True
 
 
 def verify_zip_objects(
@@ -166,6 +219,13 @@ if __name__ == '__main__':
         default=4
     )
     parser.add_argument(
+        '--clean-up-metadata',
+        '-m',
+        default=False,
+        action='store_true',
+        help='Clean up orphaned metadata files. Default is False.'
+    )
+    parser.add_argument(
         '--dryrun',
         '-d',
         default=False,
@@ -217,6 +277,7 @@ if __name__ == '__main__':
     yes = args.yes
     log_to_file = args.log_to_file
     verify = not args.verify_skip  # Default is to verify
+    clean_metadata = args.clean_up_metadata
 
     print(f'API: {api}, Bucket name: {bucket_name}, Prefix: {prefix}, nprocs: {nprocs}, dryrun: {dryrun}')
 
@@ -368,6 +429,11 @@ if __name__ == '__main__':
                             'would be deleted.',
                             log=log
                         )
+                    if clean_metadata:
+                        logprint(
+                            'Any orphaned metadata files would be found and deleted.',
+                            log=log
+                        )
                     sys.exit()
                 else:
                     logprint(f'Current objects (with matching prefix): {len_co}')
@@ -396,7 +462,9 @@ if __name__ == '__main__':
                                 axis=1,
                                 args=(
                                     s3,
-                                    log
+                                    bucket_name,
+                                    True,
+                                    log,
                                 ),
                             ),
                             meta=('bool')
@@ -409,6 +477,22 @@ if __name__ == '__main__':
                                 axis=1,
                                 args=(
                                     s3,
+                                    bucket_name,
+                                    True,
+                                    log
+                                )
+                            ),
+                            meta=('bool')
+                        )
+                    if clean_metadata:
+                        current_zips['CLEANED_METADATA'] = current_zips.map_partitions(
+                            lambda partition: partition.apply(
+                                clean_orphaned_metadata,
+                                axis=1,
+                                args=(
+                                    s3,
+                                    bucket_name,
+                                    current_objects['CURRENT_OBJECTS'],
                                     log
                                 )
                             ),
@@ -444,6 +528,12 @@ if __name__ == '__main__':
                     else:
                         logprint(
                             f'{len(current_zips[current_zips["DELETED"] == True])} zip files were DELETED.',
+                            log=log
+                        )
+                    if clean_metadata:
+                        logprint(
+                            f'{len(current_zips[current_zips["CLEANED_METADATA"] == True])} '
+                            'orphaned metadata files were DELETED.',
                             log=log
                         )
                     logprint(
