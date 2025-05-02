@@ -119,8 +119,8 @@ def clean_orphaned_metadata(
     else:
         return False
     zip_obj = obj.split('.metadata')[0]
-    in_co = len(current_objects[current_objects['CURRENT_OBJECTS'] == zip_obj]) > 0
-    if in_co:
+    in_co = len(current_objects[current_objects['CURRENT_OBJECTS'] == zip_obj])
+    if in_co == 0:
         # The zip file does not exist, so delete the metadata
         try:
             delete_object_swift(row, s3, bucket_name, del_metadata=False, log=log)
