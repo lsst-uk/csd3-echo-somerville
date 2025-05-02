@@ -391,14 +391,20 @@ if __name__ == '__main__':
                     ) // n_workers * n_workers
                 )
             )
-            current_objects = current_objects.compute()
+            current_objects = current_objects.persist()
             client.scatter(current_objects, broadcast=True)
             print(f'n_partitions: {current_zips.npartitions}')
             len_cz = len(current_zips)
+            len_md = len(
+                current_objects[
+                    current_objects['CURRENT_OBJECTS'].str.endswith('.zip.metadata')
+                ]
+            )
             logprint(
                 f'Found {len_cz} zip files (with matching prefix) in bucket {bucket_name}.',
                 log=log
             )
+
             if len_cz > 0:
                 if verify:
                     current_zips['verified'] = current_zips.map_partitions(
@@ -427,11 +433,6 @@ if __name__ == '__main__':
                         logprint(
                             f'Current zip objects (with matching prefix): {len_cz} '
                             'would be deleted.',
-                            log=log
-                        )
-                    if clean_metadata:
-                        logprint(
-                            'Any orphaned metadata files would be found and deleted.',
                             log=log
                         )
                     sys.exit()
@@ -484,20 +485,6 @@ if __name__ == '__main__':
                             ),
                             meta=('bool')
                         )
-                    if clean_metadata:
-                        current_zips['CLEANED_METADATA'] = current_zips.map_partitions(
-                            lambda partition: partition.apply(
-                                clean_orphaned_metadata,
-                                axis=1,
-                                args=(
-                                    s3,
-                                    bucket_name,
-                                    current_objects['CURRENT_OBJECTS'],
-                                    log
-                                )
-                            ),
-                            meta=('bool')
-                        )
 
                     current_zips = current_zips.compute()
 
@@ -530,20 +517,39 @@ if __name__ == '__main__':
                             f'{len(current_zips[current_zips["DELETED"] == True])} zip files were DELETED.',
                             log=log
                         )
-                    if clean_metadata:
-                        logprint(
-                            f'{len(current_zips[current_zips["CLEANED_METADATA"] == True])} '
-                            'orphaned metadata files were DELETED.',
-                            log=log
-                        )
                     logprint(
                         f'Finished processing at {datetime.now()}, elapsed time = {datetime.now() - start}',
                         log=log
                     )
                     sys.exit(0)
             else:
-                print(f'No zip files in bucket {bucket_name}. Exiting.')
-                sys.exit(0)
+                print(f'No zip files in bucket {bucket_name}.')
+            if len_md > 0 and clean_metadata:
+                if dryrun:
+                    logprint(
+                        'Any orphaned metadata files would be found and deleted.',
+                        log=log
+                    )
+                else:
+                    cleaned_metadata = current_objects.map_partitions(
+                        lambda partition: partition.apply(
+                            clean_orphaned_metadata,
+                            axis=1,
+                            args=(
+                                s3,
+                                bucket_name,
+                                current_objects['CURRENT_OBJECTS'],
+                                log
+                            )
+                        ),
+                        meta=('bool')
+                    )
+                    cleaned_metadata = cleaned_metadata.compute()
+                    logprint(
+                        f'{len(cleaned_metadata[cleaned_metadata == True])} '
+                        'orphaned metadata files were DELETED.',
+                        log=log
+                    )
         else:
             print(f'No files in bucket {bucket_name}. Exiting.')
             sys.exit(0)
