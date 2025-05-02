@@ -119,9 +119,6 @@ def clean_orphaned_metadata(
     else:
         return False
     zip_obj = str(obj.split('.metadata')[0])
-    logprint(obj, log)
-    logprint(zip_obj, log)
-    logprint(f"zip obj match {current_objects[current_objects == zip_obj]}", log)
     in_co = len(current_objects[current_objects == zip_obj])
     if in_co == 0:
         # The zip file does not exist, so delete the metadata
