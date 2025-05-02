@@ -552,6 +552,11 @@ if __name__ == '__main__':
                         'orphaned metadata files were DELETED.',
                         log=log
                     )
+            else:
+                logprint(
+                    f'No metadata files in bucket {bucket_name}.',
+                    log=log
+                )
         else:
             print(f'No files in bucket {bucket_name}. Exiting.')
             sys.exit(0)
