@@ -85,15 +85,12 @@ def delete_object_swift(
     return deleted
 
 
-def clean_orphaned_metadata(
+def is_orphaned_metadata(
     row: pd.Series,
-    s3: swiftclient.Connection,
-    bucket_name: str,
     current_objects: pd.Series,
-    log: str
 ) -> bool:
     """
-    Cleans up orphaned metadata files in a Swift storage bucket.
+    Identifies orphaned metadata files in a Swift storage bucket.
 
     Args:
         row (pd.Series): A pandas Series containing object information.
@@ -120,13 +117,46 @@ def clean_orphaned_metadata(
         return False
     zip_obj = str(obj.split('.metadata')[0])
     in_co = len(current_objects[current_objects == zip_obj])
-    if in_co == 0:
-        # The zip file does not exist, so delete the metadata
-        try:
-            delete_object_swift(row, s3, bucket_name, del_metadata=False, log=log)
-            logprint(f'Deleted {obj} as {zip_obj} does not exist', log)
-        except swiftclient.exceptions.ClientException as e:
-            logprint(f'WARNING: Error deleting {obj}: {e.msg}', log)
+    return True if in_co == 0 else False
+
+
+def clean_orphaned_metadata(
+    row: pd.Series,
+    s3: swiftclient.Connection,
+    bucket_name: str,
+    log: str
+) -> bool:
+    """
+    Cleans up orphaned metadata files in a Swift storage bucket.
+
+    Args:
+        row (pd.Series): A pandas Series containing object information.
+            The 'CURRENT_OBJECTS' key should hold the name of the object to
+            check.
+        s3 (swiftclient.Connection): A Swift client connection used to interact
+            with the storage.
+        bucket_name (str): The name of the Swift bucket.
+        current_objects (pd.Series): A pandas Series containing the list of
+            current objects in the bucket.
+        log (str): A log file path or identifier for logging messages.
+
+    Returns:
+        True if the object is a metadata object, has no parent zip object,
+        and is successfully deleted.
+
+    Notes:
+        - The function checks if the metadata file exists and deletes it if
+          it does not have a corresponding object in `current_objects`.
+    """
+    obj = row['CURRENT_OBJECTS']
+    if not obj.endswith('.zip.metadata'):
+        return False
+    zip_obj = str(obj.split('.metadata')[0])
+    try:
+        delete_object_swift(row, s3, bucket_name, del_metadata=False, log=None)
+        logprint(f'Deleted {obj} as {zip_obj} does not exist', log)
+    except swiftclient.exceptions.ClientException as e:
+        logprint(f'WARNING: Error deleting {obj}: {e.msg}', log)
     return True
 
 
@@ -533,14 +563,23 @@ if __name__ == '__main__':
                         log=log
                     )
                 else:
-                    cleaned_metadata = current_objects.map_partitions(
+                    orphaned_metadata = current_objects.map_partitions(
+                        lambda partition: partition.apply(
+                            is_orphaned_metadata,
+                            axis=1,
+                            args=(
+                                current_objects['CURRENT_OBJECTS'],
+                            )
+                        ),
+                        meta=('bool')
+                    )
+                    cleaned_metadata = current_objects[orphaned_metadata == True].map_partitions(  # noqa
                         lambda partition: partition.apply(
                             clean_orphaned_metadata,
                             axis=1,
                             args=(
                                 s3,
                                 bucket_name,
-                                current_objects['CURRENT_OBJECTS'],
                                 log
                             )
                         ),
