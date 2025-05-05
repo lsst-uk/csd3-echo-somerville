@@ -404,6 +404,7 @@ if __name__ == '__main__':
             pd.DataFrame.from_dict({'CURRENT_OBJECTS': co}),
             chunksize=10000
         )
+        del co
         nparts = current_objects.npartitions
         use_nparts = max(
             nparts // nparts % n_workers, n_workers, nparts // n_workers
@@ -438,17 +439,20 @@ if __name__ == '__main__':
             # md_objects = md_objects.repartition(
             #     npartitions=use_nparts
             # )
-            if verify:
-                current_object_names = current_objects['CURRENT_OBJECTS'].compute()
-                client.scatter(current_object_names, broadcast=True)
-                del co
+            # if verify:
+            #     current_object_names = current_objects['CURRENT_OBJECTS'].compute()
+            #     client.scatter(current_object_names, broadcast=True)
+            #     del co
             if not verify:
-                current_object_names = None
-            del current_objects
+                del current_objects
+
             print(f'n_partitions: {current_zips.npartitions}')
 
             if len_cz > 0:
                 if verify:
+                    current_object_names = current_objects['CURRENT_OBJECTS'].compute()
+                    del current_objects
+                    del co
                     current_zips['verified'] = current_zips.map_partitions(
                         lambda partition: partition.apply(
                             verify_zip_objects,
@@ -462,6 +466,7 @@ if __name__ == '__main__':
                         ),
                         meta=('bool')
                     )
+                    del current_object_names
                 if dryrun:
                     logprint(f'Current objects (with matching prefix): {len_co}', log=log)
                     if verify:
