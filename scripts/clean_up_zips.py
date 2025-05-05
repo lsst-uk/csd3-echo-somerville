@@ -421,6 +421,10 @@ if __name__ == '__main__':
                 # )
             ]
             len_cz = len(current_zips)
+            logprint(
+                f'Found {len_cz} zip files (with matching prefix) in bucket {bucket_name}.',
+                log=log
+            )
             if len_cz > 0:
                 current_zips = current_zips.repartition(
                     npartitions=int(
@@ -437,6 +441,10 @@ if __name__ == '__main__':
                 ),
             ]
             len_md = len(md_objects)
+            logprint(
+                f'Found {len_md} metadata files (with matching prefix) in bucket {bucket_name}.',
+                log=log
+            )
             if len_md > 0:
                 md_objects = md_objects.repartition(
                     npartitions=current_zips.npartitions
@@ -446,11 +454,6 @@ if __name__ == '__main__':
             del current_objects
             client.scatter(current_object_names, broadcast=True)
             print(f'n_partitions: {current_zips.npartitions}')
-
-            logprint(
-                f'Found {len_cz} zip files (with matching prefix) in bucket {bucket_name}.',
-                log=log
-            )
 
             if len_cz > 0:
                 if verify:
