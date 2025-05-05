@@ -423,9 +423,9 @@ if __name__ == '__main__':
                 log=log
             )
             # if len_cz > 0:
-                # current_zips = current_zips.repartition(
-                #     npartitions=use_nparts
-                # )
+            # current_zips = current_zips.repartition(
+            #     npartitions=use_nparts
+            # )
             md_objects = current_objects[
                 current_objects['CURRENT_OBJECTS']
             ].str.endswith('collated_\d+\.zip.metadata')  # noqa
@@ -435,9 +435,9 @@ if __name__ == '__main__':
                 log=log
             )
             # if len_md > 0:
-                # md_objects = md_objects.repartition(
-                #     npartitions=use_nparts
-                # )
+            # md_objects = md_objects.repartition(
+            #     npartitions=use_nparts
+            # )
             if verify:
                 current_object_names = current_objects['CURRENT_OBJECTS'].compute()
                 client.scatter(current_object_names, broadcast=True)
