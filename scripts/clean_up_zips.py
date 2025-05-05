@@ -417,10 +417,10 @@ if __name__ == '__main__':
                  log=log)
         if len_co > 0:
             current_objects['is_zip'] = current_objects['CURRENT_OBJECTS'].map_partitions(
-                lambda partition: partition.str.contains('collated_\d+\.zip', regex=True, na=False)  # noqa
+                lambda partition: partition.str.fullmatch('^collated_\d+\.zip$', na=False)  # noqa
             )
             current_objects['is_metadata'] = current_objects['CURRENT_OBJECTS'].map_partitions(
-                lambda partition: partition.str.contains('collated_\d+\.zip.metadata', regex=True, na=False)  # noqa
+                lambda partition: partition.str.fullmatch('^collated_\d+\.zip.metadata$', regex=True, na=False)  # noqa
             )
             current_zips = current_objects[current_objects['is_zip'] == True]  # noqa
             len_cz = len(current_zips)  # noqa
