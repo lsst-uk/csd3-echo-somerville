@@ -420,7 +420,7 @@ if __name__ == '__main__':
                 lambda partition: partition.str.fullmatch('^collated_\d+\.zip$', na=False)  # noqa
             )
             current_objects['is_metadata'] = current_objects['CURRENT_OBJECTS'].map_partitions(
-                lambda partition: partition.str.fullmatch('^collated_\d+\.zip.metadata$', regex=True, na=False)  # noqa
+                lambda partition: partition.str.fullmatch('^collated_\d+\.zip.metadata$', na=False)  # noqa
             )
             current_zips = current_objects[current_objects['is_zip'] == True]  # noqa
             len_cz = len(current_zips)  # noqa
