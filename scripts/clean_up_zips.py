@@ -416,8 +416,8 @@ if __name__ == '__main__':
                  log=log)
         if len_co > 0:
             current_zips = current_objects[
-                current_objects['CURRENT_OBJECTS']
-            ].str.endswith('collated_\d+\.zip')  # noqa
+                current_objects['CURRENT_OBJECTS'].str.endswith('collated_\d+\.zip')  # noqa
+            ].copy()
             len_cz = len(current_zips)
             logprint(
                 f'Found {len_cz} zip files (with matching prefix) in bucket {bucket_name}.',
@@ -428,8 +428,8 @@ if __name__ == '__main__':
             #     npartitions=use_nparts
             # )
             md_objects = current_objects[
-                current_objects['CURRENT_OBJECTS']
-            ].str.endswith('collated_\d+\.zip.metadata')  # noqa
+                current_objects['CURRENT_OBJECTS'].str.endswith('collated_\d+\.zip.metadata')  # noqa
+            ].copy()
             len_md = len(md_objects)
             logprint(
                 f'Found {len_md} metadata files (with matching prefix) in bucket {bucket_name}.',
