@@ -405,6 +405,11 @@ if __name__ == '__main__':
             chunksize=10000
         )
         nparts = current_objects.npartitions
+        use_nparts = max(
+            nparts // nparts % n_workers, n_workers, nparts // n_workers
+        ) // n_workers * n_workers
+        if use_nparts != nparts:
+            current_objects = current_objects.repartition(npartitions=use_nparts)
 
         logprint(f'Found {len(current_objects)} objects (with matching prefix) in bucket {bucket_name}.',
                  log=log)
@@ -417,14 +422,10 @@ if __name__ == '__main__':
                 f'Found {len_cz} zip files (with matching prefix) in bucket {bucket_name}.',
                 log=log
             )
-            if len_cz > 0:
-                current_zips = current_zips.repartition(
-                    npartitions=int(
-                        max(
-                            nparts // nparts % n_workers, n_workers, nparts // n_workers
-                        ) // n_workers * n_workers
-                    )
-                )
+            # if len_cz > 0:
+                # current_zips = current_zips.repartition(
+                #     npartitions=use_nparts
+                # )
             md_objects = current_objects[
                 current_objects['CURRENT_OBJECTS']
             ].str.endswith('collated_\d+\.zip.metadata')  # noqa
@@ -433,19 +434,10 @@ if __name__ == '__main__':
                 f'Found {len_md} metadata files (with matching prefix) in bucket {bucket_name}.',
                 log=log
             )
-            if len_md > 0:
-                if len_cz > 0:
-                    md_objects = md_objects.repartition(
-                        npartitions=current_zips.npartitions
-                    )
-                else:
-                    md_objects = md_objects.repartition(
-                        npartitions=int(
-                            max(
-                                nparts // nparts % n_workers, n_workers, nparts // n_workers
-                            ) // n_workers * n_workers
-                        )
-                    )
+            # if len_md > 0:
+                # md_objects = md_objects.repartition(
+                #     npartitions=use_nparts
+                # )
             if verify:
                 current_object_names = current_objects['CURRENT_OBJECTS'].compute()
                 client.scatter(current_object_names, broadcast=True)
