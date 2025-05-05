@@ -148,16 +148,19 @@ def clean_orphaned_metadata(
         - The function checks if the metadata file exists and deletes it if
           it does not have a corresponding object in `current_objects`.
     """
-    obj = row['CURRENT_OBJECTS']
-    if not obj.endswith('.zip.metadata'):
+    if row['ORPHANED']:
+        obj = row['CURRENT_OBJECTS']
+        if not obj.endswith('.zip.metadata'):
+            return False
+        zip_obj = str(obj.split('.metadata')[0])
+        try:
+            delete_object_swift(row, s3, bucket_name, del_metadata=False, log=None)
+            logprint(f'Deleted {obj} as {zip_obj} does not exist', log)
+        except swiftclient.exceptions.ClientException as e:
+            logprint(f'WARNING: Error deleting {obj}: {e.msg}', log)
+        return True
+    else:
         return False
-    zip_obj = str(obj.split('.metadata')[0])
-    try:
-        delete_object_swift(row, s3, bucket_name, del_metadata=False, log=None)
-        logprint(f'Deleted {obj} as {zip_obj} does not exist', log)
-    except swiftclient.exceptions.ClientException as e:
-        logprint(f'WARNING: Error deleting {obj}: {e.msg}', log)
-    return True
 
 
 def verify_zip_objects(
@@ -409,29 +412,41 @@ if __name__ == '__main__':
             current_zips = current_objects[
                 current_objects[
                     'CURRENT_OBJECTS'
-                ].str.contains(
-                    'collated_\d+\.zip'  # noqa
-                ) & ~current_objects[
-                    'CURRENT_OBJECTS'
-                ].str.contains(
-                    '.zip.metadata'
-                )
-            ].repartition(
-                npartitions=int(
-                    max(
-                        nparts // nparts % n_workers, n_workers, nparts // n_workers
-                    ) // n_workers * n_workers
-                )
-            )
-            current_objects = current_objects.compute()
-            client.scatter(current_objects, broadcast=True)
-            print(f'n_partitions: {current_zips.npartitions}')
+                ].str.endswith(
+                    'collated_\d+\.zip')  # noqa
+                # ) & ~current_objects[
+                #     'CURRENT_OBJECTS'
+                # ].str.contains(
+                #     '.zip.metadata'
+                # )
+            ]
             len_cz = len(current_zips)
-            len_md = len(
-                current_objects[
-                    current_objects['CURRENT_OBJECTS'].str.endswith('.zip.metadata')
-                ]
-            )
+            if len_cz > 0:
+                current_zips = current_zips.repartition(
+                    npartitions=int(
+                        max(
+                            nparts // nparts % n_workers, n_workers, nparts // n_workers
+                        ) // n_workers * n_workers
+                    )
+                )
+            md_objects = current_objects[
+                pd.DataFrame.from_dict(
+                    {
+                        'CURRENT_OBJECTS': current_objects['CURRENT_OBJECTS'].str.endswith('.zip.metadata')
+                    }
+                ),
+            ]
+            len_md = len(md_objects)
+            if len_md > 0:
+                md_objects = md_objects.repartition(
+                    npartitions=current_zips.npartitions
+                )
+
+            current_object_names = current_objects['CURRENT_OBJECTS'].compute()
+            del current_objects
+            client.scatter(current_object_names, broadcast=True)
+            print(f'n_partitions: {current_zips.npartitions}')
+
             logprint(
                 f'Found {len_cz} zip files (with matching prefix) in bucket {bucket_name}.',
                 log=log
@@ -446,7 +461,7 @@ if __name__ == '__main__':
                             args=(
                                 s3,
                                 bucket_name,
-                                current_objects['CURRENT_OBJECTS'],
+                                current_object_names,
                                 log
                             ),
                         ),
@@ -568,15 +583,6 @@ if __name__ == '__main__':
                         log=log
                     )
                 else:
-                    md_objects = current_objects[
-                        current_objects['CURRENT_OBJECTS'].str.endswith('.zip.metadata')
-                    ]
-
-                    md_objects = dd.from_pandas(
-                        pd.DataFrame.from_dict({'CURRENT_OBJECTS': md_objects}),
-                        chunksize=10000
-                    ).repartition(npartitions=current_objects.npartitions)
-                    del current_objects
                     if len_cz == 0:
                         cleaned_metadata = md_objects.map_partitions(  # noqa
                             lambda partition: partition.apply(
@@ -598,7 +604,7 @@ if __name__ == '__main__':
                             log=log
                         )
                     else:
-                        orphaned_metadata = md_objects.map_partitions(
+                        md_objects['ORPHANED'] = md_objects.map_partitions(
                             lambda partition: partition.apply(
                                 is_orphaned_metadata,
                                 axis=1,
