@@ -429,7 +429,7 @@ if __name__ == '__main__':
             #     npartitions=use_nparts
             # )
             md_objects = current_objects[
-                current_objects['CURRENT_OBJECTS'].str.endswith('collated_\d+\.zip.metadata')  # noqa
+                current_objects['CURRENT_OBJECTS'].str.endswith(re.compile('collated_\d+\.zip.metadata'))  # noqa
             ].copy()
             len_md = len(md_objects)
             logprint(
