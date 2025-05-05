@@ -433,13 +433,15 @@ if __name__ == '__main__':
                         ) // n_workers * n_workers
                     )
                 )
-            md_objects = current_objects[
+            md_objects = dd.from_pandas(
                 pd.DataFrame.from_dict(
                     {
-                        'CURRENT_OBJECTS': current_objects['CURRENT_OBJECTS'].str.endswith('.zip.metadata')
+                        'CURRENT_OBJECTS': current_objects[
+                            current_objects['CURRENT_OBJECTS'].str.endswith('.zip.metadata')
+                        ]
                     }
                 ),
-            ]
+            )
             len_md = len(md_objects)
             logprint(
                 f'Found {len_md} metadata files (with matching prefix) in bucket {bucket_name}.',
