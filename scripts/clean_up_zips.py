@@ -416,11 +416,13 @@ if __name__ == '__main__':
         logprint(f'Found {len(current_objects)} objects (with matching prefix) in bucket {bucket_name}.',
                  log=log)
         if len_co > 0:
+            zip_match = r".*collated_\d+\.zip$"
+            metadata_match = r".*collated_\d+\.zip\.metadata$"
             current_objects['is_zip'] = current_objects['CURRENT_OBJECTS'].map_partitions(
-                lambda partition: partition.str.fullmatch('^collated_\d+\.zip$', na=False)  # noqa
+                lambda partition: partition.str.fullmatch(zip_match, na=False)  # noqa
             )
             current_objects['is_metadata'] = current_objects['CURRENT_OBJECTS'].map_partitions(
-                lambda partition: partition.str.fullmatch('^collated_\d+\.zip.metadata$', na=False)  # noqa
+                lambda partition: partition.str.fullmatch(metadata_match, na=False)  # noqa
             )
             current_zips = current_objects[current_objects['is_zip'] == True]  # noqa
             len_cz = len(current_zips)  # noqa
