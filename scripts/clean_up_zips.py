@@ -396,16 +396,16 @@ if __name__ == '__main__':
                  f'{datetime.now()}, elapsed time = {datetime.now() - start}', log=log)
 
         if api == 's3':
-            co = bm.object_list(bucket, prefix=prefix, count=False)
+            current_object_names = bm.object_list(bucket, prefix=prefix, count=False)
         elif api == 'swift':
-            co = bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)
+            current_object_names = bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)
         logprint(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', log=log)
-        len_co = len(co)
+        len_co = len(current_object_names)
         current_objects = dd.from_pandas(
-            pd.DataFrame.from_dict({'CURRENT_OBJECTS': co}),
+            pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_object_names}),
             chunksize=10000
         )
-        del co
+        del current_object_names
         nparts = current_objects.npartitions
         use_nparts = max(
             nparts // nparts % n_workers, n_workers, nparts // n_workers
@@ -416,10 +416,14 @@ if __name__ == '__main__':
         logprint(f'Found {len(current_objects)} objects (with matching prefix) in bucket {bucket_name}.',
                  log=log)
         if len_co > 0:
-            current_zips = current_objects[
-                current_objects['CURRENT_OBJECTS'].str.endswith(re.compile('collated_\d+\.zip'))  # noqa
-            ].copy()
-            len_cz = len(current_zips)
+            current_objects['is_zip'] = current_objects['CURRENT_OBJECTS'].map_partitions(
+                lambda partition: partition.str.contains('collated_\d+\.zip', regex=True, na=False)  # noqa
+            )
+            current_objects['is_metadata'] = current_objects['CURRENT_OBJECTS'].map_partitions(
+                lambda partition: partition.str.contains('collated_\d+\.zip.metadata', regex=True, na=False)  # noqa
+            )
+            current_zips = current_objects[current_objects['is_zip'] == True]  # noqa
+            len_cz = len(current_zips)  # noqa
             logprint(
                 f'Found {len_cz} zip files (with matching prefix) in bucket {bucket_name}.',
                 log=log
@@ -428,9 +432,7 @@ if __name__ == '__main__':
             # current_zips = current_zips.repartition(
             #     npartitions=use_nparts
             # )
-            md_objects = current_objects[
-                current_objects['CURRENT_OBJECTS'].str.endswith(re.compile('collated_\d+\.zip.metadata'))  # noqa
-            ].copy()
+            md_objects = current_objects[current_objects['is_metadata'] == True]  # noqa
             len_md = len(md_objects)
             logprint(
                 f'Found {len_md} metadata files (with matching prefix) in bucket {bucket_name}.',
@@ -451,9 +453,6 @@ if __name__ == '__main__':
 
             if len_cz > 0:
                 if verify:
-                    current_object_names = current_objects['CURRENT_OBJECTS'].compute()
-                    del current_objects
-                    del co
                     current_zips['verified'] = current_zips.map_partitions(
                         lambda partition: partition.apply(
                             verify_zip_objects,
@@ -461,7 +460,7 @@ if __name__ == '__main__':
                             args=(
                                 s3,
                                 bucket_name,
-                                current_object_names,
+                                current_objects['CURRENT_OBJECTS'],
                                 log
                             ),
                         ),
