@@ -445,10 +445,12 @@ if __name__ == '__main__':
                 md_objects = md_objects.repartition(
                     npartitions=current_zips.npartitions
                 )
-
-            current_object_names = current_objects['CURRENT_OBJECTS'].compute()
+            if verify:
+                current_object_names = current_objects['CURRENT_OBJECTS'].compute()
+                client.scatter(current_object_names, broadcast=True)
+            else:
+                current_object_names = None
             del current_objects
-            client.scatter(current_object_names, broadcast=True)
             print(f'n_partitions: {current_zips.npartitions}')
 
             if len_cz > 0:
