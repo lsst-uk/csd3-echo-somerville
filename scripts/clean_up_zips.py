@@ -414,14 +414,15 @@ if __name__ == '__main__':
                     str.endswith,
                     axis=1,
                     args=(
-                        'collated_\d+\.zip')  # noqa
+                        'collated_\d+\.zip'  # noqa
+                    )
                 ),
-                meta=('bool')
-                    # ) & ~current_objects[
-                    #     'CURRENT_OBJECTS'
-                    # ].str.contains(
-                    #     '.zip.metadata'
-                    # )
+                meta=('bool'),
+                # ) & ~current_objects[
+                #     'CURRENT_OBJECTS'
+                # ].str.contains(
+                #     '.zip.metadata'
+                # )
             )
             current_zips = current_zips[current_zips == True]  # noqa
             len_cz = len(current_zips)
