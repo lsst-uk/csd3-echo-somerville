@@ -395,13 +395,13 @@ if __name__ == '__main__':
                  f'{datetime.now()}, elapsed time = {datetime.now() - start}', log=log)
 
         if api == 's3':
-            current_objects = bm.object_list(bucket, prefix=prefix, count=False)
+            co = bm.object_list(bucket, prefix=prefix, count=False)
         elif api == 'swift':
-            current_objects = bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)
+            co = bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)
         logprint(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', log=log)
-        len_co = len(current_objects)
+        len_co = len(co)
         current_objects = dd.from_pandas(
-            pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_objects}),
+            pd.DataFrame.from_dict({'CURRENT_OBJECTS': co}),
             chunksize=10000
         )
         nparts = current_objects.npartitions
@@ -409,17 +409,19 @@ if __name__ == '__main__':
         logprint(f'Found {len(current_objects)} objects (with matching prefix) in bucket {bucket_name}.',
                  log=log)
         if len_co > 0:
-            current_zips = current_objects[
-                current_objects[
-                    'CURRENT_OBJECTS'
-                ].str.endswith(
-                    'collated_\d+\.zip')  # noqa
-                # ) & ~current_objects[
-                #     'CURRENT_OBJECTS'
-                # ].str.contains(
-                #     '.zip.metadata'
-                # )
-            ]
+            current_zips = current_objects.map_partitions(
+                lambda partition: partition[
+                    current_objects[
+                        'CURRENT_OBJECTS'
+                    ].str.endswith(
+                        'collated_\d+\.zip')  # noqa
+                    # ) & ~current_objects[
+                    #     'CURRENT_OBJECTS'
+                    # ].str.contains(
+                    #     '.zip.metadata'
+                    # )
+                ]
+            )
             len_cz = len(current_zips)
             logprint(
                 f'Found {len_cz} zip files (with matching prefix) in bucket {bucket_name}.',
@@ -433,22 +435,34 @@ if __name__ == '__main__':
                         ) // n_workers * n_workers
                     )
                 )
-            md_objects = current_objects[
-                current_objects['CURRENT_OBJECTS'].str.endswith('.zip.metadata')
-            ]  # noqa
+            md_objects = current_objects.map_partitions(
+                lambda partition: partition[
+                    current_objects['CURRENT_OBJECTS'].str.endswith('.zip.metadata')
+                ]  # noqa
+            )
             len_md = len(md_objects)
             logprint(
                 f'Found {len_md} metadata files (with matching prefix) in bucket {bucket_name}.',
                 log=log
             )
             if len_md > 0:
-                md_objects = md_objects.repartition(
-                    npartitions=current_zips.npartitions
-                )
+                if len_cz > 0:
+                    md_objects = md_objects.repartition(
+                        npartitions=current_zips.npartitions
+                    )
+                else:
+                    md_objects = md_objects.repartition(
+                        npartitions=int(
+                            max(
+                                nparts // nparts % n_workers, n_workers, nparts // n_workers
+                            ) // n_workers * n_workers
+                        )
+                    )
             if verify:
                 current_object_names = current_objects['CURRENT_OBJECTS'].compute()
                 client.scatter(current_object_names, broadcast=True)
-            else:
+                del co
+            if not verify:
                 current_object_names = None
             del current_objects
             print(f'n_partitions: {current_zips.npartitions}')
