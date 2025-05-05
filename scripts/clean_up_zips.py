@@ -1,3 +1,4 @@
+import re
 import sys
 import os
 import warnings
@@ -416,7 +417,7 @@ if __name__ == '__main__':
                  log=log)
         if len_co > 0:
             current_zips = current_objects[
-                current_objects['CURRENT_OBJECTS'].str.endswith(r'collated_\d+\.zip')  # noqa
+                current_objects['CURRENT_OBJECTS'].str.endswith(re.compile('collated_\d+\.zip'))  # noqa
             ].copy()
             len_cz = len(current_zips)
             logprint(
@@ -428,7 +429,7 @@ if __name__ == '__main__':
             #     npartitions=use_nparts
             # )
             md_objects = current_objects[
-                current_objects['CURRENT_OBJECTS'].str.endswith(r'collated_\d+\.zip.metadata')  # noqa
+                current_objects['CURRENT_OBJECTS'].str.endswith('collated_\d+\.zip.metadata')  # noqa
             ].copy()
             len_md = len(md_objects)
             logprint(
