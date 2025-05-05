@@ -409,22 +409,9 @@ if __name__ == '__main__':
         logprint(f'Found {len(current_objects)} objects (with matching prefix) in bucket {bucket_name}.',
                  log=log)
         if len_co > 0:
-            current_zips = current_objects['CURRENT_OBJECTS'].map_partitions(
-                lambda partition: partition.apply(
-                    str.endswith,
-                    axis=1,
-                    args=(
-                        'collated_\d+\.zip'  # noqa
-                    )
-                ),
-                meta=('bool'),
-                # ) & ~current_objects[
-                #     'CURRENT_OBJECTS'
-                # ].str.contains(
-                #     '.zip.metadata'
-                # )
-            )
-            current_zips = current_zips[current_zips == True]  # noqa
+            current_zips = current_objects[
+                current_objects['CURRENT_OBJECTS']
+            ].str.endswith('collated_\d+\.zip')  # noqa
             len_cz = len(current_zips)
             logprint(
                 f'Found {len_cz} zip files (with matching prefix) in bucket {bucket_name}.',
@@ -438,11 +425,9 @@ if __name__ == '__main__':
                         ) // n_workers * n_workers
                     )
                 )
-            md_objects = current_objects.map_partitions(
-                lambda partition: partition[
-                    current_objects['CURRENT_OBJECTS'].str.endswith('.zip.metadata')
-                ]  # noqa
-            )
+            md_objects = current_objects[
+                current_objects['CURRENT_OBJECTS']
+            ].str.endswith('collated_\d+\.zip.metadata')  # noqa
             len_md = len(md_objects)
             logprint(
                 f'Found {len_md} metadata files (with matching prefix) in bucket {bucket_name}.',
