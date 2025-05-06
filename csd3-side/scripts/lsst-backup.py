@@ -1537,30 +1537,32 @@ def process_files(
     # ddf = dd.from_pandas(pd.DataFrame([], columns=['paths']), npartitions=1)
     if not os.path.exists(local_list_file) or not os.path.exists(upload_list_file):
         # done_first = False
-        print(f'Analysing local dataset {local_dir}.', flush=True)
-        # fc = 0
-        paths = []
+
         # with open('temp_file_list.csv', 'a') as f:
         #     f.write('paths\n')
-        for folder, sub_folders, files in os.walk(local_dir, topdown=True):
-            total_all_folders += 1
-            total_all_files += len(files)
-            if total_all_folders % 1000 == 0:
-                print(
-                    f'in {folder}, folder count: {total_all_folders}, file count: {total_all_files}',
-                    flush=True
-                )
-            if exclude.isin([folder]).any():  # could this be taken out?
-                continue
-            if len(files) == 0 and len(sub_folders) == 0:
-                continue
-            elif len(files) == 0:
-                continue
+        if not os.path.exists('temp_file_list.csv'):
+            print(f'Analysing local dataset {local_dir}.', flush=True)
+            # fc = 0
+            paths = []
+            for folder, sub_folders, files in os.walk(local_dir, topdown=True):
+                total_all_folders += 1
+                total_all_files += len(files)
+                if total_all_folders % 1000 == 0:
+                    print(
+                        f'in {folder}, folder count: {total_all_folders}, file count: {total_all_files}',
+                        flush=True
+                    )
+                if exclude.isin([folder]).any():  # could this be taken out?
+                    continue
+                if len(files) == 0 and len(sub_folders) == 0:
+                    continue
+                elif len(files) == 0:
+                    continue
 
-            paths.extend([os.path.join(folder, filename) for filename in files])
-        paths_df = pd.DataFrame(paths, columns=['paths'])
-        paths_df.to_csv('temp_file_list.csv', index=False)
-        del paths_df
+                paths.extend([os.path.join(folder, filename) for filename in files])
+            paths_df = pd.DataFrame(paths, columns=['paths'])
+            paths_df.to_csv('temp_file_list.csv', index=False)
+            del paths_df
         # with open('temp_file_list.csv', 'a') as f:
         #     f.write('paths\n')
         #     for path in paths:
