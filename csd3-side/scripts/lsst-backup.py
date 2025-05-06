@@ -40,7 +40,7 @@ import warnings
 from psutil import virtual_memory as mem
 import argparse
 from dask import dataframe as dd
-from dask import compute
+# from dask import compute
 from dask.distributed import Client, get_client, wait, as_completed
 from dask.distributed import print as dprint
 import subprocess
@@ -1515,6 +1515,7 @@ def process_files(
     total_files_uploaded = 0
     # i = 0
     upload_list_file = local_list_file.replace('local-file-list.csv', 'upload-file-list.csv')
+    short_list_file = local_list_file.replace('local-file-list.csv', 'short-file-list.csv')
     # recursive loop over local folder
     total_all_folders = 0
     total_all_files = 0
@@ -1537,63 +1538,47 @@ def process_files(
     # ddf = dd.from_pandas(pd.DataFrame([], columns=['paths']), npartitions=1)
     if not os.path.exists(local_list_file) or not os.path.exists(upload_list_file):
         # done_first = False
-        print(f'Analysing local dataset {local_dir}.', flush=True)
-        fc = 0
-        with open('temp_file_list.csv', 'a') as f:
-            f.write('paths\n')
+
+        # with open('temp_file_list.csv', 'a') as f:
+        #     f.write('paths\n')
+        if not os.path.exists(short_list_file):
+            print(f'Analysing local dataset {local_dir}.', flush=True)
+            # fc = 0
+            paths = []
             for folder, sub_folders, files in os.walk(local_dir, topdown=True):
-                fc += 1
-                if fc % 1000 == 0:
-                    print(f'in {folder}, folder count: {total_all_folders}', flush=True)
+                total_all_folders += 1
+                total_all_files += len(files)
+                if total_all_folders % 1000 == 0:
+                    print(
+                        f'in {folder}, folder count: {total_all_folders}, file count: {total_all_files}',
+                        flush=True
+                    )
                 if exclude.isin([folder]).any():  # could this be taken out?
                     continue
                 if len(files) == 0 and len(sub_folders) == 0:
-                    # print(
-                    # 'Skipping subfolder - no files or subfolders.',
-                    # flush = True
-                    # )
                     continue
                 elif len(files) == 0:
-                    # print('Skipping subfolder - no files.', flush=True)
                     continue
-                # if not done_first:
-                #     df = pd.DataFrame(  # could this be daskified?
-                #         {
-                #             'paths': [
-                    # os.path.join(folder, filename) for filename in files
-                    # ]
-                #         }
-                #     )
-                # else:
-                #     df = pd.concat(
-                #         [
-                #             df,
-                #             pd.DataFrame(
-                #                 {
-                #                     'paths': [
-                    # os.path.join(folder, filename) for filename in files
-                    # ]
-                #                 }
-                #             )
-                #         ]
-                #     )
-                paths = [os.path.join(folder, filename) for filename in files]
-                for path in paths:
-                    f.write(path + '\n')
-                total_all_folders += 1
-                # if total_all_folders % 500 == 0:
-                #     # avoid hitting the recursion limit
-                #     ddf = ddf.compute().reset_index(drop=True)
-                #     ddf = dd.from_pandas(ddf)
 
-                # done_first = True
-        # print()
-        # total_all_files = len(df)
-        # df = df.reset_index(drop=True)
-        ddf = dd.read_csv('temp_file_list.csv', dtype={'paths': 'str'})
+                paths.extend([os.path.join(folder, filename) for filename in files])
+            paths_df = pd.DataFrame(paths, columns=['paths'])
+            paths_df.to_csv(short_list_file, index=False)
+            del paths_df
+        # with open('temp_file_list.csv', 'a') as f:
+        #     f.write('paths\n')
+        #     for path in paths:
+        #         f.write(path + '\n')
+
+        ddf = dd.read_csv(short_list_file, dtype={'paths': 'str'})
         total_all_files = len(ddf)
-
-        print(f'Folders: {total_all_folders} Files: {total_all_files}', flush=True)
+        ddf = ddf.repartition(npartitions=total_all_files // (len(client.scheduler_info()['workers']) * 100))
+        print(f'npartitions: {ddf.npartitions}', flush=True)
+        print(f'ddf type {type(ddf)}', flush=True)
+        print(ddf.head(), flush=True)
+        if total_all_folders == 0:
+            print(f'Paths: {total_all_files}', flush=True)
+        else:
+            print(f'Folders: {total_all_folders} Files: {total_all_files}', flush=True)
         # print('Analysing local dataset complete.', flush=True)
         # print(df.head(), flush=True)
         # del df
@@ -1613,26 +1598,34 @@ def process_files(
 
         # Generate new columns with Dask apply
         # Basic object names
-        print('Generating object names.', flush=True)
-        ddf['object_names'] = ddf['paths'].apply(
-            lambda x: os.sep.join([destination_dir, os.path.relpath(x, local_dir)]),
+        print(f'Generating object names at {datetime.now()}', flush=True)
+        ddf['object_names'] = ddf.map_partitions(
+            lambda partition: partition.apply(
+                lambda x: os.sep.join([destination_dir, os.path.relpath(x['paths'], local_dir)]),
+                axis=1,
+            ),
             meta=('object_names', 'str')
         )
         # Check for symlinks
-        print('Checking for symlinks.', flush=True)
-        ddf['islink'] = ddf['paths'].apply(
-            os.path.islink,
+        print(f'Checking for symlinks at {datetime.now()}', flush=True)
+        ddf['islink'] = ddf.map_partitions(
+            lambda partition: partition.apply(
+                lambda x: os.path.islink(x['paths']),
+                axis=1,
+            ),
             meta=('islink', 'bool')
         )
         # If symlink, change object name to include '.symlink'
-        print('Changing object names for symlinks.', flush=True)
-        ddf['object_names'] = ddf.apply(
-            lambda x: f'{x["object_names"]}.symlink' if x['islink'] else x['object_names'],
-            axis=1,
+        print(f'Changing object names for symlinks at {datetime.now()}', flush=True)
+        ddf['object_names'] = ddf.map_partitions(
+            lambda partition: partition.apply(
+                lambda x: f'{x["object_names"]}.symlink' if x['islink'] else x['object_names'],
+                axis=1,
+            ),
             meta=('object_names', 'str')
         )
         # Add symlink target paths
-        print('Adding symlink target paths.', flush=True)
+        print(f'Adding symlink target paths at {datetime.now()}', flush=True)
         targets = ddf[
             ddf['islink'] == True # noqa
         ]['paths'].apply(
@@ -1641,10 +1634,8 @@ def process_files(
                 local_dir,
                 destination_dir,
             ),
-            meta=pd.Series(dtype='object')
-        )
-
-        targets = targets.compute()
+            meta=pd.Series(),
+        ).compute()
 
         # Add symlink target paths to ddf
         # here still dd
@@ -1658,17 +1649,17 @@ def process_files(
             # del just_ons
 
         # Get size of each file
-        print('Getting file sizes.', flush=True)
-        # debug
-        print(ddf['paths'].head(), flush=True)
-        ddf['size'] = ddf.apply(
-            lambda x: os.path.getsize(x['paths']) if not x['islink'] else 0,
+        print(f'Getting file sizes at {datetime.now()}', flush=True)
+        ddf['size'] = ddf.map_partitions(
+            lambda partition: partition.apply(
+                lambda x: os.path.getsize(x['paths']) if not x['islink'] else 0,
+                axis=1
+            ),
             meta=('size', 'int'),
-            axis=1
         )
 
         # Decide types of upload
-        print('Deciding individual uploads.', flush=True)
+        print(f'Deciding individual uploads at {datetime.now()}', flush=True)
         ddf['type'] = ddf.apply(
             set_type,
             args=(max_zip_batch_size,),
@@ -1678,13 +1669,13 @@ def process_files(
         ddf['upload'] = True
         ddf['uploaded'] = False
 
-        print('Computing dataframe.', flush=True)
+        print(f'Computing dataframe at {datetime.now()}', flush=True)
         # compute up to this point
-        ddf = ddf.compute()
+        ddf = ddf.map_partitions(lambda p: p).compute()
         ddf = ddf.reset_index(drop=True)
 
         # Decide collated upload batches
-        print('Deciding collated upload batches.', flush=True)
+        print(f'Deciding collated upload batches at {datetime.now()}', flush=True)
 
         # Generate zip batches - neccesarily iterative.
         cumulative_size = 0
@@ -1728,11 +1719,7 @@ def process_files(
         print(f'At least one batch: {at_least_one_batch}', flush=True)
         print(f'At least one individual: {at_least_one_individual}', flush=True)
         del ddf
-        try:
-            os.remove('temp_file_list.csv')
-        except Exception as e:
-            print(f'Error removing temp_file_list.csv: {e}', flush=True)
-            pass
+
         print(f'Done traversing {local_dir}.', flush=True)
 
     if at_least_one_batch or at_least_one_individual:
@@ -1770,8 +1757,20 @@ def process_files(
                 'id': 'first',
             }
         )
-        zips['paths'] = zips['paths'].apply(lambda x: '|'.join(x), meta=('paths', 'str'))
-        zips['object_names'] = zips['object_names'].apply(lambda x: '|'.join(x), meta=('object_names', 'str'))
+        zips['paths'] = zips.map_partitions(
+            lambda partition: partition.apply(
+                lambda x: '|'.join(x['paths']), meta=('paths', 'str'),
+                axis=1,
+            ),
+            meta=('paths', 'str')
+        )
+        zips['object_names'] = zips.map_partitions(
+            lambda partition: partition.apply(
+                lambda x: '|'.join(x['object_names']),
+                axis=1,
+            ),
+            meta=('object_names', 'str'),
+        )
 
         uploads = dd.concat([zips, ind_files], axis=0).reset_index(drop=True)
         print(uploads, flush=True)
@@ -1888,13 +1887,14 @@ def process_files(
             # file_uploads = pd.Series([], dtype=bool)
 
         if at_least_one_batch and at_least_one_individual:
-            zip_uploads, file_uploads = compute(zip_uploads, file_uploads)
+            zip_uploads = zip_uploads.map_partitions(lambda p: p).compute()
+            file_uploads = file_uploads.map_partitions(lambda p: p).compute()
             all_uploads_successful = bool(zip_uploads.all()) * bool(file_uploads.all())
         elif at_least_one_batch:
-            zip_uploads = zip_uploads.compute()
+            zip_uploads = zip_uploads.map_partitions(lambda p: p).compute()
             all_uploads_successful = bool(zip_uploads.all())
         elif at_least_one_individual:
-            file_uploads = file_uploads.compute()
+            file_uploads = file_uploads.map_partitions(lambda p: p).compute()
             all_uploads_successful = bool(file_uploads.all())
         else:
             all_uploads_successful = None

@@ -1,3 +1,4 @@
+import re
 import sys
 import os
 import warnings
@@ -24,7 +25,7 @@ def logprint(msg: str, log: str = None) -> None:
     msg (str): The message to be logged or printed.
 
     log (str, optional): The file path to the log file. If None, the message
-    is printed to the console. Defaults to None.
+        is printed to the console. Defaults to None.
 
     Returns:
     None
@@ -36,27 +37,38 @@ def logprint(msg: str, log: str = None) -> None:
         print(msg, flush=True)
 
 
-def delete_object_swift(obj: str, s3: swiftclient.Connection, log: str = None) -> bool:
+def delete_object_swift(
+    row: pd.Series,
+    s3: swiftclient.Connection,
+    bucket_name: str,
+    del_metadata: bool = True,
+    log: str = None
+) -> bool:
     """
-    Deletes an object and its metadata from an S3 bucket.
+    Deletes an object and its associated metadata from a Swift storage bucket.
 
     Args:
-        obj (str): The name of the object to delete.
-
-        s3 (object): The S3 client object used to perform the deletion.
-
-        log (function, optional): A logging function to record messages.
-        Defaults to None.
+        row (pd.Series): A pandas Series containing object information.
+                         The 'CURRENT_OBJECTS' key should hold the name of the
+                         object to delete.
+        bucket_name (str): The name of the Swift bucket.
+        s3 (swiftclient.Connection): A Swift client connection used to interact
+            with the storage.
+        del_metadata (bool, optional): Whether to delete the associated
+            metadata object, i.e., .zip.metadata for .zip.
+        log (str, optional): A log file path or identifier for logging
+            messages. Defaults to None.
 
     Returns:
-        bool: True if the object was successfully deleted, False otherwise.
+        bool: True if the primary object was successfully deleted, False
+        otherwise.
 
-    Raises:
-        Exception: If there is an error deleting the object.
-
-        swiftclient.exceptions.ClientException: If there is an error deleting
-        the object's metadata.
+    Logs:
+        - Logs successful deletions of the object and its metadata.
+        - Logs warnings if the metadata deletion fails.
+        - Prints errors to stderr if the primary object deletion fails.
     """
+    obj = row['CURRENT_OBJECTS']
     deleted = False
     try:
         s3.delete_object(bucket_name, obj)
@@ -65,35 +77,126 @@ def delete_object_swift(obj: str, s3: swiftclient.Connection, log: str = None) -
     except Exception as e:
         print(f'Error deleting {obj}: {e}', file=sys.stderr)
         return False
-    try:
-        s3.delete_object(bucket_name, f'{obj}.metadata')
-        logprint(f'Deleted {obj}.metadata', log)
-    except swiftclient.exceptions.ClientException as e:
-        logprint(f'WARNING: Error deleting {obj}.metadata: {e.msg}', log)
+    if del_metadata:
+        try:
+            s3.delete_object(bucket_name, f'{obj}.metadata')
+            logprint(f'Deleted {obj}.metadata', log)
+        except swiftclient.exceptions.ClientException as e:
+            logprint(f'WARNING: Error deleting {obj}.metadata: {e.msg}', log)
     return deleted
 
 
+def is_orphaned_metadata(
+    row: pd.Series,
+    current_objects: pd.Series,
+) -> bool:
+    """
+    Identifies orphaned metadata files in a Swift storage bucket.
+
+    Args:
+        row (pd.Series): A pandas Series containing object information.
+            The 'CURRENT_OBJECTS' key should hold the name of the object to
+            check.
+        s3 (swiftclient.Connection): A Swift client connection used to interact
+            with the storage.
+        bucket_name (str): The name of the Swift bucket.
+        current_objects (pd.Series): A pandas Series containing the list of
+            current objects in the bucket.
+        log (str): A log file path or identifier for logging messages.
+
+    Returns:
+        True if the object is a metadata object, has no parent zip object,
+        and is successfully deleted.
+
+    Notes:
+        - The function checks if the metadata file exists and deletes it if
+          it does not have a corresponding object in `current_objects`.
+    """
+    if row['CURRENT_OBJECTS'].endswith('.zip.metadata'):
+        obj = row['CURRENT_OBJECTS']
+    else:
+        return False
+    zip_obj = str(obj.split('.metadata')[0])
+    in_co = len(current_objects[current_objects == zip_obj])
+    return True if in_co == 0 else False
+
+
+def clean_orphaned_metadata(
+    row: pd.Series,
+    s3: swiftclient.Connection,
+    bucket_name: str,
+    log: str
+) -> bool:
+    """
+    Cleans up orphaned metadata files in a Swift storage bucket.
+
+    Args:
+        row (pd.Series): A pandas Series containing object information.
+            The 'CURRENT_OBJECTS' key should hold the name of the object to
+            check.
+        s3 (swiftclient.Connection): A Swift client connection used to interact
+            with the storage.
+        bucket_name (str): The name of the Swift bucket.
+        current_objects (pd.Series): A pandas Series containing the list of
+            current objects in the bucket.
+        log (str): A log file path or identifier for logging messages.
+
+    Returns:
+        True if the object is a metadata object, has no parent zip object,
+        and is successfully deleted.
+
+    Notes:
+        - The function checks if the metadata file exists and deletes it if
+          it does not have a corresponding object in `current_objects`.
+    """
+    if row['ORPHANED']:
+        obj = row['CURRENT_OBJECTS']
+        if not obj.endswith('.zip.metadata'):
+            return False
+        zip_obj = str(obj.split('.metadata')[0])
+        try:
+            delete_object_swift(row, s3, bucket_name, del_metadata=False, log=None)
+            logprint(f'Deleted {obj} as {zip_obj} does not exist', log)
+        except swiftclient.exceptions.ClientException as e:
+            logprint(f'WARNING: Error deleting {obj}: {e.msg}', log)
+        return True
+    else:
+        return False
+
+
 def verify_zip_objects(
-    zip_obj: str,
+    row: pd.Series,
     s3: swiftclient.Connection,
     bucket_name: str,
     current_objects: pd.Series,
     log: str
 ) -> bool:
     """
-    Verifies the contents of a zip file based on the provided row and keys
-    series.
+    Verifies if the contents of a zip file stored in an S3 bucket are present
+    in the current list of objects.
 
     Args:
         row (pd.Series): A pandas Series containing information about the zip
-        file, including 'key', 'is_zipfile', and 'contents'.
-
-        keys_series (pd.Series): A pandas Series containing keys to check
-        against the zip file contents.
+        object.
+            The 'CURRENT_OBJECTS' key is expected to hold the zip file path.
+        s3 (swiftclient.Connection): An active connection to the S3 storage.
+        bucket_name (str): The name of the S3 bucket where the zip file is
+            stored.
+        current_objects (pd.Series): A pandas Series containing the list of
+            current objects to verify against.
+        log (str): A log file path or identifier for logging verification
+            results.
 
     Returns:
-        bool: True if the zip file needs to be extracted, False otherwise.
+        bool: True if all contents of the zip file are present in
+        `current_objects`, False otherwise.
+
+    Notes:
+        - The function logs the verification result for each zip file.
+        - The zip file's contents are prefixed with the parent directory path
+          before comparison.
     """
+    zip_obj = row['CURRENT_OBJECTS']
     zip_data = io.BytesIO(s3.get_object(bucket_name, zip_obj)[1])
     with zipfile.ZipFile(zip_data, 'r') as z:
         contents = z.namelist()
@@ -152,11 +255,18 @@ if __name__ == '__main__':
         default=4
     )
     parser.add_argument(
+        '--clean-up-metadata',
+        '-m',
+        default=False,
+        action='store_true',
+        help='Clean up orphaned metadata files. Default is False.'
+    )
+    parser.add_argument(
         '--dryrun',
         '-d',
         default=False,
         action='store_true',
-        help='Perform a dry run without uploading files. Default is False.'
+        help='Perform a dry run without uploading files or deleting zips. Default is False.'
     )
     parser.add_argument(
         '--log-to-file',
@@ -172,11 +282,12 @@ if __name__ == '__main__':
         help='Answer yes to all prompts. Default is False.'
     )
     parser.add_argument(
-        '--verify',
+        '--verify-skip',
         '-v',
         default=False,
         action='store_true',
-        help='Verify the contents of the zip file are in the list of uploaded files. Default is False.'
+        help='Skip verification the contents of the zip file are in the list of uploaded files *before* '
+             'deletion. Default is False.'
     )
     args = parser.parse_args()
 
@@ -201,7 +312,8 @@ if __name__ == '__main__':
     dryrun = args.dryrun
     yes = args.yes
     log_to_file = args.log_to_file
-    verify = args.verify
+    verify = not args.verify_skip  # Default is to verify
+    clean_metadata = args.clean_up_metadata
 
     print(f'API: {api}, Bucket name: {bucket_name}, Prefix: {prefix}, nprocs: {nprocs}, dryrun: {dryrun}')
 
@@ -284,45 +396,81 @@ if __name__ == '__main__':
                  f'{datetime.now()}, elapsed time = {datetime.now() - start}', log=log)
 
         if api == 's3':
-            current_objects = bm.object_list(bucket, prefix=prefix, count=False)
+            current_object_names = bm.object_list(bucket, prefix=prefix, count=False)
         elif api == 'swift':
-            current_objects = bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)
+            current_object_names = bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)
         logprint(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', log=log)
+        len_co = len(current_object_names)
+        current_objects = dd.from_pandas(
+            pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_object_names}),
+            chunksize=10000
+        )
+        del current_object_names
+        nparts = current_objects.npartitions
+        use_nparts = max(
+            nparts // nparts % n_workers, n_workers, nparts // n_workers
+        ) // n_workers * n_workers
+        if use_nparts != nparts:
+            current_objects = current_objects.repartition(npartitions=use_nparts)
 
-        current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_objects})
         logprint(f'Found {len(current_objects)} objects (with matching prefix) in bucket {bucket_name}.',
                  log=log)
-        if not current_objects.empty:
-            current_zips = current_objects[
-                current_objects[
-                    'CURRENT_OBJECTS'
-                ].str.contains(
-                    'collated_\d+\.zip'  # noqa
-                ) & ~current_objects[
-                    'CURRENT_OBJECTS'
-                ].str.contains(
-                    '.zip.metadata'
-                )
-            ].copy()
+        if len_co > 0:
+            zip_match = r".*collated_\d+\.zip$"
+            metadata_match = r".*collated_\d+\.zip\.metadata$"
+            current_objects['is_zip'] = current_objects['CURRENT_OBJECTS'].map_partitions(
+                lambda partition: partition.str.fullmatch(zip_match, na=False)  # noqa
+            )
+            current_objects['is_metadata'] = current_objects['CURRENT_OBJECTS'].map_partitions(
+                lambda partition: partition.str.fullmatch(metadata_match, na=False)  # noqa
+            )
+            current_zips = current_objects[current_objects['is_zip'] == True]  # noqa
+            len_cz = len(current_zips)  # noqa
             logprint(
-                f'Found {len(current_zips)} zip files (with matching prefix) in bucket {bucket_name}.',
+                f'Found {len_cz} zip files (with matching prefix) in bucket {bucket_name}.',
                 log=log
             )
-            if len(current_zips) > 0:
+            # if len_cz > 0:
+            # current_zips = current_zips.repartition(
+            #     npartitions=use_nparts
+            # )
+            md_objects = current_objects[current_objects['is_metadata'] == True]  # noqa
+            len_md = len(md_objects)
+            logprint(
+                f'Found {len_md} metadata files (with matching prefix) in bucket {bucket_name}.',
+                log=log
+            )
+            # if len_md > 0:
+            # md_objects = md_objects.repartition(
+            #     npartitions=use_nparts
+            # )
+            # if verify:
+            #     current_object_names = current_objects['CURRENT_OBJECTS'].compute()
+            #     client.scatter(current_object_names, broadcast=True)
+            #     del co
+            if not verify:
+                del current_objects
+
+            print(f'n_partitions: {current_zips.npartitions}')
+
+            if len_cz > 0:
                 if verify:
-                    current_zips = dd.from_pandas(current_zips, chunksize=10000)
-                    current_zips['verified'] = current_zips['CURRENT_OBJECTS'].apply(
-                        lambda x: verify_zip_objects(
-                            x,
-                            s3,
-                            bucket_name,
-                            current_objects['CURRENT_OBJECTS'],
-                            log
+                    current_zips['verified'] = current_zips.map_partitions(
+                        lambda partition: partition.apply(
+                            verify_zip_objects,
+                            axis=1,
+                            args=(
+                                s3,
+                                bucket_name,
+                                current_objects['CURRENT_OBJECTS'],
+                                log
+                            ),
                         ),
                         meta=('bool')
                     )
+                    del current_object_names
                 if dryrun:
-                    logprint(f'Current objects (with matching prefix): {len(current_objects)}', log=log)
+                    logprint(f'Current objects (with matching prefix): {len_co}', log=log)
                     if verify:
                         current_zips = current_zips.compute()
                         logprint(
@@ -332,21 +480,21 @@ if __name__ == '__main__':
                         )
                     else:
                         logprint(
-                            f'Current zip objects (with matching prefix): {len(current_zips)} '
+                            f'Current zip objects (with matching prefix): {len_cz} '
                             'would be deleted.',
                             log=log
                         )
                     sys.exit()
                 else:
-                    logprint(f'Current objects (with matching prefix): {len(current_objects)}')
+                    logprint(f'Current objects (with matching prefix): {len_co}')
                     if not verify:
                         logprint(
-                            f'Current zip objects (with matching prefix): {len(current_zips)} will be '
+                            f'Current zip objects (with matching prefix): {len_cz} will be '
                             'deleted.'
                         )
                     else:
                         logprint(
-                            f'Current zip objects (with matching prefix): {len(current_zips)} will be '
+                            f'Current zip objects (with matching prefix): {len_cz} will be '
                             'deleted if all contents exist as objects.'
                         )
                     logprint('WARNING! Files are about to be deleted!')
@@ -358,16 +506,31 @@ if __name__ == '__main__':
                         logprint('auto y')
 
                     if verify:
-                        current_zips['DELETED'] = current_zips[current_zips['verified'] == True][  # noqa
-                            'CURRENT_OBJECTS'
-                        ].apply(lambda x: delete_object_swift(x, s3, log), meta=('bool'))
+                        current_zips['DELETED'] = current_zips[current_zips['verified'] == True].map_partitions(  # noqa
+                            lambda partition: partition.apply(
+                                delete_object_swift,
+                                axis=1,
+                                args=(
+                                    s3,
+                                    bucket_name,
+                                    True,
+                                    log,
+                                ),
+                            ),
+                            meta=('bool')
+                        )
                         current_zips[current_zips['verified'] == False]['DELETED'] = False  # noqa
                     else:
-                        current_zips['DELETED'] = current_zips['CURRENT_OBJECTS'].apply(
-                            lambda x: delete_object_swift(
-                                x,
-                                s3,
-                                log
+                        current_zips['DELETED'] = current_zips.map_partitions(
+                            lambda partition: partition.apply(
+                                delete_object_swift,
+                                axis=1,
+                                args=(
+                                    s3,
+                                    bucket_name,
+                                    True,
+                                    log
+                                )
                             ),
                             meta=('bool')
                         )
@@ -409,8 +572,73 @@ if __name__ == '__main__':
                     )
                     sys.exit(0)
             else:
-                print(f'No zip files in bucket {bucket_name}. Exiting.')
-                sys.exit(0)
+                print(f'No zip files in bucket {bucket_name}.')
+            if len_md > 0 and clean_metadata:
+                if not isinstance(current_zips, pd.DataFrame):
+                    current_zip_names = current_zips.compute()['CURRENT_OBJECTS']
+                else:
+                    current_zip_names = current_zips['CURRENT_OBJECTS']
+                del current_zips
+                if dryrun:
+                    logprint(
+                        'Any orphaned metadata files would be found and deleted.',
+                        log=log
+                    )
+                else:
+                    if len_cz == 0:
+                        cleaned_metadata = md_objects.map_partitions(  # noqa
+                            lambda partition: partition.apply(
+                                delete_object_swift,
+                                axis=1,
+                                args=(
+                                    s3,
+                                    bucket_name,
+                                    False,
+                                    None
+                                )
+                            ),
+                            meta=('bool')
+                        )
+                        cleaned_metadata = cleaned_metadata.compute()
+                        logprint(
+                            f'{len(cleaned_metadata[cleaned_metadata == True])} '
+                            'orphaned metadata files were DELETED.',
+                            log=log
+                        )
+                    else:
+                        md_objects['ORPHANED'] = md_objects.map_partitions(
+                            lambda partition: partition.apply(
+                                is_orphaned_metadata,
+                                axis=1,
+                                args=(
+                                    current_zip_names,
+                                )
+                            ),
+                            meta=('bool')
+                        )
+                        cleaned_metadata = md_objects.map_partitions(  # noqa
+                            lambda partition: partition.apply(
+                                clean_orphaned_metadata,
+                                axis=1,
+                                args=(
+                                    s3,
+                                    bucket_name,
+                                    log
+                                )
+                            ),
+                            meta=('bool')
+                        )
+                        cleaned_metadata = cleaned_metadata.compute()
+                        logprint(
+                            f'{len(cleaned_metadata[cleaned_metadata == True])} '
+                            'orphaned metadata files were DELETED.',
+                            log=log
+                        )
+            else:
+                logprint(
+                    f'No metadata files in bucket {bucket_name}.',
+                    log=log
+                )
         else:
             print(f'No files in bucket {bucket_name}. Exiting.')
             sys.exit(0)
