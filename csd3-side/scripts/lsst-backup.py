@@ -1633,7 +1633,7 @@ def process_files(
                 local_dir,
                 destination_dir,
             ),
-            meta=pd.Series
+            meta=pd.Series(),
         ).compute()
 
         # Add symlink target paths to ddf
