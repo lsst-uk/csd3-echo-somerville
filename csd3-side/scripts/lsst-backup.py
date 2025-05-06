@@ -1544,8 +1544,9 @@ def process_files(
         #     f.write('paths\n')
         for folder, sub_folders, files in os.walk(local_dir, topdown=True):
             total_all_folders += 1
+            total_all_files += len(paths)
             if total_all_folders % 1000 == 0:
-                print(f'in {folder}, folder count: {total_all_folders}', flush=True)
+                print(f'in {folder}, folder count: {total_all_folders}, file count: {total_all_files}', flush=True)
             if exclude.isin([folder]).any():  # could this be taken out?
                 continue
             if len(files) == 0 and len(sub_folders) == 0:
