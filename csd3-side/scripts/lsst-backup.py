@@ -1586,7 +1586,7 @@ def process_files(
 
         # Generate new columns with Dask apply
         # Basic object names
-        print('Generating object names.', flush=True)
+        print(f'Generating object names at {datetime.now()}', flush=True)
         ddf['object_names'] = ddf.map_partitions(
             lambda partition: partition.apply(
                 lambda x: os.sep.join([destination_dir, os.path.relpath(x['paths'], local_dir)]),
@@ -1595,20 +1595,20 @@ def process_files(
             meta=('object_names', 'str')
         )
         # Check for symlinks
-        print('Checking for symlinks.', flush=True)
+        print(f'Checking for symlinks at {datetime.now()}', flush=True)
         ddf['islink'] = ddf['paths'].apply(
             os.path.islink,
             meta=('islink', 'bool')
         )
         # If symlink, change object name to include '.symlink'
-        print('Changing object names for symlinks.', flush=True)
+        print(f'Changing object names for symlinks at {datetime.now()}', flush=True)
         ddf['object_names'] = ddf.apply(
             lambda x: f'{x["object_names"]}.symlink' if x['islink'] else x['object_names'],
             axis=1,
             meta=('object_names', 'str')
         )
         # Add symlink target paths
-        print('Adding symlink target paths.', flush=True)
+        print(f'Adding symlink target paths at {datetime.now()}', flush=True)
         targets = ddf[
             ddf['islink'] == True # noqa
         ]['paths'].apply(
@@ -1634,7 +1634,7 @@ def process_files(
             # del just_ons
 
         # Get size of each file
-        print('Getting file sizes.', flush=True)
+        print(f'Getting file sizes at {datetime.now()}', flush=True)
         ddf['size'] = ddf.apply(
             lambda x: os.path.getsize(x['paths']) if not x['islink'] else 0,
             meta=('size', 'int'),
