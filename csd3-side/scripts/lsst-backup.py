@@ -1626,9 +1626,8 @@ def process_files(
         print(f'Adding symlink target paths at {datetime.now()}', flush=True)
         targets = ddf[
             ddf['islink'] == True # noqa
-        ].apply(
+        ]['paths'].apply(
             follow_symlinks,
-            axis=1,
             args=(
                 local_dir,
                 destination_dir,
