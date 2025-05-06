@@ -1573,7 +1573,8 @@ def process_files(
         total_all_files = len(ddf)
         ddf = ddf.repartition(npartitions=total_all_files // (len(client.scheduler_info()['workers']) * 100))
         print(f'npartitions: {ddf.npartitions}', flush=True)
-
+        if total_all_folders == 0:
+            total_all_folders = "Unknown"
         print(f'Folders: {total_all_folders} Files: {total_all_files}', flush=True)
         # print('Analysing local dataset complete.', flush=True)
         # print(df.head(), flush=True)
@@ -1636,7 +1637,7 @@ def process_files(
             meta=pd.Series(dtype='object')
         )
 
-        targets = targets.map_partitions(lambda p: p).compute()
+        targets = dd.from_pandas(targets).compute()
 
         # Add symlink target paths to ddf
         # here still dd
