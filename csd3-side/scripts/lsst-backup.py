@@ -1539,57 +1539,30 @@ def process_files(
         # done_first = False
         print(f'Analysing local dataset {local_dir}.', flush=True)
         fc = 0
-        with open('temp_file_list.csv', 'a') as f:
-            f.write('paths\n')
-            for folder, sub_folders, files in os.walk(local_dir, topdown=True):
-                fc += 1
-                if fc % 1000 == 0:
-                    print(f'in {folder}, folder count: {total_all_folders}', flush=True)
-                if exclude.isin([folder]).any():  # could this be taken out?
-                    continue
-                if len(files) == 0 and len(sub_folders) == 0:
-                    # print(
-                    # 'Skipping subfolder - no files or subfolders.',
-                    # flush = True
-                    # )
-                    continue
-                elif len(files) == 0:
-                    # print('Skipping subfolder - no files.', flush=True)
-                    continue
-                # if not done_first:
-                #     df = pd.DataFrame(  # could this be daskified?
-                #         {
-                #             'paths': [
-                    # os.path.join(folder, filename) for filename in files
-                    # ]
-                #         }
-                #     )
-                # else:
-                #     df = pd.concat(
-                #         [
-                #             df,
-                #             pd.DataFrame(
-                #                 {
-                #                     'paths': [
-                    # os.path.join(folder, filename) for filename in files
-                    # ]
-                #                 }
-                #             )
-                #         ]
-                #     )
-                paths = [os.path.join(folder, filename) for filename in files]
-                for path in paths:
-                    f.write(path + '\n')
-                total_all_folders += 1
-                # if total_all_folders % 500 == 0:
-                #     # avoid hitting the recursion limit
-                #     ddf = ddf.compute().reset_index(drop=True)
-                #     ddf = dd.from_pandas(ddf)
+        paths = []
+        # with open('temp_file_list.csv', 'a') as f:
+        #     f.write('paths\n')
+        for folder, sub_folders, files in os.walk(local_dir, topdown=True):
+            fc += 1
+            if fc % 1000 == 0:
+                print(f'in {folder}, folder count: {total_all_folders}', flush=True)
+            if exclude.isin([folder]).any():  # could this be taken out?
+                continue
+            if len(files) == 0 and len(sub_folders) == 0:
+                continue
+            elif len(files) == 0:
 
-                # done_first = True
-        # print()
-        # total_all_files = len(df)
-        # df = df.reset_index(drop=True)
+                continue
+
+            paths.extend([os.path.join(folder, filename) for filename in files])
+        paths_df = pd.DataFrame(paths, columns=['paths'])
+        paths_df.to_csv('temp_file_list.csv', index=False)
+        del paths_df
+        # with open('temp_file_list.csv', 'a') as f:
+        #     f.write('paths\n')
+        #     for path in paths:
+        #         f.write(path + '\n')
+
         ddf = dd.read_csv('temp_file_list.csv', dtype={'paths': 'str'})
         total_all_files = len(ddf)
 
