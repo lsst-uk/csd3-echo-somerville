@@ -1540,7 +1540,7 @@ def process_files(
 
         # with open('temp_file_list.csv', 'a') as f:
         #     f.write('paths\n')
-        if not os.path.exists('temp_file_list.csv'):
+        if not os.path.exists('file_list.csv'):
             print(f'Analysing local dataset {local_dir}.', flush=True)
             # fc = 0
             paths = []
@@ -1561,14 +1561,14 @@ def process_files(
 
                 paths.extend([os.path.join(folder, filename) for filename in files])
             paths_df = pd.DataFrame(paths, columns=['paths'])
-            paths_df.to_csv('temp_file_list.csv', index=False)
+            paths_df.to_csv('file_list.csv', index=False)
             del paths_df
         # with open('temp_file_list.csv', 'a') as f:
         #     f.write('paths\n')
         #     for path in paths:
         #         f.write(path + '\n')
 
-        ddf = dd.read_csv('temp_file_list.csv', dtype={'paths': 'str'})
+        ddf = dd.read_csv('file_list.csv', dtype={'paths': 'str'})
         total_all_files = len(ddf)
         ddf = ddf.repartition(npartitions=total_all_files // (len(client.scheduler_info()['workers']) * 100))
         print(f'npartitions: {ddf.npartitions}', flush=True)
@@ -1717,11 +1717,7 @@ def process_files(
         print(f'At least one batch: {at_least_one_batch}', flush=True)
         print(f'At least one individual: {at_least_one_individual}', flush=True)
         del ddf
-        try:
-            os.remove('temp_file_list.csv')
-        except Exception as e:
-            print(f'Error removing temp_file_list.csv: {e}', flush=True)
-            pass
+
         print(f'Done traversing {local_dir}.', flush=True)
 
     if at_least_one_batch or at_least_one_individual:
