@@ -1635,9 +1635,7 @@ def process_files(
                 ),
             ),
             meta=pd.Series(dtype='object')
-        )
-
-        targets = dd.from_pandas(targets).compute()
+        ).compute()
 
         # Add symlink target paths to ddf
         # here still dd
