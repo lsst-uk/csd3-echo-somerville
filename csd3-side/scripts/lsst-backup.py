@@ -40,7 +40,7 @@ import warnings
 from psutil import virtual_memory as mem
 import argparse
 from dask import dataframe as dd
-from dask import compute
+# from dask import compute
 from dask.distributed import Client, get_client, wait, as_completed
 from dask.distributed import print as dprint
 import subprocess
@@ -77,11 +77,12 @@ def set_type(row: pd.Series, max_zip_batch_size) -> pd.Series:
         return 'zip'
 
 
-def follow_symlinks(path: str, local_dir: str, destination_dir: str) -> pd.Series:
+def follow_symlinks(row: pd.Series, local_dir: str, destination_dir: str) -> pd.Series:
     """
     Follows symlinks in a directory and returns a DataFrame containing the
     new path and generated object_name.
     """
+    path = row['paths']
     target = to_rds_path(os.path.realpath(path), local_dir)
     object_name = os.sep.join([destination_dir, os.path.relpath(path, local_dir)])
     return_ser = pd.Series(
@@ -1601,31 +1602,39 @@ def process_files(
         )
         # Check for symlinks
         print(f'Checking for symlinks at {datetime.now()}', flush=True)
-        ddf['islink'] = ddf['paths'].apply(
-            os.path.islink,
+        ddf['islink'] = ddf.map_partitions(
+            lambda partition: partition.apply(
+                lambda x: os.path.islink(x['paths']),
+                axis=1,
+            ),
             meta=('islink', 'bool')
         )
         # If symlink, change object name to include '.symlink'
         print(f'Changing object names for symlinks at {datetime.now()}', flush=True)
-        ddf['object_names'] = ddf.apply(
-            lambda x: f'{x["object_names"]}.symlink' if x['islink'] else x['object_names'],
-            axis=1,
+        ddf['object_names'] = ddf.map_partitions(
+            lambda partition: partition.apply(
+                lambda x: f'{x["object_names"]}.symlink' if x['islink'] else x['object_names'],
+                axis=1,
+            ),
             meta=('object_names', 'str')
         )
         # Add symlink target paths
         print(f'Adding symlink target paths at {datetime.now()}', flush=True)
         targets = ddf[
             ddf['islink'] == True # noqa
-        ]['paths'].apply(
-            follow_symlinks,
-            args=(
-                local_dir,
-                destination_dir,
+        ].map_partitions(
+            lambda partition: partition.apply(
+                follow_symlinks,
+                axis=1,
+                args=(
+                    local_dir,
+                    destination_dir,
+                ),
             ),
             meta=pd.Series(dtype='object')
         )
 
-        targets = targets.compute()
+        targets = targets.map_partitions(lambda p: p).compute()
 
         # Add symlink target paths to ddf
         # here still dd
@@ -1640,14 +1649,16 @@ def process_files(
 
         # Get size of each file
         print(f'Getting file sizes at {datetime.now()}', flush=True)
-        ddf['size'] = ddf.apply(
-            lambda x: os.path.getsize(x['paths']) if not x['islink'] else 0,
+        ddf['size'] = ddf.map_partitions(
+            lambda partition: partition.apply(
+                lambda x: os.path.getsize(x['paths']) if not x['islink'] else 0,
+                axis=1
+            ),
             meta=('size', 'int'),
-            axis=1
         )
 
         # Decide types of upload
-        print('Deciding individual uploads.', flush=True)
+        print(f'Deciding individual uploads at {datetime.now()}', flush=True)
         ddf['type'] = ddf.apply(
             set_type,
             args=(max_zip_batch_size,),
@@ -1657,13 +1668,13 @@ def process_files(
         ddf['upload'] = True
         ddf['uploaded'] = False
 
-        print('Computing dataframe.', flush=True)
+        print(f'Computing dataframe at {datetime.now()}', flush=True)
         # compute up to this point
-        ddf = ddf.compute()
+        ddf = ddf.map_partitions(lambda p: p).compute()
         ddf = ddf.reset_index(drop=True)
 
         # Decide collated upload batches
-        print('Deciding collated upload batches.', flush=True)
+        print(f'Deciding collated upload batches at {datetime.now()}', flush=True)
 
         # Generate zip batches - neccesarily iterative.
         cumulative_size = 0
@@ -1749,8 +1760,20 @@ def process_files(
                 'id': 'first',
             }
         )
-        zips['paths'] = zips['paths'].apply(lambda x: '|'.join(x), meta=('paths', 'str'))
-        zips['object_names'] = zips['object_names'].apply(lambda x: '|'.join(x), meta=('object_names', 'str'))
+        zips['paths'] = zips.map_partitions(
+            lambda partition: partition.apply(
+                lambda x: '|'.join(x['paths']), meta=('paths', 'str'),
+                axis=1,
+            ),
+            meta=('paths', 'str')
+        )
+        zips['object_names'] = zips.map_partitions(
+            lambda partition: partition.apply(
+                lambda x: '|'.join(x['object_names']),
+                axis=1,
+            ),
+            meta=('object_names', 'str'),
+        )
 
         uploads = dd.concat([zips, ind_files], axis=0).reset_index(drop=True)
         print(uploads, flush=True)
@@ -1867,13 +1890,14 @@ def process_files(
             # file_uploads = pd.Series([], dtype=bool)
 
         if at_least_one_batch and at_least_one_individual:
-            zip_uploads, file_uploads = compute(zip_uploads, file_uploads)
+            zip_uploads = zip_uploads.map_partitions(lambda p: p).compute()
+            file_uploads = file_uploads.map_partitions(lambda p: p).compute()
             all_uploads_successful = bool(zip_uploads.all()) * bool(file_uploads.all())
         elif at_least_one_batch:
-            zip_uploads = zip_uploads.compute()
+            zip_uploads = zip_uploads.map_partitions(lambda p: p).compute()
             all_uploads_successful = bool(zip_uploads.all())
         elif at_least_one_individual:
-            file_uploads = file_uploads.compute()
+            file_uploads = file_uploads.map_partitions(lambda p: p).compute()
             all_uploads_successful = bool(file_uploads.all())
         else:
             all_uploads_successful = None
