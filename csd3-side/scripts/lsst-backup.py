@@ -1538,20 +1538,19 @@ def process_files(
     if not os.path.exists(local_list_file) or not os.path.exists(upload_list_file):
         # done_first = False
         print(f'Analysing local dataset {local_dir}.', flush=True)
-        fc = 0
+        # fc = 0
         paths = []
         # with open('temp_file_list.csv', 'a') as f:
         #     f.write('paths\n')
         for folder, sub_folders, files in os.walk(local_dir, topdown=True):
-            fc += 1
-            if fc % 1000 == 0:
+            total_all_folders += 1
+            if total_all_folders % 1000 == 0:
                 print(f'in {folder}, folder count: {total_all_folders}', flush=True)
             if exclude.isin([folder]).any():  # could this be taken out?
                 continue
             if len(files) == 0 and len(sub_folders) == 0:
                 continue
             elif len(files) == 0:
-
                 continue
 
             paths.extend([os.path.join(folder, filename) for filename in files])
