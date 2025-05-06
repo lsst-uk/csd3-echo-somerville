@@ -1515,6 +1515,7 @@ def process_files(
     total_files_uploaded = 0
     # i = 0
     upload_list_file = local_list_file.replace('local-file-list.csv', 'upload-file-list.csv')
+    short_list_file = local_list_file.replace('local-file-list.csv', 'short-file-list.csv')
     # recursive loop over local folder
     total_all_folders = 0
     total_all_files = 0
@@ -1540,7 +1541,7 @@ def process_files(
 
         # with open('temp_file_list.csv', 'a') as f:
         #     f.write('paths\n')
-        if not os.path.exists('file_list.csv'):
+        if not os.path.exists(short_list_file):
             print(f'Analysing local dataset {local_dir}.', flush=True)
             # fc = 0
             paths = []
@@ -1561,14 +1562,14 @@ def process_files(
 
                 paths.extend([os.path.join(folder, filename) for filename in files])
             paths_df = pd.DataFrame(paths, columns=['paths'])
-            paths_df.to_csv('file_list.csv', index=False)
+            paths_df.to_csv(short_list_file, index=False)
             del paths_df
         # with open('temp_file_list.csv', 'a') as f:
         #     f.write('paths\n')
         #     for path in paths:
         #         f.write(path + '\n')
 
-        ddf = dd.read_csv('file_list.csv', dtype={'paths': 'str'})
+        ddf = dd.read_csv(short_list_file, dtype={'paths': 'str'})
         total_all_files = len(ddf)
         ddf = ddf.repartition(npartitions=total_all_files // (len(client.scheduler_info()['workers']) * 100))
         print(f'npartitions: {ddf.npartitions}', flush=True)
