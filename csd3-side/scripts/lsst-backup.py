@@ -1571,6 +1571,7 @@ def process_files(
 
         ddf = dd.read_csv('temp_file_list.csv', dtype={'paths': 'str'})
         total_all_files = len(ddf)
+        print(f'npartitions: {ddf.npartitions}', flush=True)
 
         print(f'Folders: {total_all_folders} Files: {total_all_files}', flush=True)
         # print('Analysing local dataset complete.', flush=True)
