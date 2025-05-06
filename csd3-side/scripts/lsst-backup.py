@@ -77,12 +77,11 @@ def set_type(row: pd.Series, max_zip_batch_size) -> pd.Series:
         return 'zip'
 
 
-def follow_symlinks(row: pd.Series, local_dir: str, destination_dir: str) -> pd.Series:
+def follow_symlinks(path: str, local_dir: str, destination_dir: str) -> pd.Series:
     """
     Follows symlinks in a directory and returns a DataFrame containing the
     new path and generated object_name.
     """
-    path = row['paths']
     target = to_rds_path(os.path.realpath(path), local_dir)
     object_name = os.sep.join([destination_dir, os.path.relpath(path, local_dir)])
     return_ser = pd.Series(
@@ -1574,6 +1573,7 @@ def process_files(
         ddf = ddf.repartition(npartitions=total_all_files // (len(client.scheduler_info()['workers']) * 100))
         print(f'npartitions: {ddf.npartitions}', flush=True)
         print(f'ddf type {type(ddf)}', flush=True)
+        print(ddf.head(), flush=True)
         if total_all_folders == 0:
             total_all_folders = "Unknown"
         print(f'Folders: {total_all_folders} Files: {total_all_files}', flush=True)
@@ -1626,16 +1626,14 @@ def process_files(
         print(f'Adding symlink target paths at {datetime.now()}', flush=True)
         targets = ddf[
             ddf['islink'] == True # noqa
-        ].map_partitions(
-            lambda partition: partition.apply(
-                follow_symlinks,
-                axis=1,
-                args=(
-                    local_dir,
-                    destination_dir,
-                ),
+        ].apply(
+            follow_symlinks,
+            axis=1,
+            args=(
+                local_dir,
+                destination_dir,
             ),
-            meta=pd.Series(dtype='object')
+            meta=pd.Series
         ).compute()
 
         # Add symlink target paths to ddf
