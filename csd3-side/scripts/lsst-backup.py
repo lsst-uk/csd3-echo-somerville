@@ -1571,7 +1571,7 @@ def process_files(
 
         ddf = dd.read_csv('temp_file_list.csv', dtype={'paths': 'str'})
         total_all_files = len(ddf)
-        ddf = ddf.repartition(npartitions=total_all_files // len(client.scheduler_info()['workers']) * 10000)
+        ddf = ddf.repartition(npartitions=total_all_files // (len(client.scheduler_info()['workers']) * 100))
         print(f'npartitions: {ddf.npartitions}', flush=True)
 
         print(f'Folders: {total_all_folders} Files: {total_all_files}', flush=True)
