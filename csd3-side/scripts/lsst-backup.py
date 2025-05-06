@@ -1576,8 +1576,9 @@ def process_files(
         print(f'ddf type {type(ddf)}', flush=True)
         print(ddf.head(), flush=True)
         if total_all_folders == 0:
-            total_all_folders = "Unknown"
-        print(f'Folders: {total_all_folders} Files: {total_all_files}', flush=True)
+            print(f'Paths: {total_all_files}', flush=True)
+        else:
+            print(f'Folders: {total_all_folders} Files: {total_all_files}', flush=True)
         # print('Analysing local dataset complete.', flush=True)
         # print(df.head(), flush=True)
         # del df
