@@ -541,6 +541,7 @@ def zip_and_upload(
             mem_per_worker,
             log
         )
+        del zip_data, namelist
         return uploaded
 
 
