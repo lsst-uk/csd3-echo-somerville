@@ -1759,7 +1759,7 @@ def process_files(
         )
         zips['paths'] = zips.map_partitions(
             lambda partition: partition.apply(
-                lambda x: '|'.join(x['paths']), meta=('paths', 'str'),
+                lambda x: '|'.join(x['paths']),
                 axis=1,
             ),
             meta=('paths', 'str')
