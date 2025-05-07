@@ -23,6 +23,7 @@ Returns:
     None
 """
 
+import gc
 import bucket_manager.bucket_manager as bm
 import swiftclient
 import sys
@@ -542,6 +543,8 @@ def zip_and_upload(
             log
         )
         del zip_data, namelist
+        if mem().percent > 75:
+            gc.collect()
         return uploaded
 
 
