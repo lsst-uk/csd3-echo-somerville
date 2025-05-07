@@ -543,8 +543,6 @@ def zip_and_upload(
             log
         )
         del zip_data, namelist
-        if mem().percent > 75:
-            gc.collect()
         return uploaded
 
 
@@ -1104,7 +1102,7 @@ def upload_to_bucket_collated(
 
         with open(log, 'a') as f:
             f.write(log_string + '\n')
-
+        del file_data
         return True
 
     elif api == 'swift':
@@ -1186,6 +1184,7 @@ def upload_to_bucket_collated(
                     break
         with open(log, 'a') as f:
             f.write(log_string + '\n')
+        del file_data
         return True
 
 
