@@ -543,6 +543,9 @@ def zip_and_upload(
             log
         )
         del zip_data, namelist
+        if mem().percent > 50:
+            dprint('Garbage collecting.', flush=True)
+            gc.collect()
         return uploaded
 
 
@@ -834,6 +837,9 @@ def upload_to_bucket(
                     return False
 
                 del file_data
+                if mem().percent > 50:
+                    dprint('Garbage collecting.', flush=True)
+                    gc.collect()
         else:
             checksum_string = "DRYRUN"
 
@@ -966,6 +972,9 @@ def upload_to_bucket(
                     return False
 
                 del file_data
+                if mem().percent > 50:
+                    dprint('Garbage collecting.', flush=True)
+                    gc.collect()
         else:
             checksum_string = "DRYRUN"
 
@@ -1103,6 +1112,9 @@ def upload_to_bucket_collated(
         with open(log, 'a') as f:
             f.write(log_string + '\n')
         del file_data
+        if mem().percent > 50:
+            dprint('Garbage collecting.', flush=True)
+            gc.collect()
         return True
 
     elif api == 'swift':
@@ -1185,6 +1197,9 @@ def upload_to_bucket_collated(
         with open(log, 'a') as f:
             f.write(log_string + '\n')
         del file_data
+        if mem().percent > 50:
+            dprint('Garbage collecting.', flush=True)
+            gc.collect()
         return True
 
 
@@ -1438,6 +1453,9 @@ def upload_and_callback(
     )
 
     del file_name_or_data
+    if mem().percent > 50:
+            dprint('Garbage collecting.', flush=True)
+            gc.collect()
 
     return result
 
@@ -2254,7 +2272,7 @@ if __name__ == '__main__':
     ############################
     total_memory = mem().total
     n_workers = nprocs // threads_per_worker
-    mem_per_worker = mem().total // n_workers  # e.g., 187 GiB / 48 * 2 = 7.8 GiB
+    mem_per_worker = mem().total // n_workers  # e.g., 187 GiB / 48 = 3 GiB
     print(
         f'nprocs: {nprocs}, Threads per worker: {threads_per_worker}, Number of workers: {n_workers}, '
         f'Total memory: {total_memory/1024**3:.2f} GiB, Memory per worker: {mem_per_worker/1024**3:.2f} GiB',
