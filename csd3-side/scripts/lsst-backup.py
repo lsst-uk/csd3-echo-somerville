@@ -1592,7 +1592,14 @@ def process_files(
 
         ddf = dd.read_csv(short_list_file, dtype={'paths': 'str'})
         total_all_files = len(ddf)
-        ddf = ddf.repartition(npartitions=total_all_files // (len(client.scheduler_info()['workers']) * 100))
+        ddf = ddf.repartition(
+            npartitions=max(
+                total_all_files // (
+                    len(client.scheduler_info()['workers']) * 100
+                ),
+                len(client.scheduler_info()['workers']) * 100
+            )
+        )
         print(f'npartitions: {ddf.npartitions}', flush=True)
         print(f'ddf type {type(ddf)}', flush=True)
         print(ddf.head(), flush=True)
