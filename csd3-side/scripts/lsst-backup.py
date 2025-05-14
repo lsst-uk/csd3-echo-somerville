@@ -1454,8 +1454,8 @@ def upload_and_callback(
 
     del file_name_or_data
     if mem().percent > 50:
-            dprint('Garbage collecting.', flush=True)
-            gc.collect()
+        dprint('Garbage collecting.', flush=True)
+        gc.collect()
 
     return result
 
@@ -1749,6 +1749,11 @@ def process_files(
         del ddf
 
         print(f'Done traversing {local_dir}.', flush=True)
+
+    else:
+        # if the local list file exists or the upload list file exists
+        # read and re-check against current objects
+        pass
 
     if at_least_one_batch or at_least_one_individual:
         # if at_least_one_batch or at_least_one_individual:
