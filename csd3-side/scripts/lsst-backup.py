@@ -1774,7 +1774,7 @@ def process_files(
         at_least_one_individual = ddf['type'].isin(['file']).any()
         ddf.to_csv('tmp' + local_list_file, index=False, single_file=True)
         del ddf
-        os.path.move('tmp' + local_list_file, local_list_file)
+        os.rename('tmp' + local_list_file, local_list_file)
 
     if at_least_one_batch or at_least_one_individual:
         # if at_least_one_batch or at_least_one_individual:
