@@ -1557,7 +1557,7 @@ def process_files(
     # Do absolute minimal work during traversal - get paths only
     # All other operations will be parallelised later
     # ddf = dd.from_pandas(pd.DataFrame([], columns=['paths']), npartitions=1)
-    if not os.path.exists(local_list_file) or not os.path.exists(upload_list_file):
+    if not os.path.exists(local_list_file):
         # done_first = False
 
         # with open('temp_file_list.csv', 'a') as f:
@@ -1751,9 +1751,29 @@ def process_files(
         print(f'Done traversing {local_dir}.', flush=True)
 
     else:
-        # if the local list file exists or the upload list file exists
+        # if the local list file exists
         # read and re-check against current objects
-        pass
+        ddf = dd.read_csv(
+            local_list_file,
+            dtype={
+                'paths': 'str',
+                'object_names': 'str',
+                'islink': 'bool',
+                'size': 'int',
+                'type': 'str',
+                'upload': 'bool',
+                'uploaded': 'bool',
+                'id': 'int',
+            },
+        )
+        ddf = ddf[ddf['upload'] == True]
+        if not current_objects.empty:
+            print('Removing files already on S3.', flush=True)
+            ddf = ddf[ddf['object_names'].isin(current_objects['CURRENT_OBJECTS']) == False] # noqa
+        ddf.to_csv('' + local_list_file, index=False)
+        at_least_one_batch = ddf['type'].isin(['zip']).any()
+        at_least_one_individual = ddf['type'].isin(['file']).any()
+        del ddf
 
     if at_least_one_batch or at_least_one_individual:
         # if at_least_one_batch or at_least_one_individual:
