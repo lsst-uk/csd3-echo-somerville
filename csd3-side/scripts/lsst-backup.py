@@ -1766,18 +1766,15 @@ def process_files(
                 'id': 'int',
             },
         )
-        ddf = ddf[ddf['upload'] == True]
+        ddf = ddf[ddf['upload'] == True]  # noqa
         if not current_objects.empty:
             print('Removing files already on S3 from uploads list.', flush=True)
             ddf = ddf[ddf['object_names'].isin(current_objects['CURRENT_OBJECTS']) == False] # noqa
-        try:
-            os.remove(local_list_file)
-        except FileNotFoundError:
-            pass
-        ddf.to_csv('' + local_list_file, index=False)
         at_least_one_batch = ddf['type'].isin(['zip']).any()
         at_least_one_individual = ddf['type'].isin(['file']).any()
+        ddf.to_csv('tmp' + local_list_file, index=False, single_file=True)
         del ddf
+        os.path.move('tmp' + local_list_file, local_list_file)
 
     if at_least_one_batch or at_least_one_individual:
         # if at_least_one_batch or at_least_one_individual:
