@@ -1672,7 +1672,7 @@ def process_files(
 
         # Drop any files that are already on S3
         if not current_objects.empty:
-            print('Removing files already on S3.', flush=True)
+            print('Removing files already on S3 from upload list.', flush=True)
             ddf = ddf[ddf['object_names'].isin(current_objects['CURRENT_OBJECTS']) == False] # noqa
             # del just_ons
 
@@ -1768,7 +1768,7 @@ def process_files(
         )
         ddf = ddf[ddf['upload'] == True]
         if not current_objects.empty:
-            print('Removing files already on S3.', flush=True)
+            print('Removing files already on S3 from uploads list.', flush=True)
             ddf = ddf[ddf['object_names'].isin(current_objects['CURRENT_OBJECTS']) == False] # noqa
         ddf.to_csv('' + local_list_file, index=False)
         at_least_one_batch = ddf['type'].isin(['zip']).any()
