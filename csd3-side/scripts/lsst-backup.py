@@ -542,10 +542,7 @@ def zip_and_upload(
             mem_per_worker,
             log
         )
-        del zip_data, namelist
-        if mem().percent > 50:
-            dprint('Garbage collecting.', flush=True)
-            gc.collect()
+        del zip_data, namelist, file_paths
         return uploaded
 
 
@@ -1774,7 +1771,7 @@ def process_files(
         at_least_one_batch = types.isin(['zip']).any()
         at_least_one_individual = types.isin(['file']).any()
         ddf.to_csv('tmp' + local_list_file, index=False, single_file=True)
-        del ddf
+        del ddf, types
         os.rename('tmp' + local_list_file, local_list_file)
 
     if at_least_one_batch or at_least_one_individual:
