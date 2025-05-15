@@ -604,6 +604,9 @@ def zip_folders(
                     except PermissionError:
                         dprint(f'WARNING: Permission error reading {file_path}. File will not be backed up.')
                         continue
+                    except OSError:
+                        dprint(f'WARNING: OSError reading {file_path}. File will not be backed up.')
+                        continue
                 namelist = zip_file.namelist()
             if zipped_size > mem_per_worker:
                 dprint(f'WARNING: Zipped size of {zipped_size} bytes exceeds memory per core of '
