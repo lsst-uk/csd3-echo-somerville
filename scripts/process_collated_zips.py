@@ -222,15 +222,19 @@ def verify_zip_contents(row: pd.Series, keys_series: pd.Series) -> bool:
     extract = False
     if row['is_zipfile']:
         dprint(f'Checking for {row["key"]} contents in all_keys list...')
-        if len(contents) > 0:
-            if sum(keys_series.isin([contents])) != len(contents):
-                extract = True
-                dprint(f'{row["key"]} to be extracted.')
+        try:
+            if len(contents) > 0:
+                if sum(keys_series.isin([contents])) != len(contents):
+                    extract = True
+                    dprint(f'{row["key"]} to be extracted.')
+                else:
+                    dprint(f'{row["key"]} contents previously extracted.')
             else:
-                dprint(f'{row["key"]} contents previously extracted.')
-        else:
-            extract = True
-            dprint(f'{row["key"]} to be extracted (contents unknown).')
+                extract = True
+                dprint(f'{row["key"]} to be extracted (contents unknown).')
+        except TypeError:
+            dprint(f'{row["key"]} is empty.')
+            extract = False
 
     return extract
 
