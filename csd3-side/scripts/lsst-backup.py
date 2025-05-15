@@ -543,6 +543,8 @@ def zip_and_upload(
             log
         )
         del zip_data, namelist, file_paths
+        if mem().percent > 50:
+            gc.collect()
         return uploaded
 
 
@@ -835,7 +837,6 @@ def upload_to_bucket(
 
                 del file_data
                 if mem().percent > 50:
-                    dprint('Garbage collecting.', flush=True)
                     gc.collect()
         else:
             checksum_string = "DRYRUN"
@@ -970,7 +971,6 @@ def upload_to_bucket(
 
                 del file_data
                 if mem().percent > 50:
-                    dprint('Garbage collecting.', flush=True)
                     gc.collect()
         else:
             checksum_string = "DRYRUN"
@@ -1110,7 +1110,6 @@ def upload_to_bucket_collated(
             f.write(log_string + '\n')
         del file_data
         if mem().percent > 50:
-            dprint('Garbage collecting.', flush=True)
             gc.collect()
         return True
 
@@ -1195,7 +1194,6 @@ def upload_to_bucket_collated(
             f.write(log_string + '\n')
         del file_data
         if mem().percent > 50:
-            dprint('Garbage collecting.', flush=True)
             gc.collect()
         return True
 
@@ -1451,7 +1449,6 @@ def upload_and_callback(
 
     del file_name_or_data
     if mem().percent > 50:
-        dprint('Garbage collecting.', flush=True)
         gc.collect()
 
     return result
