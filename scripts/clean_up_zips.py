@@ -390,9 +390,9 @@ if __name__ == '__main__':
     #        Dask Setup        #
     ############################
     total_memory = mem().total
-    n_workers = nprocs
+    n_workers = 4
     mem_per_worker = mem().total // n_workers  # e.g., 187 GiB / 48 * 2 = 7.8 GiB
-    threads_per_worker = n_workers // 4
+    threads_per_worker = nprocs // n_workers
     logprint(f'nprocs: {nprocs}, Threads per worker: {threads_per_worker}, Number of workers: {n_workers}, '
              f'Total memory: {total_memory/1024**3:.2f} GiB, Memory per worker: '
              f'{mem_per_worker/1024**3:.2f} GiB')
