@@ -20,7 +20,9 @@ def dl_bucket_names(url):
 
 
 # for production
-bucket_names = dl_bucket_names('https://raw.githubusercontent.com/lsst-uk/csd3-echo-somerville/main/echo-side/bucket_names/bucket_names.json')
+bucket_names = dl_bucket_names(
+    'https://raw.githubusercontent.com/lsst-uk/csd3-echo-somerville/main/echo-side/bucket_names/bucket_names.json'
+)
 
 
 def print_bucket_name(bucket_name):
@@ -64,7 +66,7 @@ with DAG(
                 '--bucket-name',
                 bucket_name,
                 '--nprocs',
-                '6',
+                '32',
             ],
             env_vars={
                 'S3_ACCESS_KEY': Variable.get("S3_ACCESS_KEY"),
