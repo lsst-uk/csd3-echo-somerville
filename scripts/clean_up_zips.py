@@ -468,7 +468,7 @@ if __name__ == '__main__':
                         ),
                         meta=('bool')
                     )
-                    del current_object_names
+                    # del current_object_names
                 if dryrun:
                     logprint(f'Current objects (with matching prefix): {len_co}', log=log)
                     if verify:
