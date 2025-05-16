@@ -197,11 +197,15 @@ def verify_zip_objects(
           before comparison.
     """
     zip_obj = row['CURRENT_OBJECTS']
-    zip_data = io.BytesIO(s3.get_object(bucket_name, zip_obj)[1])
-    with zipfile.ZipFile(zip_data, 'r') as z:
-        contents = z.namelist()
+    zip_metadata_uri = f'{zip_obj}.metadata'
+    try:
+        zip_metadata = s3.get_object(bucket_name, zip_metadata_uri)[1]
+    except swiftclient.exceptions.ClientException as e:
+        logprint(f'WARNING: Error getting {zip_metadata_uri}: {e.msg}', log)
+        return False
+
     path_stub = '/'.join(zip_obj.split('/')[:-1])
-    contents = [f'{path_stub}/{c}' for c in contents]
+    contents = [f'{path_stub}/{c}' for c in zip_metadata.decode().split('|') if c]
     verified = False
     if set(contents).issubset(current_objects):
         verified = True
@@ -209,7 +213,7 @@ def verify_zip_objects(
     else:
         verified = False
         logprint(f'{zip_obj} verified: {verified} - cannot be deleted', log)
-    del zip_data, contents
+    del zip_metadata, contents
     # gc.collect()
     return verified
 
