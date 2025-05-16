@@ -38,13 +38,13 @@ default_args = {
 
 # Instantiate the DAG
 with DAG(
-        'clean_zips',
-        default_args=default_args,
-        description='Runs clean_up_zips.py',
-        schedule=timedelta(days=1),
-        start_date=datetime(2024, 1, 1, 12, 0, 0),  # daily at noon
-        catchup=False,
-    ) as dag:
+    'clean_zips',
+    default_args=default_args,
+    description='Runs clean_up_zips.py',
+    schedule=timedelta(days=1),
+    start_date=datetime(2024, 1, 1, 12, 0, 0),  # daily at noon
+    catchup=False,
+) as dag:
 
     print_bucket_name_task = [
         PythonOperator(
