@@ -69,6 +69,9 @@ def delete_object_swift(
         - Prints errors to stderr if the primary object deletion fails.
     """
     obj = row['CURRENT_OBJECTS']
+    if obj == 'None':
+        logprint(f'WARNING: {obj} is None', log)
+        return False
     deleted = False
     try:
         s3.delete_object(bucket_name, obj)
@@ -197,6 +200,9 @@ def verify_zip_objects(
           before comparison.
     """
     zip_obj = row['CURRENT_OBJECTS']
+    if zip_obj == 'None':
+        logprint(f'WARNING: {zip_obj} is None', log)
+        return False
     zip_metadata_uri = f'{zip_obj}.metadata'
     try:
         zip_metadata = s3.get_object(bucket_name, zip_metadata_uri)[1]
