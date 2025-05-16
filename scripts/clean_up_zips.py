@@ -398,7 +398,11 @@ if __name__ == '__main__':
              f'{mem_per_worker/1024**3:.2f} GiB')
 
     # Process the files
-    with Client(n_workers=n_workers, threads_per_worker=threads_per_worker, memory_limit=mem_per_worker) as client:
+    with Client(
+        n_workers=n_workers,
+        threads_per_worker=threads_per_worker,
+        memory_limit=mem_per_worker
+    ) as client:
         logprint(f'Dask Client: {client}', log=log)
         logprint(f'Dashboard: {client.dashboard_link}', log=log)
         logprint(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}', log=log)
