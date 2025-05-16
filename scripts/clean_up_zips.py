@@ -430,24 +430,14 @@ if __name__ == '__main__':
                 f'Found {len_cz} zip files (with matching prefix) in bucket {bucket_name}.',
                 log=log
             )
-            # if len_cz > 0:
-            # current_zips = current_zips.repartition(
-            #     npartitions=use_nparts
-            # )
+
             md_objects = current_objects[current_objects['is_metadata'] == True]  # noqa
             len_md = len(md_objects)
             logprint(
                 f'Found {len_md} metadata files (with matching prefix) in bucket {bucket_name}.',
                 log=log
             )
-            # if len_md > 0:
-            # md_objects = md_objects.repartition(
-            #     npartitions=use_nparts
-            # )
-            # if verify:
-            #     current_object_names = current_objects['CURRENT_OBJECTS'].compute()
-            #     client.scatter(current_object_names, broadcast=True)
-            #     del co
+
             if not verify:
                 del current_objects
 

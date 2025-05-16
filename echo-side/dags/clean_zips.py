@@ -66,7 +66,7 @@ with DAG(
                 '--bucket-name',
                 bucket_name,
                 '--nprocs',
-                '32',
+                '28',
             ],
             env_vars={
                 'S3_ACCESS_KEY': Variable.get("S3_ACCESS_KEY"),
