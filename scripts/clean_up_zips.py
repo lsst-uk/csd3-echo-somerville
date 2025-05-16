@@ -382,12 +382,13 @@ if __name__ == '__main__':
     total_memory = mem().total
     n_workers = nprocs
     mem_per_worker = mem().total // n_workers  # e.g., 187 GiB / 48 * 2 = 7.8 GiB
-    logprint(f'nprocs: {nprocs}, Threads per worker: 1, Number of workers: {n_workers}, '
+    threads_per_worker = n_workers // 4
+    logprint(f'nprocs: {nprocs}, Threads per worker: {threads_per_worker}, Number of workers: {n_workers}, '
              f'Total memory: {total_memory/1024**3:.2f} GiB, Memory per worker: '
              f'{mem_per_worker/1024**3:.2f} GiB')
 
     # Process the files
-    with Client(n_workers=n_workers, threads_per_worker=1, memory_limit=mem_per_worker) as client:
+    with Client(n_workers=n_workers, threads_per_worker=threads_per_worker, memory_limit=mem_per_worker) as client:
         logprint(f'Dask Client: {client}', log=log)
         logprint(f'Dashboard: {client.dashboard_link}', log=log)
         logprint(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}', log=log)
