@@ -1325,18 +1325,10 @@ def print_stats(
                f'{total_size / 1024**2 / elapsed_seconds:.2f} MiB/s', flush=True)
     except ZeroDivisionError:
         pass
+    del file_name_or_data
 
 
 def upload_and_callback(
-    #             s3,
-    #             bucket_name,
-    #             api,
-    #             folder,
-    #             file_name_or_data,
-    #             zip_contents,
-    #             object_key,
-    #             dryrun,
-    #             log
     s3,
     bucket_name,
     api,
@@ -1449,7 +1441,10 @@ def upload_and_callback(
         total_files_uploaded,
         collated
     )
-
+    print(
+        f'{sys.getrefcount(file_name_or_data) - 1} '
+        'References to file_name_or_data remaining, deleting one.'
+    )
     del file_name_or_data
     if mem().percent > 50:
         gc.collect()
