@@ -746,6 +746,11 @@ def upload_to_bucket(
                 log_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}","n/a","n/a"'
                 with open(log, 'a') as f:
                     f.write(log_string + '\n')
+                dprint(
+                    f'{sys.getrefcount(filename) - 1} '
+                    'Upload_to_bucket References to file_name remaining, deleting one.'
+                )
+                del filename
                 return True
 
         dprint(f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, {file_size} bytes, '
@@ -971,7 +976,10 @@ def upload_to_bucket(
                 except Exception as e:
                     dprint(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
                     return False
-
+                dprint(
+                    f'{sys.getrefcount(file_data) - 1} '
+                    'Upload_to_bucket References to file_data remaining, deleting one.'
+                )
                 del file_data
                 if mem().percent > 50:
                     gc.collect()
@@ -1112,8 +1120,6 @@ def upload_to_bucket_collated(
         with open(log, 'a') as f:
             f.write(log_string + '\n')
         del file_data
-        if mem().percent > 50:
-            gc.collect()
         return True
 
     elif api == 'swift':
@@ -1195,9 +1201,11 @@ def upload_to_bucket_collated(
                     break
         with open(log, 'a') as f:
             f.write(log_string + '\n')
+        dprint(
+            f'{sys.getrefcount(file_data) - 1} '
+            'upload_to_bucket_collated References to file_name_or_data remaining, deleting one.'
+        )
         del file_data
-        if mem().percent > 50:
-            gc.collect()
         return True
 
 
@@ -1325,6 +1333,10 @@ def print_stats(
                f'{total_size / 1024**2 / elapsed_seconds:.2f} MiB/s', flush=True)
     except ZeroDivisionError:
         pass
+    dprint(
+        f'{sys.getrefcount(file_name_or_data) - 1} '
+        'print stats References to file_name_or_data remaining, deleting one.'
+    )
     del file_name_or_data
 
 
@@ -1441,9 +1453,9 @@ def upload_and_callback(
         total_files_uploaded,
         collated
     )
-    print(
+    dprint(
         f'{sys.getrefcount(file_name_or_data) - 1} '
-        'References to file_name_or_data remaining, deleting one.'
+        'Upload and callback References to file_name_or_data remaining, deleting one.'
     )
     del file_name_or_data
     if mem().percent > 50:
