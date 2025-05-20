@@ -64,12 +64,8 @@ if __name__ == "__main__":
         ), f"Destination container {to_container} already exists."
     except AssertionError as e:
         print(e)
-        print("Continue? (y/n)")
-        response = input()
-        if response.lower() != 'y':
-            exit(1)
-        else:
-            use_existing = True
+        print("Continuing")
+        use_existing = True
 
     if not use_existing:
         bm.create_bucket_swift(conn, to_container)
@@ -112,7 +108,7 @@ if __name__ == "__main__":
             meta=('deleted_original', 'bool')
         )
 
-        ddf.to_csv('copy_results.csv', single_file=True, index=False)
-        print("Copying completed. Results saved to copy_results.csv")
-        print("Deleting original objects completed. Results saved to copy_results.csv")
+        ddf.to_csv('move_results.csv', single_file=True, index=False)
+        print("Copying completed. Results saved to move_results.csv")
+        print("Deleting original objects completed. Results saved to move_results.csv")
         print("All operations completed.")
