@@ -1851,23 +1851,23 @@ def process_files(
         )
 
         # call zip_folder in parallel
-        print(uploads, flush=True)
-
+        # print(uploads, flush=True)
+        len_ups = len(uploads)
+        print(f'Total uploads: {len(uploads)}')
+        len_zips = len(uploads[uploads['type'] == 'zip'])
         print(
             f"Zipping and uploading "
             f"{num_zip_batches} " # noqa
-            "batches.", flush=True
+            f"batches containing {len_zips} files"
+        )
+        print(
+            f"Average files per zip batch: "
+            f"{(len_zips / num_zip_batches):.2f}"
         )
         print(
             f"Uploading "
-            f"{len(uploads[uploads['type'] == 'file'])} " # noqa
-            "individual files.", flush=True
-        )
-        print(f'Total: {len(uploads)}', flush=True)
-        print(
-            f"Average files per zip batch: "
-            f"{(len(uploads[uploads['type'] == 'zip']) / num_zip_batches):.2f}",
-            flush=True
+            f"{len_ups - len_zips} " # noqa
+            "individual files."
         )
         print('Uploading...', flush=True)
         # zip_uploads = uploads[uploads['type'] == 'zip']
