@@ -542,13 +542,13 @@ def zip_and_upload(
             mem_per_worker,
             log
         )
-        del zip_data, namelist, file_paths
         refs = gc.get_referrers(zip_data)
         num_refs = len(refs)
         dprint(
             f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
             f'\n References: {refs}'
         )
+        del zip_data, namelist, file_paths
         return uploaded
 
 
