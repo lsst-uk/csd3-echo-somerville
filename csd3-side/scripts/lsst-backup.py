@@ -1872,7 +1872,7 @@ def process_files(
         )
         print(
             f"Average files per zip batch: "
-            f"{(len_zips / num_zip_batches):.2f}"
+            f"{(num_zip_batches / len_zips):.2f}"
         )
         print(
             f"Uploading "
