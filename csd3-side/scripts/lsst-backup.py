@@ -542,13 +542,14 @@ def zip_and_upload(
             mem_per_worker,
             log
         )
-        refs = gc.get_referrers(zip_data)
-        num_refs = len(refs)
+        refs = dict(gc.get_referrers(zip_data)[-1])
+        zip_data_refs = [k for k, v in refs.items() if v is zip_data]
+        num_refs = len(zip_data_refs)
         dprint(
             f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
-            f'\n References: {refs}'
+            f'\n References: {zip_data_refs}'
         )
-        del zip_data, namelist, file_paths
+        del zip_data, namelist, file_paths, refs, zip_data_refs
         return uploaded
 
 
@@ -750,13 +751,14 @@ def upload_to_bucket(
                 log_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}","n/a","n/a"'
                 with open(log, 'a') as f:
                     f.write(log_string + '\n')
-                refs = gc.get_referrers(filename)
-                num_refs = len(refs)
+                refs = dict(gc.get_referrers(filename)[-1])
+                filename_refs = [k for k, v in refs.items() if v is filename]
+                num_refs = len(filename_refs)
                 dprint(
-                    f'in upload_to_bucket {num_refs} references to filename, only 1 will be deleted'
-                    f'\n References: {refs}'
+                    f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
+                    f'\n References: {filename_refs}'
                 )
-                del filename
+                del filename, refs, filename_refs
                 return True
 
         dprint(f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, {file_size} bytes, '
@@ -982,13 +984,14 @@ def upload_to_bucket(
                 except Exception as e:
                     dprint(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
                     return False
+                refs = dict(gc.get_referrers(file_data)[-1])
+                file_data_refs = [k for k, v in refs.items() if v is file_data]
+                num_refs = len(file_data_refs)
                 dprint(
-                    f'in upload_to_bucket {num_refs} references to filename, only 1 will be deleted'
-                    f'\n References: {refs}'
+                    f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
+                    f'\n References: {file_data_refs}'
                 )
-                del file_data
-                if mem().percent > 50:
-                    gc.collect()
+                del file_data, refs, file_data_refs
         else:
             checksum_string = "DRYRUN"
 
@@ -1207,13 +1210,14 @@ def upload_to_bucket_collated(
                     break
         with open(log, 'a') as f:
             f.write(log_string + '\n')
-        refs = gc.get_referrers(file_data)
-        num_refs = len(refs)
+        refs = dict(gc.get_referrers(file_data)[-1])
+        file_data_refs = [k for k, v in refs.items() if v is file_data]
+        num_refs = len(file_data_refs)
         dprint(
-            f'in upload_to_bucket {num_refs} references to file_data, only 1 will be deleted'
-            f'\n References: {refs}'
+            f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
+            f'\n References: {file_data_refs}'
         )
-        del file_data
+        del file_data, refs, file_data_refs
         return True
 
 
@@ -1341,13 +1345,14 @@ def print_stats(
                f'{total_size / 1024**2 / elapsed_seconds:.2f} MiB/s', flush=True)
     except ZeroDivisionError:
         pass
-    refs = gc.get_referrers(file_name_or_data)
-    num_refs = len(refs)
+    refs = dict(gc.get_referrers(file_name_or_data)[-1])
+    file_name_or_data_refs = [k for k, v in refs.items() if v is file_name_or_data]
+    num_refs = len(file_name_or_data_refs)
     dprint(
-        f'in upload_to_bucket {num_refs} references to file_name_or_data, only 1 will be deleted'
-        f'\n References: {refs}'
+        f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
+        f'\n References: {file_name_or_data_refs}'
     )
-    del file_name_or_data
+    del file_name_or_data, refs, file_name_or_data_refs
 
 
 def upload_and_callback(
@@ -1463,13 +1468,14 @@ def upload_and_callback(
         total_files_uploaded,
         collated
     )
-    refs = gc.get_referrers(file_name_or_data)
-    num_refs = len(refs)
+    refs = dict(gc.get_referrers(file_name_or_data)[-1])
+    file_name_or_data_refs = [k for k, v in refs.items() if v is file_name_or_data]
+    num_refs = len(file_name_or_data_refs)
     dprint(
-        f'in upload_to_bucket {num_refs} references to file_name_or_data, only 1 will be deleted\n'
-        f'References: {refs}'
+        f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
+        f'\n References: {file_name_or_data_refs}'
     )
-    del file_name_or_data
+    del file_name_or_data, refs, file_name_or_data_refs
 
     return result
 
