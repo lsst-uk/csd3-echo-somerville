@@ -1,11 +1,8 @@
-import re
 import sys
 import os
 import warnings
 from datetime import datetime
 import pandas as pd
-import io
-import zipfile
 from psutil import virtual_memory as mem
 import bucket_manager.bucket_manager as bm
 import swiftclient.exceptions
@@ -261,8 +258,15 @@ if __name__ == '__main__':
         '--nprocs',
         '-n',
         type=int,
-        help='Number of CPU cores to use for parallel upload. Default is 4.',
-        default=4
+        help='Total number of CPU cores to use for parallel upload. Default is 4.',
+        default=24
+    )
+    parser.add_argument(
+        '--nthreads',
+        '-t',
+        type=int,
+        help='Number of threads per worker to use for parallel upload. Default is 4.',
+        default=2
     )
     parser.add_argument(
         '--clean-up-metadata',
@@ -324,6 +328,11 @@ if __name__ == '__main__':
     log_to_file = args.log_to_file
     verify = not args.verify_skip  # Default is to verify
     clean_metadata = args.clean_up_metadata
+    num_threads = args.nthreads
+    if num_threads > nprocs:
+        print(f'Number of threads ({num_threads}) cannot be greater than number of processes ({nprocs}). '
+              f'Setting threads per worker to {nprocs // 2}.', file=sys.stderr)
+        num_threads = nprocs // 2
 
     print(f'API: {api}, Bucket name: {bucket_name}, Prefix: {prefix}, nprocs: {nprocs}, dryrun: {dryrun}')
 
@@ -390,17 +399,17 @@ if __name__ == '__main__':
     #        Dask Setup        #
     ############################
     total_memory = mem().total
-    n_workers = 4
+    n_workers = nprocs // num_threads  # e.g., 48 / 2 = 24
     mem_per_worker = mem().total // n_workers  # e.g., 187 GiB / 48 * 2 = 7.8 GiB
-    threads_per_worker = nprocs // n_workers
-    logprint(f'nprocs: {nprocs}, Threads per worker: {threads_per_worker}, Number of workers: {n_workers}, '
+
+    logprint(f'nprocs: {nprocs}, Threads per worker: {num_threads}, Number of workers: {n_workers}, '
              f'Total memory: {total_memory/1024**3:.2f} GiB, Memory per worker: '
              f'{mem_per_worker/1024**3:.2f} GiB')
 
     # Process the files
     with Client(
         n_workers=n_workers,
-        threads_per_worker=threads_per_worker,
+        threads_per_worker=num_threads,
         memory_limit=mem_per_worker
     ) as client:
         logprint(f'Dask Client: {client}', log=log)
