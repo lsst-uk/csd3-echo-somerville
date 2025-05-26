@@ -469,14 +469,14 @@ if __name__ == '__main__':
             current_objects['is_metadata'] = current_objects['CURRENT_OBJECTS'].map_partitions(
                 lambda partition: partition.str.fullmatch(metadata_match, na=False)  # noqa
             )
-            current_zips = current_objects[current_objects['is_zip'] == True]  # noqa
+            current_zips = dd.from_pandas(current_objects[current_objects['is_zip'] == True].compute())  # noqa
             len_cz = len(current_zips)  # noqa
             logprint(
                 f'Found {len_cz} zip files (with matching prefix) in bucket {bucket_name}.',
                 log=log
             )
 
-            md_objects = current_objects[current_objects['is_metadata'] == True]  # noqa
+            md_objects = dd.from_pandas(current_objects[current_objects['is_metadata'] == True])  # noqa
             len_md = len(md_objects)
             logprint(
                 f'Found {len_md} metadata files (with matching prefix) in bucket {bucket_name}.',
