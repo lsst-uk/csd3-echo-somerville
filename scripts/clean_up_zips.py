@@ -200,23 +200,23 @@ def verify_zip_objects(
     if zip_obj == 'None':
         logprint(f'WARNING: {zip_obj} is None', log)
         return False
+    path_stub = '/'.join(zip_obj.split('/')[:-1])
     zip_metadata_uri = f'{zip_obj}.metadata'
+    logprint(
+        f'DEBUG:\nzip_obj: {zip_obj}\npath_stub: {path_stub}\n'
+        f'zip_metadata_uri: {zip_metadata_uri}\n'
+    )
+    logprint(f'Row: {row}', log)
+    logprint(f'Current objects: {len(current_objects)}', log)
     try:
         zip_metadata = s3.get_object(bucket_name, zip_metadata_uri)[1]
     except swiftclient.exceptions.ClientException as e:
         logprint(f'WARNING: Error getting {zip_metadata_uri}: {e.msg}', log)
         return False
 
-    path_stub = '/'.join(zip_obj.split('/')[:-1])
     contents = [f'{path_stub}/{c}' for c in zip_metadata.decode().split('|') if c]
     verified = False
-    logprint(
-        f'DEBUG:\nzip_obj: {zip_obj}\npath_stub: {path_stub}\n'
-        f'zip_metadata_uri: {zip_metadata_uri}\n'
-        f'contents: {contents}', log
-    )
-    logprint(f'Row: {row}', log)
-    logprint(f'Current objects: {len(current_objects)}', log)
+
     logprint(f'Contents: {len(contents)}', log)
     if set(contents).issubset(current_objects):
         verified = True
