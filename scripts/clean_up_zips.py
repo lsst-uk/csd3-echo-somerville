@@ -210,6 +210,10 @@ def verify_zip_objects(
     path_stub = '/'.join(zip_obj.split('/')[:-1])
     contents = [f'{path_stub}/{c}' for c in zip_metadata.decode().split('|') if c]
     verified = False
+    logprint(f'DEBUG:\nzip_obj: {zip_obj}\npath_stub: {path_stub}\nzip_metadata_uri: {zip_metadata_uri}\ncontents: {contents}', log)
+    logprint(f'Row: {row}', log)
+    logprint(f'Current objects: {len(current_objects)}', log)
+    logprint(f'Contents: {len(contents)}', log)
     if set(contents).issubset(current_objects):
         verified = True
         logprint(f'{zip_obj} verified: {verified} - can be deleted', log)
@@ -436,6 +440,7 @@ if __name__ == '__main__':
         ) // n_workers * n_workers
         if use_nparts != nparts:
             current_objects = current_objects.repartition(npartitions=use_nparts)
+        logprint(f'Current_object Partitions: {current_objects.npartitions}', log=log)
 
         logprint(f'Found {len(current_objects)} objects (with matching prefix) in bucket {bucket_name}.',
                  log=log)
