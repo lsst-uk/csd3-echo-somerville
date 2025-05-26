@@ -71,6 +71,9 @@ def delete_object_swift(
             logprint(f'WARNING: {row["CURRENT_OBJECTS"]} not verified for deletion.', log)
             return False
     obj = row['CURRENT_OBJECTS']
+    if pd.isna(obj):
+        logprint('WARNING: obj is NaN', log)
+        return False
     logprint('DEBUG:', log)
     logprint(f'Row: {row}', log)
     logprint(f'Object to delete: {obj}', log)
