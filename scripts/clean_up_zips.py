@@ -39,6 +39,7 @@ def delete_object_swift(
     s3: swiftclient.Connection,
     bucket_name: str,
     del_metadata: bool = True,
+    verify: bool = False,
     log: str = None
 ) -> bool:
     """
@@ -65,6 +66,10 @@ def delete_object_swift(
         - Logs warnings if the metadata deletion fails.
         - Prints errors to stderr if the primary object deletion fails.
     """
+    if verify:
+        if row['verified'] is False:
+            logprint(f'WARNING: {row["CURRENT_OBJECTS"]} not verified for deletion.', log)
+            return False
     obj = row['CURRENT_OBJECTS']
     logprint('DEBUG:', log)
     logprint(f'Row: {row}', log)
@@ -532,35 +537,36 @@ if __name__ == '__main__':
                     else:
                         logprint('auto y')
                     current_zips = current_zips.dropna(subset=['CURRENT_OBJECTS'])  # noqa
-                    if verify:
-                        current_zips['DELETED'] = current_zips[current_zips['verified'] == True].map_partitions(  # noqa
-                            lambda partition: partition.apply(
-                                delete_object_swift,
-                                axis=1,
-                                args=(
-                                    s3,
-                                    bucket_name,
-                                    True,
-                                    log,
-                                ),
+                    # if verify:
+                    current_zips['DELETED'] = current_zips.map_partitions(  # noqa
+                        lambda partition: partition.apply(
+                            delete_object_swift,
+                            axis=1,
+                            args=(
+                                s3,
+                                bucket_name,
+                                True,
+                                verify,
+                                log,
                             ),
-                            meta=('bool')
-                        )
-                        current_zips[current_zips['verified'] == False]['DELETED'] = False  # noqa
-                    else:
-                        current_zips['DELETED'] = current_zips.map_partitions(
-                            lambda partition: partition.apply(
-                                delete_object_swift,
-                                axis=1,
-                                args=(
-                                    s3,
-                                    bucket_name,
-                                    True,
-                                    log
-                                )
-                            ),
-                            meta=('bool')
-                        )
+                        ),
+                        meta=('bool')
+                    )
+                        # current_zips[current_zips['verified'] == False]['DELETED'] = False  # noqa
+                    # else:
+                    #     current_zips['DELETED'] = current_zips.map_partitions(
+                    #         lambda partition: partition.apply(
+                    #             delete_object_swift,
+                    #             axis=1,
+                    #             args=(
+                    #                 s3,
+                    #                 bucket_name,
+                    #                 True,
+                    #                 log
+                    #             )
+                    #         ),
+                    #         meta=('bool')
+                    #     )
 
                     current_zips = current_zips.compute()
 
