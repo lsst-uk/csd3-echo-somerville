@@ -210,7 +210,11 @@ def verify_zip_objects(
     path_stub = '/'.join(zip_obj.split('/')[:-1])
     contents = [f'{path_stub}/{c}' for c in zip_metadata.decode().split('|') if c]
     verified = False
-    logprint(f'DEBUG:\nzip_obj: {zip_obj}\npath_stub: {path_stub}\nzip_metadata_uri: {zip_metadata_uri}\ncontents: {contents}', log)
+    logprint(
+        f'DEBUG:\nzip_obj: {zip_obj}\npath_stub: {path_stub}\n'
+        f'zip_metadata_uri: {zip_metadata_uri}\n'
+        f'contents: {contents}', log
+    )
     logprint(f'Row: {row}', log)
     logprint(f'Current objects: {len(current_objects)}', log)
     logprint(f'Contents: {len(contents)}', log)
