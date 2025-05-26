@@ -104,38 +104,37 @@ def find_metadata_swift(row: pd.Series, conn: swiftclient.Connection, bucket_nam
     Returns:
         str: '|'-separated metadata strings if found, otherwise None.
     """
+    if not row['is_zipfile']:
+        return ''
     key = row['key']
     if isinstance(key, str):
         existing_zip_contents = None
-        if key.endswith('.zip'):
+        try:
+            existing_zip_contents = str(
+                conn.get_object(bucket_name, ''.join([key, '.metadata']))[1].decode('UTF-8')
+            )  # .split('|') # use | as separator
+            dprint(f'Using zip-contents-object, {"".join([key, ".metadata"])} for object {key}.')
+        except Exception:
             try:
-                existing_zip_contents = str(
-                    conn.get_object(bucket_name, ''.join([key, '.metadata']))[1].decode('UTF-8')
-                )  # .split('|') # use | as separator
-                dprint(f'Using zip-contents-object, {"".join([key, ".metadata"])} for object {key}.')
+                existing_zip_contents = conn.head_object(
+                    bucket_name,
+                    key
+                )['x-object-meta-zip-contents']  # .split('|') # use | as separator
+                dprint(f'Using zip-contents metadata for {key}.')
+            except KeyError:
+                return ''
             except Exception:
-                try:
-                    existing_zip_contents = conn.head_object(
-                        bucket_name,
-                        key
-                    )['x-object-meta-zip-contents']  # .split('|') # use | as separator
-                    dprint(f'Using zip-contents metadata for {key}.')
-                except KeyError:
-                    return None
-                except Exception:
-                    return None
-            if existing_zip_contents is not None:
-                if '|' not in existing_zip_contents:
-                    existing_zip_contents = '|'.join(
-                        existing_zip_contents.split(',')
-                    )  # some older metadata may have used commas as separators
-                return existing_zip_contents
-            else:
-                return None
+                return ''
+        if existing_zip_contents is not None:
+            if '|' not in existing_zip_contents:
+                existing_zip_contents = '|'.join(
+                    existing_zip_contents.split(',')
+                )  # some older metadata may have used commas as separators
+            return existing_zip_contents
         else:
-            return None
+            return ''
     else:
-        return None
+        return ''
 
 
 def object_list_swift(
@@ -252,7 +251,8 @@ def prepend_zipfile_path_to_contents(row: pd.Series) -> str:
     Returns:
         str: The modified 'contents' value with the prepended path.
     """
-
+    if not row['is_zipfile']:
+        return ''
     path_stub = '/'.join(row['key'].split('/')[:-1])
     contents = row['contents'].split('|')
     prepended = [f'{path_stub}/{c}' for c in contents]
@@ -283,6 +283,8 @@ def extract_and_upload(row: pd.Series, conn: swiftclient.Connection, bucket_name
         swiftclient.exceptions.ClientException: If there is an error
         interacting with the object storage.
     """
+    if not row['extract']:
+        return False
     key = row['key']
     done = False
     start = datetime.now()
@@ -573,7 +575,7 @@ def main():
                     dprint('No zipfiles found. Exiting.')
                     sys.exit()
                 # Get metadata for zipfiles
-                keys_df['contents'] = keys_df[keys_df['is_zipfile'] == True].map_partitions(  # noqa
+                keys_df['contents'] = keys_df.map_partitions(  # noqa
                     lambda partition: partition.apply(
                         find_metadata_swift,
                         axis=1,
@@ -584,15 +586,10 @@ def main():
                     ),
                     meta=('contents', 'str')
                 )
-                keys_df[keys_df['is_zipfile'] == False]['contents'] = ''  # noqa
 
                 # Prepend zipfile path to contents
                 # dprint(keys_df)
-                keys_df[
-                    keys_df['is_zipfile'] == True  # noqa
-                ]['contents'] = keys_df[
-                    keys_df['is_zipfile'] == True  # noqa
-                ].map_partitions(
+                keys_df['contents'] = keys_df.map_partitions(
                     lambda partition: partition.apply(
                         prepend_zipfile_path_to_contents,
                         axis=1
@@ -638,7 +635,7 @@ def main():
             dprint(keys_df.npartitions)
 
             dprint('Zip files extracted and uploaded:')
-            keys_df['extracted_and_uploaded'] = keys_df[keys_df['extract'] == True].map_partitions(  # noqa
+            keys_df['extracted_and_uploaded'] = keys_df.map_partitions(  # noqa
                 lambda partition: partition.apply(
                     extract_and_upload,
                     axis=1,
