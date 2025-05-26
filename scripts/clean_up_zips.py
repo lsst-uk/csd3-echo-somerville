@@ -531,7 +531,7 @@ if __name__ == '__main__':
                             sys.exit()
                     else:
                         logprint('auto y')
-
+                    current_zips = current_zips.dropna(subset=['CURRENT_OBJECTS'])  # noqa
                     if verify:
                         current_zips['DELETED'] = current_zips[current_zips['verified'] == True].map_partitions(  # noqa
                             lambda partition: partition.apply(
