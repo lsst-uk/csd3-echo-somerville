@@ -66,6 +66,10 @@ def delete_object_swift(
         - Prints errors to stderr if the primary object deletion fails.
     """
     obj = row['CURRENT_OBJECTS']
+    logprint('DEBUG:', log)
+    logprint(f'Row: {row}', log)
+    logprint(f'Object to delete: {obj}', log)
+    logprint(f'type(obj): {type(obj)}', log)
     if obj == 'None':
         logprint(f'WARNING: {obj} is None', log)
         return False
