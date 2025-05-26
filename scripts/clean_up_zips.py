@@ -476,7 +476,7 @@ if __name__ == '__main__':
                 log=log
             )
 
-            md_objects = dd.from_pandas(current_objects[current_objects['is_metadata'] == True])  # noqa
+            md_objects = dd.from_pandas(current_objects[current_objects['is_metadata'] == True].compute())  # noqa
             len_md = len(md_objects)
             logprint(
                 f'Found {len_md} metadata files (with matching prefix) in bucket {bucket_name}.',
