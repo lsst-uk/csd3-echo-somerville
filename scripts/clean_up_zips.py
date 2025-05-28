@@ -362,11 +362,11 @@ if __name__ == '__main__':
     # Set up logging
     if log_to_file:
         log = f'clean_zips_{bucket_name}_{prefix}_{datetime.now().strftime("%Y%m%d%H%M%S")}.log'
-        logprint(f'clean_zips_{bucket_name}_{prefix}_{datetime.now().strftime("%Y%m%d%H%M%S")}.log', log)
         if not os.path.exists(log):
             logprint(f'Created log file {log}', log)
+        logprint(f'clean_zips_{bucket_name}_{prefix}_{datetime.now().strftime("%Y%m%d%H%M%S")}.log', log)
     else:
-        log = False  # Testing no logging at all
+        log = None
         logprint('Logging to stdout.', log)
 
     # Print hostname
