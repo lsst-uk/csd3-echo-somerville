@@ -554,8 +554,8 @@ if __name__ == '__main__':
                                 verify,
                                 log,
                             ),
-                            meta=('bool'),
                         ),
+                        meta=('bool'),
                     )
                         # current_zips[current_zips['verified'] == False]['DELETED'] = False  # noqa
                     # else:
