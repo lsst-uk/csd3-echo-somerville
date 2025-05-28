@@ -487,16 +487,18 @@ if __name__ == '__main__':
 
             if len_cz > 0:
                 if verify:
-                    current_zips['verified'] = current_zips.apply(
-                        verify_zip_objects,
-                        axis=1,
-                        meta=('bool'),
-                        args=(
-                            s3,
-                            bucket_name,
-                            current_objects['CURRENT_OBJECTS'],
-                            log
+                    current_zips['verified'] = current_zips.map_partitions(
+                        lambda partition: partition.apply(
+                            verify_zip_objects,
+                            axis=1,
+                            args=(
+                                s3,
+                                bucket_name,
+                                current_objects['CURRENT_OBJECTS'],
+                                log
+                            ),
                         ),
+                        meta=('bool'),
                     )
                     # del current_object_names
                 if dryrun:
@@ -538,16 +540,21 @@ if __name__ == '__main__':
                     # if verify:
                     # current_zips['DELETED'] = current_zips.map_partitions(  # noqa
                     #     lambda partition: partition.apply(
-                    current_zips['DELETED'] = current_zips.apply(  # noqa
-                        delete_object_swift,
-                        axis=1,
-                        meta=('bool'),
-                        args=(
-                            s3,
-                            bucket_name,
-                            True,
-                            verify,
-                            log,
+
+                    logprint('Preparing to delete zip files.', log=log)
+                    current_zips = current_zips.persist()
+                    current_zips['DELETED'] = current_zips.map_partitions(
+                        lambda partition: partition.apply(
+                            delete_object_swift,
+                            axis=1,
+                            args=(
+                                s3,
+                                bucket_name,
+                                True,
+                                verify,
+                                log,
+                            ),
+                            meta=('bool'),
                         ),
                     )
                         # current_zips[current_zips['verified'] == False]['DELETED'] = False  # noqa
