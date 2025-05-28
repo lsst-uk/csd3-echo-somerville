@@ -490,13 +490,13 @@ if __name__ == '__main__':
                     current_zips['verified'] = current_zips.apply(
                         verify_zip_objects,
                         axis=1,
+                        meta=('bool'),
                         args=(
                             s3,
                             bucket_name,
                             current_objects['CURRENT_OBJECTS'],
                             log
                         ),
-                        meta=('bool')
                     )
                     # del current_object_names
                 if dryrun:
@@ -541,6 +541,7 @@ if __name__ == '__main__':
                     current_zips['DELETED'] = current_zips.apply(  # noqa
                         delete_object_swift,
                         axis=1,
+                        meta=('bool'),
                         args=(
                             s3,
                             bucket_name,
