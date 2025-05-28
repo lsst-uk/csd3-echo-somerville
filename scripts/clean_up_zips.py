@@ -361,7 +361,7 @@ if __name__ == '__main__':
 
     # Set up logging
     if log_to_file:
-        log = f'clean_zips_{bucket_name}_{'-'.join(prefix.split('/'))}_{datetime.now().strftime("%Y%m%d%H%M%S")}.log'
+        log = f'clean_zips_{bucket_name}_{"-".join(prefix.split("/"))}_{datetime.now().strftime("%Y%m%d%H%M%S")}.log'
         if not os.path.exists(log):
             logprint(f'Created log file {log}', log)
         logprint(log, log)
