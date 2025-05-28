@@ -495,6 +495,8 @@ if __name__ == '__main__':
                 npartitions=current_zips.npartitions * 1000
             )
 
+            print(f'n_partitions: {current_zips.npartitions}')
+
             if len_cz > 0:
                 if verify:
                     current_zips['verified'] = current_zips.map_partitions(
