@@ -14,7 +14,7 @@ import subprocess
 warnings.filterwarnings('ignore')
 
 
-def logprint(msg: str, log: str = None) -> None:
+def logprint(msg: str, log: str|bool = None) -> None:
     """
     Logs a message to a specified log file or prints it to the console.
 
@@ -27,11 +27,17 @@ def logprint(msg: str, log: str = None) -> None:
     Returns:
     None
     """
+    if isinstance(log, bool):
+        if log:
+            log = None
+        else:
+            return
     if log is not None:
         with open(log, 'a') as logfile:
             logfile.write(f'{msg}\n')
     else:
         print(msg, flush=True)
+    return None
 
 
 def delete_object_swift(
