@@ -14,7 +14,7 @@ import subprocess
 warnings.filterwarnings('ignore')
 
 
-def logprint(msg: str, log: str|bool = None) -> None:
+def logprint(msg: str, log=None) -> None:
     """
     Logs a message to a specified log file or prints it to the console.
 
@@ -366,7 +366,7 @@ if __name__ == '__main__':
         if not os.path.exists(log):
             logprint(f'Created log file {log}', log)
     else:
-        log = None
+        log = False  # Testing no logging at all
         logprint('Logging to stdout.', log)
 
     # Print hostname
