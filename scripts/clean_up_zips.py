@@ -672,7 +672,7 @@ if __name__ == '__main__':
                         )
                         md_objects = md_objects.compute()
                         logprint(
-                            f'{len(md_objects['deleted' == True])} '  # noqa
+                            f'{len(md_objects["deleted" == True])} '  # noqa
                             'orphaned metadata files were DELETED.',
                             log=log
                         )
