@@ -233,7 +233,7 @@ def verify_zip_objects(
     verified = False
 
     logprint(f'Contents: {len(contents)}', log)
-    if set(contents).issubset(current_objects):
+    if current_objects.isin(contents).all():
         verified = True
         logprint(f'{zip_obj} verified: {verified} - can be deleted', log)
     else:
