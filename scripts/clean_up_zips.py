@@ -361,7 +361,8 @@ if __name__ == '__main__':
 
     # Set up logging
     if log_to_file:
-        log = f'clean_zips_{bucket_name}_{"-".join(prefix.split("/"))}_{datetime.now().strftime("%Y%m%d%H%M%S")}.log'
+        log = f'clean_zips_{bucket_name}_{"-".join(prefix.split("/"))}'
+        f'_{datetime.now().strftime("%Y%m%d%H%M%S")}.log'
         if not os.path.exists(log):
             logprint(f'Created log file {log}', log)
         logprint(log, log)
@@ -469,9 +470,9 @@ if __name__ == '__main__':
             current_objects['is_zip'] = current_objects['CURRENT_OBJECTS'].map_partitions(
                 lambda partition: partition.str.fullmatch(zip_match, na=False)  # noqa
             )
-            current_objects['is_metadata'] = current_objects['CURRENT_OBJECTS'].map_partitions(
-                lambda partition: partition.str.fullmatch(metadata_match, na=False)  # noqa
-            )
+            # current_objects['is_metadata'] = current_objects['CURRENT_OBJECTS'].map_partitions(
+            #     lambda partition: partition.str.fullmatch(metadata_match, na=False)  # noqa
+            # )
             current_zips = dd.from_pandas(current_objects[current_objects['is_zip'] == True].compute(), npartitions=10000)  # noqa
             len_cz = len(current_zips)  # noqa
             logprint(
@@ -479,19 +480,21 @@ if __name__ == '__main__':
                 log=log
             )
 
-            md_objects = dd.from_pandas(current_objects[current_objects['is_metadata'] == True].compute())  # noqa
-            len_md = len(md_objects)
-            logprint(
-                f'Found {len_md} metadata files (with matching prefix) in bucket {bucket_name}.',
-                log=log
-            )
+            # md_objects = dd.from_pandas(current_objects[current_objects['is_metadata'] == True].compute())  # noqa
+            # len_md = len(md_objects)
+            # logprint(
+            #     f'Found {len_md} metadata files (with matching prefix) in bucket {bucket_name}.',
+            #     log=log
+            # )
 
-            if not verify:
-                del current_objects
+            # if not verify:
+            #     del current_objects
 
             print(f'n_partitions: {current_zips.npartitions}')
 
             if len_cz > 0:
+                current_objects = current_objects['CURRENT_OBJECTS'].compute()  # noqa
+                client.scatter(current_objects, broadcast=True)  # noqa
                 if verify:
                     current_zips['verified'] = current_zips.map_partitions(
                         lambda partition: partition.apply(
@@ -500,7 +503,7 @@ if __name__ == '__main__':
                             args=(
                                 s3,
                                 bucket_name,
-                                current_objects['CURRENT_OBJECTS'],
+                                current_objects,
                                 log
                             ),
                         ),
@@ -548,7 +551,7 @@ if __name__ == '__main__':
                     #     lambda partition: partition.apply(
 
                     logprint('Preparing to delete zip files.', log=log)
-                    current_zips = current_zips.persist()
+                    # current_zips = current_zips.persist()
                     current_zips['DELETED'] = current_zips.map_partitions(
                         lambda partition: partition.apply(
                             delete_object_swift,
@@ -610,43 +613,38 @@ if __name__ == '__main__':
                             f'{len(current_zips[current_zips["DELETED"] == True])} zip files were DELETED.',
                             log=log
                         )
+                    del current_zips
                     logprint(
                         f'Finished processing at {datetime.now()}, elapsed time = {datetime.now() - start}',
                         log=log
                     )
-                    sys.exit(0)
+                    # sys.exit(0)
             else:
                 print(f'No zip files in bucket {bucket_name}.')
-            if len_md > 0 and clean_metadata:
-                if not isinstance(current_zips, pd.DataFrame):
-                    current_zip_names = current_zips.compute()['CURRENT_OBJECTS']
-                else:
-                    current_zip_names = current_zips['CURRENT_OBJECTS']
-                del current_zips
-                if dryrun:
-                    logprint(
-                        'Any orphaned metadata files would be found and deleted.',
-                        log=log
-                    )
-                else:
-                    if len_cz == 0:
-                        cleaned_metadata = md_objects.map_partitions(  # noqa
-                            lambda partition: partition.apply(
-                                delete_object_swift,
-                                axis=1,
-                                args=(
-                                    s3,
-                                    bucket_name,
-                                    False,
-                                    None
-                                )
-                            ),
-                            meta=('bool')
-                        )
-                        cleaned_metadata = cleaned_metadata.compute()
+
+            if clean_metadata:
+                logprint('Checking for orphaned metadata files.', log=log)
+                current_objects = dd.from_pandas(
+                    pd.DataFrame.from_dict(
+                        {'CURRENT_OBJECTS': bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)}
+                    ),
+                    chunksize=10000
+                )
+                logprint(
+                    f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', log=log
+                )
+
+                current_objects['is_metadata'] = current_objects['CURRENT_OBJECTS'].map_partitions(
+                    lambda partition: partition.str.fullmatch(metadata_match, na=False)
+                )
+                current_zip_names = current_objects[current_objects['is_zip'] == True]['CURRENT_OBJECTS'].compute()  # noqa
+                md_objects = current_objects[current_objects['is_metadata'] == True].compute()  # noqa
+                len_md = len(md_objects)
+                if len_md > 0:  # noqa
+                    md_objects = dd.from_pandas(md_objects, npartitions=100)  # noqa
+                    if dryrun:
                         logprint(
-                            f'{len(cleaned_metadata[cleaned_metadata == True])} '
-                            'orphaned metadata files were DELETED.',
+                            'Any orphaned metadata files would be found and deleted.',
                             log=log
                         )
                     else:
@@ -660,7 +658,7 @@ if __name__ == '__main__':
                             ),
                             meta=('bool')
                         )
-                        cleaned_metadata = md_objects.map_partitions(  # noqa
+                        md_objects['deleted'] = md_objects.map_partitions(  # noqa
                             lambda partition: partition.apply(
                                 clean_orphaned_metadata,
                                 axis=1,
@@ -672,17 +670,17 @@ if __name__ == '__main__':
                             ),
                             meta=('bool')
                         )
-                        cleaned_metadata = cleaned_metadata.compute()
+                        md_objects = md_objects.compute()
                         logprint(
-                            f'{len(cleaned_metadata[cleaned_metadata == True])} '
+                            f'{len(md_objects['deleted' == True])} '  # noqa
                             'orphaned metadata files were DELETED.',
                             log=log
                         )
-            else:
-                logprint(
-                    f'No metadata files in bucket {bucket_name}.',
-                    log=log
-                )
+                else:
+                    logprint(
+                        f'No metadata files in bucket {bucket_name}.',
+                        log=log
+                    )
         else:
             print(f'No files in bucket {bucket_name}. Exiting.')
             sys.exit(0)
