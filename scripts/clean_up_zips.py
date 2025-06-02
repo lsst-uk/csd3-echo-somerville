@@ -453,7 +453,7 @@ if __name__ == '__main__':
         len_co = len(current_object_names)
         current_objects = dd.from_pandas(
             pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_object_names}),
-            chunksize=10000
+            chunksize=100000
         )
         del current_object_names
         nparts = current_objects.npartitions
