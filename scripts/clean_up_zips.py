@@ -630,7 +630,7 @@ if __name__ == '__main__':
                     pd.DataFrame.from_dict(
                         {'CURRENT_OBJECTS': bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)}
                     ),
-                    chunksize=10000
+                    chunksize=100000
                 )
                 logprint(
                     f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', log=log
