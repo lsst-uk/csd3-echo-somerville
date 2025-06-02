@@ -515,7 +515,7 @@ if __name__ == '__main__':
                 if dryrun:
                     logprint(f'Current objects (with matching prefix): {len_co}', log=log)
                     if verify:
-                        current_zips = current_zips.compute()
+                        current_zips = client.persist(current_zips)
                         logprint(
                             f'{len(current_zips[current_zips["verified"] == True])} zip objects '
                             'were verified as deletable.',
@@ -584,7 +584,7 @@ if __name__ == '__main__':
                     #         meta=('bool')
                     #     )
 
-                    current_zips = current_zips.compute()
+                    current_zips = client.persist(current_zips)
 
                     if verify:
                         logprint(
@@ -639,8 +639,8 @@ if __name__ == '__main__':
                 current_objects['is_metadata'] = current_objects['CURRENT_OBJECTS'].map_partitions(
                     lambda partition: partition.str.fullmatch(metadata_match, na=False)
                 )
-                current_zip_names = current_objects[current_objects['is_zip'] == True]['CURRENT_OBJECTS'].compute()  # noqa
-                md_objects = current_objects[current_objects['is_metadata'] == True].compute()  # noqa
+                current_zip_names = client.persist(current_objects[current_objects['is_zip'] == True]['CURRENT_OBJECTS'])  # noqa
+                md_objects = client.persist(current_objects[current_objects['is_metadata'] == True])  # noqa
                 len_md = len(md_objects)
                 if len_md > 0:  # noqa
                     md_objects = dd.from_pandas(md_objects, npartitions=100)  # noqa
@@ -672,7 +672,7 @@ if __name__ == '__main__':
                             ),
                             meta=('bool')
                         )
-                        md_objects = md_objects.compute()
+                        md_objects = client.persist(md_objects)
                         logprint(
                             f'{len(md_objects["deleted" == True])} '  # noqa
                             'orphaned metadata files were DELETED.',
