@@ -584,7 +584,7 @@ if __name__ == '__main__':
                     #         meta=('bool')
                     #     )
 
-                    current_zips = client.persist(current_zips)
+                    current_zips = client.persist(current_zips, resources={'memory': '48GB'})
 
                     if verify:
                         logprint(
