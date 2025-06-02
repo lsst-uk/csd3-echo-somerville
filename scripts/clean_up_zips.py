@@ -475,7 +475,7 @@ if __name__ == '__main__':
             # current_objects['is_metadata'] = current_objects['CURRENT_OBJECTS'].map_partitions(
             #     lambda partition: partition.str.fullmatch(metadata_match, na=False)  # noqa
             # )
-            current_zips = dd.from_pandas(current_objects[current_objects['is_zip'] == True].compute(), npartitions=10000)  # noqa
+            current_zips = client.persist(current_objects[current_objects['is_zip'] == True])  # noqa
             len_cz = len(current_zips)  # noqa
             logprint(
                 f'Found {len_cz} zip files (with matching prefix) in bucket {bucket_name}.',
