@@ -1,3 +1,4 @@
+import gc
 import sys
 import os
 import warnings
@@ -230,17 +231,18 @@ def verify_zip_objects(
         return False
 
     contents = [f'{path_stub}/{c}' for c in zip_metadata.decode().split('|') if c]
+    lc = len(contents)
     verified = False
 
-    logprint(f'Contents: {len(contents)}', log)
-    if current_objects.isin(contents).all():
+    logprint(f'Contents: {lc}', log)
+    if sum(current_objects.isin(contents)) == lc:
         verified = True
         logprint(f'{zip_obj} verified: {verified} - can be deleted', log)
     else:
         verified = False
         logprint(f'{zip_obj} verified: {verified} - cannot be deleted', log)
     del zip_metadata, contents
-    # gc.collect()
+    gc.collect()
     return verified
 
 
