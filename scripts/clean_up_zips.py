@@ -456,7 +456,7 @@ if __name__ == '__main__':
             current_object_names,
             chunksize=100000
         )
-        del current_object_names
+        # del current_object_names
         nparts = current_objects.npartitions
         use_nparts = max(
             nparts // nparts % n_workers, n_workers, nparts // n_workers
