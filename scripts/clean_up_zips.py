@@ -449,10 +449,11 @@ if __name__ == '__main__':
             current_object_names = bm.object_list(bucket, prefix=prefix, count=False)
         elif api == 'swift':
             current_object_names = bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)
+        current_object_names = pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_object_names})
         logprint(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', log=log)
         len_co = len(current_object_names)
         current_objects = dd.from_pandas(
-            pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_object_names}),
+            current_object_names,
             chunksize=100000
         )
         del current_object_names
@@ -492,11 +493,12 @@ if __name__ == '__main__':
             # if not verify:
             #     del current_objects
 
-            print(f'n_partitions: {current_zips.npartitions}')
+            # print(f'n_partitions: {current_zips.npartitions}')
 
             if len_cz > 0:
-                current_objects = current_objects['CURRENT_OBJECTS'].compute()  # noqa
-                client.scatter(current_objects, broadcast=True)  # noqa
+                print('Scattering current objects to workers for parallel processing.')
+                # current_objects = current_objects['CURRENT_OBJECTS'].compute()  # noqa
+                client.scatter(current_object_names, broadcast=True)  # noqa
                 if verify:
                     current_zips['verified'] = current_zips.map_partitions(
                         lambda partition: partition.apply(
@@ -505,7 +507,7 @@ if __name__ == '__main__':
                             args=(
                                 s3,
                                 bucket_name,
-                                current_objects,
+                                current_object_names,
                                 log
                             ),
                         ),
