@@ -454,15 +454,15 @@ if __name__ == '__main__':
         len_co = len(current_object_names)
         current_objects = dd.from_pandas(
             current_object_names,
-            chunksize=100000
+            npartitions=n_workers * 1000
         )
         # del current_object_names
-        nparts = current_objects.npartitions
-        use_nparts = max(
-            nparts // nparts % n_workers, n_workers, nparts // n_workers
-        ) // n_workers * n_workers
-        if use_nparts != nparts:
-            current_objects = current_objects.repartition(npartitions=use_nparts)
+        # nparts = current_objects.npartitions
+        # use_nparts = max(
+        #     nparts // nparts % n_workers, n_workers, nparts // n_workers
+        # ) // n_workers * n_workers
+        # if use_nparts != nparts:
+        #     current_objects = current_objects.repartition(npartitions=use_nparts)
         logprint(f'Current_object Partitions: {current_objects.npartitions}', log=log)
 
         logprint(f'Found {len(current_objects)} objects (with matching prefix) in bucket {bucket_name}.',
