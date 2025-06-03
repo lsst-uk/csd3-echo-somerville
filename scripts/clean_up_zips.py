@@ -496,7 +496,7 @@ if __name__ == '__main__':
             # print(f'n_partitions: {current_zips.npartitions}')
 
             if len_cz > 0:
-                print('Scattering current objects to workers for parallel processing.')
+                logprint('Scattering current objects to workers for parallel processing.')
                 # current_objects = current_objects['CURRENT_OBJECTS'].compute()  # noqa
                 client.scatter(current_object_names, broadcast=True)  # noqa
                 if verify:
