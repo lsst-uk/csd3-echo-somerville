@@ -436,7 +436,7 @@ if __name__ == '__main__':
     with Client(
         n_workers=n_workers,
         threads_per_worker=num_threads,
-        memory_limit=mem_per_worker
+        memory_limit=f'{(mem().total//1024**3)*7//8}GB'
     ) as client:
         logprint(f'Dask Client: {client}', log=log)
         logprint(f'Dashboard: {client.dashboard_link}', log=log)
@@ -584,7 +584,7 @@ if __name__ == '__main__':
                     #         meta=('bool')
                     #     )
 
-                    current_zips = client.persist(current_zips, resources={'memory': '48GB'})
+                    current_zips = client.persist(current_zips)
 
                     if verify:
                         logprint(
