@@ -1355,6 +1355,7 @@ def print_stats(
         )
         del file_name_or_data, refs, file_name_or_data_refs
     except Exception as e:
+        dprint(f'Error getting references for {file_name_or_data}: {e}')
         del file_name_or_data
 
 
