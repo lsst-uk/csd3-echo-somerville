@@ -79,7 +79,7 @@ def delete_object_swift(
             return False
     obj = row['CURRENT_OBJECTS']
     if pd.isna(obj):
-        logprint('WARNING: obj is NaN', log)
+        # logprint('WARNING: obj is NaN', log)
         return False
     logprint('DEBUG:', log)
     logprint(f'Row: {row}', log)
@@ -235,7 +235,7 @@ def verify_zip_objects(
     verified = False
 
     logprint(f'Contents: {lc}', log)
-    if sum(current_objects.isin(contents)) == lc:
+    if sum(current_objects.isin(contents).compute()) == lc:
         verified = True
         logprint(f'{zip_obj} verified: {verified} - can be deleted', log)
     else:
