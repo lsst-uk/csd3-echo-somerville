@@ -1345,14 +1345,17 @@ def print_stats(
                f'{total_size / 1024**2 / elapsed_seconds:.2f} MiB/s', flush=True)
     except ZeroDivisionError:
         pass
-    refs = dict(gc.get_referrers(file_name_or_data)[-1])
-    file_name_or_data_refs = [k for k, v in refs.items() if v is file_name_or_data]
-    num_refs = len(file_name_or_data_refs)
-    dprint(
-        f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
-        f'\n References: {file_name_or_data_refs}'
-    )
-    del file_name_or_data, refs, file_name_or_data_refs
+    try:
+        refs = dict(gc.get_referrers(file_name_or_data)[-1])
+        file_name_or_data_refs = [k for k, v in refs.items() if v is file_name_or_data]
+        num_refs = len(file_name_or_data_refs)
+        dprint(
+            f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
+            f'\n References: {file_name_or_data_refs}'
+        )
+        del file_name_or_data, refs, file_name_or_data_refs
+    except Exception as e:
+        del file_name_or_data
 
 
 def upload_and_callback(
