@@ -236,7 +236,7 @@ def verify_zip_objects(
 
     logprint(f'Contents: {lc}', log)
     try:
-        a = current_objects.isin(contents)
+        a = current_objects.isin(contents).values
         logprint(a, log)
         if sum(a) == lc:
             verified = True
