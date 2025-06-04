@@ -542,14 +542,18 @@ def zip_and_upload(
             mem_per_worker,
             log
         )
-        refs = dict(gc.get_referrers(zip_data)[-1])
-        zip_data_refs = [k for k, v in refs.items() if v is zip_data]
-        num_refs = len(zip_data_refs)
-        dprint(
-            f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
-            f'\n References: {zip_data_refs}'
-        )
-        del zip_data, namelist, file_paths, refs, zip_data_refs
+        try:
+            refs = dict(gc.get_referrers(zip_data)[-1])
+            zip_data_refs = [k for k, v in refs.items() if v is zip_data]
+            num_refs = len(zip_data_refs)
+            dprint(
+                f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
+                f'\n References: {zip_data_refs}'
+            )
+            del refs, zip_data_refs
+        except Exception as e:
+            dprint(f'Error getting references for zip_data: {e}', flush=True)
+        del zip_data, namelist, file_paths
         return uploaded
 
 
@@ -751,14 +755,18 @@ def upload_to_bucket(
                 log_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}","n/a","n/a"'
                 with open(log, 'a') as f:
                     f.write(log_string + '\n')
-                refs = dict(gc.get_referrers(filename)[-1])
-                filename_refs = [k for k, v in refs.items() if v is filename]
-                num_refs = len(filename_refs)
-                dprint(
-                    f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
-                    f'\n References: {filename_refs}'
-                )
-                del filename, refs, filename_refs
+                try:
+                    refs = dict(gc.get_referrers(filename)[-1])
+                    filename_refs = [k for k, v in refs.items() if v is filename]
+                    num_refs = len(filename_refs)
+                    dprint(
+                        f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
+                        f'\n References: {filename_refs}'
+                    )
+                    del refs, filename_refs
+                except Exception as e:
+                    dprint(f'Error getting references for filename: {e}', flush=True)
+                del filename
                 return True
 
         dprint(f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, {file_size} bytes, '
@@ -984,14 +992,18 @@ def upload_to_bucket(
                 except Exception as e:
                     dprint(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
                     return False
-                refs = dict(gc.get_referrers(file_data)[-1])
-                file_data_refs = [k for k, v in refs.items() if v is file_data]
-                num_refs = len(file_data_refs)
-                dprint(
-                    f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
-                    f'\n References: {file_data_refs}'
-                )
-                del file_data, refs, file_data_refs
+                try:
+                    refs = dict(gc.get_referrers(file_data)[-1])
+                    file_data_refs = [k for k, v in refs.items() if v is file_data]
+                    num_refs = len(file_data_refs)
+                    dprint(
+                        f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
+                        f'\n References: {file_data_refs}'
+                    )
+                    del refs, file_data_refs
+                except Exception as e:
+                    dprint(f'Error getting references for file_data: {e}', flush=True)
+                del file_data
         else:
             checksum_string = "DRYRUN"
 
@@ -1210,14 +1222,18 @@ def upload_to_bucket_collated(
                     break
         with open(log, 'a') as f:
             f.write(log_string + '\n')
-        refs = dict(gc.get_referrers(file_data)[-1])
-        file_data_refs = [k for k, v in refs.items() if v is file_data]
-        num_refs = len(file_data_refs)
-        dprint(
-            f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
-            f'\n References: {file_data_refs}'
-        )
-        del file_data, refs, file_data_refs
+        try:
+            refs = dict(gc.get_referrers(file_data)[-1])
+            file_data_refs = [k for k, v in refs.items() if v is file_data]
+            num_refs = len(file_data_refs)
+            dprint(
+                f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
+                f'\n References: {file_data_refs}'
+            )
+            del refs, file_data_refs
+        except Exception as e:
+            dprint(f'Error getting references for file_data: {e}', flush=True)
+        del file_data
         return True
 
 
@@ -1353,7 +1369,7 @@ def print_stats(
             f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
             f'\n References: {file_name_or_data_refs}'
         )
-        del file_name_or_data, refs, file_name_or_data_refs
+        del refs, file_name_or_data_refs
     except Exception as e:
         dprint(f'Error getting references for {file_name_or_data}: {e}')
         del file_name_or_data
@@ -1472,14 +1488,18 @@ def upload_and_callback(
         total_files_uploaded,
         collated
     )
-    refs = dict(gc.get_referrers(file_name_or_data)[-1])
-    file_name_or_data_refs = [k for k, v in refs.items() if v is file_name_or_data]
-    num_refs = len(file_name_or_data_refs)
-    dprint(
-        f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
-        f'\n References: {file_name_or_data_refs}'
-    )
-    del file_name_or_data, refs, file_name_or_data_refs
+    try:
+        refs = dict(gc.get_referrers(file_name_or_data)[-1])
+        file_name_or_data_refs = [k for k, v in refs.items() if v is file_name_or_data]
+        num_refs = len(file_name_or_data_refs)
+        dprint(
+            f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
+            f'\n References: {file_name_or_data_refs}'
+        )
+        del refs, file_name_or_data_refs
+    except Exception as e:
+        dprint(f'Error getting references for {file_name_or_data}: {e}')
+    del file_name_or_data
 
     return result
 
