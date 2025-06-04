@@ -235,12 +235,16 @@ def verify_zip_objects(
     verified = False
 
     logprint(f'Contents: {lc}', log)
-    if sum(current_objects.isin(contents).compute()) == lc:
-        verified = True
-        logprint(f'{zip_obj} verified: {verified} - can be deleted', log)
-    else:
+    try:
+        if sum(current_objects.isin(contents).compute()) == lc:
+            verified = True
+            logprint(f'{zip_obj} verified: {verified} - can be deleted', log)
+        else:
+            verified = False
+            logprint(f'{zip_obj} verified: {verified} - cannot be deleted', log)
+    except Exception as e:
+        logprint(f'Error verifying {zip_obj}: {e}', log)
         verified = False
-        logprint(f'{zip_obj} verified: {verified} - cannot be deleted', log)
     del zip_metadata, contents
     gc.collect()
     return verified
