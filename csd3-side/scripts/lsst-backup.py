@@ -368,7 +368,7 @@ def find_metadata(key: str, bucket) -> List[str]:
         return None
 
 
-def find_metadata_swift(key: str, conn, container_name: str) -> List[str]:
+def find_metadata_swift(row: pd.Series, conn: swiftclient.Connection, container_name: str) -> List[str]:
     """
     Retrieve metadata for a given key from a Swift container.
 
@@ -388,7 +388,7 @@ def find_metadata_swift(key: str, conn, container_name: str) -> List[str]:
     Returns:
         List[str]: A list of metadata strings if found, otherwise None.
     """
-
+    key = row['CURRENT_OBJECTS']
     if isinstance(key, str):
         existing_zip_contents = None
         if key.endswith('.zip'):
@@ -2390,12 +2390,18 @@ if __name__ == '__main__':
                     current_objects,
                     npartitions=len(client.scheduler_info()['workers']) * 10
                 )
-                current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(
-                    find_metadata_swift,
-                    conn=s3,
-                    container_name=bucket_name,
+                current_objects['METADATA'] = current_objects.map_partitions(
+                    lambda partition: partition.apply(
+                        find_metadata_swift,
+                        axis=1,
+                        args=(
+                            s3,
+                            bucket_name,
+                        )
+                    ),
+                    meta=('METADATA', 'object')
                 )
-                current_objects = current_objects.compute()
+                current_objects = current_objects.persist()
             print(flush=True)
         else:
             current_objects['METADATA'] = None
