@@ -658,7 +658,7 @@ def main():
             ]['extracted_and_uploaded'].persist()
             del keys_df
             gc.collect()
-            if extracted_and_uploaded.all():
+            if extracted_and_uploaded.all().compute():
                 dprint('All zip files extracted and uploaded.')
                 rm_parquet(pq)
 
