@@ -576,7 +576,7 @@ def main():
         if extract:
             if not recover:
                 # keys_df = client.persist(keys_df)
-                check = keys_df['is_zipfile'].any().persist()
+                check = keys_df['is_zipfile'].any().compute()
                 if not check:
                     dprint('No zipfiles found. Exiting.')
                     sys.exit()
