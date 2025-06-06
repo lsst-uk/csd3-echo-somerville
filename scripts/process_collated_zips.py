@@ -564,8 +564,7 @@ def main():
         # check, compute and write to parquet
 
         if list_zips:
-            keys_df = keys_df.compute()  # effectively to_pandas
-            check = keys_df['is_zipfile'].any()
+            check = keys_df['is_zipfile'].any().persist()
             if not check:
                 dprint('No zipfiles found. Exiting.')
                 sys.exit()
@@ -577,7 +576,7 @@ def main():
         if extract:
             if not recover:
                 # keys_df = client.persist(keys_df)
-                check = keys_df['is_zipfile'].any().compute()
+                check = keys_df['is_zipfile'].any().persist()
                 if not check:
                     dprint('No zipfiles found. Exiting.')
                     sys.exit()
@@ -604,7 +603,7 @@ def main():
                     meta=('contents', 'str'),
                 )
 
-                keys_series = keys_df['key'].compute()
+                keys_series = keys_df['key'].persist()
                 keys_df['extract'] = keys_df.map_partitions(
                     lambda partition: partition.apply(
                         verify_zip_contents,
@@ -656,7 +655,7 @@ def main():
             # with annotate(resources={'MEMORY': 10e9}):
             extracted_and_uploaded = keys_df[
                 keys_df['extract'] == True  # noqa
-            ]['extracted_and_uploaded'].compute()
+            ]['extracted_and_uploaded'].persist()
             del keys_df
             gc.collect()
             if extracted_and_uploaded.all():
