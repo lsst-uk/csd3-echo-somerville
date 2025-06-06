@@ -501,7 +501,7 @@ def zip_and_upload(
     Returns:
         bool: True if a zip was created and uploaded, False if not..
     """
-    dprint(row, flush=True)
+    # dprint(row, flush=True)
     file_paths = row['paths'].split('|')
     id = row['id']
 
