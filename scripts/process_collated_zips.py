@@ -445,7 +445,14 @@ def main():
         '-n',
         type=int,
         help='Maximum number of processes to use for extraction and upload.',
-        default=6
+        default=12
+    )
+    parser.add_argument(
+        '--nthreads',
+        '-t',
+        type=int,
+        help='Number of threads per worker to use for parallel upload. Default is 4.',
+        default=4
     )
     parser.add_argument(
         '--prefix',
@@ -501,7 +508,7 @@ def main():
             nprocs = cpu_count() - 1
     else:
         nprocs = 6
-    threads_per_worker = 8  # large number as each worker may need to extract multiple files
+    threads_per_worker = args.nthreads  # large number as each worker may need to extract multiple files
     n_workers = nprocs // threads_per_worker
     mem_per_worker = 64 * 1024**3 // n_workers  # limit to 64 GiB total memory
 

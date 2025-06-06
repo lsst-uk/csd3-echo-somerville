@@ -294,7 +294,7 @@ if __name__ == '__main__':
         '--nthreads',
         '-t',
         type=int,
-        help='Number of threads per worker to use for parallel upload. Default is 4.',
+        help='Number of threads per worker to use for parallel upload. Default is 2.',
         default=2
     )
     parser.add_argument(
