@@ -603,7 +603,7 @@ def main():
                     meta=('contents', 'str'),
                 )
 
-                keys_series = keys_df['key'].persist()
+                keys_series = keys_df['key'].copy().persist()
                 keys_df['extract'] = keys_df.map_partitions(
                     lambda partition: partition.apply(
                         verify_zip_contents,
