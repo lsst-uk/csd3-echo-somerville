@@ -503,7 +503,7 @@ if __name__ == '__main__':
                 logprint('Scattering current objects to workers for parallel processing.')
                 # current_objects = current_objects['CURRENT_OBJECTS'].compute()  # noqa
                 # client.scatter(current_object_names, broadcast=True)  # noqa
-                current_object_names = client.persist(current_objects['CURRENT_OBJECTS'])  # noqa
+                # current_object_names = client.persist(current_objects['CURRENT_OBJECTS'])  # noqa
                 if verify:
                     current_zips['verified'] = current_zips.map_partitions(
                         lambda partition: partition.apply(
