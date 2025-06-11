@@ -346,7 +346,7 @@ def extract_and_upload(row: pd.Series, conn: swiftclient.Connection, bucket_name
     del zipfile_data
     gc.collect()
     end = datetime.now()
-    duration = (end - start).microseconds / 1e6 + (end - start).seconds
+    duration = (end - start).total_seconds()
     try:
         if uploaded:
             dprint(

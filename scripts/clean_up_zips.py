@@ -467,7 +467,7 @@ if __name__ == '__main__':
         # ) // n_workers * n_workers
         # if use_nparts != nparts:
         #     current_objects = current_objects.repartition(npartitions=use_nparts)
-        logprint(f'Current_object Partitions: {current_objects.npartitions}', log=log)
+        logprint(f'Current_objects Partitions: {current_objects.npartitions}', log=log)
 
         logprint(f'Found {len(current_objects)} objects (with matching prefix) in bucket {bucket_name}.',
                  log=log)
@@ -502,7 +502,8 @@ if __name__ == '__main__':
             if len_cz > 0:
                 logprint('Scattering current objects to workers for parallel processing.')
                 # current_objects = current_objects['CURRENT_OBJECTS'].compute()  # noqa
-                client.scatter(current_object_names, broadcast=True)  # noqa
+                # client.scatter(current_object_names, broadcast=True)  # noqa
+                current_object_names = client.persist(current_objects['CURRENT_OBJECTS'])  # noqa
                 if verify:
                     current_zips['verified'] = current_zips.map_partitions(
                         lambda partition: partition.apply(
