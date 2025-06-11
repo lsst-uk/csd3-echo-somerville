@@ -81,10 +81,10 @@ def delete_object_swift(
     if pd.isna(obj):
         # logprint('WARNING: obj is NaN', log)
         return False
-    logprint('DEBUG:', log)
-    logprint(f'Row: {row}', log)
-    logprint(f'Object to delete: {obj}', log)
-    logprint(f'type(obj): {type(obj)}', log)
+    # logprint('DEBUG:', log)
+    # logprint(f'Row: {row}', log)
+    # logprint(f'Object to delete: {obj}', log)
+    # logprint(f'type(obj): {type(obj)}', log)
     deleted = False
     try:
         s3.delete_object(bucket_name, obj)
@@ -218,12 +218,12 @@ def verify_zip_objects(
         return False
     path_stub = '/'.join(zip_obj.split('/')[:-1])
     zip_metadata_uri = f'{zip_obj}.metadata'
-    logprint(
-        f'DEBUG:\nzip_obj: {zip_obj}\npath_stub: {path_stub}\n'
-        f'zip_metadata_uri: {zip_metadata_uri}\n'
-    )
-    logprint(f'Row: {row}', log)
-    logprint(f'Current objects: {len(current_objects)}', log)
+    # logprint(
+    #     f'DEBUG:\nzip_obj: {zip_obj}\npath_stub: {path_stub}\n'
+    #     f'zip_metadata_uri: {zip_metadata_uri}\n'
+    # )
+    # logprint(f'Row: {row}', log)
+    # logprint(f'Current objects: {len(current_objects)}', log)
     try:
         zip_metadata = s3.get_object(bucket_name, zip_metadata_uri)[1]
     except swiftclient.exceptions.ClientException as e:
@@ -234,7 +234,7 @@ def verify_zip_objects(
     lc = len(contents)
     verified = False
 
-    logprint(f'Contents: {lc}', log)
+    # logprint(f'Contents: {lc}', log)
     try:
         if sum(current_objects.isin(contents).values) == lc:
             verified = True
