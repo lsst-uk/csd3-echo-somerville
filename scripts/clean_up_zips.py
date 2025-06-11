@@ -458,7 +458,7 @@ if __name__ == '__main__':
         len_co = len(current_object_names)
         current_objects = dd.from_pandas(
             current_object_names,
-            npartitions=n_workers * 1000
+            npartitions=n_workers * 100
         )
         # del current_object_names
         # nparts = current_objects.npartitions
@@ -500,7 +500,7 @@ if __name__ == '__main__':
             # print(f'n_partitions: {current_zips.npartitions}')
 
             if len_cz > 0:
-                logprint('Scattering current objects to workers for parallel processing.')
+                logprint('Verifying zips can be deleted (i.e., contents exist).')
                 # current_objects = current_objects['CURRENT_OBJECTS'].compute()  # noqa
                 # client.scatter(current_object_names, broadcast=True)  # noqa
                 # current_object_names = client.persist(current_objects['CURRENT_OBJECTS'])  # noqa
