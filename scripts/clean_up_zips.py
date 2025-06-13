@@ -15,7 +15,7 @@ from distributed import Client
 import subprocess
 warnings.filterwarnings('ignore')
 
-
+@dask.delayed
 def logprint(msg: str, log=None) -> None:
     """
     Logs a message to a specified log file or prints it to the console.
