@@ -383,7 +383,7 @@ if __name__ == '__main__':
 
     # Print hostname
     uname = subprocess.run(['uname', '-n'], capture_output=True)
-    logprint(f'Running on {uname.stdout.decode().strip()}', log)
+    logprint(f'Running on {uname.stdout.decode().strip()}', log).compute()
 
     # Initiate timing
     start = datetime.now()
