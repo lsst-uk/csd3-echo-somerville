@@ -9,13 +9,14 @@ import bucket_manager.bucket_manager as bm
 import swiftclient.exceptions
 import swiftclient
 import argparse
-from dask import dataframe as dd
 import dask
+from dask import dataframe as dd
+from dask import delayed
 from distributed import Client
 import subprocess
 warnings.filterwarnings('ignore')
 
-@dask.delayed
+
 def logprint(msg: str, log=None) -> None:
     """
     Logs a message to a specified log file or prints it to the console.
@@ -75,6 +76,7 @@ def delete_object_swift(
         - Logs warnings if the metadata deletion fails.
         - Prints errors to stderr if the primary object deletion fails.
     """
+    prints = []
     if verify:
         if row['verified'] is False:
             logprint(f'WARNING: {row["CURRENT_OBJECTS"]} not verified for deletion.', log)
@@ -90,7 +92,7 @@ def delete_object_swift(
     deleted = False
     try:
         s3.delete_object(bucket_name, obj)
-        logprint(f'Deleted {obj}', log)
+        prints.append(delayed(logprint(f'Deleted {obj}', log)))
         deleted = True
     except Exception as e:
         print(f'Error deleting {obj}: {e}', file=sys.stderr)
@@ -98,9 +100,10 @@ def delete_object_swift(
     if del_metadata:
         try:
             s3.delete_object(bucket_name, f'{obj}.metadata')
-            logprint(f'Deleted {obj}.metadata', log)
+            prints.append(delayed(logprint(f'Deleted {obj}.metadata', log)))
         except swiftclient.exceptions.ClientException as e:
-            logprint(f'WARNING: Error deleting {obj}.metadata: {e.msg}', log)
+            prints.append(delayed(logprint(f'WARNING: Error deleting {obj}.metadata: {e.msg}', log)))
+    dask.compute(*prints)
     return deleted
 
 
@@ -383,7 +386,7 @@ if __name__ == '__main__':
 
     # Print hostname
     uname = subprocess.run(['uname', '-n'], capture_output=True)
-    logprint(f'Running on {uname.stdout.decode().strip()}', log).compute()
+    logprint(f'Running on {uname.stdout.decode().strip()}', log)
 
     # Initiate timing
     start = datetime.now()
