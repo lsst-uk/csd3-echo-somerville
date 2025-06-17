@@ -1877,6 +1877,8 @@ def process_files(
         uploads = uploads.map_partitions(lambda p: p).compute()
         num_zip_batches = uploads['id'].max()
         uploads.to_csv(upload_list_file, index=False)
+        len_ups = len(uploads)
+        len_zips = len(uploads[uploads['type'] == 'zip'])
         uploads = dd.from_pandas(
             uploads,
             npartitions=len(uploads) // sum(
@@ -1886,9 +1888,7 @@ def process_files(
 
         # call zip_folder in parallel
         # print(uploads, flush=True)
-        len_ups = len(uploads)
-        print(f'Total uploads: {len(uploads)}')
-        len_zips = len(uploads[uploads['type'] == 'zip'])
+        print(f'Total uploads: {len_ups}')
         print(
             f"Zipping and uploading "
             f"{num_zip_batches} " # noqa
