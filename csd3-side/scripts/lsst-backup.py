@@ -1879,12 +1879,15 @@ def process_files(
         uploads.to_csv(upload_list_file, index=False)
         len_ups = len(uploads)
         len_zips = len(uploads[uploads['type'] == 'zip'])
-        uploads = dd.from_pandas(
-            uploads,
-            npartitions=len(uploads) // sum(
-                [t['nthreads'] for t in client.scheduler_info()['workers'].values()]
+        if len_ups > 100:
+            uploads = dd.from_pandas(
+                uploads,
+                npartitions=len(uploads) // sum(
+                    [t['nthreads'] for t in client.scheduler_info()['workers'].values()]
+                )
             )
-        )
+        else:
+            uploads = dd.from_pandas(uploads, npartitions=1)
 
         # call zip_folder in parallel
         # print(uploads, flush=True)
