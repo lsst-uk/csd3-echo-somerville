@@ -938,7 +938,7 @@ def upload_to_bucket(
                         """
                         - Use multipart upload for large files
                         """
-                        swift_service = bm.get_swift_service()
+                        swift_service = bm.get_service_swift()
                         segment_size = 512 * 1024**2
                         segments = []
                         n_segments = int(np.ceil(file_size / segment_size))
