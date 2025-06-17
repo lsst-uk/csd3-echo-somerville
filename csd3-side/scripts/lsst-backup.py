@@ -1904,6 +1904,7 @@ def process_files(
                 f"{len_ups - len_zips} " # noqa
                 "individual files."
             )
+            len_individuals = int(len_ups - len_zips)
         elif len_ups > 0:
             print(f'Total uploads: {len_ups}')
             print(
@@ -1911,6 +1912,7 @@ def process_files(
                 f"{len_ups} "
                 "individual files."
             )
+            len_individuals = int(len_ups)
         else:
             print('No uploads to perform.', flush=True)
             return None
@@ -1957,11 +1959,32 @@ def process_files(
             print('No zip uploads.', flush=True)
             # zip_uploads = pd.Series([], dtype=bool)
         if at_least_one_individual:
-            file_uploads = uploads[uploads['type'] == 'file'].map_partitions(
-                lambda partition: partition.apply(
+            if len_individuals > 100:
+                file_uploads = uploads[uploads['type'] == 'file'].map_partitions(
+                    lambda partition: partition.apply(
+                        upload_files_from_series,
+                        axis=1,
+                        # meta=('file_uploads', bool),
+                        args=(
+                            s3,
+                            bucket_name,
+                            api,
+                            local_dir,
+                            dryrun,
+                            processing_start,
+                            1,
+                            total_size_uploaded,
+                            total_files_uploaded,
+                            mem_per_worker,
+                            log,
+                        ),
+                        # axis=1,
+                    ),
+                    meta=('file_uploads', bool),
+                )
+            else:
+                file_uploads = uploads[uploads['type'] == 'file'].apply(
                     upload_files_from_series,
-                    axis=1,
-                    # meta=('file_uploads', bool),
                     args=(
                         s3,
                         bucket_name,
@@ -1975,10 +1998,9 @@ def process_files(
                         mem_per_worker,
                         log,
                     ),
-                    # axis=1,
-                ),
-                meta=('file_uploads', bool),
-            )
+                    axis=1,
+                    meta=('file_uploads', bool),
+                )
         else:
             print('No file uploads.', flush=True)
             # file_uploads = pd.Series([], dtype=bool)
@@ -1992,7 +2014,10 @@ def process_files(
             all_uploads_successful = bool(zip_uploads.all())
         elif at_least_one_individual:
             print(type(file_uploads), flush=True)
-            file_uploads = file_uploads.compute()  # removed map_partitions lambda p: p
+            if len_individuals > 100:
+                file_uploads = file_uploads.map_partitions(lambda p: p).compute()
+            else:
+                file_uploads = file_uploads.compute()
             all_uploads_successful = bool(file_uploads.all())
         else:
             all_uploads_successful = None
