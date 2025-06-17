@@ -2450,13 +2450,13 @@ if __name__ == '__main__':
         # check if log exists in the bucket, download and append if it does
         print(f'Checking for existing log files in bucket {bucket_name}, elapsed time = '
               f'{datetime.now() - start_main}', flush=True)
-        if current_objects['CURRENT_OBJECTS'].isin([log]).any():
+        if current_objects['CURRENT_OBJECTS'].isin([log]).compute().any():
             print(f'Log file {log} already exists in bucket. Downloading.')
             if api == 's3':
                 bucket.download_file(log, log)
             elif api == 'swift':
                 bm.download_file_swift(s3, bucket_name, log, log)
-        elif current_objects['CURRENT_OBJECTS'].isin([previous_log]).any():
+        elif current_objects['CURRENT_OBJECTS'].isin([previous_log]).compute().any():
             print(f'Previous log file {previous_log} already exists in bucket. Downloading.')
             if api == 's3':
                 bucket.download_file(previous_log, log)
