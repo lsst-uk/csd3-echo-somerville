@@ -1991,7 +1991,7 @@ def process_files(
             zip_uploads = zip_uploads.map_partitions(lambda p: p).compute()
             all_uploads_successful = bool(zip_uploads.all())
         elif at_least_one_individual:
-            print(file_uploads.npartitions, flush=True)
+            print(type(file_uploads), flush=True)
             file_uploads = file_uploads.map_partitions(lambda p: p).compute()
             all_uploads_successful = bool(file_uploads.all())
         else:
