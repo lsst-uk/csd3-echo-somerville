@@ -1888,21 +1888,32 @@ def process_files(
 
         # call zip_folder in parallel
         # print(uploads, flush=True)
-        print(f'Total uploads: {len_ups}')
-        print(
-            f"Zipping and uploading "
-            f"{num_zip_batches} " # noqa
-            f"batches containing {len_zips} files"
-        )
-        print(
-            f"Average files per zip batch: "
-            f"{(num_zip_batches / len_zips):.2f}"
-        )
-        print(
-            f"Uploading "
-            f"{len_ups - len_zips} " # noqa
-            "individual files."
-        )
+        if len_ups > 0 and len_zips > 0:
+            print(f'Total uploads: {len_ups}')
+            print(
+                f"Zipping and uploading "
+                f"{num_zip_batches} " # noqa
+                f"batches containing {len_zips} files"
+            )
+            print(
+                f"Average files per zip batch: "
+                f"{(num_zip_batches / len_zips):.2f}"
+            )
+            print(
+                f"Uploading "
+                f"{len_ups - len_zips} " # noqa
+                "individual files."
+            )
+        elif len_ups > 0:
+            print(f'Total uploads: {len_ups}')
+            print(
+                f"Uploading "
+                f"{len_ups} "
+                "individual files."
+            )
+        else:
+            print('No uploads to perform.', flush=True)
+            return None
         print('Uploading...', flush=True)
         # zip_uploads = uploads[uploads['type'] == 'zip']
         # file_uploads = uploads[uploads['type'] == 'file']
