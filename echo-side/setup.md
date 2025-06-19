@@ -67,4 +67,28 @@ Then apply this to the Airflow installation with:
 helm upgrade --install airflow apache-airflow/airflow --namespace airflow -f gitsync-values.yaml
 ```
 
-Thereafter, on logging into the Airflow webUI, DAG Python scripts from the GitHub repo will appear in the DAG list.
+Thereafter, on logging into the Airflow webUI (see below), DAG Python scripts from the GitHub repo will appear in the DAG list.
+
+To enable port-forwarding from the Airflow webserver pod to the host VM, first he `hosts` file must be updated to list all IPs that microk8s expects to be internally certified.
+
+Use `sudo` to edit `/etc/hosts`:
+```
+127.0.0.1 localhost # require localhost IP address and name
+192.168.140.223 echo-monitor # example OpenStack IP address (i.e., not the floating IP) and instance name
+```
+
+Now, port-farwarding should work with no certificate error:
+
+```
+kubectl port-forward svc/airflow-webserver 8080 --namespace airflow
+```
+
+This can be done in the terminal directly or in a `tmux` shell.
+
+In a separate terminal window, use SSH port-forwarding from your local machine, e.g.,:
+
+```
+ssh -i $HOME/.ssh/id_rsa -L 8080:localhost:8080 ubuntu@<floating ip>
+```
+
+Finally, navigate to [https://127.0.0.1:8080](https://127.0.0.1:8080) in your web browser. For info on the UI, see [Airflow UI Overview](https://airflow.apache.org/docs/apache-airflow/stable/ui.html).
