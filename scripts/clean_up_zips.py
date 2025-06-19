@@ -14,7 +14,13 @@ from dask import dataframe as dd
 from dask import delayed
 from distributed import Client
 import subprocess
+import logging
 warnings.filterwarnings('ignore')
+
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def logprint(msg: str, log=None) -> None:
