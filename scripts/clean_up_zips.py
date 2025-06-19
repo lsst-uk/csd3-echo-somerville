@@ -404,19 +404,19 @@ if __name__ == '__main__':
                 s3_host = os.environ['ST_AUTH']
     except AssertionError as e:
         print(f'AssertionError {e}', file=sys.stderr)
-        sys.exit()
+        sys.exit('AssertionError occurred. Exiting.')
     except KeyError as e:
         print(f'KeyError {e}', file=sys.stderr)
-        sys.exit()
+        sys.exit('KeyError occurred. Exiting.')
     except ValueError as e:
         print(f'ValueError {e}', file=sys.stderr)
-        sys.exit()
+        sys.exit('ValueError occurred. Exiting.')
 
     logprint(f'Using {api.capitalize()} API with host {s3_host}')
 
     if api == 's3':
         print('Currently only Swift is supported for parallelism with Dask. Exiting.', file=sys.stderr)
-        sys.exit()
+        sys.exit('Currently only Swift is supported for parallelism with Dask. Exiting.')
 
     elif api == 'swift':
         s3 = bm.get_conn_swift()
@@ -424,7 +424,7 @@ if __name__ == '__main__':
 
     if bucket_name not in bucket_list:
         print(f'Bucket {bucket_name} not found in {api} bucket list. Exiting.', file=sys.stderr)
-        sys.exit()
+        sys.exit(f'Bucket {bucket_name} not found in {api} bucket list. Exiting.')
 
     if api == 's3':
         bucket = s3.Bucket(bucket_name)
@@ -559,7 +559,7 @@ if __name__ == '__main__':
                     logprint('Continue [y/n]?')
                     if not yes:
                         if input().lower() != 'y':
-                            sys.exit()
+                            sys.exit('Please supply a valid answer. Exiting.')
                     else:
                         logprint('auto y')
                     # current_zips = current_zips.dropna(subset=['CURRENT_OBJECTS'])  # noqa
