@@ -564,7 +564,7 @@ def main():
         # check, compute and write to parquet
 
         if list_zips:
-            check = keys_df['is_zipfile'].any().persist()
+            check = keys_df['is_zipfile'].any().compute()
             if not check:
                 dprint('No zipfiles found. Exiting.')
                 sys.exit()
