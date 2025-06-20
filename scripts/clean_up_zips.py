@@ -463,7 +463,7 @@ if __name__ == '__main__':
     with Client(
         n_workers=n_workers,
         threads_per_worker=num_threads,
-        memory_limit=f'{(mem().total//1024**3)*7//8}GB'
+        memory_limit=f'{(mem().total//1024**3)*5//8}GB'
     ) as client:
         logprint(f'Dask Client: {client}', log=logger)
         logprint(f'Dashboard: {client.dashboard_link}', log=logger)
