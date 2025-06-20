@@ -487,7 +487,7 @@ if __name__ == '__main__':
         elif api == 'swift':
             current_object_names = bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)
         current_object_names = pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_object_names})
-        logprint(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', log=logger)
+        logprint(f'Done at {datetime.now()}, elapsed time = {datetime.now() - start}', log=logger)
         len_co = len(current_object_names)
         current_objects = dd.from_pandas(
             current_object_names,
