@@ -486,7 +486,7 @@ if __name__ == '__main__':
         len_co = len(current_object_names)
         current_objects = dd.from_pandas(
             current_object_names,
-            npartitions=n_workers * 1000
+            npartitions=n_workers
         )
         # del current_object_names
         # nparts = current_objects.npartitions
