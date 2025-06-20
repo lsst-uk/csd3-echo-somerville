@@ -18,11 +18,6 @@ import logging
 warnings.filterwarnings('ignore')
 
 
-# Set up logging
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
-
-
 def logprint(msg: str, log=None) -> None:
     """
     Logs a message to a specified log file or prints it to the console.
@@ -330,12 +325,6 @@ if __name__ == '__main__':
         help='Perform a dry run without uploading files or deleting zips. Default is False.'
     )
     parser.add_argument(
-        '--log-to-file',
-        default=False,
-        action='store_true',
-        help='Log output to file. Default is False, i.e., stdout.'
-    )
-    parser.add_argument(
         '--yes',
         '-y',
         default=False,
@@ -350,12 +339,31 @@ if __name__ == '__main__':
         help='Skip verification the contents of the zip file are in the list of uploaded files *before* '
              'deletion. Default is False.'
     )
+    parser.add_argument(
+        '--debug',
+        '-D',
+        default=False,
+        action='store_true',
+        help='Enable debug logging. Default is False.'
+    )
     args = parser.parse_args()
+
+    # Set up logging
+    debug = args.debug
+    debug_level = logging.DEBUG if debug else logging.INFO
+    logging.basicConfig(
+        level=debug_level,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
+    logger = logging.getLogger('clean_zips')
 
     # Parse arguments
     api = args.api.lower()
     if api not in ['s3', 'swift']:
-        print('API set to "swift".')
+        logprint('API set to "swift".', log=logger)
         api = 'swift'
 
     if not args.bucket_name:
@@ -373,31 +381,23 @@ if __name__ == '__main__':
     nprocs = args.nprocs
     dryrun = args.dryrun
     yes = args.yes
-    log_to_file = args.log_to_file
     verify = not args.verify_skip  # Default is to verify
     clean_metadata = args.clean_up_metadata
     num_threads = args.nthreads
     if num_threads > nprocs:
         print(f'Number of threads ({num_threads}) cannot be greater than number of processes ({nprocs}). '
               f'Setting threads per worker to {nprocs // 2}.', file=sys.stderr)
+        logger.debug('Forcing number of threads per worker to half of nprocs.')
         num_threads = nprocs // 2
 
-    print(f'API: {api}, Bucket name: {bucket_name}, Prefix: {prefix}, nprocs: {nprocs}, dryrun: {dryrun}')
-
-    # Set up logging
-    if log_to_file:
-        log = f'clean_zips_{bucket_name}_{"-".join(prefix.split("/"))}'
-        f'_{datetime.now().strftime("%Y%m%d%H%M%S")}.log'
-        if not os.path.exists(log):
-            logprint(f'Created log file {log}', log)
-        logprint(log, log)
-    else:
-        log = None
-        logprint('Logging to stdout.', log)
+    logprint(
+        f'API: {api}, Bucket name: {bucket_name}, Prefix: {prefix}, nprocs: {nprocs}, dryrun: {dryrun}',
+        log=logger
+    )
 
     # Print hostname
     uname = subprocess.run(['uname', '-n'], capture_output=True)
-    logprint(f'Running on {uname.stdout.decode().strip()}', log)
+    logprint(f'Running on {uname.stdout.decode().strip()}', log=logger)
 
     # Initiate timing
     start = datetime.now()
@@ -426,7 +426,7 @@ if __name__ == '__main__':
         logger.debug('Exiting because of value error in environment variables.')
         sys.exit('ValueError occurred. Exiting.')
 
-    logprint(f'Using {api.capitalize()} API with host {s3_host}')
+    logprint(f'Using {api.capitalize()} API with host {s3_host}', log=logger)
 
     if api == 's3':
         print('Currently only Swift is supported for parallelism with Dask. Exiting.', file=sys.stderr)
@@ -456,9 +456,12 @@ if __name__ == '__main__':
     n_workers = nprocs // num_threads  # e.g., 48 / 2 = 24
     mem_per_worker = mem().total // n_workers  # e.g., 187 GiB / 48 * 2 = 7.8 GiB
 
-    logprint(f'nprocs: {nprocs}, Threads per worker: {num_threads}, Number of workers: {n_workers}, '
-             f'Total memory: {total_memory/1024**3:.2f} GiB, Memory per worker: '
-             f'{mem_per_worker/1024**3:.2f} GiB')
+    logprint(
+        f'nprocs: {nprocs}, Threads per worker: {num_threads}, Number of workers: {n_workers}, '
+        f'Total memory: {total_memory/1024**3:.2f} GiB, Memory per worker: '
+        f'{mem_per_worker/1024**3:.2f} GiB',
+        log=logger
+    )
 
     # Process the files
     with Client(
