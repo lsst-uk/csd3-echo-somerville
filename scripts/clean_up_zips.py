@@ -11,7 +11,6 @@ import swiftclient
 import argparse
 import dask
 from dask import dataframe as dd
-from dask import delayed
 from distributed import Client
 import subprocess
 import logging
@@ -47,7 +46,7 @@ def logprint(msg: str, log: str | logging.Logger = None) -> None:
     return None
 
 
-@dask.delayed
+# @dask.delayed
 def delete_object_swift(
     row: pd.Series,
     s3: swiftclient.Connection,
@@ -109,7 +108,7 @@ def delete_object_swift(
     return deleted
 
 
-@dask.delayed
+# @dask.delayed
 def is_orphaned_metadata(
     row: pd.Series,
     current_objects: pd.Series,
@@ -145,7 +144,7 @@ def is_orphaned_metadata(
     return True if in_co == 0 else False
 
 
-@dask.delayed
+# @dask.delayed
 def clean_orphaned_metadata(
     row: pd.Series,
     s3: swiftclient.Connection,
@@ -189,7 +188,7 @@ def clean_orphaned_metadata(
         return False
 
 
-@dask.delayed
+# @dask.delayed
 def verify_zip_objects(
     row: pd.Series,
     s3: swiftclient.Connection,
