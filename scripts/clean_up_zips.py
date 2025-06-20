@@ -19,7 +19,7 @@ warnings.filterwarnings('ignore')
 
 
 # Set up logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
@@ -40,7 +40,10 @@ def logprint(msg: str, log=None) -> None:
         if log:
             log = None
         else:
-            return
+            return None
+    elif isinstance(log, logging.Logger):
+        log.info(msg)
+        return None
     if log is not None:
         with open(log, 'a') as logfile:
             logfile.write(f'{msg}\n')
@@ -271,6 +274,7 @@ if __name__ == '__main__':
         def error(self, message):
             sys.stderr.write(f'error: {message}\n\n')
             self.print_help()
+            logger.debug('Exiting because of CLI parsing error.')
             sys.exit(2)
     parser = MyParser(
         description='Clean up collated_***.zip objects in S3 bucket, where *** = an integer.',
@@ -357,6 +361,7 @@ if __name__ == '__main__':
     if not args.bucket_name:
         print('Bucket name not provided.', file=sys.stderr)
         parser.print_help()
+        logger.debug('Exiting because bucket name not provided.')
         sys.exit(1)
     else:
         bucket_name = args.bucket_name
@@ -410,18 +415,22 @@ if __name__ == '__main__':
                 s3_host = os.environ['ST_AUTH']
     except AssertionError as e:
         print(f'AssertionError {e}', file=sys.stderr)
+        logger.debug('Exiting because of assertion error in environment variables.')
         sys.exit('AssertionError occurred. Exiting.')
     except KeyError as e:
         print(f'KeyError {e}', file=sys.stderr)
+        logger.debug('Exiting because of key error in environment variables.')
         sys.exit('KeyError occurred. Exiting.')
     except ValueError as e:
         print(f'ValueError {e}', file=sys.stderr)
+        logger.debug('Exiting because of value error in environment variables.')
         sys.exit('ValueError occurred. Exiting.')
 
     logprint(f'Using {api.capitalize()} API with host {s3_host}')
 
     if api == 's3':
         print('Currently only Swift is supported for parallelism with Dask. Exiting.', file=sys.stderr)
+        logger.debug('Exiting because S3 API is not supported for parallelism with Dask.')
         sys.exit('Currently only Swift is supported for parallelism with Dask. Exiting.')
 
     elif api == 'swift':
@@ -430,6 +439,7 @@ if __name__ == '__main__':
 
     if bucket_name not in bucket_list:
         print(f'Bucket {bucket_name} not found in {api} bucket list. Exiting.', file=sys.stderr)
+        logger.debug(f'Exiting because bucket {bucket_name} not found in {api} bucket list.')
         sys.exit(f'Bucket {bucket_name} not found in {api} bucket list. Exiting.')
 
     if api == 's3':
@@ -456,19 +466,19 @@ if __name__ == '__main__':
         threads_per_worker=num_threads,
         memory_limit=f'{(mem().total//1024**3)*7//8}GB'
     ) as client:
-        logprint(f'Dask Client: {client}', log=log)
-        logprint(f'Dashboard: {client.dashboard_link}', log=log)
-        logprint(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}', log=log)
-        logprint(f'Using {nprocs} processes.', log=log)
+        logprint(f'Dask Client: {client}', log=logger)
+        logprint(f'Dashboard: {client.dashboard_link}', log=logger)
+        logprint(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}', log=logger)
+        logprint(f'Using {nprocs} processes.', log=logger)
         logprint(f'Getting current object list for {bucket_name}. This may take some time.\nStarting at '
-                 f'{datetime.now()}, elapsed time = {datetime.now() - start}', log=log)
+                 f'{datetime.now()}, elapsed time = {datetime.now() - start}', log=logger)
 
         if api == 's3':
             current_object_names = bm.object_list(bucket, prefix=prefix, count=False)
         elif api == 'swift':
             current_object_names = bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)
         current_object_names = pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_object_names})
-        logprint(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', log=log)
+        logprint(f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', log=logger)
         len_co = len(current_object_names)
         current_objects = dd.from_pandas(
             current_object_names,
@@ -481,10 +491,10 @@ if __name__ == '__main__':
         # ) // n_workers * n_workers
         # if use_nparts != nparts:
         #     current_objects = current_objects.repartition(npartitions=use_nparts)
-        logprint(f'Current_objects Partitions: {current_objects.npartitions}', log=log)
+        logprint(f'Current_objects Partitions: {current_objects.npartitions}', log=logger)
 
         logprint(f'Found {len(current_objects)} objects (with matching prefix) in bucket {bucket_name}.',
-                 log=log)
+                 log=logger)
         if len_co > 0:
             zip_match = r".*collated_\d+\.zip$"
             metadata_match = r".*collated_\d+\.zip\.metadata$"
@@ -498,14 +508,14 @@ if __name__ == '__main__':
             len_cz = len(current_zips)  # noqa
             logprint(
                 f'Found {len_cz} zip files (with matching prefix) in bucket {bucket_name}.',
-                log=log
+                log=logger
             )
 
             # md_objects = dd.from_pandas(current_objects[current_objects['is_metadata'] == True].compute())  # noqa
             # len_md = len(md_objects)
             # logprint(
             #     f'Found {len_md} metadata files (with matching prefix) in bucket {bucket_name}.',
-            #     log=log
+            #     log=logger
             # )
 
             # if not verify:
@@ -534,20 +544,21 @@ if __name__ == '__main__':
                     )
                     # del current_object_names
                 if dryrun:
-                    logprint(f'Current objects (with matching prefix): {len_co}', log=log)
+                    logprint(f'Current objects (with matching prefix): {len_co}', log=logger)
                     if verify:
                         current_zips = client.persist(current_zips)
                         logprint(
                             f'{len(current_zips[current_zips["verified"] == True])} zip objects '
                             'were verified as deletable.',
-                            log=log
+                            log=logger
                         )
                     else:
                         logprint(
                             f'Current zip objects (with matching prefix): {len_cz} '
                             'would be deleted.',
-                            log=log
+                            log=logger
                         )
+                    logger.debug('Dry run mode enabled. Exiting without deleting files.')
                     sys.exit()
                 else:
                     logprint(f'Current objects (with matching prefix): {len_co}')
@@ -565,7 +576,9 @@ if __name__ == '__main__':
                     logprint('Continue [y/n]?')
                     if not yes:
                         if input().lower() != 'y':
-                            sys.exit('Please supply a valid answer. Exiting.')
+                            logprint('User did not confirm deletion. Exiting.', log=logger)
+                            logger.debug('Exiting because user did not confirm deletion.')
+                            sys.exit(0)
                     else:
                         logprint('auto y')
                     # current_zips = current_zips.dropna(subset=['CURRENT_OBJECTS'])  # noqa
@@ -573,7 +586,7 @@ if __name__ == '__main__':
                     # current_zips['DELETED'] = current_zips.map_partitions(  # noqa
                     #     lambda partition: partition.apply(
 
-                    logprint('Preparing to delete zip files.', log=log)
+                    logprint('Preparing to delete zip files.', log=logger)
                     # current_zips = current_zips.persist()
                     current_zips['DELETED'] = current_zips.map_partitions(
                         lambda partition: partition.apply(
@@ -610,16 +623,16 @@ if __name__ == '__main__':
                     if verify:
                         logprint(
                             f'{len(current_zips[current_zips["verified"] == True])} zip files were verified.',
-                            log=log
+                            log=logger
                         )
                         logprint(
                             f'{len(current_zips[current_zips["DELETED"] == True])} zip files were DELETED.',
-                            log=log
+                            log=logger
                         )
                         logprint(
                             f"{len(current_zips[current_zips['verified'] == False])} zip files were not "
                             "verified and not deleted.",
-                            log=log
+                            log=logger
                         )
                         if len(
                             current_zips[current_zips['verified'] == True]  # noqa
@@ -629,24 +642,24 @@ if __name__ == '__main__':
                             logprint(
                                 "Some errors may have occurred, as some zips verified for deletion were not "
                                 "deleted.",
-                                log=log
+                                log=logger
                             )
                     else:
                         logprint(
                             f'{len(current_zips[current_zips["DELETED"] == True])} zip files were DELETED.',
-                            log=log
+                            log=logger
                         )
                     del current_zips
                     logprint(
                         f'Finished processing at {datetime.now()}, elapsed time = {datetime.now() - start}',
-                        log=log
+                        log=logger
                     )
-                    # sys.exit(0)
+
             else:
                 print(f'No zip files in bucket {bucket_name}.')
 
             if clean_metadata:
-                logprint('Checking for orphaned metadata files.', log=log)
+                logprint('Checking for orphaned metadata files.', log=logger)
                 current_objects = dd.from_pandas(
                     pd.DataFrame.from_dict(
                         {'CURRENT_OBJECTS': bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)}
@@ -654,7 +667,7 @@ if __name__ == '__main__':
                     chunksize=100000
                 )
                 logprint(
-                    f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', log=log
+                    f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', log=logger
                 )
 
                 current_objects['is_metadata'] = current_objects['CURRENT_OBJECTS'].map_partitions(
@@ -668,7 +681,7 @@ if __name__ == '__main__':
                     if dryrun:
                         logprint(
                             'Any orphaned metadata files would be found and deleted.',
-                            log=log
+                            log=logger
                         )
                     else:
                         md_objects['ORPHANED'] = md_objects.map_partitions(
@@ -697,13 +710,14 @@ if __name__ == '__main__':
                         logprint(
                             f'{len(md_objects["deleted" == True])} '  # noqa
                             'orphaned metadata files were DELETED.',
-                            log=log
+                            log=logger
                         )
                 else:
                     logprint(
                         f'No metadata files in bucket {bucket_name}.',
-                        log=log
+                        log=logger
                     )
         else:
             print(f'No files in bucket {bucket_name}. Exiting.')
+            logger.debug('Exiting because no files found in bucket.')
             sys.exit(0)
