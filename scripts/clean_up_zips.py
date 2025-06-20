@@ -18,7 +18,7 @@ import logging
 warnings.filterwarnings('ignore')
 
 
-def logprint(msg: str, log=None) -> None:
+def logprint(msg: str, log: str | logging.Logger = None) -> None:
     """
     Logs a message to a specified log file or prints it to the console.
 
@@ -54,7 +54,7 @@ def delete_object_swift(
     bucket_name: str,
     del_metadata: bool = True,
     verify: bool = False,
-    log: str = None
+    log: str | logging.Logger = None
 ) -> bool:
     """
     Deletes an object and its associated metadata from a Swift storage bucket.
@@ -152,7 +152,7 @@ def clean_orphaned_metadata(
     row: pd.Series,
     s3: swiftclient.Connection,
     bucket_name: str,
-    log: str
+    log: str | logging.Logger = None,
 ) -> bool:
     """
     Cleans up orphaned metadata files in a Swift storage bucket.
@@ -197,7 +197,7 @@ def verify_zip_objects(
     s3: swiftclient.Connection,
     bucket_name: str,
     current_objects: pd.Series,
-    log: str
+    log: str | logging.Logger = None,
 ) -> bool:
     """
     Verifies if the contents of a zip file stored in an S3 bucket are present
@@ -471,10 +471,16 @@ if __name__ == '__main__':
     ) as client:
         logprint(f'Dask Client: {client}', log=logger)
         logprint(f'Dashboard: {client.dashboard_link}', log=logger)
-        logprint(f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}', log=logger)
+        logprint(
+            f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}',
+            log=logger
+        )
         logprint(f'Using {nprocs} processes.', log=logger)
-        logprint(f'Getting current object list for {bucket_name}. This may take some time.\nStarting at '
-                 f'{datetime.now()}, elapsed time = {datetime.now() - start}', log=logger)
+        logprint(
+            f'Getting current object list for {bucket_name}. This may take some time. Starting at '
+            f'{datetime.now()}, elapsed time = {datetime.now() - start}',
+            log=logger
+        )
 
         if api == 's3':
             current_object_names = bm.object_list(bucket, prefix=prefix, count=False)
@@ -527,7 +533,7 @@ if __name__ == '__main__':
             # print(f'n_partitions: {current_zips.npartitions}')
 
             if len_cz > 0:
-                logprint('Verifying zips can be deleted (i.e., contents exist).')
+                logprint('Verifying zips can be deleted (i.e., contents exist).', log=logger)
                 # current_objects = current_objects['CURRENT_OBJECTS'].compute()  # noqa
                 # client.scatter(current_object_names, broadcast=True)  # noqa
                 # current_object_names = client.persist(current_objects['CURRENT_OBJECTS'])  # noqa
@@ -540,7 +546,7 @@ if __name__ == '__main__':
                                 s3,
                                 bucket_name,
                                 current_object_names,
-                                log
+                                logger,
                             ),
                         ),
                         meta=('bool'),
@@ -564,26 +570,28 @@ if __name__ == '__main__':
                     logger.debug('Dry run mode enabled. Exiting without deleting files.')
                     sys.exit()
                 else:
-                    logprint(f'Current objects (with matching prefix): {len_co}')
+                    logprint(f'Current objects (with matching prefix): {len_co}', log=logger)
                     if not verify:
                         logprint(
                             f'Current zip objects (with matching prefix): {len_cz} will be '
-                            'deleted.'
+                            'deleted.',
+                            log=logger
                         )
                     else:
                         logprint(
                             f'Current zip objects (with matching prefix): {len_cz} will be '
-                            'deleted if all contents exist as objects.'
+                            'deleted if all contents exist as objects.',
+                            log=logger
                         )
-                    logprint('WARNING! Files are about to be deleted!')
-                    logprint('Continue [y/n]?')
+                    logprint('WARNING! Files are about to be deleted!', log=logger)
+                    logprint('Continue [y/n]?', log=logger)
                     if not yes:
                         if input().lower() != 'y':
                             logprint('User did not confirm deletion. Exiting.', log=logger)
                             logger.debug('Exiting because user did not confirm deletion.')
                             sys.exit(0)
                     else:
-                        logprint('auto y')
+                        logprint('auto y', log=logger)
                     # current_zips = current_zips.dropna(subset=['CURRENT_OBJECTS'])  # noqa
                     # if verify:
                     # current_zips['DELETED'] = current_zips.map_partitions(  # noqa
@@ -600,7 +608,7 @@ if __name__ == '__main__':
                                 bucket_name,
                                 True,
                                 verify,
-                                log,
+                                logger,
                             ),
                         ),
                         meta=('bool'),
@@ -615,7 +623,7 @@ if __name__ == '__main__':
                     #                 s3,
                     #                 bucket_name,
                     #                 True,
-                    #                 log
+                    #                 logger,
                     #             )
                     #         ),
                     #         meta=('bool')
@@ -704,7 +712,7 @@ if __name__ == '__main__':
                                 args=(
                                     s3,
                                     bucket_name,
-                                    log
+                                    logger,
                                 )
                             ),
                             meta=('bool')
