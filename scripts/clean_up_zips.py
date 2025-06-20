@@ -78,9 +78,8 @@ def delete_object_swift(
     Logs:
         - Logs successful deletions of the object and its metadata.
         - Logs warnings if the metadata deletion fails.
-        - Prints errors to stderr if the primary object deletion fails.
+        - Logs errors if the primary object deletion fails.
     """
-    prints = []
     if verify:
         if row['verified'] is False:
             logprint(f'WARNING: {row["CURRENT_OBJECTS"]} not verified for deletion.', log)
@@ -96,18 +95,17 @@ def delete_object_swift(
     deleted = False
     try:
         s3.delete_object(bucket_name, obj)
-        prints.append(delayed(logprint(f'Deleted {obj}', log)))
+        logprint(f'Deleted {obj}', log=log)
         deleted = True
     except Exception as e:
-        print(f'Error deleting {obj}: {e}', file=sys.stderr)
+        logprint(f'Error deleting {obj}: {e}', log=log)
         return False
     if del_metadata:
         try:
             s3.delete_object(bucket_name, f'{obj}.metadata')
-            prints.append(delayed(logprint(f'Deleted {obj}.metadata', log)))
+            logprint(f'Deleted {obj}.metadata', log=log)
         except swiftclient.exceptions.ClientException as e:
-            prints.append(delayed(logprint(f'WARNING: Error deleting {obj}.metadata: {e.msg}', log)))
-    dask.compute(*prints)
+            logprint(f'WARNING: Error deleting {obj}.metadata: {e.msg}', log=log)
     return deleted
 
 
@@ -267,7 +265,7 @@ if __name__ == '__main__':
 
     class MyParser(argparse.ArgumentParser):
         def error(self, message):
-            sys.stderr.write(f'error: {message}\n\n')
+            logger.error(f'Error parsing arguments: {message}')
             self.print_help()
             logger.debug('Exiting because of CLI parsing error.')
             sys.exit(2)
@@ -367,7 +365,7 @@ if __name__ == '__main__':
         api = 'swift'
 
     if not args.bucket_name:
-        print('Bucket name not provided.', file=sys.stderr)
+        logger.error('Bucket name not provided.')
         parser.print_help()
         logger.debug('Exiting because bucket name not provided.')
         sys.exit(1)
@@ -385,9 +383,12 @@ if __name__ == '__main__':
     clean_metadata = args.clean_up_metadata
     num_threads = args.nthreads
     if num_threads > nprocs:
-        print(f'Number of threads ({num_threads}) cannot be greater than number of processes ({nprocs}). '
-              f'Setting threads per worker to {nprocs // 2}.', file=sys.stderr)
-        logger.debug('Forcing number of threads per worker to half of nprocs.')
+        logprint(
+            f'Number of threads ({num_threads}) cannot be greater than number of processes ({nprocs}). '
+            f'Setting threads per worker to {nprocs // 2}.',
+            log=logger
+        )
+        logger.debug('Forcing number of threads per worker to nprocs // 2.')
         num_threads = nprocs // 2
 
     logprint(
@@ -414,23 +415,19 @@ if __name__ == '__main__':
                 secret_key = os.environ['ST_KEY']
                 s3_host = os.environ['ST_AUTH']
     except AssertionError as e:
-        print(f'AssertionError {e}', file=sys.stderr)
-        logger.debug('Exiting because of assertion error in environment variables.')
-        sys.exit('AssertionError occurred. Exiting.')
+        logger.error(f'Environment AssertionError {e}')
+        sys.exit(1)
     except KeyError as e:
-        print(f'KeyError {e}', file=sys.stderr)
-        logger.debug('Exiting because of key error in environment variables.')
-        sys.exit('KeyError occurred. Exiting.')
+        logger.error(f'Environment KeyError {e}')
+        sys.exit(1)
     except ValueError as e:
-        print(f'ValueError {e}', file=sys.stderr)
-        logger.debug('Exiting because of value error in environment variables.')
-        sys.exit('ValueError occurred. Exiting.')
+        logger.error(f'Environment ValueError {e}')
+        sys.exit(1)
 
     logprint(f'Using {api.capitalize()} API with host {s3_host}', log=logger)
 
     if api == 's3':
-        print('Currently only Swift is supported for parallelism with Dask. Exiting.', file=sys.stderr)
-        logger.debug('Exiting because S3 API is not supported for parallelism with Dask.')
+        logger.error('Exiting because S3 API is not supported for parallelism with Dask. Please use Swift.')
         sys.exit('Currently only Swift is supported for parallelism with Dask. Exiting.')
 
     elif api == 'swift':
@@ -438,9 +435,8 @@ if __name__ == '__main__':
         bucket_list = bm.bucket_list_swift(s3)
 
     if bucket_name not in bucket_list:
-        print(f'Bucket {bucket_name} not found in {api} bucket list. Exiting.', file=sys.stderr)
-        logger.debug(f'Exiting because bucket {bucket_name} not found in {api} bucket list.')
-        sys.exit(f'Bucket {bucket_name} not found in {api} bucket list. Exiting.')
+        logger.error(f'Bucket {bucket_name} not found in {api} bucket list. Exiting.')
+        sys.exit(1)
 
     if api == 's3':
         bucket = s3.Bucket(bucket_name)
