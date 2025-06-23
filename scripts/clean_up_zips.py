@@ -9,7 +9,6 @@ import bucket_manager.bucket_manager as bm
 import swiftclient.exceptions
 import swiftclient
 import argparse
-import dask
 from dask import dataframe as dd
 from distributed import Client
 import subprocess
@@ -85,12 +84,7 @@ def delete_object_swift(
             return False
     obj = row['CURRENT_OBJECTS']
     if pd.isna(obj):
-        # logprint('WARNING: obj is NaN', log)
         return False
-    # logprint('DEBUG:', log)
-    # logprint(f'Row: {row}', log)
-    # logprint(f'Object to delete: {obj}', log)
-    # logprint(f'type(obj): {type(obj)}', log)
     deleted = False
     try:
         s3.delete_object(bucket_name, obj)
@@ -227,12 +221,7 @@ def verify_zip_objects(
         return False
     path_stub = '/'.join(zip_obj.split('/')[:-1])
     zip_metadata_uri = f'{zip_obj}.metadata'
-    # logprint(
-    #     f'DEBUG:\nzip_obj: {zip_obj}\npath_stub: {path_stub}\n'
-    #     f'zip_metadata_uri: {zip_metadata_uri}\n'
-    # )
-    # logprint(f'Row: {row}', log)
-    # logprint(f'Current objects: {len(current_objects)}', log)
+
     try:
         zip_metadata = s3.get_object(bucket_name, zip_metadata_uri)[1]
     except swiftclient.exceptions.ClientException as e:
@@ -486,15 +475,9 @@ if __name__ == '__main__':
         len_co = len(current_object_names)
         current_objects = dd.from_pandas(
             current_object_names,
-            npartitions=n_workers
+            npartitions=1000
         )
-        # del current_object_names
-        # nparts = current_objects.npartitions
-        # use_nparts = max(
-        #     nparts // nparts % n_workers, n_workers, nparts // n_workers
-        # ) // n_workers * n_workers
-        # if use_nparts != nparts:
-        #     current_objects = current_objects.repartition(npartitions=use_nparts)
+
         logprint(f'Current_objects Partitions: {current_objects.npartitions}', log=logger)
 
         logprint(f'Found {len(current_objects)} objects (with matching prefix) in bucket {bucket_name}.',
@@ -505,9 +488,7 @@ if __name__ == '__main__':
             current_objects['is_zip'] = current_objects['CURRENT_OBJECTS'].map_partitions(
                 lambda partition: partition.str.fullmatch(zip_match, na=False)  # noqa
             )
-            # current_objects['is_metadata'] = current_objects['CURRENT_OBJECTS'].map_partitions(
-            #     lambda partition: partition.str.fullmatch(metadata_match, na=False)  # noqa
-            # )
+
             current_zips = client.persist(current_objects[current_objects['is_zip'] == True])  # noqa
             len_cz = len(current_zips)  # noqa
             logprint(
@@ -515,23 +496,8 @@ if __name__ == '__main__':
                 log=logger
             )
 
-            # md_objects = dd.from_pandas(current_objects[current_objects['is_metadata'] == True].compute())  # noqa
-            # len_md = len(md_objects)
-            # logprint(
-            #     f'Found {len_md} metadata files (with matching prefix) in bucket {bucket_name}.',
-            #     log=logger
-            # )
-
-            # if not verify:
-            #     del current_objects
-
-            # print(f'n_partitions: {current_zips.npartitions}')
-
             if len_cz > 0:
                 logprint('Verifying zips can be deleted (i.e., contents exist).', log=logger)
-                # current_objects = current_objects['CURRENT_OBJECTS'].compute()  # noqa
-                # client.scatter(current_object_names, broadcast=True)  # noqa
-                # current_object_names = client.persist(current_objects['CURRENT_OBJECTS'])  # noqa
                 logprint(f'npartitions: {current_zips.npartitions}', log=logger)
                 if verify:
                     current_zips['verified'] = current_zips.map_partitions(
@@ -547,7 +513,6 @@ if __name__ == '__main__':
                         ),
                         meta=('bool'),
                     )
-                    # del current_object_names
                 if dryrun:
                     logprint(f'Current objects (with matching prefix): {len_co}', log=logger)
                     if verify:
@@ -588,10 +553,6 @@ if __name__ == '__main__':
                             sys.exit(0)
                     else:
                         logprint('auto y', log=logger)
-                    # current_zips = current_zips.dropna(subset=['CURRENT_OBJECTS'])  # noqa
-                    # if verify:
-                    # current_zips['DELETED'] = current_zips.map_partitions(  # noqa
-                    #     lambda partition: partition.apply(
 
                     logprint('Preparing to delete zip files.', log=logger)
                     # current_zips = current_zips.persist()
@@ -609,21 +570,6 @@ if __name__ == '__main__':
                         ),
                         meta=('bool'),
                     )
-                        # current_zips[current_zips['verified'] == False]['DELETED'] = False  # noqa
-                    # else:
-                    #     current_zips['DELETED'] = current_zips.map_partitions(
-                    #         lambda partition: partition.apply(
-                    #             delete_object_swift,
-                    #             axis=1,
-                    #             args=(
-                    #                 s3,
-                    #                 bucket_name,
-                    #                 True,
-                    #                 logger,
-                    #             )
-                    #         ),
-                    #         meta=('bool')
-                    #     )
 
                     current_zips = client.persist(current_zips)
 
@@ -671,7 +617,7 @@ if __name__ == '__main__':
                     pd.DataFrame.from_dict(
                         {'CURRENT_OBJECTS': bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)}
                     ),
-                    chunksize=100000
+                    npartitions=1000
                 )
                 logprint(
                     f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', log=logger
@@ -684,7 +630,7 @@ if __name__ == '__main__':
                 md_objects = client.persist(current_objects[current_objects['is_metadata'] == True])  # noqa
                 len_md = len(md_objects)
                 if len_md > 0:  # noqa
-                    md_objects = dd.from_pandas(md_objects, npartitions=100)  # noqa
+                    md_objects = dd.from_pandas(md_objects, npartitions=1000)  # noqa
                     if dryrun:
                         logprint(
                             'Any orphaned metadata files would be found and deleted.',
