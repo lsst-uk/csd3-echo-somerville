@@ -480,18 +480,21 @@ if __name__ == '__main__':
             current_object_names = bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)
         current_object_names = pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_object_names})
         logprint(f'Done at {datetime.now()}, elapsed time = {datetime.now() - start}', log=logger)
-        len_co = len(current_object_names)
+
         current_objects = dd.from_pandas(
             current_object_names,
             npartitions=100
         )
+        num_co = len(current_object_names)  # noqa
+        del current_object_names  # Free memory
+        gc.collect()  # Collect garbage to free memory
         current_objects = client.persist(current_objects)
-        logprint(f'Persisted current_objects, len: {len(current_objects)}', log=logger)
+        logprint(f'Persisted current_objects, len: {num_co}', log=logger)
         logprint(f'Current_objects Partitions: {current_objects.npartitions}', log=logger)
 
-        logprint(f'Found {len(current_objects)} objects (with matching prefix) in bucket {bucket_name}.',
+        logprint(f'Found {num_co} objects (with matching prefix) in bucket {bucket_name}.',
                  log=logger)
-        if len_co > 0:
+        if num_co > 0:
             zip_match = r".*collated_\d+\.zip$"
             metadata_match = r".*collated_\d+\.zip\.metadata$"
             current_objects['is_zip'] = current_objects['CURRENT_OBJECTS'].map_partitions(
@@ -502,15 +505,16 @@ if __name__ == '__main__':
             del current_objects  # Free memory
             gc.collect()  # Collect garbage to free memory
             current_zips = client.persist(current_zips)  # Persist the Dask DataFrame
-            logprint(f'Persisted current_zips, len: {len(current_zips)}', log=logger)
+            num_cz = len(current_zips)  # noqa
+            logprint(f'Persisted current_zips, len: {num_cz}', log=logger)
             logprint(f'Current_zips Partitions: {current_zips.npartitions}', log=logger)
-            len_cz = len(current_zips)  # noqa
+
             logprint(
-                f'Found {len_cz} zip files (with matching prefix) in bucket {bucket_name}.',
+                f'Found {num_cz} zip files (with matching prefix) in bucket {bucket_name}.',
                 log=logger
             )
 
-            if len_cz > 0:
+            if num_cz > 0:
                 logprint('Verifying zips can be deleted (i.e., contents exist).', log=logger)
                 logprint(f'npartitions: {current_zips.npartitions}', log=logger)
                 if verify:
@@ -521,14 +525,14 @@ if __name__ == '__main__':
                             args=(
                                 s3,
                                 bucket_name,
-                                current_object_names,
+                                current_objects['CURRENT_OBJECTS'],
                                 logger,
                             ),
                         ),
                         meta=('bool'),
                     )
                 if dryrun:
-                    logprint(f'Current objects (with matching prefix): {len_co}', log=logger)
+                    logprint(f'Current objects (with matching prefix): {num_co}', log=logger)
                     if verify:
                         current_zips = client.persist(current_zips)
                         logprint(
@@ -538,23 +542,23 @@ if __name__ == '__main__':
                         )
                     else:
                         logprint(
-                            f'Current zip objects (with matching prefix): {len_cz} '
+                            f'Current zip objects (with matching prefix): {num_cz} '
                             'would be deleted.',
                             log=logger
                         )
                     logger.debug('Dry run mode enabled. Exiting without deleting files.')
                     sys.exit()
                 else:
-                    logprint(f'Current objects (with matching prefix): {len_co}', log=logger)
+                    logprint(f'Current objects (with matching prefix): {num_co}', log=logger)
                     if not verify:
                         logprint(
-                            f'Current zip objects (with matching prefix): {len_cz} will be '
+                            f'Current zip objects (with matching prefix): {num_cz} will be '
                             'deleted.',
                             log=logger
                         )
                     else:
                         logprint(
-                            f'Current zip objects (with matching prefix): {len_cz} will be '
+                            f'Current zip objects (with matching prefix): {num_cz} will be '
                             'deleted if all contents exist as objects.',
                             log=logger
                         )
