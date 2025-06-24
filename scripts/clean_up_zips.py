@@ -191,7 +191,7 @@ def verify_zip_objects(
     row: pd.Series,
     s3: swiftclient.Connection,
     bucket_name: str,
-    current_objects: pd.Series,
+    current_objects: set[str],  # was pd.Series
     log: str | logging.Logger = None,
 ) -> bool:
     """
@@ -205,8 +205,8 @@ def verify_zip_objects(
         s3 (swiftclient.Connection): An active connection to the S3 storage.
         bucket_name (str): The name of the S3 bucket where the zip file is
             stored.
-        current_objects (pd.Series): A pandas Series containing the list of
-            current objects to verify against.
+        current_objects_set (set): A set containing the current objects to
+            verify against.
         log (str): A log file path or identifier for logging verification
             results.
 
@@ -241,7 +241,9 @@ def verify_zip_objects(
     # logprint(f'Contents: {lc}', log)
     try:
         logprint(f'Verifying {zip_obj} contents against current objects', log)
-        if sum(current_objects.isin(contents).values) == lc:
+        # if sum(current_objects.isin(contents).values) == lc:  # inefficient
+        if all(c in current_objects for c in contents):  # Use set membership testing for increased efficiency
+            logprint(f'All {lc} contents of {zip_obj} found in current objects', log)
             verified = True
             logprint(f'{zip_obj} verified: {verified} - can be deleted', log)
         else:
@@ -488,10 +490,8 @@ if __name__ == '__main__':
         num_co = len(current_object_names)  # noqa
         del current_object_names  # Free memory
         gc.collect()  # Collect garbage to free memory
-        current_objects = client.persist(current_objects)
-        logprint(f'Persisted current_objects, len: {num_co}', log=logger)
-        logprint(f'Current_objects Partitions: {current_objects.npartitions}', log=logger)
 
+        logprint(f'Current_objects Partitions: {current_objects.npartitions}', log=logger)
         logprint(f'Found {num_co} objects (with matching prefix) in bucket {bucket_name}.',
                  log=logger)
         if num_co > 0:
@@ -504,13 +504,13 @@ if __name__ == '__main__':
             current_zips = current_objects[current_objects['is_zip'] == True]  # noqa
             # client.scatter(current_objects)
             current_zips = client.persist(current_zips)  # Persist the Dask DataFrame
-
-            remaining_objects = current_objects[current_objects['is_zip'] == False]['CURRENT_OBJECTS']  # noqa
-            logprint('Persisting remaining objects (non-zip files).', log=logger)
-            client.persist(remaining_objects)  # Persist the remaining objects
+            num_cz = len(current_zips)  # noqa
+            remaining_objects_set = set(current_objects[current_objects['is_zip'] == False]['CURRENT_OBJECTS'].compute())  # noqa
+            logprint(f'Scattering remaining object names (non-zip files): {num_co - num_cz}', log=logger)
+            client.scatter(remaining_objects_set)  # Persist the remaining objects
 
             del current_objects  # Free memory
-            num_cz = len(current_zips)  # noqa
+            gc.collect()  # Collect garbage to free memory
             logprint(f'Persisted current_zips, len: {num_cz}', log=logger)
             logprint(f'Current_zips Partitions: {current_zips.npartitions}', log=logger)
 
@@ -530,7 +530,7 @@ if __name__ == '__main__':
                             args=(
                                 s3,
                                 bucket_name,
-                                remaining_objects,
+                                remaining_objects_set,
                                 logger,
                             ),
                         ),
