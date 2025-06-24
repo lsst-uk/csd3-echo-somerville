@@ -191,7 +191,7 @@ def verify_zip_objects(
     row: pd.Series,
     s3: swiftclient.Connection,
     bucket_name: str,
-    current_objects: set[str],  # was pd.Series
+    remaining_objects_path: str,
     log: str | logging.Logger = None,
 ) -> bool:
     """
@@ -221,6 +221,9 @@ def verify_zip_objects(
     """
     logprint(f"verify_zip_objects called for {row['CURRENT_OBJECTS']}", log=log)
     zip_obj = row['CURRENT_OBJECTS']
+    remaining_objects = pd.read_parquet(remaining_objects_path, engine='pyarrow')
+    remaining_objects_set = set(remaining_objects['CURRENT_OBJECTS'].tolist())
+    del remaining_objects  # Free memory
     if zip_obj == 'None':
         logprint(f'WARNING: {zip_obj} is None', log)
         return False
@@ -240,10 +243,11 @@ def verify_zip_objects(
 
     # logprint(f'Contents: {lc}', log)
     try:
-        logprint(f'Verifying {zip_obj} contents against current objects', log)
+        logprint(f'Verifying {zip_obj} contents against remaining objects', log)
         # if sum(current_objects.isin(contents).values) == lc:  # inefficient
-        if all(c in current_objects for c in contents):  # Use set membership testing for increased efficiency
-            logprint(f'All {lc} contents of {zip_obj} found in current objects', log)
+        # Use set membership testing for increased efficiency
+        if all(c in remaining_objects_set for c in contents):
+            logprint(f'All {lc} contents of {zip_obj} found in remaining objects', log)
             verified = True
             logprint(f'{zip_obj} verified: {verified} - can be deleted', log)
         else:
@@ -252,7 +256,7 @@ def verify_zip_objects(
     except Exception as e:
         logprint(f'Error verifying {zip_obj}: {e}', log)
         verified = False
-    del zip_metadata, contents
+    del zip_metadata, contents, remaining_objects_set
     logprint(f"verify_zip_objects completed for {row['CURRENT_OBJECTS']}, verified={verified}", log=log)
     gc.collect()
     return verified
@@ -505,10 +509,18 @@ if __name__ == '__main__':
             # client.scatter(current_objects)
             current_zips = client.persist(current_zips)  # Persist the Dask DataFrame
             num_cz = len(current_zips)  # noqa
-            remaining_objects_set = set(current_objects[current_objects['is_zip'] == False]['CURRENT_OBJECTS'].compute())  # noqa
-            logprint(f'Scattering remaining object names (non-zip files): {num_co - num_cz}', log=logger)
-            logprint(f'Size in memory of remaining_objects_set: {sys.getsizeof(remaining_objects_set) / 1024**2:.2f} MB', log=logger)
-            client.scatter(remaining_objects_set)  # Persist the remaining objects
+            remaining_objects = current_objects[current_objects['is_zip'] == False]['CURRENT_OBJECTS']
+            ro_path = 'remaining_objects.parquet'
+            logprint(f'Saving remaining objects to {ro_path}', log=logger)
+            remaining_objects.to_parquet(
+                ro_path,
+                engine='pyarrow',
+                index=False,
+                compression='snappy'
+            )
+            # logprint(f'Scattering remaining object names (non-zip files): {num_co - num_cz}', log=logger)
+            # logprint(f'Size in memory of remaining_objects_set: {sys.getsizeof(remaining_objects_set) / 1024**2:.2f} MB', log=logger)
+            # client.scatter(remaining_objects_set)  # Persist the remaining objects
 
             del current_objects  # Free memory
             gc.collect()  # Collect garbage to free memory
@@ -531,7 +543,7 @@ if __name__ == '__main__':
                             args=(
                                 s3,
                                 bucket_name,
-                                remaining_objects_set,
+                                ro_path,
                                 logger,
                             ),
                         ),
