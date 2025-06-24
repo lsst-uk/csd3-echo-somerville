@@ -16,7 +16,17 @@ import logging
 warnings.filterwarnings('ignore')
 
 
-def logprint(msg: str, log: str | logging.Logger = None) -> None:
+logging.basicConfig(
+    level='INFO',
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger('clean_zips')
+
+
+def logprint(msg: str, level: str = 'info'):  # , log: str | logging.Logger = None) -> None:
     """
     Logs a message to a specified log file or prints it to the console.
 
@@ -29,17 +39,28 @@ def logprint(msg: str, log: str | logging.Logger = None) -> None:
     Returns:
     None
     """
-    if isinstance(log, bool):
-        if log:
-            log = None
+    # if isinstance(logger, bool):
+    #     if logger:
+    #         logger = None
+    #     else:
+    #         return None
+    if isinstance(logger, logging.Logger):
+        if level.lower() == 'info':
+            logger.info(msg)
+        elif level.lower() == 'debug':
+            logger.debug(msg)
+        elif level.lower() == 'warning':
+            logger.warning(msg)
+        elif level.lower() == 'error':
+            logger.error(msg)
+        elif level.lower() == 'critical':
+            logger.critical(msg)
         else:
-            return None
-    elif isinstance(log, logging.Logger):
-        log.info(msg)
+            logger.info(msg)
         return None
-    if log is not None:
-        with open(log, 'a') as logfile:
-            logfile.write(f'{msg}\n')
+    # if logger is not None:
+    #     with open(logger, 'a') as logfile:
+    #         logfile.write(f'{msg}\n')
     else:
         print(msg, flush=True)
     return None
@@ -52,7 +73,7 @@ def delete_object_swift(
     bucket_name: str,
     del_metadata: bool = True,
     verify: bool = False,
-    log: str | logging.Logger = None
+    # log: str | logging.Logger = None
 ) -> bool:
     """
     Deletes an object and its associated metadata from a Swift storage bucket.
@@ -78,31 +99,31 @@ def delete_object_swift(
         - Logs warnings if the metadata deletion fails.
         - Logs errors if the primary object deletion fails.
     """
-    logprint(f"delete_object_swift called for {row['CURRENT_OBJECTS']}", log=log)
+    logprint(f"delete_object_swift called for {row['CURRENT_OBJECTS']}", 'debug')
     if verify:
         if row['verified'] is False:
-            logprint(f'WARNING: {row["CURRENT_OBJECTS"]} not verified for deletion.', log)
+            logprint(f'WARNING: {row["CURRENT_OBJECTS"]} not verified for deletion.', 'warning')
             return False
     obj = row['CURRENT_OBJECTS']
     if pd.isna(obj):
         return False
     deleted = False
     try:
-        logprint(f"Attempting to delete {obj}", log=log)
+        logprint(f"Attempting to delete {obj}", 'debug')
         s3.delete_object(bucket_name, obj)
-        logprint(f'Deleted {obj}', log=log)
+        logprint(f'Deleted {obj}', 'info')
         deleted = True
     except Exception as e:
-        logprint(f'Error deleting {obj}: {e}', log=log)
+        logprint(f'Error deleting {obj}: {e}', 'info')
         return False
     if del_metadata:
         try:
-            logprint(f"Attempting to delete metadata for {obj}", log=log)
+            logprint(f"Attempting to delete metadata for {obj}", 'debug')
             s3.delete_object(bucket_name, f'{obj}.metadata')
-            logprint(f'Deleted {obj}.metadata', log=log)
+            logprint(f'Deleted {obj}.metadata', 'info')
         except swiftclient.exceptions.ClientException as e:
-            logprint(f'WARNING: Error deleting {obj}.metadata: {e.msg}', log=log)
-    logprint(f"delete_object_swift completed for {row['CURRENT_OBJECTS']}, deleted={deleted}", log=log)
+            logprint(f'WARNING: Error deleting {obj}.metadata: {e.msg}', 'info')
+    logprint(f"delete_object_swift completed for {row['CURRENT_OBJECTS']}, deleted={deleted}", 'debug')
     return deleted
 
 
@@ -147,7 +168,7 @@ def clean_orphaned_metadata(
     row: pd.Series,
     s3: swiftclient.Connection,
     bucket_name: str,
-    log: str | logging.Logger = None,
+    # log: str | logging.Logger = None,
 ) -> bool:
     """
     Cleans up orphaned metadata files in a Swift storage bucket.
@@ -192,7 +213,7 @@ def verify_zip_objects(
     s3: swiftclient.Connection,
     bucket_name: str,
     remaining_objects_path: str,
-    logger_name: str = None,
+    # logger_name: str = None,
 ) -> bool:
     """
     Verifies if the contents of a zip file stored in an S3 bucket are present
@@ -219,24 +240,24 @@ def verify_zip_objects(
         - The zip file's contents are prefixed with the parent directory path
           before comparison.
     """
-    log = logging.getLogger(logger_name) if logger_name else None
-    logprint(f"verify_zip_objects called for {row['CURRENT_OBJECTS']}", log=log)
+
+    logprint(f"verify_zip_objects called for {row['CURRENT_OBJECTS']}", 'debug')
     zip_obj = row['CURRENT_OBJECTS']
     # remaining_objects = pd.read_parquet(remaining_objects_path, engine='pyarrow')
     # remaining_objects_set = set(remaining_objects['CURRENT_OBJECTS'].tolist())
     # del remaining_objects  # Free memory
 
     if zip_obj == 'None':
-        logprint(f'WARNING: {zip_obj} is None', log=log)
+        logprint(f'WARNING: {zip_obj} is None', 'warning')
         return False
     path_stub = '/'.join(zip_obj.split('/')[:-1])
     zip_metadata_uri = f'{zip_obj}.metadata'
 
     try:
-        logprint(f'Getting metadata form {zip_metadata_uri}', log=log)
+        logprint(f'Getting metadata form {zip_metadata_uri}', 'debug')
         zip_metadata = s3.get_object(bucket_name, zip_metadata_uri)[1]
     except swiftclient.exceptions.ClientException as e:
-        logprint(f'WARNING: Error getting {zip_metadata_uri}: {e.msg}', log=log)
+        logprint(f'WARNING: Error getting {zip_metadata_uri}: {e.msg}', 'warning')
         return False
 
     contents = [f'{path_stub}/{c}' for c in zip_metadata.decode().split('|') if c]
@@ -248,26 +269,26 @@ def verify_zip_objects(
             for c in contents:  # iteration over contents faster than over remaining_objects
                 existing.append(c in f.read())
     except FileNotFoundError:
-        logprint(f'WARNING: {remaining_objects_path} not found. Cannot verify contents.', log=log)
+        logprint(f'WARNING: {remaining_objects_path} not found. Cannot verify contents.', 'warning')
         return False
     all_contents_exist = all(existing)
     # logprint(f'Contents: {lc}', log)
     try:
-        logprint(f'Verifying {zip_obj} contents against remaining objects', log=log)
+        logprint(f'Verifying {zip_obj} contents against remaining objects', 'debug')
         # if sum(current_objects.isin(contents).values) == lc:  # inefficient
         # Use set membership testing for increased efficiency
         if all_contents_exist:
-            logprint(f'All {lc} contents of {zip_obj} found in remaining objects', log=log)
+            logprint(f'All {lc} contents of {zip_obj} found in remaining objects', 'debug')
             verified = True
-            logprint(f'{zip_obj} verified: {verified} - can be deleted', log=log)
+            logprint(f'{zip_obj} verified: {verified} - can be deleted', 'debug')
         else:
             verified = False
-            logprint(f'{zip_obj} verified: {verified} - cannot be deleted', log=log)
+            logprint(f'{zip_obj} verified: {verified} - cannot be deleted', 'debug')
     except Exception as e:
-        logprint(f'Error verifying {zip_obj}: {e}')
+        logprint(f'Error verifying {zip_obj}: {e}', 'error')
         verified = False
     del zip_metadata, contents, existing  # Free memory
-    logprint(f"verify_zip_objects completed for {row['CURRENT_OBJECTS']}, verified={verified}", log=log)
+    logprint(f"verify_zip_objects completed for {row['CURRENT_OBJECTS']}, verified={verified}", 'debug')
     gc.collect()
     return verified
 
@@ -361,19 +382,13 @@ if __name__ == '__main__':
     # Set up logging
     debug = args.debug
     debug_level = logging.DEBUG if debug else logging.INFO
-    logging.basicConfig(
-        level=debug_level,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.StreamHandler(sys.stdout)
-        ]
-    )
-    logger = logging.getLogger('clean_zips')
+
+    logger.setLevel(debug_level)
 
     # Parse arguments
     api = args.api.lower()
     if api not in ['s3', 'swift']:
-        logprint('API set to "swift".', log=logger)
+        logprint('API set to "swift".', 'info')
         api = 'swift'
 
     if not args.bucket_name:
@@ -398,19 +413,19 @@ if __name__ == '__main__':
         logprint(
             f'Number of threads ({num_threads}) cannot be greater than number of processes ({nprocs}). '
             f'Setting threads per worker to {nprocs // 2}.',
-            log=logger
+            'info'
         )
         logger.debug('Forcing number of threads per worker to nprocs // 2.')
         num_threads = nprocs // 2
 
     logprint(
         f'API: {api}, Bucket name: {bucket_name}, Prefix: {prefix}, nprocs: {nprocs}, dryrun: {dryrun}',
-        log=logger
+        'info'
     )
 
     # Print hostname
     uname = subprocess.run(['uname', '-n'], capture_output=True)
-    logprint(f'Running on {uname.stdout.decode().strip()}', log=logger)
+    logprint(f'Running on {uname.stdout.decode().strip()}', 'info')
 
     # Initiate timing
     start = datetime.now()
@@ -436,7 +451,7 @@ if __name__ == '__main__':
         logger.error(f'Environment ValueError {e}')
         sys.exit(1)
 
-    logprint(f'Using {api.capitalize()} API with host {s3_host}', log=logger)
+    logprint(f'Using {api.capitalize()} API with host {s3_host}', 'info')
 
     if api == 's3':
         logger.error('Exiting because S3 API is not supported for parallelism with Dask. Please use Swift.')
@@ -468,7 +483,7 @@ if __name__ == '__main__':
         f'nprocs: {nprocs}, Threads per worker: {num_threads}, Number of workers: {n_workers}, '
         f'Total memory: {total_memory/1024**3:.2f} GiB, Memory per worker: '
         f'{mem_per_worker/1024**3:.2f} GiB',
-        log=logger
+        'info'
     )
 
     # Process the files
@@ -477,17 +492,17 @@ if __name__ == '__main__':
         threads_per_worker=num_threads,
         memory_limit=f'{(int((mem().total/1024**3)*7/8)/n_workers)}GB'
     ) as client:
-        logprint(f'Dask Client: {client}', log=logger)
-        logprint(f'Dashboard: {client.dashboard_link}', log=logger)
+        logprint(f'Dask Client: {client}', 'info')
+        logprint(f'Dashboard: {client.dashboard_link}', 'info')
         logprint(
             f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}',
-            log=logger
+            'info'
         )
-        logprint(f'Using {nprocs} processes.', log=logger)
+        logprint(f'Using {nprocs} processes.', 'info')
         logprint(
             f'Getting current object list for {bucket_name}. This may take some time. Starting at '
             f'{datetime.now()}, elapsed time = {datetime.now() - start}',
-            log=logger
+            'info'
         )
 
         if api == 's3':
@@ -495,7 +510,7 @@ if __name__ == '__main__':
         elif api == 'swift':
             current_object_names = bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)
         current_object_names = pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_object_names})
-        logprint(f'Done at {datetime.now()}, elapsed time = {datetime.now() - start}', log=logger)
+        logprint(f'Done at {datetime.now()}, elapsed time = {datetime.now() - start}', 'info')
 
         current_objects = dd.from_pandas(
             current_object_names,
@@ -505,23 +520,23 @@ if __name__ == '__main__':
         del current_object_names  # Free memory
         gc.collect()  # Collect garbage to free memory
 
-        logprint(f'Current_objects Partitions: {current_objects.npartitions}', log=logger)
+        logprint(f'Current_objects Partitions: {current_objects.npartitions}', 'info')
         logprint(f'Found {num_co} objects (with matching prefix) in bucket {bucket_name}.',
-                 log=logger)
+                 'info')
         if num_co > 0:
             zip_match = r".*collated_\d+\.zip$"
             metadata_match = r".*collated_\d+\.zip\.metadata$"
             current_objects['is_zip'] = current_objects['CURRENT_OBJECTS'].map_partitions(
                 lambda partition: partition.str.fullmatch(zip_match, na=False)  # noqa
             )
-            logprint('Reducing current_objects to only zip files.', log=logger)
+            logprint('Reducing current_objects to only zip files.', 'info')
             current_zips = current_objects[current_objects['is_zip'] == True]  # noqa
             # client.scatter(current_objects)
             current_zips = client.persist(current_zips)  # Persist the Dask DataFrame
             num_cz = len(current_zips)  # noqa
             remaining_objects = current_objects[current_objects['is_zip'] == False]['CURRENT_OBJECTS']
             ro_path = 'remaining_objects.csv'
-            logprint(f'Saving remaining objects to {ro_path}', log=logger)
+            logprint(f'Saving remaining objects to {ro_path}', 'info')
             remaining_objects.to_csv(ro_path, index=False, single_file=True)  # Save remaining objects to CSV
             # logprint(f'Scattering remaining object names (non-zip files): {num_co - num_cz}', log=logger)
             # logprint(f'Size in memory of remaining_objects_set: {sys.getsizeof(remaining_objects_set) / 1024**2:.2f} MB', log=logger)
@@ -529,17 +544,17 @@ if __name__ == '__main__':
 
             del current_objects  # Free memory
             gc.collect()  # Collect garbage to free memory
-            logprint(f'Persisted current_zips, len: {num_cz}', log=logger)
-            logprint(f'Current_zips Partitions: {current_zips.npartitions}', log=logger)
+            logprint(f'Persisted current_zips, len: {num_cz}', 'debug')
+            logprint(f'Current_zips Partitions: {current_zips.npartitions}', 'debug')
 
             logprint(
                 f'Found {num_cz} zip files (with matching prefix) in bucket {bucket_name}.',
-                log=logger
+                'info'
             )
 
             if num_cz > 0:
-                logprint('Verifying zips can be deleted (i.e., contents exist).', log=logger)
-                logprint(f'npartitions: {current_zips.npartitions}', log=logger)
+                logprint('Verifying zips can be deleted (i.e., contents exist).', 'info')
+                logprint(f'npartitions: {current_zips.npartitions}', 'debug')
                 if verify:
                     current_zips['verified'] = current_zips.map_partitions(
                         lambda partition: partition.apply(
@@ -549,53 +564,53 @@ if __name__ == '__main__':
                                 s3,
                                 bucket_name,
                                 ro_path,
-                                'clean_zips',
+                                # 'clean_zips',
                             ),
                         ),
                         meta=('bool'),
                     )
                 if dryrun:
-                    logprint(f'Current objects (with matching prefix): {num_co}', log=logger)
+                    logprint(f'Current objects (with matching prefix): {num_co}', 'info')
                     if verify:
                         current_zips = client.persist(current_zips)
                         logprint(
                             f'{len(current_zips[current_zips["verified"] == True])} zip objects '
                             'were verified as deletable.',
-                            log=logger
+                            'info'
                         )
                     else:
                         logprint(
                             f'Current zip objects (with matching prefix): {num_cz} '
                             'would be deleted.',
-                            log=logger
+                            'info'
                         )
                     logger.debug('Dry run mode enabled. Exiting without deleting files.')
                     sys.exit()
                 else:
-                    logprint(f'Current objects (with matching prefix): {num_co}', log=logger)
+                    logprint(f'Current objects (with matching prefix): {num_co}', 'info')
                     if not verify:
                         logprint(
                             f'Current zip objects (with matching prefix): {num_cz} will be '
                             'deleted.',
-                            log=logger
+                            'info'
                         )
                     else:
                         logprint(
                             f'Current zip objects (with matching prefix): {num_cz} will be '
                             'deleted if all contents exist as objects.',
-                            log=logger
+                            'info'
                         )
-                    logprint('WARNING! Files are about to be deleted!', log=logger)
-                    logprint('Continue [y/n]?', log=logger)
+                    logprint('WARNING! Files are about to be deleted!', 'info')
+                    logprint('Continue [y/n]?', 'info')
                     if not yes:
                         if input().lower() != 'y':
-                            logprint('User did not confirm deletion. Exiting.', log=logger)
+                            logprint('User did not confirm deletion. Exiting.', 'error')
                             logger.debug('Exiting because user did not confirm deletion.')
                             sys.exit(0)
                     else:
-                        logprint('auto y', log=logger)
+                        logprint('auto y', 'info')
 
-                    logprint('Preparing to delete zip files.', log=logger)
+                    logprint('Preparing to delete zip files.', 'info')
                     # current_zips = current_zips.persist()
                     current_zips['DELETED'] = current_zips.map_partitions(
                         lambda partition: partition.apply(
@@ -606,27 +621,27 @@ if __name__ == '__main__':
                                 bucket_name,
                                 True,
                                 verify,
-                                logger,
+                                # logger,
                             ),
                         ),
                         meta=('bool'),
                     )
-                    logprint('Persisting current_zips.', log=logger)
+                    logprint('Persisting current_zips.', 'debug')
                     current_zips = client.persist(current_zips)
 
                     if verify:
                         logprint(
                             f'{len(current_zips[current_zips["verified"] == True])} zip files were verified.',
-                            log=logger
+                            'info'
                         )
                         logprint(
                             f'{len(current_zips[current_zips["DELETED"] == True])} zip files were DELETED.',
-                            log=logger
+                            'info'
                         )
                         logprint(
                             f"{len(current_zips[current_zips['verified'] == False])} zip files were not "
                             "verified and not deleted.",
-                            log=logger
+                            'info'
                         )
                         if len(
                             current_zips[current_zips['verified'] == True]  # noqa
@@ -636,24 +651,24 @@ if __name__ == '__main__':
                             logprint(
                                 "Some errors may have occurred, as some zips verified for deletion were not "
                                 "deleted.",
-                                log=logger
+                                'warning'
                             )
                     else:
                         logprint(
                             f'{len(current_zips[current_zips["DELETED"] == True])} zip files were DELETED.',
-                            log=logger
+                            'info'
                         )
                     del current_zips
                     logprint(
                         f'Finished processing at {datetime.now()}, elapsed time = {datetime.now() - start}',
-                        log=logger
+                        'info'
                     )
 
             else:
-                print(f'No zip files in bucket {bucket_name}.')
+                logprint(f'No zip files in bucket {bucket_name}.', 'warning')
 
             if clean_metadata:
-                logprint('Checking for orphaned metadata files.', log=logger)
+                logprint('Checking for orphaned metadata files.', 'info')
                 current_objects = dd.from_pandas(
                     pd.DataFrame.from_dict(
                         {'CURRENT_OBJECTS': bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)}
@@ -662,7 +677,7 @@ if __name__ == '__main__':
                 )
                 logprint(
                     f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}',
-                    log=logger
+                    'info'
                 )
 
                 current_objects['is_metadata'] = current_objects['CURRENT_OBJECTS'].map_partitions(
@@ -676,7 +691,7 @@ if __name__ == '__main__':
                     if dryrun:
                         logprint(
                             'Any orphaned metadata files would be found and deleted.',
-                            log=logger
+                            'info'
                         )
                     else:
                         md_objects['ORPHANED'] = md_objects.map_partitions(
@@ -696,7 +711,7 @@ if __name__ == '__main__':
                                 args=(
                                     s3,
                                     bucket_name,
-                                    logger,
+                                    # logger,
                                 )
                             ),
                             meta=('bool')
@@ -705,14 +720,13 @@ if __name__ == '__main__':
                         logprint(
                             f'{len(md_objects["deleted" == True])} '  # noqa
                             'orphaned metadata files were DELETED.',
-                            log=logger
+                            'info'
                         )
                 else:
                     logprint(
                         f'No metadata files in bucket {bucket_name}.',
-                        log=logger
+                        'warning'
                     )
         else:
-            print(f'No files in bucket {bucket_name}. Exiting.')
-            logger.debug('Exiting because no files found in bucket.')
+            logprint(f'No files in bucket {bucket_name}. Exiting.', 'warning')
             sys.exit(0)
