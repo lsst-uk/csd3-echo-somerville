@@ -192,7 +192,7 @@ def verify_zip_objects(
     s3: swiftclient.Connection,
     bucket_name: str,
     remaining_objects_path: str,
-    log: str | logging.Logger = None,
+    logger_name: str = None,
 ) -> bool:
     """
     Verifies if the contents of a zip file stored in an S3 bucket are present
@@ -219,23 +219,24 @@ def verify_zip_objects(
         - The zip file's contents are prefixed with the parent directory path
           before comparison.
     """
-    logprint(f"verify_zip_objects called for {row['CURRENT_OBJECTS']}")
+    log = logging.getLogger(logger_name) if logger_name else None
+    logprint(f"verify_zip_objects called for {row['CURRENT_OBJECTS']}", log=log)
     zip_obj = row['CURRENT_OBJECTS']
     # remaining_objects = pd.read_parquet(remaining_objects_path, engine='pyarrow')
     # remaining_objects_set = set(remaining_objects['CURRENT_OBJECTS'].tolist())
     # del remaining_objects  # Free memory
 
     if zip_obj == 'None':
-        logprint(f'WARNING: {zip_obj} is None')
+        logprint(f'WARNING: {zip_obj} is None', log=log)
         return False
     path_stub = '/'.join(zip_obj.split('/')[:-1])
     zip_metadata_uri = f'{zip_obj}.metadata'
 
     try:
-        logprint(f'Getting metadata form {zip_metadata_uri}')
+        logprint(f'Getting metadata form {zip_metadata_uri}', log=log)
         zip_metadata = s3.get_object(bucket_name, zip_metadata_uri)[1]
     except swiftclient.exceptions.ClientException as e:
-        logprint(f'WARNING: Error getting {zip_metadata_uri}: {e.msg}')
+        logprint(f'WARNING: Error getting {zip_metadata_uri}: {e.msg}', log=log)
         return False
 
     contents = [f'{path_stub}/{c}' for c in zip_metadata.decode().split('|') if c]
@@ -247,26 +248,26 @@ def verify_zip_objects(
             for c in contents:  # iteration over contents faster than over remaining_objects
                 existing.append(c in f.read())
     except FileNotFoundError:
-        logprint(f'WARNING: {remaining_objects_path} not found. Cannot verify contents.')
+        logprint(f'WARNING: {remaining_objects_path} not found. Cannot verify contents.', log=log)
         return False
     all_contents_exist = all(existing)
     # logprint(f'Contents: {lc}', log)
     try:
-        logprint(f'Verifying {zip_obj} contents against remaining objects')
+        logprint(f'Verifying {zip_obj} contents against remaining objects', log=log)
         # if sum(current_objects.isin(contents).values) == lc:  # inefficient
         # Use set membership testing for increased efficiency
         if all_contents_exist:
-            logprint(f'All {lc} contents of {zip_obj} found in remaining objects')
+            logprint(f'All {lc} contents of {zip_obj} found in remaining objects', log=log)
             verified = True
-            logprint(f'{zip_obj} verified: {verified} - can be deleted')
+            logprint(f'{zip_obj} verified: {verified} - can be deleted', log=log)
         else:
             verified = False
-            logprint(f'{zip_obj} verified: {verified} - cannot be deleted')
+            logprint(f'{zip_obj} verified: {verified} - cannot be deleted', log=log)
     except Exception as e:
         logprint(f'Error verifying {zip_obj}: {e}')
         verified = False
     del zip_metadata, contents, existing  # Free memory
-    logprint(f"verify_zip_objects completed for {row['CURRENT_OBJECTS']}, verified={verified}")
+    logprint(f"verify_zip_objects completed for {row['CURRENT_OBJECTS']}, verified={verified}", log=log)
     gc.collect()
     return verified
 
@@ -548,7 +549,7 @@ if __name__ == '__main__':
                                 s3,
                                 bucket_name,
                                 ro_path,
-                                logger,
+                                'clean_zips',
                             ),
                         ),
                         meta=('bool'),
