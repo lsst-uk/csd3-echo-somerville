@@ -221,9 +221,10 @@ def verify_zip_objects(
     """
     logprint(f"verify_zip_objects called for {row['CURRENT_OBJECTS']}", log=log)
     zip_obj = row['CURRENT_OBJECTS']
-    remaining_objects = pd.read_parquet(remaining_objects_path, engine='pyarrow')
-    remaining_objects_set = set(remaining_objects['CURRENT_OBJECTS'].tolist())
-    del remaining_objects  # Free memory
+    # remaining_objects = pd.read_parquet(remaining_objects_path, engine='pyarrow')
+    # remaining_objects_set = set(remaining_objects['CURRENT_OBJECTS'].tolist())
+    # del remaining_objects  # Free memory
+
     if zip_obj == 'None':
         logprint(f'WARNING: {zip_obj} is None', log)
         return False
@@ -240,13 +241,21 @@ def verify_zip_objects(
     contents = [f'{path_stub}/{c}' for c in zip_metadata.decode().split('|') if c]
     lc = len(contents)
     verified = False
-
+    existing = []
+    try:
+        with open(remaining_objects_path, 'r') as f:
+            for c in contents:
+                existing.append(c in f.read())
+    except FileNotFoundError:
+        logprint(f'WARNING: {remaining_objects_path} not found. Cannot verify contents.', log)
+        return False
+    all_contents_exist = all(existing)
     # logprint(f'Contents: {lc}', log)
     try:
         logprint(f'Verifying {zip_obj} contents against remaining objects', log)
         # if sum(current_objects.isin(contents).values) == lc:  # inefficient
         # Use set membership testing for increased efficiency
-        if all(c in remaining_objects_set for c in contents):
+        if all_contents_exist:
             logprint(f'All {lc} contents of {zip_obj} found in remaining objects', log)
             verified = True
             logprint(f'{zip_obj} verified: {verified} - can be deleted', log)
@@ -256,7 +265,7 @@ def verify_zip_objects(
     except Exception as e:
         logprint(f'Error verifying {zip_obj}: {e}', log)
         verified = False
-    del zip_metadata, contents, remaining_objects_set
+    del zip_metadata, contents
     logprint(f"verify_zip_objects completed for {row['CURRENT_OBJECTS']}, verified={verified}", log=log)
     gc.collect()
     return verified
@@ -510,12 +519,10 @@ if __name__ == '__main__':
             current_zips = client.persist(current_zips)  # Persist the Dask DataFrame
             num_cz = len(current_zips)  # noqa
             remaining_objects = current_objects[current_objects['is_zip'] == False]['CURRENT_OBJECTS']
-            ro_path = 'remaining_objects.parquet'
+            ro_path = 'remaining_objects.csv'
             logprint(f'Saving remaining objects to {ro_path}', log=logger)
-            remaining_objects.to_parquet(
+            remaining_objects.to_csv(
                 ro_path,
-                engine='pyarrow',
-                index=False,
                 compression='snappy'
             )
             # logprint(f'Scattering remaining object names (non-zip files): {num_co - num_cz}', log=logger)
