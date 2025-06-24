@@ -540,7 +540,7 @@ if __name__ == '__main__':
             # client.scatter(current_objects)
             current_zips = client.persist(current_zips)  # Persist the Dask DataFrame
             num_cz = len(current_zips)  # noqa
-            remaining_objects = current_objects[current_objects['is_zip'] == False]['CURRENT_OBJECTS']
+            remaining_objects = current_objects[current_objects['is_zip'] == False]['CURRENT_OBJECTS']  # noqa
             ro_path = 'remaining_objects.csv'
             logprint(f'Saving remaining_objects (names only) to {ro_path}', 'info')
             remaining_objects.to_csv(ro_path, index=False, single_file=True)  # Save remaining objects to CSV
