@@ -638,11 +638,8 @@ if __name__ == '__main__':
                     # num_chunks = (len(current_zips) // chunk_size) + 1
 
                     for i in range(current_zips.npartitions):
-                        logprint(f'Processing partitions {i}', 'debug')
-                        part = current_zips.get_partition(i)
-                        # Trigger computation to force execution
-                        # and free memory
-                        part = part.compute()
+                        logprint(f'Processing partition {i}', 'debug')
+                        part = client.compute(current_zips.get_partition(i))
                         del part
                         gc.collect()
 
