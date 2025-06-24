@@ -502,8 +502,7 @@ if __name__ == '__main__':
             )
             logprint('Reducing current_objects to only zip files.', log=logger)
             current_zips = current_objects[current_objects['is_zip'] == True]  # noqa
-            del current_objects  # Free memory
-            gc.collect()  # Collect garbage to free memory
+            # client.scatter(current_objects)
             current_zips = client.persist(current_zips)  # Persist the Dask DataFrame
             num_cz = len(current_zips)  # noqa
             logprint(f'Persisted current_zips, len: {num_cz}', log=logger)
