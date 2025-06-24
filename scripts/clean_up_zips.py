@@ -638,7 +638,8 @@ if __name__ == '__main__':
                     npartitions=100
                 )
                 logprint(
-                    f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', log=logger
+                    f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}',
+                    log=logger
                 )
 
                 current_objects['is_metadata'] = current_objects['CURRENT_OBJECTS'].map_partitions(
