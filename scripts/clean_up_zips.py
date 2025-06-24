@@ -521,10 +521,7 @@ if __name__ == '__main__':
             remaining_objects = current_objects[current_objects['is_zip'] == False]['CURRENT_OBJECTS']
             ro_path = 'remaining_objects.csv'
             logprint(f'Saving remaining objects to {ro_path}', log=logger)
-            remaining_objects.to_csv(
-                ro_path,
-                compression='snappy'
-            )
+            remaining_objects.to_csv(ro_path, index=False, single_file=True)  # Save remaining objects to CSV
             # logprint(f'Scattering remaining object names (non-zip files): {num_co - num_cz}', log=logger)
             # logprint(f'Size in memory of remaining_objects_set: {sys.getsizeof(remaining_objects_set) / 1024**2:.2f} MB', log=logger)
             # client.scatter(remaining_objects_set)  # Persist the remaining objects
