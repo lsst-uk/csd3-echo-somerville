@@ -504,6 +504,12 @@ if __name__ == '__main__':
             current_zips = current_objects[current_objects['is_zip'] == True]  # noqa
             # client.scatter(current_objects)
             current_zips = client.persist(current_zips)  # Persist the Dask DataFrame
+
+            remaining_objects = current_objects[current_objects['is_zip'] == False]['CURRENT_OBJECTS']  # noqa
+            logprint('Persisting remaining objects (non-zip files).', log=logger)
+            client.persist(remaining_objects)  # Persist the remaining objects
+
+            del current_objects  # Free memory
             num_cz = len(current_zips)  # noqa
             logprint(f'Persisted current_zips, len: {num_cz}', log=logger)
             logprint(f'Current_zips Partitions: {current_zips.npartitions}', log=logger)
@@ -524,7 +530,7 @@ if __name__ == '__main__':
                             args=(
                                 s3,
                                 bucket_name,
-                                current_objects['CURRENT_OBJECTS'],
+                                remaining_objects,
                                 logger,
                             ),
                         ),
