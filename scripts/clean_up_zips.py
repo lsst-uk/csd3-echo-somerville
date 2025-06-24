@@ -588,7 +588,7 @@ if __name__ == '__main__':
                         ),
                         meta=('bool'),
                     )
-
+                    logprint('Persisting current_zips.', log=logger)
                     current_zips = client.persist(current_zips)
 
                     if verify:
