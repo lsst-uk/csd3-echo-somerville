@@ -512,7 +512,7 @@ if __name__ == '__main__':
         logprint(f'Done at {datetime.now()}, elapsed time = {datetime.now() - start}', 'info')
 
         rands = np.random.randint(0, 9e6, size=2)
-        while rands[0] >= rands[1] or rands[0] < 0 or rands[1] >= len(current_object_names) or rands[1] == rands[0] or rands[1] - rands[0] > 100000:
+        while rands[0] >= rands[1] or rands[0] < 0 or rands[1] >= len(current_object_names) or rands[1] == rands[0] or rands[1] - rands[0] > 1000000 or rands[1] - rands[0] < 100000:
             rands = np.random.randint(0, 9e6, size=2)
         logprint(f'Taking a random slice for testing: {rands}', 'debug')
         if debug:
