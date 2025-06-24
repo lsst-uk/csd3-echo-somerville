@@ -640,9 +640,9 @@ if __name__ == '__main__':
                     for i in range(current_zips.npartitions):
                         logprint(f'Processing partitions {i}', 'debug')
                         part = current_zips.get_partition(i)
-                        part = client.persist(part)
-                        # Optionally, trigger computation to force execution
+                        # Trigger computation to force execution
                         # and free memory
+                        part = part.compute()
                         del part
                         gc.collect()
 
