@@ -78,6 +78,7 @@ def delete_object_swift(
         - Logs warnings if the metadata deletion fails.
         - Logs errors if the primary object deletion fails.
     """
+    logprint(f"delete_object_swift called for {row['CURRENT_OBJECTS']}", log=log)
     if verify:
         if row['verified'] is False:
             logprint(f'WARNING: {row["CURRENT_OBJECTS"]} not verified for deletion.', log)
@@ -87,6 +88,7 @@ def delete_object_swift(
         return False
     deleted = False
     try:
+        logprint(f"Attempting to delete {obj}", log=log)
         s3.delete_object(bucket_name, obj)
         logprint(f'Deleted {obj}', log=log)
         deleted = True
@@ -95,10 +97,12 @@ def delete_object_swift(
         return False
     if del_metadata:
         try:
+            logprint(f"Attempting to delete metadata for {obj}", log=log)
             s3.delete_object(bucket_name, f'{obj}.metadata')
             logprint(f'Deleted {obj}.metadata', log=log)
         except swiftclient.exceptions.ClientException as e:
             logprint(f'WARNING: Error deleting {obj}.metadata: {e.msg}', log=log)
+    logprint(f"delete_object_swift completed for {row['CURRENT_OBJECTS']}, deleted={deleted}", log=log)
     return deleted
 
 
@@ -215,6 +219,7 @@ def verify_zip_objects(
         - The zip file's contents are prefixed with the parent directory path
           before comparison.
     """
+    logprint(f"verify_zip_objects called for {row['CURRENT_OBJECTS']}", log=log)
     zip_obj = row['CURRENT_OBJECTS']
     if zip_obj == 'None':
         logprint(f'WARNING: {zip_obj} is None', log)
@@ -223,6 +228,7 @@ def verify_zip_objects(
     zip_metadata_uri = f'{zip_obj}.metadata'
 
     try:
+        logprint(f'Getting metadata form {zip_metadata_uri}', log)
         zip_metadata = s3.get_object(bucket_name, zip_metadata_uri)[1]
     except swiftclient.exceptions.ClientException as e:
         logprint(f'WARNING: Error getting {zip_metadata_uri}: {e.msg}', log)
@@ -234,6 +240,7 @@ def verify_zip_objects(
 
     # logprint(f'Contents: {lc}', log)
     try:
+        logprint(f'Verifying {zip_obj} contents against current objects', log)
         if sum(current_objects.isin(contents).values) == lc:
             verified = True
             logprint(f'{zip_obj} verified: {verified} - can be deleted', log)
@@ -244,6 +251,7 @@ def verify_zip_objects(
         logprint(f'Error verifying {zip_obj}: {e}', log)
         verified = False
     del zip_metadata, contents
+    logprint(f"verify_zip_objects completed for {row['CURRENT_OBJECTS']}, verified={verified}", log=log)
     gc.collect()
     return verified
 
@@ -475,9 +483,10 @@ if __name__ == '__main__':
         len_co = len(current_object_names)
         current_objects = dd.from_pandas(
             current_object_names,
-            npartitions=1000
+            npartitions=100
         )
-
+        current_objects = client.persist(current_objects)
+        logprint(f'Persisted current_objects, len: {len(current_objects)}', log=logger)
         logprint(f'Current_objects Partitions: {current_objects.npartitions}', log=logger)
 
         logprint(f'Found {len(current_objects)} objects (with matching prefix) in bucket {bucket_name}.',
@@ -488,8 +497,13 @@ if __name__ == '__main__':
             current_objects['is_zip'] = current_objects['CURRENT_OBJECTS'].map_partitions(
                 lambda partition: partition.str.fullmatch(zip_match, na=False)  # noqa
             )
-
-            current_zips = client.persist(current_objects[current_objects['is_zip'] == True])  # noqa
+            logprint('Reducing current_objects to only zip files.', log=logger)
+            current_zips = current_objects[current_objects['is_zip'] == True]  # noqa
+            del current_objects  # Free memory
+            gc.collect()  # Collect garbage to free memory
+            current_zips = client.persist(current_zips)  # Persist the Dask DataFrame
+            logprint(f'Persisted current_zips, len: {len(current_zips)}', log=logger)
+            logprint(f'Current_zips Partitions: {current_zips.npartitions}', log=logger)
             len_cz = len(current_zips)  # noqa
             logprint(
                 f'Found {len_cz} zip files (with matching prefix) in bucket {bucket_name}.',
@@ -617,7 +631,7 @@ if __name__ == '__main__':
                     pd.DataFrame.from_dict(
                         {'CURRENT_OBJECTS': bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)}
                     ),
-                    npartitions=1000
+                    npartitions=100
                 )
                 logprint(
                     f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}', log=logger
@@ -630,7 +644,7 @@ if __name__ == '__main__':
                 md_objects = client.persist(current_objects[current_objects['is_metadata'] == True])  # noqa
                 len_md = len(md_objects)
                 if len_md > 0:  # noqa
-                    md_objects = dd.from_pandas(md_objects, npartitions=1000)  # noqa
+                    md_objects = dd.from_pandas(md_objects, npartitions=100)  # noqa
                     if dryrun:
                         logprint(
                             'Any orphaned metadata files would be found and deleted.',
