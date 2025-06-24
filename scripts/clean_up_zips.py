@@ -219,23 +219,23 @@ def verify_zip_objects(
         - The zip file's contents are prefixed with the parent directory path
           before comparison.
     """
-    logprint(f"verify_zip_objects called for {row['CURRENT_OBJECTS']}", log=log)
+    logprint(f"verify_zip_objects called for {row['CURRENT_OBJECTS']}")
     zip_obj = row['CURRENT_OBJECTS']
     # remaining_objects = pd.read_parquet(remaining_objects_path, engine='pyarrow')
     # remaining_objects_set = set(remaining_objects['CURRENT_OBJECTS'].tolist())
     # del remaining_objects  # Free memory
 
     if zip_obj == 'None':
-        logprint(f'WARNING: {zip_obj} is None', log)
+        logprint(f'WARNING: {zip_obj} is None')
         return False
     path_stub = '/'.join(zip_obj.split('/')[:-1])
     zip_metadata_uri = f'{zip_obj}.metadata'
 
     try:
-        logprint(f'Getting metadata form {zip_metadata_uri}', log)
+        logprint(f'Getting metadata form {zip_metadata_uri}')
         zip_metadata = s3.get_object(bucket_name, zip_metadata_uri)[1]
     except swiftclient.exceptions.ClientException as e:
-        logprint(f'WARNING: Error getting {zip_metadata_uri}: {e.msg}', log)
+        logprint(f'WARNING: Error getting {zip_metadata_uri}: {e.msg}')
         return False
 
     contents = [f'{path_stub}/{c}' for c in zip_metadata.decode().split('|') if c]
@@ -247,26 +247,26 @@ def verify_zip_objects(
             for c in contents:  # iteration over contents faster than over remaining_objects
                 existing.append(c in f.read())
     except FileNotFoundError:
-        logprint(f'WARNING: {remaining_objects_path} not found. Cannot verify contents.', log)
+        logprint(f'WARNING: {remaining_objects_path} not found. Cannot verify contents.')
         return False
     all_contents_exist = all(existing)
     # logprint(f'Contents: {lc}', log)
     try:
-        logprint(f'Verifying {zip_obj} contents against remaining objects', log)
+        logprint(f'Verifying {zip_obj} contents against remaining objects')
         # if sum(current_objects.isin(contents).values) == lc:  # inefficient
         # Use set membership testing for increased efficiency
         if all_contents_exist:
-            logprint(f'All {lc} contents of {zip_obj} found in remaining objects', log)
+            logprint(f'All {lc} contents of {zip_obj} found in remaining objects')
             verified = True
-            logprint(f'{zip_obj} verified: {verified} - can be deleted', log)
+            logprint(f'{zip_obj} verified: {verified} - can be deleted')
         else:
             verified = False
-            logprint(f'{zip_obj} verified: {verified} - cannot be deleted', log)
+            logprint(f'{zip_obj} verified: {verified} - cannot be deleted')
     except Exception as e:
-        logprint(f'Error verifying {zip_obj}: {e}', log)
+        logprint(f'Error verifying {zip_obj}: {e}')
         verified = False
     del zip_metadata, contents, existing  # Free memory
-    logprint(f"verify_zip_objects completed for {row['CURRENT_OBJECTS']}, verified={verified}", log=log)
+    logprint(f"verify_zip_objects completed for {row['CURRENT_OBJECTS']}, verified={verified}")
     gc.collect()
     return verified
 
