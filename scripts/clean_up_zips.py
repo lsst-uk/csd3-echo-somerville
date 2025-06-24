@@ -17,16 +17,6 @@ import logging
 warnings.filterwarnings('ignore')
 
 
-logging.basicConfig(
-    level='INFO',
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
-)
-logger = logging.getLogger('clean_zips')
-
-
 def logprint(msg: str, level: str = 'info'):  # , log: str | logging.Logger = None) -> None:
     """
     Logs a message to a specified log file or prints it to the console.
@@ -384,7 +374,14 @@ if __name__ == '__main__':
     debug = args.debug
     debug_level = logging.DEBUG if debug else logging.INFO
 
-    logger.setLevel(debug_level)
+    logging.basicConfig(
+        level=debug_level,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
+    logger = logging.getLogger('clean_zips')
 
     # Parse arguments
     api = args.api.lower()
