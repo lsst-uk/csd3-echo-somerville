@@ -634,17 +634,16 @@ if __name__ == '__main__':
                     )
                     logprint('Persisting current_zips.', 'debug')
                     # Persist and process current_zips in manageable chunks to avoid memory issues
-                    chunk_size = 10000  # Adjust as needed based on memory constraints
-                    num_chunks = (len(current_zips) // chunk_size) + 1
+                    # chunk_size = 10000  # Adjust as needed based on memory constraints
+                    # num_chunks = (len(current_zips) // chunk_size) + 1
 
-                    for i in range(num_chunks):
-                        logprint(f'Processing chunk {i + 1}/{num_chunks}', 'debug')
-                        chunk = current_zips.iloc[i * chunk_size:(i + 1) * chunk_size]
-                        chunk = client.persist(chunk)
+                    for i in range(current_zips.npartitions):
+                        logprint(f'Processing partitions {i}', 'debug')
+                        part = current_zips.get_partition(i)
+                        part = client.persist(part)
                         # Optionally, trigger computation to force execution
                         # and free memory
-                        chunk.compute()
-                        del chunk
+                        del part
                         gc.collect()
 
                     if verify:
