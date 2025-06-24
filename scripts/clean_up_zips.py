@@ -507,6 +507,7 @@ if __name__ == '__main__':
             num_cz = len(current_zips)  # noqa
             remaining_objects_set = set(current_objects[current_objects['is_zip'] == False]['CURRENT_OBJECTS'].compute())  # noqa
             logprint(f'Scattering remaining object names (non-zip files): {num_co - num_cz}', log=logger)
+            logprint(f'Size in memory of remaining_objects_set: {sys.getsizeof(remaining_objects_set) / 1024**2:.2f} MB', log=logger)
             client.scatter(remaining_objects_set)  # Persist the remaining objects
 
             del current_objects  # Free memory
