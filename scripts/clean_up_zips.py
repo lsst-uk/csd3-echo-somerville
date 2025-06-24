@@ -3,6 +3,7 @@ import sys
 import os
 import warnings
 from datetime import datetime
+import numpy as np
 import pandas as pd
 from psutil import virtual_memory as mem
 import bucket_manager.bucket_manager as bm
@@ -511,6 +512,13 @@ if __name__ == '__main__':
             current_object_names = bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)
         current_object_names = pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_object_names})
         logprint(f'Done at {datetime.now()}, elapsed time = {datetime.now() - start}', 'info')
+
+        rands = np.random.randint(0, 9e6, size=2)
+        while rands[0] >= rands[1] or rands[0] < 0 or rands[1] >= len(current_object_names) or rands[1] == rands[0] or rands[1] - rands[0] > 100000:
+            rands = np.random.randint(0, 9e6, size=2)
+        logprint(f'Taking a random slice for testing: {rands}', 'debug')
+        if debug:
+            current_object_names = current_object_names[min(rands):max(rands)]
 
         current_objects = dd.from_pandas(
             current_object_names,
