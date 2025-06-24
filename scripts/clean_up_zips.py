@@ -265,7 +265,7 @@ def verify_zip_objects(
     except Exception as e:
         logprint(f'Error verifying {zip_obj}: {e}', log)
         verified = False
-    del zip_metadata, contents
+    del zip_metadata, contents, existing  # Free memory
     logprint(f"verify_zip_objects completed for {row['CURRENT_OBJECTS']}, verified={verified}", log=log)
     gc.collect()
     return verified
