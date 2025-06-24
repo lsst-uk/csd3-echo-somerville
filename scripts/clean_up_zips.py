@@ -375,13 +375,14 @@ if __name__ == '__main__':
     debug_level = logging.DEBUG if debug else logging.INFO
 
     logging.basicConfig(
-        level=debug_level,
+        level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
             logging.StreamHandler(sys.stdout)
         ]
     )
     logger = logging.getLogger('clean_zips')
+    logger.setLevel(debug_level)
 
     # Parse arguments
     api = args.api.lower()
