@@ -511,12 +511,12 @@ if __name__ == '__main__':
         current_object_names = pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_object_names})
         logprint(f'Done at {datetime.now()}, elapsed time = {datetime.now() - start}', 'info')
 
-        rands = np.random.randint(0, 9e6, size=2)
-        while rands[0] >= rands[1] or rands[0] < 0 or rands[1] >= len(current_object_names) or rands[1] == rands[0] or rands[1] - rands[0] > 1000000 or rands[1] - rands[0] < 100000:
-            rands = np.random.randint(0, 9e6, size=2)
-        logprint(f'Taking a random slice for testing: {rands}', 'debug')
-        if debug:
-            current_object_names = current_object_names[min(rands):max(rands)]
+        # rands = np.random.randint(0, 9e6, size=2)
+        # while rands[0] >= rands[1] or rands[0] < 0 or rands[1] >= len(current_object_names) or rands[1] == rands[0] or rands[1] - rands[0] > 1000000 or rands[1] - rands[0] < 100000:
+        #     rands = np.random.randint(0, 9e6, size=2)
+        # logprint(f'Taking a random slice for testing: {rands}', 'debug')
+        # if debug:
+        #     current_object_names = current_object_names[min(rands):max(rands)]
 
         current_objects = dd.from_pandas(
             current_object_names,
@@ -633,7 +633,19 @@ if __name__ == '__main__':
                         meta=('bool'),
                     )
                     logprint('Persisting current_zips.', 'debug')
-                    current_zips = client.persist(current_zips)
+                    # Persist and process current_zips in manageable chunks to avoid memory issues
+                    chunk_size = 10000  # Adjust as needed based on memory constraints
+                    num_chunks = (len(current_zips) // chunk_size) + 1
+
+                    for i in range(num_chunks):
+                        logprint(f'Processing chunk {i + 1}/{num_chunks}', 'debug')
+                        chunk = current_zips.iloc[i * chunk_size:(i + 1) * chunk_size]
+                        chunk = client.persist(chunk)
+                        # Optionally, trigger computation to force execution
+                        # and free memory
+                        chunk.compute()
+                        del chunk
+                        gc.collect()
 
                     if verify:
                         logprint(
