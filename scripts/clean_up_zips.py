@@ -244,7 +244,7 @@ def verify_zip_objects(
     existing = []
     try:
         with open(remaining_objects_path, 'r') as f:
-            for c in contents:
+            for c in contents:  # iteration over contents faster than over remaining_objects
                 existing.append(c in f.read())
     except FileNotFoundError:
         logprint(f'WARNING: {remaining_objects_path} not found. Cannot verify contents.', log)
