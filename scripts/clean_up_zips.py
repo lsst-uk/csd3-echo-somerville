@@ -203,6 +203,7 @@ def verify_zip_objects(
     row: pd.Series,
     s3: swiftclient.Connection,
     bucket_name: str,
+    remaining_objects_set: set,
     # remaining_objects_path: str,
     # logger_name: str = None,
 ) -> bool:
@@ -570,6 +571,7 @@ if __name__ == '__main__':
                             args=(
                                 s3,
                                 bucket_name,
+                                remaining_objects_set,
                                 # ro_path,
                                 # 'clean_zips',
                             ),
