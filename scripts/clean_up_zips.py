@@ -521,7 +521,7 @@ if __name__ == '__main__':
 
         current_objects = dd.from_pandas(
             current_object_names,
-            npartitions=100
+            npartitions=1000 * n_workers
         )
         num_co = len(current_object_names)  # noqa
         del current_object_names  # Free memory
@@ -539,7 +539,7 @@ if __name__ == '__main__':
             logprint('Reducing current_objects to only zip files.', 'info')
             current_zips = current_objects[current_objects['is_zip'] == True]  # noqa
             # client.scatter(current_objects)
-            current_zips = client.persist(current_zips)  # Persist the Dask DataFrame
+            # current_zips = client.persist(current_zips)  # Persist the Dask DataFrame
             num_cz = len(current_zips)  # noqa
             remaining_objects_set = current_objects[current_objects['is_zip'] == False]['CURRENT_OBJECTS']  # noqa
             remaining_objects_set = set(remaining_objects_set.compute())  # Convert to set for faster lookups
@@ -548,7 +548,7 @@ if __name__ == '__main__':
             # remaining_objects.to_csv(ro_path, index=False, single_file=True)  # Save remaining objects to CSV
             # logprint(f'Scattering remaining object names (non-zip files): {num_co - num_cz}', log=logger)
             # logprint(f'Size in memory of remaining_objects_set: {sys.getsizeof(remaining_objects_set) / 1024**2:.2f} MB', log=logger)
-            client.scatter(remaining_objects_set, broadcast=True)  # Scatter remaining objects set for faster lookups
+            client.scatter(remaining_objects_set, broadcast=True)  # Scatter remaining objects set for faster look-ups
 
             del current_objects  # Free memory
             gc.collect()  # Collect garbage to free memory
@@ -691,7 +691,7 @@ if __name__ == '__main__':
                     pd.DataFrame.from_dict(
                         {'CURRENT_OBJECTS': bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)}
                     ),
-                    npartitions=100
+                    npartitions=1000*n_workers
                 )
                 logprint(
                     f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}',
@@ -705,7 +705,7 @@ if __name__ == '__main__':
                 md_objects = client.persist(current_objects[current_objects['is_metadata'] == True])  # noqa
                 len_md = len(md_objects)
                 if len_md > 0:  # noqa
-                    md_objects = dd.from_pandas(md_objects, npartitions=100)  # noqa
+                    md_objects = dd.from_pandas(md_objects, npartitions=1000*n_workers)  # noqa
                     if dryrun:
                         logprint(
                             'Any orphaned metadata files would be found and deleted.',
