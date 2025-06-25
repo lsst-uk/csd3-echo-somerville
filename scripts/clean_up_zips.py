@@ -203,7 +203,7 @@ def verify_zip_objects(
     row: pd.Series,
     s3: swiftclient.Connection,
     bucket_name: str,
-    remaining_objects_path: str,
+    # remaining_objects_path: str,
     # logger_name: str = None,
 ) -> bool:
     """
@@ -244,41 +244,42 @@ def verify_zip_objects(
     zip_metadata_uri = f'{zip_obj}.metadata'
 
     try:
-        print(f'Getting metadata from {zip_metadata_uri}'+ 'debug', flush=True)
+        print(f'Getting metadata from {zip_metadata_uri}' + ' debug', flush=True)
         zip_metadata = s3.get_object(bucket_name, zip_metadata_uri)[1]
     except swiftclient.exceptions.ClientException as e:
-        print(f'WARNING: Error getting {zip_metadata_uri}: {e.msg}'+ 'warning', flush=True)
+        print(f'WARNING: Error getting {zip_metadata_uri}: {e.msg}' + ' warning', flush=True)
         return False
 
     contents = [f'{path_stub}/{c}' for c in zip_metadata.decode().split('|') if c]
     lc = len(contents)
     verified = False
-    existing = []
-    try:
-        with open(remaining_objects_path, 'r') as f:
-            for c in contents:  # iteration over contents faster than over remaining_objects
-                existing.append(c in f.read())
-    except FileNotFoundError:
-        print(f'WARNING: {remaining_objects_path} not found. Cannot verify contents.'+ 'warning', flush=True)
-        return False
-    all_contents_exist = all(existing)
+    # existing = []
+    # try:
+    #     with open(remaining_objects_path, 'r') as f:
+    #         for c in contents:  # iteration over contents faster than over remaining_objects
+    #             existing.append(c in f.read())
+    # except FileNotFoundError:
+    #     print(f'WARNING: {remaining_objects_path} not found. Cannot verify contents.' + ' warning', flush=True)
+    #     return False
+    # all_contents_exist = all(existing)
+    all_contents_exist = [c in remaining_objects_set for c in contents]  # Use set membership testing
     # logprint(f'Contents: {lc}', log)
     try:
-        print(f'Verifying {zip_obj} contents against remaining objects'+ 'debug', flush=True)
+        print(f'Verifying {zip_obj} contents against remaining objects' + ' debug', flush=True)
         # if sum(current_objects.isin(contents).values) == lc:  # inefficient
         # Use set membership testing for increased efficiency
         if all_contents_exist:
-            print(f'All {lc} contents of {zip_obj} found in remaining objects'+ 'debug', flush=True)
+            print(f'All {lc} contents of {zip_obj} found in remaining objects' + ' debug', flush=True)
             verified = True
-            print(f'{zip_obj} verified: {verified} - can be deleted'+ 'debug', flush=True)
+            print(f'{zip_obj} verified: {verified} - can be deleted' + ' debug', flush=True)
         else:
             verified = False
-            print(f'{zip_obj} verified: {verified} - cannot be deleted'+ 'debug', flush=True)
+            print(f'{zip_obj} verified: {verified} - cannot be deleted' + ' debug', flush=True)
     except Exception as e:
-        print(f'Error verifying {zip_obj}: {e}'+ 'error', flush=True)
+        print(f'Error verifying {zip_obj}: {e}' + ' error', flush=True)
         verified = False
     del zip_metadata, contents, existing  # Free memory
-    print(f"verify_zip_objects completed for {row['CURRENT_OBJECTS']}, verified={verified}"+ 'debug', flush=True)
+    print(f"verify_zip_objects completed for {row['CURRENT_OBJECTS']}, verified={verified}" + ' debug', flush=True)
     gc.collect()
     return verified
 
@@ -539,13 +540,14 @@ if __name__ == '__main__':
             # client.scatter(current_objects)
             current_zips = client.persist(current_zips)  # Persist the Dask DataFrame
             num_cz = len(current_zips)  # noqa
-            remaining_objects = current_objects[current_objects['is_zip'] == False]['CURRENT_OBJECTS']  # noqa
-            ro_path = 'remaining_objects.csv'
-            logprint(f'Saving remaining_objects (names only) to {ro_path}', 'info')
-            remaining_objects.to_csv(ro_path, index=False, single_file=True)  # Save remaining objects to CSV
+            remaining_objects_set = current_objects[current_objects['is_zip'] == False]['CURRENT_OBJECTS']  # noqa
+            remaining_objects_set = set(remaining_objects_set.compute())  # Convert to set for faster lookups
+            # ro_path = 'remaining_objects.csv'
+            # logprint(f'Saving remaining_objects (names only) to {ro_path}', 'info')
+            # remaining_objects.to_csv(ro_path, index=False, single_file=True)  # Save remaining objects to CSV
             # logprint(f'Scattering remaining object names (non-zip files): {num_co - num_cz}', log=logger)
             # logprint(f'Size in memory of remaining_objects_set: {sys.getsizeof(remaining_objects_set) / 1024**2:.2f} MB', log=logger)
-            # client.scatter(remaining_objects_set)  # Persist the remaining objects
+            client.scatter(remaining_objects_set, broadcast=True)  # Scatter remaining objects set for faster lookups
 
             del current_objects  # Free memory
             gc.collect()  # Collect garbage to free memory
@@ -568,7 +570,7 @@ if __name__ == '__main__':
                             args=(
                                 s3,
                                 bucket_name,
-                                ro_path,
+                                # ro_path,
                                 # 'clean_zips',
                             ),
                         ),
