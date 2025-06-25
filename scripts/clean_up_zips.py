@@ -640,11 +640,12 @@ if __name__ == '__main__':
                     # chunk_size = 10000  # Adjust as needed based on memory constraints
                     # num_chunks = (len(current_zips) // chunk_size) + 1
 
-                    for i in range(current_zips.npartitions):
-                        logprint(f'Processing partition {i}', 'debug')
-                        part = current_zips.get_partition(i).compute()
-                        del part
-                        gc.collect()
+                    # for i in range(current_zips.npartitions):
+                    #     logprint(f'Processing partition {i}', 'debug')
+                    #     part = current_zips.get_partition(i).compute()
+                    #     del part
+                    #     gc.collect()
+                    current_zips = client.persist(current_zips)  # Persist the Dask DataFrame
 
                     if verify:
                         logprint(
