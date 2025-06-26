@@ -489,7 +489,10 @@ if __name__ == '__main__':
     tag = ''
     for i in range(6):
         tag += letters[randint(0, 25)]
-    cluster = KubeCluster(name="lsstuk-dask-cluster", image="ghcr.io/dask/dask:latest", namespace='lsstuk-dask' + tag)
+    namespace = 'lsstuk-dask' + tag
+    logprint(f'Using namespace: {namespace}', 'info')
+    os.system(f'kubectl create namespace {namespace}')
+    cluster = KubeCluster(name="lsstuk-dask-cluster", image="ghcr.io/dask/dask:latest", namespace=namespace)
     # Process the files
     with Client(cluster) as client:
         logprint(f'Dask Client: {client}', 'info')
