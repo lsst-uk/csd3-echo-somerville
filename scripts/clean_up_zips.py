@@ -10,6 +10,7 @@ import swiftclient
 import argparse
 from dask import dataframe as dd
 from distributed import Client
+from dask_kubernetes.operator import KubeCluster
 import subprocess
 import logging
 warnings.filterwarnings('ignore')
