@@ -188,9 +188,9 @@ def clean_orphaned_metadata(
         zip_obj = str(obj.split('.metadata')[0])
         try:
             delete_object_swift(row, s3, bucket_name, del_metadata=False, log=None)
-            logprint(f'Deleted {obj} as {zip_obj} does not exist', log)
+            logprint(f'Deleted {obj} as {zip_obj} does not exist', 'info')
         except swiftclient.exceptions.ClientException as e:
-            logprint(f'WARNING: Error deleting {obj}: {e.msg}', log)
+            logprint(f'WARNING: Error deleting {obj}: {e.msg}', 'warning')
         return True
     else:
         return False
@@ -237,7 +237,7 @@ def verify_zip_objects(
     # del remaining_objects  # Free memory
 
     if zip_obj == 'None':
-        print(f'WARNING: {zip_obj} is None'+ 'warning', flush=True)
+        print(f'WARNING: {zip_obj} is None' + ' warning', flush=True)
         return False
     path_stub = '/'.join(zip_obj.split('/')[:-1])
     zip_metadata_uri = f'{zip_obj}.metadata'
@@ -277,8 +277,11 @@ def verify_zip_objects(
     except Exception as e:
         print(f'Error verifying {zip_obj}: {e}' + ' error', flush=True)
         verified = False
-    del zip_metadata, contents, existing  # Free memory
-    print(f"verify_zip_objects completed for {row['CURRENT_OBJECTS']}, verified={verified}" + ' debug', flush=True)
+    del zip_metadata, contents  # Free memory
+    print(
+        f"verify_zip_objects completed for {row['CURRENT_OBJECTS']}, verified={verified}" + ' debug',
+        flush=True
+    )
     gc.collect()
     return verified
 
@@ -532,10 +535,11 @@ if __name__ == '__main__':
                 lambda partition: partition.str.fullmatch(zip_match, na=False)  # noqa
             )
             # report partition sizes
-            partition_lens = current_objects.map_partitions(lambda partition: len(partition)).persist()
-            partition_sizes = current_objects.map_partitions(lambda partition: partition.memory_usage(deep=True).sum()).persist()
+            partition_lens = current_objects.map_partitions(lambda partition: len(partition)).compute()
+            partition_sizes = current_objects.map_partitions(lambda partition: partition.memory_usage(deep=True).sum()).compute()
             logprint(f'Partition lengths: {partition_lens.describe()} ', 'debug')
             logprint(f'Partition sizes: {partition_sizes.describe()}', 'debug')
+            del partition_lens, partition_sizes  # Free memory
             logprint('Reducing current_objects to only zip files.', 'info')
             current_zips = current_objects[current_objects['is_zip'] == True]  # noqa
             # client.scatter(current_objects)
@@ -677,10 +681,7 @@ if __name__ == '__main__':
                             'info'
                         )
                     del current_zips
-                    logprint(
-                        f'Finished processing',
-                        'info'
-                    )
+                    logprint('Finished processing', 'info')
 
             else:
                 logprint(f'No zip files in bucket {bucket_name}.', 'warning')
