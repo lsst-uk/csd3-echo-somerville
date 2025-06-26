@@ -500,7 +500,8 @@ if __name__ == '__main__':
         )
         logprint(f'Using {nprocs} processes.', 'info')
         logprint(
-            f'Getting current object list for {bucket_name}. This may take some time. Starting at '
+            f'Getting current object list for {bucket_name}. '
+            'This is necessarily serial and may take some time. Starting at '
             f'{datetime.now()}, elapsed time = {datetime.now() - start}',
             'info'
         )
