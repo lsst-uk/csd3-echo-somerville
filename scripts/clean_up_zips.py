@@ -2,8 +2,6 @@ import gc
 import sys
 import os
 import warnings
-from datetime import datetime
-import numpy as np
 import pandas as pd
 from psutil import virtual_memory as mem
 import bucket_manager.bucket_manager as bm
@@ -427,9 +425,6 @@ if __name__ == '__main__':
     uname = subprocess.run(['uname', '-n'], capture_output=True)
     logprint(f'Running on {uname.stdout.decode().strip()}', 'info')
 
-    # Initiate timing
-    start = datetime.now()
-
     # Setup bucket
     try:
         if bm.check_keys(api):
@@ -495,14 +490,13 @@ if __name__ == '__main__':
         logprint(f'Dask Client: {client}', 'info')
         logprint(f'Dashboard: {client.dashboard_link}', 'info')
         logprint(
-            f'Starting processing at {datetime.now()}, elapsed time = {datetime.now() - start}',
+            'Starting processing.',
             'info'
         )
         logprint(f'Using {nprocs} processes.', 'info')
         logprint(
             f'Getting current object list for {bucket_name}. '
-            'This is necessarily serial and may take some time. Starting at '
-            f'{datetime.now()}, elapsed time = {datetime.now() - start}',
+            'This is necessarily serial and may take some time. Starting.',
             'info'
         )
 
@@ -511,7 +505,7 @@ if __name__ == '__main__':
         elif api == 'swift':
             current_object_names = bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)
         current_object_names = pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_object_names})
-        logprint(f'Done at {datetime.now()}, elapsed time = {datetime.now() - start}', 'info')
+        logprint(f'Done.', 'info')
 
         # rands = np.random.randint(0, 9e6, size=2)
         # while rands[0] >= rands[1] or rands[0] < 0 or rands[1] >= len(current_object_names) or rands[1] == rands[0] or rands[1] - rands[0] > 1000000 or rands[1] - rands[0] < 100000:
@@ -684,7 +678,7 @@ if __name__ == '__main__':
                         )
                     del current_zips
                     logprint(
-                        f'Finished processing at {datetime.now()}, elapsed time = {datetime.now() - start}',
+                        f'Finished processing',
                         'info'
                     )
 
@@ -700,7 +694,7 @@ if __name__ == '__main__':
                     npartitions=100 * n_workers
                 )
                 logprint(
-                    f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}',
+                    'Done.',
                     'info'
                 )
 
