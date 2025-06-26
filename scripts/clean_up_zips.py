@@ -538,8 +538,8 @@ if __name__ == '__main__':
                 lambda partition: partition.str.fullmatch(zip_match, na=False)  # noqa
             )
             # report partition sizes
-            partition_lens = current_objects.map_partitions(lambda partition: len(partition)).compute()
-            partition_sizes = current_objects.map_partitions(lambda partition: partition.memory_usage(deep=True).sum()).compute()
+            partition_lens = current_objects.map_partitions(lambda partition: len(partition)).persist()
+            partition_sizes = current_objects.map_partitions(lambda partition: partition.memory_usage(deep=True).sum()).persist()
             logprint(f'Partition lengths: {partition_lens.describe()} ', 'debug')
             logprint(f'Partition sizes: {partition_sizes.describe()}', 'debug')
             logprint('Reducing current_objects to only zip files.', 'info')
@@ -548,7 +548,7 @@ if __name__ == '__main__':
             # current_zips = client.persist(current_zips)  # Persist the Dask DataFrame
             num_cz = len(current_zips)  # noqa
             remaining_objects_set = current_objects[current_objects['is_zip'] == False]['CURRENT_OBJECTS']  # noqa
-            remaining_objects_set = set(remaining_objects_set.compute())  # Convert to set for faster lookups
+            remaining_objects_set = set(remaining_objects_set.persist())  # Convert to set for faster lookups
             # ro_path = 'remaining_objects.csv'
             # logprint(f'Saving remaining_objects (names only) to {ro_path}', 'info')
             # remaining_objects.to_csv(ro_path, index=False, single_file=True)  # Save remaining objects to CSV
