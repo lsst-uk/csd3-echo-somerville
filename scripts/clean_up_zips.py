@@ -499,7 +499,15 @@ if __name__ == '__main__':
         image="ghcr.io/dask/dask:latest",
         namespace=namespace,
         n_workers=n_workers,
-        resources={"requests": {"memory": mem_request}, "limits": {"memory": mem_limit}}
+        resources={
+            "requests": {
+                "memory": mem_request,
+                "cpu": str(num_threads)
+            },
+            "limits": {
+                "memory": mem_limit
+            }
+        },
     )
 
     # Process the files
