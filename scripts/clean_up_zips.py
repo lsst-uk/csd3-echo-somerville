@@ -497,7 +497,6 @@ if __name__ == '__main__':
         name="lsstuk-dask-cluster",
         image="ghcr.io/dask/dask:latest",
         namespace=namespace,
-        memory_limit=mem_limit,
     )
     cluster.scale(n_workers)  # Scale the cluster to the number of processes
     # Process the files
