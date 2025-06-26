@@ -13,6 +13,8 @@ from distributed import Client
 from dask_kubernetes.operator import KubeCluster
 import subprocess
 import logging
+from random import randint
+from string import ascii_lowercase as letters
 warnings.filterwarnings('ignore')
 
 
@@ -484,13 +486,12 @@ if __name__ == '__main__':
         f'{mem_per_worker/1024**3:.2f} GiB',
         'info'
     )
-
+    tag = ''
+    for i in range(6):
+        tag += letters[randint(0, 25)]
+    cluster = KubeCluster(name="lsstuk-dask-cluster", image="ghcr.io/dask/dask:latest", namespace='lsstuk-dask' + tag)
     # Process the files
-    with Client(
-        n_workers=n_workers,
-        threads_per_worker=num_threads,
-        memory_limit=f'{(int((mem().total/1024**3)*7/8)/n_workers)}GB'
-    ) as client:
+    with Client(cluster) as client:
         logprint(f'Dask Client: {client}', 'info')
         logprint(f'Dashboard: {client.dashboard_link}', 'info')
         logprint(
