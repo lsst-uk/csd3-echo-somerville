@@ -500,7 +500,6 @@ if __name__ == '__main__':
         threads_per_worker=num_threads,
         memory_limit=f'{mem_per_worker // 1024**3 - 32} GiB',
     )
-    cluster.scale(nprocs)  # Scale the cluster to the number of processes
     # Process the files
     with Client(cluster) as client:
         logprint(f'Dask Client: {client}', 'info')
