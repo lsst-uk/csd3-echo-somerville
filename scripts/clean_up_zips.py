@@ -505,7 +505,8 @@ if __name__ == '__main__':
                 "cpu": str(num_threads)
             },
             "limits": {
-                "memory": mem_limit
+                "memory": mem_limit,
+                "cpu": str(num_threads)
             }
         },
     )
