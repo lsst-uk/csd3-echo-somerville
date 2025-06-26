@@ -539,8 +539,8 @@ if __name__ == '__main__':
             # report partition sizes
             partition_lens = current_objects.map_partitions(lambda partition: len(partition)).compute()
             partition_sizes = current_objects.map_partitions(lambda partition: partition.memory_usage(deep=True).sum()).compute()
-            logprint(f'Partition lengths: {partition_lens}', 'debug')
-            logprint(f'Partition sizes: {partition_sizes}', 'debug')
+            logprint(f'Partition lengths: {partition_lens.describe()} ', 'debug')
+            logprint(f'Partition sizes: {partition_sizes.describe()}', 'debug')
             logprint('Reducing current_objects to only zip files.', 'info')
             current_zips = current_objects[current_objects['is_zip'] == True]  # noqa
             # client.scatter(current_objects)
