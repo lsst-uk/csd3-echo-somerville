@@ -521,7 +521,7 @@ if __name__ == '__main__':
 
         current_objects = dd.from_pandas(
             current_object_names,
-            npartitions=1000 * n_workers
+            npartitions=100 * n_workers
         )
         num_co = len(current_object_names)  # noqa
         del current_object_names  # Free memory
@@ -536,6 +536,11 @@ if __name__ == '__main__':
             current_objects['is_zip'] = current_objects['CURRENT_OBJECTS'].map_partitions(
                 lambda partition: partition.str.fullmatch(zip_match, na=False)  # noqa
             )
+            # report partition sizes
+            partition_lens = current_objects.map_partitions(lambda partition: len(partition)).compute()
+            partition_sizes = current_objects.map_partitions(lambda partition: partition.memory_usage(deep=True).sum()).compute()
+            logprint(f'Partition lengths: {partition_lens}', 'debug')
+            logprint(f'Partition sizes: {partition_sizes}', 'debug')
             logprint('Reducing current_objects to only zip files.', 'info')
             current_zips = current_objects[current_objects['is_zip'] == True]  # noqa
             # client.scatter(current_objects)
@@ -691,7 +696,7 @@ if __name__ == '__main__':
                     pd.DataFrame.from_dict(
                         {'CURRENT_OBJECTS': bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)}
                     ),
-                    npartitions=1000*n_workers
+                    npartitions=100 * n_workers
                 )
                 logprint(
                     f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start}',
@@ -705,7 +710,7 @@ if __name__ == '__main__':
                 md_objects = client.persist(current_objects[current_objects['is_metadata'] == True])  # noqa
                 len_md = len(md_objects)
                 if len_md > 0:  # noqa
-                    md_objects = dd.from_pandas(md_objects, npartitions=1000*n_workers)  # noqa
+                    md_objects = dd.from_pandas(md_objects, npartitions=100 * n_workers)  # noqa
                     if dryrun:
                         logprint(
                             'Any orphaned metadata files would be found and deleted.',
