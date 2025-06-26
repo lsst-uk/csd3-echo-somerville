@@ -491,11 +491,11 @@ if __name__ == '__main__':
     tag = ''
     for i in range(6):
         tag += letters[randint(0, 25)]
-    namespace = 'lsstuk-dask-' + tag
+    namespace = 'lsstuk-dask'
     logprint(f'Using namespace: {namespace}', 'info')
     os.system(f'kubectl create namespace {namespace}')
     cluster = KubeCluster(
-        name="lsstuk-dask-cluster",
+        name="lsstuk-dask-" + tag,
         image="ghcr.io/dask/dask:latest",
         namespace=namespace,
         n_workers=n_workers,
