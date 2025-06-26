@@ -5,7 +5,7 @@
 - Login to https://openstack.stfc.ac.uk and add a large instance called something like `echo-monitor` from the Ubuntu Jammy image.
 - Add a floating IP address.
 
-## 2. Initiate microk8s
+## 2. Initiate microk8s and kubectl
 
 The Echo-side VM will use microk8s as a single-node k8s solution. This is installed using Canonical Snap.
 
@@ -14,12 +14,28 @@ sudo snap install microk8s --classic --channel=1.32
 sudo microk8s enable cert-manager host-access ingress hostpath-storage dashboard
 ```
 
+Similarly, install `kubectl`
+
+```shell
+sudo snap install kubectl --classic
+```
+
+Add a config file for `kubectl` to see your microk8s cluster:
+
+```shell
+mkdir ~/.kube
+sudo microk8s config > ~/.kube/config
+kubectl config use-context microk8s
+kubectl config get-contexts
+```
+
+That last command should list the microk8s cluster with 'admin' under 'AUTHINFO'.
+
 Setup aliases.
 
 ```shell
 cat << EOF > ~/.bash_aliases 
 alias mk8s='sudo microk8s'
-alias kubectl='sudo microk8s kubectl'
 alias helm='sudo microk8s helm'
 EOF
 ```
@@ -92,3 +108,7 @@ ssh -i $HOME/.ssh/id_rsa -L 8080:localhost:8080 ubuntu@<floating ip>
 ```
 
 Finally, navigate to [https://127.0.0.1:8080](https://127.0.0.1:8080) in your web browser. For info on the UI, see [Airflow UI Overview](https://airflow.apache.org/docs/apache-airflow/stable/ui.html).
+
+## 4. Possible to-dos
+
+- use `dask-kubernetes` to provide Dask workers as kubernetes pods.
