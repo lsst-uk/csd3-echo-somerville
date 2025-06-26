@@ -476,9 +476,9 @@ if __name__ == '__main__':
     ############################
     #        Dask Setup        #
     ############################
-    # total_memory = mem().total
-    # n_workers = nprocs // num_threads  # e.g., 48 / 2 = 24
-    # mem_per_worker = mem().total // n_workers  # e.g., 187 GiB / 48 * 2 = 7.8 GiB
+    total_memory = mem().total
+    n_workers = nprocs // num_threads  # e.g., 48 / 2 = 24
+    mem_per_worker = mem().total // n_workers  # e.g., 187 GiB / 48 * 2 = 7.8 GiB
 
     # logprint(
     #     f'nprocs: {nprocs}, Threads per worker: {num_threads}, Number of workers: {n_workers}, '
@@ -492,7 +492,14 @@ if __name__ == '__main__':
     namespace = 'lsstuk-dask-' + tag
     logprint(f'Using namespace: {namespace}', 'info')
     os.system(f'kubectl create namespace {namespace}')
-    cluster = KubeCluster(name="lsstuk-dask-cluster", image="ghcr.io/dask/dask:latest", namespace=namespace)
+    cluster = KubeCluster(
+        name="lsstuk-dask-cluster",
+        image="ghcr.io/dask/dask:latest",
+        namespace=namespace,
+        n_workers=n_workers,
+        threads_per_worker=num_threads,
+        memory_limit=f'{mem_per_worker // 1024**3 - 32} GiB',
+    )
     cluster.scale(nprocs)  # Scale the cluster to the number of processes
     # Process the files
     with Client(cluster) as client:
