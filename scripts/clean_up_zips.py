@@ -491,11 +491,10 @@ if __name__ == '__main__':
     tag = ''
     for i in range(6):
         tag += letters[randint(0, 25)]
-    namespace = 'lsstuk-dask-' + tag
+    namespace = 'dask-service-clusters'
     logprint(f'Using namespace: {namespace}', 'info')
-    os.system(f'kubectl create namespace {namespace}')
     cluster = KubeCluster(
-        name="lsstuk-dask-" + tag,
+        name="dask-cleanzips-" + tag,
         image="ghcr.io/dask/dask:latest",
         namespace=namespace,
         n_workers=n_workers,
@@ -531,7 +530,7 @@ if __name__ == '__main__':
         elif api == 'swift':
             current_object_names = bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)
         current_object_names = pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_object_names})
-        logprint(f'Done.', 'info')
+        logprint('Done.', 'info')
 
         # rands = np.random.randint(0, 9e6, size=2)
         # while rands[0] >= rands[1] or rands[0] < 0 or rands[1] >= len(current_object_names) or rands[1] == rands[0] or rands[1] - rands[0] > 1000000 or rands[1] - rands[0] < 100000:
@@ -772,3 +771,7 @@ if __name__ == '__main__':
         else:
             logprint(f'No files in bucket {bucket_name}. Exiting.', 'warning')
             sys.exit(0)
+    logprint('Cleaning up Dask cluster.', 'info')
+    cluster.close()
+
+sys.exit(0)

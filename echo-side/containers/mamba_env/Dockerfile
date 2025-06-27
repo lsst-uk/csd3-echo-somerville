@@ -7,7 +7,7 @@ LABEL org.opencontainers.image.licenses="Apache-2.0"
 
 COPY environment.yaml /environment.yaml
 USER root
-RUN apt-get update && apt-get install -y git
+RUN apt-get update && apt-get install -y git kubectl
 RUN mkdir -p /airflow/xcom
 RUN chown -R mambauser:mambauser /airflow
 USER mambauser

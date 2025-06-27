@@ -53,9 +53,10 @@ with DAG(
             op_kwargs={'bucket_name': bucket_name},
         ) for bucket_name in bucket_names]
 
-    create_clean_up_zips_task = [
+    create_clean_up_zips_dask_task = [
         KubernetesPodOperator(
             task_id=f'clean_up_zips_{bucket_name}',
+            namespace='dask-service-clusters',
             image='ghcr.io/lsst-uk/csd3-echo-somerville:tests',
             cmds=['/entrypoint.sh'],
             arguments=[
@@ -76,6 +77,9 @@ with DAG(
                 'ST_USER': Variable.get("ST_USER"),
                 'ST_KEY': Variable.get("ST_KEY"),
             },
+            is_delete_operator_pod=True,
+            in_cluster=True,
+            service_account_name='airflow-dask-executor',
             get_logs=True,
             dag=dag,
         ) for bucket_name in bucket_names]
