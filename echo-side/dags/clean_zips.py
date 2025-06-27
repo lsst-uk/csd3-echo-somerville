@@ -46,14 +46,14 @@ with DAG(
     catchup=False,
 ) as dag:
 
-    print_bucket_name_task = [
+    print_bucket_name_tasks = [
         PythonOperator(
             task_id=f'print_bucket_name_{bucket_name}',
             python_callable=print_bucket_name,
             op_kwargs={'bucket_name': bucket_name},
         ) for bucket_name in bucket_names]
 
-    create_clean_up_zips_dask_task = [
+    create_clean_up_zips_dask_tasks = [
         KubernetesPodOperator(
             task_id=f'clean_up_zips_{bucket_name}',
             namespace='dask-service-clusters',
@@ -85,5 +85,5 @@ with DAG(
         ) for bucket_name in bucket_names]
 
     # Set task dependencies
-    for task in print_bucket_name_task:
-        task >> create_clean_up_zips_dask_task
+    for print_bucket_name_task, create_clean_up_zips_dask_task in zip(print_bucket_name_tasks, create_clean_up_zips_dask_tasks):
+        print_bucket_name_task >> create_clean_up_zips_dask_task
