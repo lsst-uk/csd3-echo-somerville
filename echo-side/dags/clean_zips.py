@@ -86,4 +86,4 @@ with DAG(
 
     # Set task dependencies
     for task in print_bucket_name_task:
-        task >> create_clean_up_zips_task
+        task >> create_clean_up_zips_dask_task
