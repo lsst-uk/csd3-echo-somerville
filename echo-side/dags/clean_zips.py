@@ -80,7 +80,6 @@ with DAG(
             is_delete_operator_pod=True,
             in_cluster=True,
             service_account_name='airflow-dask-executor',
-            automount_service_account_token=True,
             get_logs=True,
             dag=dag,
         ) for bucket_name in bucket_names]
