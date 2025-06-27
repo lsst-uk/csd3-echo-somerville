@@ -85,5 +85,8 @@ with DAG(
         ) for bucket_name in bucket_names]
 
     # Set task dependencies
-    for print_bucket_name_task, create_clean_up_zips_dask_task in zip(print_bucket_name_tasks, create_clean_up_zips_dask_tasks):
+    for print_bucket_name_task, create_clean_up_zips_dask_task in zip(
+        print_bucket_name_tasks,
+        create_clean_up_zips_dask_tasks
+    ):
         print_bucket_name_task >> create_clean_up_zips_dask_task
