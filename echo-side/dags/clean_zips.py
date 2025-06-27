@@ -56,7 +56,7 @@ with DAG(
     create_clean_up_zips_task = [
         KubernetesPodOperator(
             task_id=f'clean_up_zips_{bucket_name}',
-            image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
+            image='ghcr.io/lsst-uk/csd3-echo-somerville:tests',
             cmds=['/entrypoint.sh'],
             arguments=[
                 'python',
