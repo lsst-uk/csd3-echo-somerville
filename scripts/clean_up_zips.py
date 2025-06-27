@@ -18,6 +18,18 @@ from string import ascii_lowercase as letters
 warnings.filterwarnings('ignore')
 
 
+NAMESPACE_FILE = '/var/run/secrets/kubernetes.io/serviceaccount/namespace'
+
+
+# Check if the namespace file exists and read it
+def get_current_namespace():
+    """Reads the namespace from the file system if available."""
+    if os.path.exists(NAMESPACE_FILE):
+        with open(NAMESPACE_FILE, 'r') as f:
+            return f.read().strip()
+    return "default"  # Fallback
+
+
 def logprint(msg: str, level: str = 'info'):  # , log: str | logging.Logger = None) -> None:
     """
     Logs a message to a specified log file or prints it to the console.
@@ -488,13 +500,17 @@ if __name__ == '__main__':
     #     f'{mem_per_worker/1024**3:.2f} GiB',
     #     'info'
     # )
+
+    # K8s pod info
+    namespace = get_current_namespace()
+
     tag = ''
     for i in range(6):
         tag += letters[randint(0, 25)]
-    namespace = 'dask-service-clusters'
+
     logprint(f'Using namespace: {namespace}', 'info')
     cluster = KubeCluster(
-        name="dask-cleanzips-" + tag,
+        name="dask-cluster-cleanzips-" + tag,
         image="ghcr.io/dask/dask:latest",
         namespace=namespace,
         n_workers=n_workers,
