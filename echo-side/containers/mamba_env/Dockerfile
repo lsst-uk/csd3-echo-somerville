@@ -21,7 +21,7 @@ RUN echo "alias mamba='micromamba'" >> ~/.bashrc
 
 SHELL ["micromamba", "run", "-n", "lsst-uk", "/bin/bash", "-c"]
 
-RUN git clone https://github.com/lsst-uk/csd3-echo-somerville.git
+RUN git clone --branch 128-clean-up-zips-with-dask-k8s https://github.com/lsst-uk/csd3-echo-somerville.git
 
 RUN cd csd3-echo-somerville && python -m pip install .
 
