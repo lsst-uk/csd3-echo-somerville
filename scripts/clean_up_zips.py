@@ -736,7 +736,7 @@ if __name__ == '__main__':
                     'Done.',
                     'info'
                 )
-
+                print('this is line 739', flush=True)
                 current_objects['is_metadata'] = current_objects['CURRENT_OBJECTS'].map_partitions(
                     lambda partition: partition.str.fullmatch(metadata_match, na=False)
                 )
