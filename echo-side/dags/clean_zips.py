@@ -67,6 +67,7 @@ with DAG(
                 '-m',
                 '--bucket-name',
                 bucket_name,
+                '-D',
                 '--nprocs',
                 '28',
             ],
