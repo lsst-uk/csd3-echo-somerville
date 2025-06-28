@@ -740,7 +740,11 @@ if __name__ == '__main__':
                 current_objects['is_metadata'] = current_objects['CURRENT_OBJECTS'].map_partitions(
                     lambda partition: partition.str.fullmatch(metadata_match, na=False)
                 )
-                current_zip_names = client.persist(current_objects[current_objects['is_zip'] == True]['CURRENT_OBJECTS'])  # noqa
+                zip_check = True
+                if 'is_zip' in current_objects.columns:
+                    current_zip_names = client.persist(current_objects[current_objects['is_zip'] == True]['CURRENT_OBJECTS'])  # noqa
+                else:
+                    zip_check = False
                 md_objects = client.persist(current_objects[current_objects['is_metadata'] == True])  # noqa
                 len_md = len(md_objects)
                 if len_md > 0:  # noqa
@@ -751,16 +755,25 @@ if __name__ == '__main__':
                             'info'
                         )
                     else:
-                        md_objects['ORPHANED'] = md_objects.map_partitions(
-                            lambda partition: partition.apply(
-                                is_orphaned_metadata,
-                                axis=1,
-                                args=(
-                                    current_zip_names,
-                                )
-                            ),
-                            meta=('bool')
-                        )
+                        if zip_check:
+                            md_objects['ORPHANED'] = md_objects.map_partitions(
+                                lambda partition: partition.apply(
+                                    is_orphaned_metadata,
+                                    axis=1,
+                                    args=(
+                                        current_zip_names,
+                                    )
+                                ),
+                                meta=('bool')
+                            )
+                        else:
+                            md_objects['ORPHANED'] = md_objects.map_partitions(
+                                lambda partition: partition.apply(
+                                    lambda row: row['CURRENT_OBJECTS'].endswith('.zip.metadata'),
+                                    axis=1
+                                ),
+                                meta=('bool')
+                            )
                         md_objects['deleted'] = md_objects.map_partitions(  # noqa
                             lambda partition: partition.apply(
                                 clean_orphaned_metadata,
