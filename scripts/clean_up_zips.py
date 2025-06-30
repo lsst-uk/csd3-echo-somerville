@@ -562,7 +562,7 @@ if __name__ == '__main__':
 
         current_objects = dd.from_pandas(
             current_object_names,
-            npartitions=100 * n_workers
+            npartitions=1000 * n_workers
         )
         num_co = len(current_object_names)  # noqa
         del current_object_names  # Free memory
@@ -763,7 +763,7 @@ if __name__ == '__main__':
             #         pd.DataFrame.from_dict(
             #             {'CURRENT_OBJECTS': bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)}
             #         ),
-            #         npartitions=100 * n_workers
+            #         npartitions=1000 * n_workers
             #     )
             #     logprint(
             #         'Done.',
@@ -781,7 +781,7 @@ if __name__ == '__main__':
             #     md_objects = client.persist(current_objects[current_objects['is_metadata'] == True])  # noqa
             #     len_md = len(md_objects)
             #     if len_md > 0:  # noqa
-            #         md_objects = dd.from_pandas(md_objects, npartitions=100 * n_workers)  # noqa
+            #         md_objects = dd.from_pandas(md_objects, npartitions=1000 * n_workers)  # noqa
             #         if dryrun:
             #             logprint(
             #                 'Any orphaned metadata files would be found and deleted.',
