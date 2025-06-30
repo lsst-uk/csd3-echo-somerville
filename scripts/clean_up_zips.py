@@ -631,7 +631,7 @@ if __name__ == '__main__':
                         ),
                         meta=('str'),
                     )
-                    num_vz = len(verified_zips)
+                    num_vz = len(verified_zips).compute()
                     del current_zips  # Free memory
                     gc.collect()  # Collect garbage to free memory
                     logprint('Persisting verified_zips.', 'debug')
@@ -641,7 +641,7 @@ if __name__ == '__main__':
                     if verify:
                         # current_zips = client.persist(current_zips)
                         logprint(
-                            f'{len(verified_zips)} zip objects '
+                            f'{num_vz} zip objects '
                             'were verified as deletable.',
                             'info'
                         )
