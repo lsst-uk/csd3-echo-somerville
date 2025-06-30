@@ -6,7 +6,7 @@ LABEL org.opencontainers.image.licenses="Apache-2.0"
 
 COPY environment.yaml /environment.yaml
 
-RUN conda -c conda-forge env update --name base --file /environment.yaml && \
+RUN conda env update --name base --file /environment.yaml && \
     conda clean -afy && \
     rm -rf /opt/conda/pkgs/*
 
