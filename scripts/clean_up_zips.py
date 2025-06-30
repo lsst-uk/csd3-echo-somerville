@@ -491,8 +491,8 @@ if __name__ == '__main__':
     total_memory = mem().total
     n_workers = nprocs // num_threads  # e.g., 48 / 2 = 24
     mem_per_worker = mem().total // n_workers  # e.g., 187 GiB / 48 * 2 = 7.8 GiB
-    mem_request = '1Gi'  # f'{mem_per_worker // 4096**3}Gi'  # Request memory in GiB
-    mem_limit = '2Gi'  # f'{mem_per_worker // 1024**3 - 32}Gi'  # Leave some memory for the scheduler and other processes
+    mem_request = f'{mem_per_worker // 4096**3}Gi'  # Request memory in GiB
+    mem_limit = f'{mem_per_worker // 1024**3 - 32}Gi'  # Leave some memory for the scheduler and other processes
 
     # logprint(
     #     f'nprocs: {nprocs}, Threads per worker: {num_threads}, Number of workers: {n_workers}, '
