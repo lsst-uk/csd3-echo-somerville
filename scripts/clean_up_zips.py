@@ -580,6 +580,8 @@ if __name__ == '__main__':
             current_objects['is_metadata'] = current_objects['CURRENT_OBJECTS'].map_partitions(
                 lambda partition: partition.str.fullmatch(metadata_match, na=False)  # noqa
             )
+            logprint('Persisting current_objects.', 'debug')
+            current_objects = client.persist(current_objects)  # Persist the Dask DataFrame
             # report partition sizes
             partition_lens = current_objects.map_partitions(lambda partition: len(partition)).compute()
             partition_sizes = current_objects.map_partitions(
@@ -591,9 +593,11 @@ if __name__ == '__main__':
             logprint('Reducing current_objects to only zip files.', 'info')
             current_zips = current_objects[current_objects['is_zip'] == True]  # noqa
             # client.scatter(current_objects)
-            # current_zips = client.persist(current_zips)  # Persist the Dask DataFrame
+            logprint('Persisting current_zips.', 'debug')
+            current_zips = client.persist(current_zips)  # Persist the Dask DataFrame
             num_cz = len(current_zips)  # noqa
             remaining_objects_set = current_objects[current_objects['is_zip'] == False & current_objects['is_metadata'] == False]['CURRENT_OBJECTS'].compute()  # noqa
+            num_remaining_objects = len(remaining_objects_set).compute()  # noqa
             del current_objects  # Free memory
             gc.collect()  # Collect garbage to free memory
             remaining_objects_set = set(remaining_objects_set)  # Convert to set for faster lookups
@@ -602,6 +606,7 @@ if __name__ == '__main__':
             # remaining_objects.to_csv(ro_path, index=False, single_file=True)  # Save remaining objects to CSV
             # logprint(f'Scattering remaining object names (non-zip files): {num_co - num_cz}', log=logger)
             # logprint(f'Size in memory of remaining_objects_set: {sys.getsizeof(remaining_objects_set) / 1024**2:.2f} MB', log=logger)
+            logprint(f'Scattering remaining object names (non-zip files): {num_remaining_objects}', 'debug')
             client.scatter(remaining_objects_set, broadcast=True)  # Scatter remaining objects set for faster look-ups
 
             logprint(f'Persisted current_zips, len: {num_cz}', 'debug')
@@ -634,7 +639,7 @@ if __name__ == '__main__':
                     del current_zips  # Free memory
                     gc.collect()  # Collect garbage to free memory
                     logprint('Persisting verified_zips.', 'debug')
-                    current_zips = client.persist(verified_zips)  # Persist the Dask Data
+                    verified_zips = client.persist(verified_zips)  # Persist the Dask Data
                 if dryrun:
                     logprint(f'Current objects (with matching prefix): {num_co}', 'info')
                     if verify:
@@ -755,78 +760,80 @@ if __name__ == '__main__':
                 logprint(f'No zip files in bucket {bucket_name}.', 'warning')
 
             if clean_metadata:
-                logprint('Checking for orphaned metadata files.', 'info')
-                current_objects = dd.from_pandas(
-                    pd.DataFrame.from_dict(
-                        {'CURRENT_OBJECTS': bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)}
-                    ),
-                    npartitions=100 * n_workers
-                )
-                logprint(
-                    'Done.',
-                    'info'
-                )
-                print('this is line 739', flush=True)
-                current_objects['is_metadata'] = current_objects['CURRENT_OBJECTS'].map_partitions(
-                    lambda partition: partition.str.fullmatch(metadata_match, na=False)
-                )
-                zip_check = True
-                if 'is_zip' in current_objects.columns:
-                    current_zip_names = client.persist(current_objects[current_objects['is_zip'] == True]['CURRENT_OBJECTS'])  # noqa
-                else:
-                    zip_check = False
-                md_objects = client.persist(current_objects[current_objects['is_metadata'] == True])  # noqa
-                len_md = len(md_objects)
-                if len_md > 0:  # noqa
-                    md_objects = dd.from_pandas(md_objects, npartitions=100 * n_workers)  # noqa
-                    if dryrun:
-                        logprint(
-                            'Any orphaned metadata files would be found and deleted.',
-                            'info'
-                        )
-                    else:
-                        if zip_check:
-                            md_objects['ORPHANED'] = md_objects.map_partitions(
-                                lambda partition: partition.apply(
-                                    is_orphaned_metadata,
-                                    axis=1,
-                                    args=(
-                                        current_zip_names,
-                                    )
-                                ),
-                                meta=('bool')
-                            )
-                        else:
-                            md_objects['ORPHANED'] = md_objects.map_partitions(
-                                lambda partition: partition.apply(
-                                    lambda row: row['CURRENT_OBJECTS'].endswith('.zip.metadata'),
-                                    axis=1
-                                ),
-                                meta=('bool')
-                            )
-                        md_objects['deleted'] = md_objects.map_partitions(  # noqa
-                            lambda partition: partition.apply(
-                                clean_orphaned_metadata,
-                                axis=1,
-                                args=(
-                                    s3,
-                                    bucket_name,
-                                    # logger,
-                                )
-                            ),
-                            meta=('bool')
-                        )
-                        md_objects = client.persist(md_objects)
-                        logprint(
-                            f'{len(md_objects["deleted" == True])} '  # noqa
-                            'orphaned metadata files were DELETED.',
-                            'info'
-                        )
-                else:
-                    logprint(
-                        f'No metadata files in bucket {bucket_name}.',
-                        'warning'
-                    )
+                logprint('Cleaning up orphaned metadata files currently disabled.', 'info')
+            # if clean_metadata:
+            #     logprint('Checking for orphaned metadata files.', 'info')
+            #     current_objects = dd.from_pandas(
+            #         pd.DataFrame.from_dict(
+            #             {'CURRENT_OBJECTS': bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)}
+            #         ),
+            #         npartitions=100 * n_workers
+            #     )
+            #     logprint(
+            #         'Done.',
+            #         'info'
+            #     )
+            #     print('this is line 739', flush=True)
+            #     current_objects['is_metadata'] = current_objects['CURRENT_OBJECTS'].map_partitions(
+            #         lambda partition: partition.str.fullmatch(metadata_match, na=False)
+            #     )
+            #     zip_check = True
+            #     if 'is_zip' in current_objects.columns:
+            #         current_zip_names = client.persist(current_objects[current_objects['is_zip'] == True]['CURRENT_OBJECTS'])  # noqa
+            #     else:
+            #         zip_check = False
+            #     md_objects = client.persist(current_objects[current_objects['is_metadata'] == True])  # noqa
+            #     len_md = len(md_objects)
+            #     if len_md > 0:  # noqa
+            #         md_objects = dd.from_pandas(md_objects, npartitions=100 * n_workers)  # noqa
+            #         if dryrun:
+            #             logprint(
+            #                 'Any orphaned metadata files would be found and deleted.',
+            #                 'info'
+            #             )
+            #         else:
+            #             if zip_check:
+            #                 md_objects['ORPHANED'] = md_objects.map_partitions(
+            #                     lambda partition: partition.apply(
+            #                         is_orphaned_metadata,
+            #                         axis=1,
+            #                         args=(
+            #                             current_zip_names,
+            #                         )
+            #                     ),
+            #                     meta=('bool')
+            #                 )
+            #             else:
+            #                 md_objects['ORPHANED'] = md_objects.map_partitions(
+            #                     lambda partition: partition.apply(
+            #                         lambda row: row['CURRENT_OBJECTS'].endswith('.zip.metadata'),
+            #                         axis=1
+            #                     ),
+            #                     meta=('bool')
+            #                 )
+            #             md_objects['deleted'] = md_objects.map_partitions(  # noqa
+            #                 lambda partition: partition.apply(
+            #                     clean_orphaned_metadata,
+            #                     axis=1,
+            #                     args=(
+            #                         s3,
+            #                         bucket_name,
+            #                         # logger,
+            #                     )
+            #                 ),
+            #                 meta=('bool')
+            #             )
+            #             md_objects = client.persist(md_objects)
+            #             logprint(
+            #                 f'{len(md_objects["deleted" == True])} '  # noqa
+            #                 'orphaned metadata files were DELETED.',
+            #                 'info'
+            #             )
+            #     else:
+            #         logprint(
+            #             f'No metadata files in bucket {bucket_name}.',
+            #             'warning'
+            #         )
         else:
             logprint(f'No files in bucket {bucket_name}. Exiting.', 'warning')
             sys.exit(0)
