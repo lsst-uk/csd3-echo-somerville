@@ -577,9 +577,14 @@ if __name__ == '__main__':
             current_objects['is_zip'] = current_objects['CURRENT_OBJECTS'].map_partitions(
                 lambda partition: partition.str.fullmatch(zip_match, na=False)  # noqa
             )
+            current_objects['is_metadata'] = current_objects['CURRENT_OBJECTS'].map_partitions(
+                lambda partition: partition.str.fullmatch(metadata_match, na=False)  # noqa
+            )
             # report partition sizes
             partition_lens = current_objects.map_partitions(lambda partition: len(partition)).compute()
-            partition_sizes = current_objects.map_partitions(lambda partition: partition.memory_usage(deep=True).sum()).compute()
+            partition_sizes = current_objects.map_partitions(
+                lambda partition: partition.memory_usage(deep=True).sum()
+            ).compute()
             logprint(f'Partition lengths: {partition_lens.describe()} ', 'debug')
             logprint(f'Partition sizes: {partition_sizes.describe()}', 'debug')
             del partition_lens, partition_sizes  # Free memory
@@ -588,7 +593,7 @@ if __name__ == '__main__':
             # client.scatter(current_objects)
             # current_zips = client.persist(current_zips)  # Persist the Dask DataFrame
             num_cz = len(current_zips)  # noqa
-            remaining_objects_set = current_objects[current_objects['is_zip'] == False]['CURRENT_OBJECTS'].compute()  # noqa
+            remaining_objects_set = current_objects[current_objects['is_zip'] == False & current_objects['is_metadata'] == False]['CURRENT_OBJECTS'].compute()  # noqa
             del current_objects  # Free memory
             gc.collect()  # Collect garbage to free memory
             remaining_objects_set = set(remaining_objects_set)  # Convert to set for faster lookups
