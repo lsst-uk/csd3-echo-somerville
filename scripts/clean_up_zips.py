@@ -219,7 +219,7 @@ def verify_zip_objects(
     remaining_objects_set: set,
     # remaining_objects_path: str,
     # logger_name: str = None,
-) -> bool:
+) -> str:
     """
     Verifies if the contents of a zip file stored in an S3 bucket are present
     in the current list of objects.
@@ -250,10 +250,10 @@ def verify_zip_objects(
     # remaining_objects = pd.read_parquet(remaining_objects_path, engine='pyarrow')
     # remaining_objects_set = set(remaining_objects['CURRENT_OBJECTS'].tolist())
     # del remaining_objects  # Free memory
-
+    return_str = None
     if zip_obj == 'None':
         print(f'WARNING: {zip_obj} is None' + ' warning', flush=True)
-        return False
+        return None
     path_stub = '/'.join(zip_obj.split('/')[:-1])
     zip_metadata_uri = f'{zip_obj}.metadata'
 
@@ -262,11 +262,11 @@ def verify_zip_objects(
         zip_metadata = s3.get_object(bucket_name, zip_metadata_uri)[1]
     except swiftclient.exceptions.ClientException as e:
         print(f'WARNING: Error getting {zip_metadata_uri}: {e.msg}' + ' warning', flush=True)
-        return False
+        return None
 
     contents = [f'{path_stub}/{c}' for c in zip_metadata.decode().split('|') if c]
     lc = len(contents)
-    verified = False
+    return_str = None
     # existing = []
     # try:
     #     with open(remaining_objects_path, 'r') as f:
@@ -278,27 +278,30 @@ def verify_zip_objects(
     # all_contents_exist = all(existing)
     all_contents_exist = [c in remaining_objects_set for c in contents]  # Use set membership testing
     # logprint(f'Contents: {lc}', log)
+    verified = False
     try:
         print(f'Verifying {zip_obj} contents against remaining objects' + ' debug', flush=True)
         # if sum(current_objects.isin(contents).values) == lc:  # inefficient
         # Use set membership testing for increased efficiency
         if all_contents_exist:
             print(f'All {lc} contents of {zip_obj} found in remaining objects' + ' debug', flush=True)
+            return_str = zip_obj
             verified = True
             print(f'{zip_obj} verified: {verified} - can be deleted' + ' debug', flush=True)
         else:
-            verified = False
+            return_str = None
             print(f'{zip_obj} verified: {verified} - cannot be deleted' + ' debug', flush=True)
     except Exception as e:
         print(f'Error verifying {zip_obj}: {e}' + ' error', flush=True)
-        verified = False
+        return_str = None
     del zip_metadata, contents  # Free memory
+
     print(
-        f"verify_zip_objects completed for {row['CURRENT_OBJECTS']}, verified={verified}" + ' debug',
+        f"verify_zip_objects completed for {zip_obj}, verified={verified}" + ' debug',
         flush=True
     )
     gc.collect()
-    return verified
+    return return_str
 
 
 if __name__ == '__main__':
