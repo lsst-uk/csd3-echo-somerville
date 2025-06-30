@@ -601,13 +601,9 @@ if __name__ == '__main__':
             del current_objects  # Free memory
             gc.collect()  # Collect garbage to free memory
             remaining_objects_set = set(remaining_objects_set)  # Convert to set for faster lookups
-            # ro_path = 'remaining_objects.csv'
-            # logprint(f'Saving remaining_objects (names only) to {ro_path}', 'info')
-            # remaining_objects.to_csv(ro_path, index=False, single_file=True)  # Save remaining objects to CSV
-            # logprint(f'Scattering remaining object names (non-zip files): {num_co - num_cz}', log=logger)
-            # logprint(f'Size in memory of remaining_objects_set: {sys.getsizeof(remaining_objects_set) / 1024**2:.2f} MB', log=logger)
-            logprint(f'Scattering remaining object names (non-zip files): {num_remaining_objects}', 'debug')
-            client.scatter(remaining_objects_set, broadcast=True)  # Scatter remaining objects set for faster look-ups
+
+            # logprint(f'Scattering remaining object names (non-zip files): {num_remaining_objects}', 'debug')
+            # client.scatter(remaining_objects_set, broadcast=True)  # Scatter remaining objects set for faster look-ups
 
             logprint(f'Persisted current_zips, len: {num_cz}', 'debug')
             logprint(f'Current_zips Partitions: {current_zips.npartitions}', 'debug')
