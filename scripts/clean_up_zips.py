@@ -516,7 +516,7 @@ if __name__ == '__main__':
     logprint(f'Using namespace: {namespace}', 'info')
     cluster = KubeCluster(
         name="dask-cluster-cleanzips-" + tag,
-        image="ghcr.io/dask/dask:latest",
+        image="ghcr.io/lsst-uk/ces-dask:latest",
         namespace=namespace,
         n_workers=n_workers,
         resources={
