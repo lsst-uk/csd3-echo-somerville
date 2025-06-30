@@ -503,6 +503,8 @@ if __name__ == '__main__':
 
     # K8s pod info
     namespace = get_current_namespace()
+    if namespace == 'default':
+        namespace = 'dask-cluster-cleanzips'
 
     tag = ''
     for i in range(6):
