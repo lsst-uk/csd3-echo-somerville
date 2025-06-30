@@ -632,7 +632,7 @@ if __name__ == '__main__':
                         meta=('str'),
                     )
                     verified_zips = client.persist(verified_zips)  # Persist the Dask Data
-                    num_vz = len(verified_zips).compute()
+                    num_vz = len(verified_zips)
                     del current_zips  # Free memory
                     gc.collect()  # Collect garbage to free memory
                     logprint('Persisting verified_zips.', 'debug')
