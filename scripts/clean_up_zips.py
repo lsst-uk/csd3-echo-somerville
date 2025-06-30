@@ -597,7 +597,7 @@ if __name__ == '__main__':
             current_zips = client.persist(current_zips)  # Persist the Dask DataFrame
             num_cz = len(current_zips)  # noqa
             remaining_objects_set = current_objects[(current_objects['is_zip'] == False) & (current_objects['is_metadata'] == False)]['CURRENT_OBJECTS'].compute()  # noqa
-            num_remaining_objects = len(remaining_objects_set).compute()  # noqa
+            num_remaining_objects = len(remaining_objects_set)
             del current_objects  # Free memory
             gc.collect()  # Collect garbage to free memory
             remaining_objects_set = set(remaining_objects_set)  # Convert to set for faster lookups
