@@ -584,6 +584,8 @@ if __name__ == '__main__':
             # current_zips = client.persist(current_zips)  # Persist the Dask DataFrame
             num_cz = len(current_zips)  # noqa
             remaining_objects_set = current_objects[current_objects['is_zip'] == False]['CURRENT_OBJECTS'].compute()  # noqa
+            del current_objects  # Free memory
+            gc.collect()  # Collect garbage to free memory
             remaining_objects_set = set(remaining_objects_set)  # Convert to set for faster lookups
             # ro_path = 'remaining_objects.csv'
             # logprint(f'Saving remaining_objects (names only) to {ro_path}', 'info')
@@ -592,8 +594,6 @@ if __name__ == '__main__':
             # logprint(f'Size in memory of remaining_objects_set: {sys.getsizeof(remaining_objects_set) / 1024**2:.2f} MB', log=logger)
             client.scatter(remaining_objects_set, broadcast=True)  # Scatter remaining objects set for faster look-ups
 
-            del current_objects  # Free memory
-            gc.collect()  # Collect garbage to free memory
             logprint(f'Persisted current_zips, len: {num_cz}', 'debug')
             logprint(f'Current_zips Partitions: {current_zips.npartitions}', 'debug')
 
@@ -606,7 +606,7 @@ if __name__ == '__main__':
                 logprint('Verifying zips can be deleted (i.e., contents exist).', 'info')
                 logprint(f'npartitions: {current_zips.npartitions}', 'debug')
                 if verify:
-                    current_zips['verified'] = current_zips.map_partitions(
+                    verified_zips = current_zips.map_partitions(
                         lambda partition: partition.apply(
                             verify_zip_objects,
                             axis=1,
@@ -618,14 +618,19 @@ if __name__ == '__main__':
                                 # 'clean_zips',
                             ),
                         ),
-                        meta=('bool'),
+                        meta=('str'),
                     )
+                    num_vz = len(verified_zips)
+                    del current_zips  # Free memory
+                    gc.collect()  # Collect garbage to free memory
+                    logprint('Persisting verified_zips.', 'debug')
+                    current_zips = client.persist(verified_zips)  # Persist the Dask Data
                 if dryrun:
                     logprint(f'Current objects (with matching prefix): {num_co}', 'info')
                     if verify:
-                        current_zips = client.persist(current_zips)
+                        # current_zips = client.persist(current_zips)
                         logprint(
-                            f'{len(current_zips[current_zips["verified"] == True])} zip objects '
+                            f'{len(verified_zips)} zip objects '
                             'were verified as deletable.',
                             'info'
                         )
@@ -663,21 +668,38 @@ if __name__ == '__main__':
 
                     logprint('Preparing to delete zip files.', 'info')
                     # current_zips = current_zips.persist()
-                    current_zips['DELETED'] = current_zips.map_partitions(
-                        lambda partition: partition.apply(
-                            delete_object_swift,
-                            axis=1,
-                            args=(
-                                s3,
-                                bucket_name,
-                                True,
-                                verify,
-                                # logger,
+                    if verify:
+                        deleted = verified_zips.map_partitions(
+                            lambda partition: partition.apply(
+                                delete_object_swift,
+                                axis=1,
+                                args=(
+                                    s3,
+                                    bucket_name,
+                                    True,
+                                    verify,
+                                    # logger,
+                                ),
                             ),
-                        ),
-                        meta=('bool'),
-                    )
-                    logprint('Persisting current_zips.', 'debug')
+                            meta=('bool'),
+                        )
+                    else:
+                        deleted = current_zips.map_partitions(
+                            lambda partition: partition.apply(
+                                delete_object_swift,
+                                axis=1,
+                                args=(
+                                    s3,
+                                    bucket_name,
+                                    True,
+                                    False,
+                                    # logger,
+                                ),
+                            ),
+                            meta=('bool'),
+                        )
+                    logprint('Deleting zip files.', 'info')
+                    logprint('Persisting deleted.', 'debug')
                     # Persist and process current_zips in manageable chunks to avoid memory issues
                     # chunk_size = 10000  # Adjust as needed based on memory constraints
                     # num_chunks = (len(current_zips) // chunk_size) + 1
@@ -687,27 +709,24 @@ if __name__ == '__main__':
                     #     part = current_zips.get_partition(i).compute()
                     #     del part
                     #     gc.collect()
-                    current_zips = client.persist(current_zips)  # Persist the Dask DataFrame
+                    deleted = client.persist(deleted)  # Persist the Dask DataFrame
+                    num_d = len(deleted[deleted == True])  # noqa
 
                     if verify:
                         logprint(
-                            f'{len(current_zips[current_zips["verified"] == True])} zip files were verified.',
+                            f'{num_vz} zip files were verified.',
                             'info'
                         )
                         logprint(
-                            f'{len(current_zips[current_zips["DELETED"] == True])} zip files were DELETED.',
+                            f'{num_d} zip files were DELETED.',
                             'info'
                         )
                         logprint(
-                            f"{len(current_zips[current_zips['verified'] == False])} zip files were not "
+                            f"{num_cz - num_vz} zip files were not "
                             "verified and not deleted.",
                             'info'
                         )
-                        if len(
-                            current_zips[current_zips['verified'] == True]  # noqa
-                        ) != len(
-                            current_zips[current_zips['DELETED'] == True]  # noqa
-                        ):
+                        if num_vz != num_d:
                             logprint(
                                 "Some errors may have occurred, as some zips verified for deletion were not "
                                 "deleted.",
@@ -715,10 +734,11 @@ if __name__ == '__main__':
                             )
                     else:
                         logprint(
-                            f'{len(current_zips[current_zips["DELETED"] == True])} zip files were DELETED.',
+                            f'{num_d} zip files were DELETED.',
                             'info'
                         )
-                    del current_zips
+                    del deleted, verified_zips  # Free memory
+                    gc.collect()  # Collect garbage to free memory
                     logprint('Finished processing', 'info')
 
             else:
