@@ -631,11 +631,11 @@ if __name__ == '__main__':
                         ),
                         meta=('str'),
                     )
+                    verified_zips = client.persist(verified_zips)  # Persist the Dask Data
                     num_vz = len(verified_zips).compute()
                     del current_zips  # Free memory
                     gc.collect()  # Collect garbage to free memory
                     logprint('Persisting verified_zips.', 'debug')
-                    verified_zips = client.persist(verified_zips)  # Persist the Dask Data
                 if dryrun:
                     logprint(f'Current objects (with matching prefix): {num_co}', 'info')
                     if verify:
