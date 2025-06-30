@@ -614,7 +614,7 @@ if __name__ == '__main__':
             )
 
             if num_cz > 0:
-                logprint('Verifying zips can be deleted (i.e., contents exist).', 'info')
+                logprint('Verifying zips can be deleted (i.e., whether contents exist).', 'info')
                 logprint(f'npartitions: {current_zips.npartitions}', 'debug')
                 if verify:
                     verified_zips = current_zips.map_partitions(
