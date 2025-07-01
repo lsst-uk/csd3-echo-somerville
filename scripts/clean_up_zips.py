@@ -305,6 +305,9 @@ def verify_zip_objects(
 
 
 if __name__ == '__main__':
+
+    logger = logging.getLogger('clean_zips')
+
     epilog = ''
 
     class MyParser(argparse.ArgumentParser):
@@ -400,6 +403,7 @@ if __name__ == '__main__':
     # Set up logging
     debug = args.debug
     debug_level = logging.DEBUG if debug else logging.INFO
+    logger.setLevel(debug_level)
 
     logging.basicConfig(
         level=logging.INFO,
@@ -408,8 +412,6 @@ if __name__ == '__main__':
             logging.StreamHandler(sys.stdout)
         ]
     )
-    logger = logging.getLogger('clean_zips')
-    logger.setLevel(debug_level)
 
     # Parse arguments
     api = args.api.lower()
