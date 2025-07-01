@@ -607,6 +607,9 @@ if __name__ == '__main__':
             del partition_lens, partition_sizes  # Free memory
             logprint('Reducing current_objects to only zip files.', 'info')
             current_zips = current_objects[current_objects['is_zip'] == True]  # noqa
+            current_zips = current_zips.repartition(
+                npartitions=max(1000, current_zips.npartitions // 10)  # Reduce partitions to avoid memory issues
+            )
             # client.scatter(current_objects)
             logprint('Persisting current_zips.', 'debug')
             current_zips = client.persist(current_zips)  # Persist the Dask DataFrame
@@ -653,7 +656,6 @@ if __name__ == '__main__':
                     # ).compute().sum()
                     # del current_zips  # Free memory
                     gc.collect()  # Collect garbage to free memory
-                    logprint('Persisting verified_zips.', 'debug')
                 if dryrun:
                     logprint(f'Current objects (with matching prefix): {num_co}', 'info')
                     if verify:
@@ -739,7 +741,9 @@ if __name__ == '__main__':
                     #     part = current_zips.get_partition(i).compute()
                     #     del part
                     #     gc.collect()
-                    deleted = client.persist(deleted)  # Persist the Dask DataFrame
+                    deleted = client.compute(deleted)  # Persist the Dask DataFrame
+                    del verified_zips, current_zips  # Free memory
+                    gc.collect()  # Collect garbage to free memory
                     num_d = len(deleted[deleted == True])  # noqa
 
                     if verify:
