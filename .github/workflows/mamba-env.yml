@@ -2,9 +2,9 @@ name: mamba env CI
 
 on:
   push:
-    branches: [ "main", "128-clean-up-zips-with-dask-k8s" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "main", "128-clean-up-zips-with-dask-k8s" ]
+    branches: [ "main" ]
 
 jobs:
 
@@ -15,6 +15,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Build the Docker image
-      run: docker build . --file echo-side/containers/mamba_env/Dockerfile --tag ghcr.io/lsst-uk/csd3-echo-somerville:$(git rev-parse --short HEAD)-mamba --tag ghcr.io/lsst-uk/csd3-echo-somerville:latest
+      run: docker build . --file echo-side/containers/mamba_env/Dockerfile --tag ghcr.io/lsst-uk/ces:$(git rev-parse --short HEAD)-mamba --tag ghcr.io/lsst-uk/ces:latest
     - name: Push the Docker image
-      run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u lsst-uk --password-stdin && docker push --all-tags ghcr.io/lsst-uk/csd3-echo-somerville
+      run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u lsst-uk --password-stdin && docker push --all-tags ghcr.io/lsst-uk/ces
