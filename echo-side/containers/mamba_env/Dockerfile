@@ -13,7 +13,9 @@ RUN chown -R mambauser:mambauser /airflow
 USER mambauser
 RUN micromamba --version
 
-RUN micromamba env create --name lsst-uk --file=/environment.yaml
+RUN micromamba env create --name lsst-uk --file=/environment.yaml && \
+    micromamba clean -afy && \
+    rm -rf /opt/conda/pkgs/*
 
 RUN echo "source activate lsst-uk" >> ~/.bashrc
 
