@@ -648,21 +648,22 @@ if __name__ == '__main__':
                     ).dropna()  # Drop NaN values
                     logprint('Persisting verified_zips.', 'debug')
                     verified_zips = verified_zips.persist()  # Persist the Dask DataFrame
-                    num_vz = verified_zips.map_partitions(
-                        lambda partition: len(partition)
-                    ).compute().sum()
-                    del current_zips  # Free memory
+                    # num_vz = verified_zips.map_partitions(
+                    #     lambda partition: len(partition)
+                    # ).compute().sum()
+                    # del current_zips  # Free memory
                     gc.collect()  # Collect garbage to free memory
                     logprint('Persisting verified_zips.', 'debug')
                 if dryrun:
                     logprint(f'Current objects (with matching prefix): {num_co}', 'info')
                     if verify:
+                        pass
                         # current_zips = client.persist(current_zips)
-                        logprint(
-                            f'{num_vz} zip objects '
-                            'were verified as deletable.',
-                            'info'
-                        )
+                        # logprint(
+                        #     f'{num_vz} zip objects '
+                        #     'were verified as deletable.',
+                        #     'info'
+                        # )
                     else:
                         logprint(
                             f'Current zip objects (with matching prefix): {num_cz} '
@@ -742,25 +743,25 @@ if __name__ == '__main__':
                     num_d = len(deleted[deleted == True])  # noqa
 
                     if verify:
-                        logprint(
-                            f'{num_vz} zip files were verified.',
-                            'info'
-                        )
+                        # logprint(
+                        #     f'{num_vz} zip files were verified.',
+                        #     'info'
+                        # )
                         logprint(
                             f'{num_d} zip files were DELETED.',
                             'info'
                         )
-                        logprint(
-                            f"{num_cz - num_vz} zip files were not "
-                            "verified and not deleted.",
-                            'info'
-                        )
-                        if num_vz != num_d:
-                            logprint(
-                                "Some errors may have occurred, as some zips verified for deletion were not "
-                                "deleted.",
-                                'warning'
-                            )
+                        # logprint(
+                        #     f"{num_cz - num_vz} zip files were not "
+                        #     "verified and not deleted.",
+                        #     'info'
+                        # )
+                        # if num_vz != num_d:
+                        #     logprint(
+                        #         "Some errors may have occurred, as some zips verified for deletion were not "
+                        #         "deleted.",
+                        #         'warning'
+                        #     )
                     else:
                         logprint(
                             f'{num_d} zip files were DELETED.',
