@@ -338,20 +338,20 @@ if __name__ == '__main__':
         type=str,
         help='Prefix to be used in S3 object keys. Required.'
     )
-    parser.add_argument(
-        '--nprocs',
-        '-n',
-        type=int,
-        help='Total number of CPU cores to use for parallel upload. Default is 4.',
-        default=24
-    )
-    parser.add_argument(
-        '--nthreads',
-        '-t',
-        type=int,
-        help='Number of threads per worker to use for parallel upload. Default is 2.',
-        default=2
-    )
+    # parser.add_argument(
+    #     '--nprocs',
+    #     '-n',
+    #     type=int,
+    #     help='Total number of CPU cores to use for parallel upload. Default is 4.',
+    #     default=24
+    # )
+    # parser.add_argument(
+    #     '--nthreads',
+    #     '-t',
+    #     type=int,
+    #     help='Number of threads per worker to use for parallel upload. Default is 2.',
+    #     default=2
+    # )
     parser.add_argument(
         '--clean-up-metadata',
         '-m',
@@ -388,6 +388,13 @@ if __name__ == '__main__':
         action='store_true',
         help='Enable debug logging. Default is False.'
     )
+    parser.add_argument(
+        '--dask-workers',
+        '-w',
+        type=int,
+        default=4,
+        help='Number of Dask workers to use. Default is 4.'
+    )
     args = parser.parse_args()
 
     # Set up logging
@@ -422,23 +429,23 @@ if __name__ == '__main__':
     else:
         prefix = args.prefix
 
-    nprocs = args.nprocs
+    # nprocs = args.nprocs
     dryrun = args.dryrun
     yes = args.yes
     verify = not args.verify_skip  # Default is to verify
     clean_metadata = args.clean_up_metadata
-    num_threads = args.nthreads
-    if num_threads > nprocs:
-        logprint(
-            f'Number of threads ({num_threads}) cannot be greater than number of processes ({nprocs}). '
-            f'Setting threads per worker to {nprocs // 2}.',
-            'info'
-        )
-        logger.debug('Forcing number of threads per worker to nprocs // 2.')
-        num_threads = nprocs // 2
-
+    # num_threads = args.nthreads
+    # if num_threads > nprocs:
+    #     logprint(
+    #         f'Number of threads ({num_threads}) cannot be greater than number of processes ({nprocs}). '
+    #         f'Setting threads per worker to {nprocs // 2}.',
+    #         'info'
+    #     )
+    #     logger.debug('Forcing number of threads per worker to nprocs // 2.')
+    #     num_threads = nprocs // 2
+    dask_workers = args.dask_workers
     logprint(
-        f'API: {api}, Bucket name: {bucket_name}, Prefix: {prefix}, nprocs: {nprocs}, dryrun: {dryrun}',
+        f'API: {api}, Bucket name: {bucket_name}, Prefix: {prefix}, Number of Dask workers: {dask_workers}, dryrun: {dryrun}',
         'info'
     )
 
@@ -492,14 +499,14 @@ if __name__ == '__main__':
     #        Dask Setup        #
     ############################
     total_memory = mem().total
-    n_workers = nprocs // num_threads  # e.g., 48 / 2 = 24
+    # n_workers = nprocs // num_threads  # e.g., 48 / 2 = 24
     # mem_per_worker = mem().total // n_workers  # e.g., 187 GiB / 48 * 2 = 7.8 GiB
 
-    req = int(mem().total//1024**3 - 16*1024**3)
-    lim = int(mem().total//1024**3 - 4*1024**3)
-    mem_per_worker = req // n_workers  # e.g., 7.8 GiB per worker
-    mem_request = f'{req}GiB'  # Request memory in GiB
-    mem_limit = f'{lim}GiB'  # Leave some memory for the scheduler and other processes
+    # req = int(mem().total//1024**3 - 16*1024**3)
+    # lim = int(mem().total//1024**3 - 4*1024**3)
+    # mem_per_worker = req // n_workers  # e.g., 7.8 GiB per worker
+    # mem_request = f'{req}GiB'  # Request memory in GiB
+    # mem_limit = f'{lim}GiB'  # Leave some memory for the scheduler and other processes
     # mem_request = f'{mem_per_worker // 1024**3 - 1024**2}Gi'  # Request memory in GiB
     # mem_limit = f'{mem_per_worker // 1024**3 - 128**2}Gi'  # Leave some memory for the scheduler and other processes
 
@@ -524,7 +531,7 @@ if __name__ == '__main__':
         name="dask-cluster-cleanzips-" + tag,
         image="ghcr.io/lsst-uk/ces-dask:latest",
         namespace=namespace,
-        n_workers=n_workers,
+        n_workers=dask_workers,
         # resources={
         #     "requests": {
         #         "memory": mem_request,
@@ -545,7 +552,7 @@ if __name__ == '__main__':
             'Starting processing.',
             'info'
         )
-        logprint(f'Using {nprocs} processes.', 'info')
+        logprint(f'Using {dask_workers} Dask workers.', 'info')
         logprint(
             f'Getting current object list for {bucket_name}. '
             'This is necessarily serial and may take some time. Starting.',
@@ -568,7 +575,7 @@ if __name__ == '__main__':
 
         current_objects = dd.from_pandas(
             current_object_names,
-            npartitions=1000 * n_workers
+            npartitions=1000 * dask_workers
         )
         num_co = len(current_object_names)  # noqa
         del current_object_names  # Free memory
@@ -769,7 +776,7 @@ if __name__ == '__main__':
             #         pd.DataFrame.from_dict(
             #             {'CURRENT_OBJECTS': bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)}
             #         ),
-            #         npartitions=1000 * n_workers
+            #         npartitions=1000 * dask_workers
             #     )
             #     logprint(
             #         'Done.',
@@ -787,7 +794,7 @@ if __name__ == '__main__':
             #     md_objects = client.persist(current_objects[current_objects['is_metadata'] == True])  # noqa
             #     len_md = len(md_objects)
             #     if len_md > 0:  # noqa
-            #         md_objects = dd.from_pandas(md_objects, npartitions=1000 * n_workers)  # noqa
+            #         md_objects = dd.from_pandas(md_objects, npartitions=1000 * dask_workers)  # noqa
             #         if dryrun:
             #             logprint(
             #                 'Any orphaned metadata files would be found and deleted.',
