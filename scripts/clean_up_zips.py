@@ -645,9 +645,12 @@ if __name__ == '__main__':
                             ),
                         ),
                         meta=('str'),
-                    )
-                    verified_zips = verified_zips.persist()  # Persist the Dask Data
-                    num_vz = len(verified_zips)
+                    ).dropna()  # Drop NaN values
+                    logprint('Persisting verified_zips.', 'debug')
+                    verified_zips = verified_zips.persist()  # Persist the Dask DataFrame
+                    num_vz = verified_zips.map_partitions(
+                        lambda partition: len(partition)
+                    ).compute().sum()
                     del current_zips  # Free memory
                     gc.collect()  # Collect garbage to free memory
                     logprint('Persisting verified_zips.', 'debug')
