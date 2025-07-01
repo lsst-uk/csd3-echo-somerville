@@ -731,7 +731,7 @@ if __name__ == '__main__':
                             meta=('bool'),
                         )
                     logprint('Deleting zip files.', 'info')
-                    logprint('Persisting deleted.', 'debug')
+                    logprint('Computing deleted.', 'debug')
                     # Persist and process current_zips in manageable chunks to avoid memory issues
                     # chunk_size = 10000  # Adjust as needed based on memory constraints
                     # num_chunks = (len(current_zips) // chunk_size) + 1
@@ -741,10 +741,10 @@ if __name__ == '__main__':
                     #     part = current_zips.get_partition(i).compute()
                     #     del part
                     #     gc.collect()
-                    deleted = client.compute(deleted)  # Persist the Dask DataFrame
+                    deleted = deleted.compute()  # Persist the Dask DataFrame
                     del verified_zips, current_zips  # Free memory
                     gc.collect()  # Collect garbage to free memory
-                    num_d = len(deleted[deleted == True])  # noqa
+                    num_d = sum(deleted)  # noqa
 
                     if verify:
                         # logprint(
