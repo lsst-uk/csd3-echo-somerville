@@ -534,16 +534,16 @@ if __name__ == '__main__':
         image="ghcr.io/lsst-uk/ces:latest",
         namespace=namespace,
         n_workers=dask_workers,
-        # resources={
-        #     "requests": {
-        #         "memory": mem_request,
-        #         # "cpu": str(num_threads)
-        #     },
-        #     "limits": {
-        #         "memory": mem_limit,
-        #         # "cpu": str(num_threads)
-        #     }
-        # },
+        resources={
+            "requests": {
+                "memory": '32Gi',
+                "cpu": '4'
+            },
+            "limits": {
+                "memory": '64Gi',
+                "cpu": '8'
+            }
+        },
     )
 
     # Process the files
