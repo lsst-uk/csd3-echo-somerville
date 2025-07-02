@@ -549,11 +549,11 @@ if __name__ == '__main__':
         n_workers=dask_workers,
         resources={
             "requests": {
-                "memory": '100Gi',  # f'{mem_request}Gi',
+                "memory": '80Gi',  # f'{mem_request}Gi',
                 "cpu": '8'  # f'{cpus_per_worker}'
             },
             "limits": {
-                "memory": '400Gi',  # f'{mem_limit}Gi',
+                "memory": '160Gi',  # f'{mem_limit}Gi',
                 "cpu": '16'  # f'{max_cpus_per_worker}'
             }
         },
