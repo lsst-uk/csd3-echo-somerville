@@ -757,7 +757,7 @@ if __name__ == '__main__':
                     deleted = deleted.persist()  # Persist the Dask DataFrame
                     del verified_zips, current_zips  # Free memory
                     gc.collect()  # Collect garbage to free memory
-                    num_d = sum(deleted)  # noqa
+                    num_d = deleted.map_partitions(sum).compute()  # noqa
 
                     if verify:
                         # logprint(
