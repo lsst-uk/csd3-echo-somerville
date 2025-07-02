@@ -578,7 +578,7 @@ if __name__ == '__main__':
             current_object_names = bm.object_list(bucket, prefix=prefix, count=False)
         elif api == 'swift':
             current_object_names = bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)
-        current_object_names = pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_object_names})
+        current_object_names = pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_object_names[:1000000]})  # testing!!!
         logprint('Done.', 'info')
 
         # rands = np.random.randint(0, 9e6, size=2)
@@ -761,7 +761,7 @@ if __name__ == '__main__':
                     sys.exit()
                     # del verified_zips, current_zips  # Free memory
                     # gc.collect()  # Collect garbage to free memory
-                    num_d = deleted.map_partitions(sum).compute()  # noqa
+                    num_d = deleted.map_partitions(lambda partitions: partitions.apply(sum).compute())  # noqa
 
                     if verify:
                         # logprint(
