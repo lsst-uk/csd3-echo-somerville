@@ -754,10 +754,10 @@ if __name__ == '__main__':
                     #     part = current_zips.get_partition(i).compute()
                     #     del part
                     #     gc.collect()
-                    # deleted = deleted.persist()  # Persist the Dask DataFrame
-                    subset = deleted.head(1000)
-                    logprint(f'Subset of deleted: {subset}', 'debug')
-                    logprint(f'Deleted {sum(subset)} / {len(subset)}', 'debug')
+                    deleted = deleted.persist(optimize_graph=True)  # Persist the Dask DataFrame
+                    # subset = deleted.head(1000)
+                    # logprint(f'Subset of deleted: {subset}', 'debug')
+                    # logprint(f'Deleted {sum(subset)} / {len(subset)}', 'debug')
                     sys.exit()
                     # del verified_zips, current_zips  # Free memory
                     # gc.collect()  # Collect garbage to free memory
