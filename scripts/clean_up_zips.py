@@ -547,7 +547,7 @@ if __name__ == '__main__':
         image="ghcr.io/lsst-uk/ces:latest",
         namespace=namespace,
         n_workers=dask_workers,
-        scheduler_mem='20Gi'
+        scheduler_mem='20Gi',
         worker_mem='100Gi',
         resources={
             "requests": {
