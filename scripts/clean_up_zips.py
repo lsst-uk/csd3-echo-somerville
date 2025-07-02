@@ -15,6 +15,7 @@ import subprocess
 import logging
 from random import randint
 from string import ascii_lowercase as letters
+from multiprocessing import cpu_count
 warnings.filterwarnings('ignore')
 
 
@@ -348,13 +349,13 @@ if __name__ == '__main__':
     #     help='Total number of CPU cores to use for parallel upload. Default is 4.',
     #     default=24
     # )
-    # parser.add_argument(
-    #     '--nthreads',
-    #     '-t',
-    #     type=int,
-    #     help='Number of threads per worker to use for parallel upload. Default is 2.',
-    #     default=2
-    # )
+    parser.add_argument(
+        '--nthreads',
+        '-t',
+        type=int,
+        help='Number of threads per worker to use for parallel upload. Default is 2.',
+        default=2
+    )
     parser.add_argument(
         '--clean-up-metadata',
         '-m',
@@ -436,7 +437,7 @@ if __name__ == '__main__':
     yes = args.yes
     verify = not args.verify_skip  # Default is to verify
     clean_metadata = args.clean_up_metadata
-    # num_threads = args.nthreads
+    num_threads = args.nthreads
     # if num_threads > nprocs:
     #     logprint(
     #         f'Number of threads ({num_threads}) cannot be greater than number of processes ({nprocs}). '
@@ -447,9 +448,18 @@ if __name__ == '__main__':
     #     num_threads = nprocs // 2
     dask_workers = args.dask_workers
     logprint(
-        f'API: {api}, Bucket name: {bucket_name}, Prefix: {prefix}, Number of Dask workers: {dask_workers}, dryrun: {dryrun}',
+        f'API: {api}, Bucket name: {bucket_name}, Prefix: {prefix}, '
+        f'Number of Dask workers: {dask_workers}, Number of threads per worker: {num_threads}, '
+        f'dryrun: {dryrun}',
         'info'
     )
+    if num_threads * dask_workers > cpu_count() - 8:
+        logprint(
+            f'FATAL: Total number of threads ({num_threads * dask_workers}) '
+            f'exceeds available CPU cores ({cpu_count() - 8}).',
+            'error'
+        )
+        sys.exit(1)
 
     # Print hostname
     uname = subprocess.run(['uname', '-n'], capture_output=True)
@@ -501,8 +511,11 @@ if __name__ == '__main__':
     #        Dask Setup        #
     ############################
     total_memory = mem().total
-    # n_workers = nprocs // num_threads  # e.g., 48 / 2 = 24
-    # mem_per_worker = mem().total // n_workers  # e.g., 187 GiB / 48 * 2 = 7.8 GiB
+
+    mem_limit = int(total_memory*0.8) // dask_workers # Limit memory to 0.8 total memory
+    mem_request = int(total_memory*0.5) // dask_workers # Request memory to 0.5 total memory
+    cpus_per_worker = num_threads  # Number of CPUs per worker
+    max_cpus_per_worker = (cpu_count() - 8)/dask_workers  # Leave some CPUs for the scheduler and other processes
 
     # req = int(mem().total//1024**3 - 16*1024**3)
     # lim = int(mem().total//1024**3 - 4*1024**3)
@@ -536,12 +549,12 @@ if __name__ == '__main__':
         n_workers=dask_workers,
         resources={
             "requests": {
-                "memory": '32Gi',
-                "cpu": '4'
+                "memory": f'{mem_request}Gi',
+                "cpu": f'{cpus_per_worker}'
             },
             "limits": {
-                "memory": '64Gi',
-                "cpu": '8'
+                "memory": f'{mem_limit}Gi',
+                "cpu": f'{max_cpus_per_worker}'
             }
         },
     )
