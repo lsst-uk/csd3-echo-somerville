@@ -550,11 +550,11 @@ if __name__ == '__main__':
         resources={
             "requests": {
                 "memory": '100Gi',  # f'{mem_request}Gi',
-                "cpu": '16'  # f'{cpus_per_worker}'
+                "cpu": '8'  # f'{cpus_per_worker}'
             },
             "limits": {
                 "memory": '400Gi',  # f'{mem_limit}Gi',
-                "cpu": '32'  # f'{max_cpus_per_worker}'
+                "cpu": '16'  # f'{max_cpus_per_worker}'
             }
         },
     )
