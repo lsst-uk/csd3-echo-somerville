@@ -547,13 +547,15 @@ if __name__ == '__main__':
         image="ghcr.io/lsst-uk/ces:latest",
         namespace=namespace,
         n_workers=dask_workers,
+        scheduler_mem='20Gi'
+        worker_mem='100Gi',
         resources={
             "requests": {
-                "memory": '100Gi',  # f'{mem_request}Gi',
+                # "memory": '100Gi',  # f'{mem_request}Gi',
                 "cpu": '8'  # f'{cpus_per_worker}'
             },
             "limits": {
-                "memory": '400Gi',  # f'{mem_limit}Gi',
+                # "memory": '380Gi',  # f'{mem_limit}Gi',
                 "cpu": '16'  # f'{max_cpus_per_worker}'
             }
         },
