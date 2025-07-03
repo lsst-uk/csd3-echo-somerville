@@ -679,9 +679,9 @@ if __name__ == '__main__':
             del partition_lens, partition_sizes  # Free memory
             logprint('Reducing current_objects to only zip files.', 'info')
             current_zips = current_objects[current_objects['is_zip'] == True]  # noqa
-            current_zips = current_zips.repartition(
-                npartitions=max(1000, current_zips.npartitions // 10)  # Reduce partitions to avoid memory issues
-            )
+            # current_zips = current_zips.repartition(
+            #     npartitions=max(1000, current_zips.npartitions // 10)  # Reduce partitions to avoid memory issues
+            # )
             # client.scatter(current_objects)
             logprint('Persisting current_zips.', 'debug')
             # current_zips = client.persist(current_zips)  # Persist the Dask DataFrame
