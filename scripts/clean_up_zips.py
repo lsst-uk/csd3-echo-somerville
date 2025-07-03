@@ -212,156 +212,54 @@ def clean_orphaned_metadata(
         return False
 
 
-def split_and_verify(
-    row: pd.Series,
-    s3: swiftclient.Connection,
-    bucket_name: str,
-    remaining_objects: dd.DataFrame,
-    client: Client,
-) -> bool:
-    if row['is_zip']:
-        print(
-            f"Grabbing zip contents and populating Series for {row['CURRENT_OBJECTS']}" + ' debug',
-            flush=True
-        )
-        zip_obj = row['CURRENT_OBJECTS']
-        if zip_obj == 'None':
-            print(f'WARNING: {zip_obj} is None' + ' warning', flush=True)
-            return False
-        elif zip_obj.strip().endswith('.zip'):
-            path_stub = '/'.join(zip_obj.split('/')[:-1])
-            zip_metadata_uri = f'{zip_obj}.metadata'
+def explode_zip_contents(df: pd.DataFrame, s3: swiftclient.Connection, bucket_name: str) -> pd.DataFrame:
+    """
+    Explodes zip file entries in a DataFrame by retrieving and parsing their metadata.
 
-            try:
-                print(f'Getting metadata from {zip_metadata_uri}' + ' debug', flush=True)
-                zip_metadata = s3.get_object(bucket_name, zip_metadata_uri)[1]
-            except swiftclient.exceptions.ClientException as e:
-                print(f'WARNING: Error getting {zip_metadata_uri}: {e.msg}' + ' warning', flush=True)
-                return False
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input DataFrame with a column `CURRENT_OBJECTS` containing S3 object keys.
+    s3 : swiftclient.Connection
+        Authenticated Swift client connection used to fetch metadata objects.
+    bucket_name : str
+        Name of the target bucket where zip files and corresponding metadata files are stored.
 
-            contents = dd.from_pandas(
-                pd.DataFrame(
-                    [
-                        f'{path_stub}/{c}' for c in zip_metadata.decode().split('|') if c
-                    ],
-                    columns=['ZIP_CONTENTS']
-                )
-            ).set_index('ZIP_CONTENTS', drop=False)
-            return client.submit(merge_and_verify, contents, remaining_objects).compute().result()
-        else:
-            print(f'WARNING: {zip_obj} does not end with .zip' + ' warning', flush=True)
-            return False
-
-
-def merge_and_verify(
-    contents: pd.Series,
-    remaining_objects: dd.DataFrame
-) -> bool:
-    merged = dd.merge(contents, remaining_objects, left_on='ZIP_CONTENTS', right_on='CURRENT_OBJECTS', how='inner')
-    if merged.empty:
-        print(f'No matching contents found in remaining objects for {contents.name}' + ' debug', flush=True)
-        return False
-    else:
-        print(f'Matching contents found for {contents.name}: {len(merged)} items' + ' debug', flush=True)
-        if len(merged) == len(contents):
-            print(f'All contents of {contents.name} found in remaining objects' + ' debug', flush=True)
-            return True
-        else:
-            print(f'Not all contents of {contents.name} found in remaining objects' + ' debug', flush=True)
-            return False
-
-
-# @dask.delayed
-# def verify_zip_objects(
-#     row: pd.Series,
-#     s3: swiftclient.Connection,
-#     bucket_name: str,
-#     remaining_objects_set: set,
-#     # remaining_objects_path: str,
-#     # logger_name: str = None,
-# ) -> str:
-#     """
-#     Verifies if the contents of a zip file stored in an S3 bucket are present
-#     in the current list of objects.
-
-#     Args:
-#         row (pd.Series): A pandas Series containing information about the zip
-#         object.
-#             The 'CURRENT_OBJECTS' key is expected to hold the zip file path.
-#         s3 (swiftclient.Connection): An active connection to the S3 storage.
-#         bucket_name (str): The name of the S3 bucket where the zip file is
-#             stored.
-#         current_objects_set (set): A set containing the current objects to
-#             verify against.
-#         log (str): A log file path or identifier for logging verification
-#             results.
-
-#     Returns:
-#         bool: True if all contents of the zip file are present in
-#         `current_objects`, False otherwise.
-
-#     Notes:
-#         - The function logs the verification result for each zip file.
-#         - The zip file's contents are prefixed with the parent directory path
-#           before comparison.
-#     """
-#     print(f"verify_zip_objects called for {row['CURRENT_OBJECTS']}"+ 'debug', flush=True)
-#     zip_obj = row['CURRENT_OBJECTS']
-#     # remaining_objects = pd.read_parquet(remaining_objects_path, engine='pyarrow')
-#     # remaining_objects_set = set(remaining_objects['CURRENT_OBJECTS'].tolist())
-#     # del remaining_objects  # Free memory
-#     return_str = None
-#     if zip_obj == 'None':
-#         print(f'WARNING: {zip_obj} is None' + ' warning', flush=True)
-#         return None
-#     path_stub = '/'.join(zip_obj.split('/')[:-1])
-#     zip_metadata_uri = f'{zip_obj}.metadata'
-
-#     try:
-#         print(f'Getting metadata from {zip_metadata_uri}' + ' debug', flush=True)
-#         zip_metadata = s3.get_object(bucket_name, zip_metadata_uri)[1]
-#     except swiftclient.exceptions.ClientException as e:
-#         print(f'WARNING: Error getting {zip_metadata_uri}: {e.msg}' + ' warning', flush=True)
-#         return None
-
-#     contents = [f'{path_stub}/{c}' for c in zip_metadata.decode().split('|') if c]
-#     lc = len(contents)
-#     return_str = None
-#     # existing = []
-#     # try:
-#     #     with open(remaining_objects_path, 'r') as f:
-#     #         for c in contents:  # iteration over contents faster than over remaining_objects
-#     #             existing.append(c in f.read())
-#     # except FileNotFoundError:
-#     #     print(f'WARNING: {remaining_objects_path} not found. Cannot verify contents.' + ' warning', flush=True)
-#     #     return False
-#     # all_contents_exist = all(existing)
-#     all_contents_exist = [c in remaining_objects_set for c in contents]  # Use set membership testing
-#     # logprint(f'Contents: {lc}', log)
-#     verified = False
-#     try:
-#         print(f'Verifying {zip_obj} contents against remaining objects' + ' debug', flush=True)
-#         # if sum(current_objects.isin(contents).values) == lc:  # inefficient
-#         # Use set membership testing for increased efficiency
-#         if all_contents_exist:
-#             print(f'All {lc} contents of {zip_obj} found in remaining objects' + ' debug', flush=True)
-#             return_str = zip_obj
-#             verified = True
-#             print(f'{zip_obj} verified: {verified} - can be deleted' + ' debug', flush=True)
-#         else:
-#             return_str = None
-#             print(f'{zip_obj} verified: {verified} - cannot be deleted' + ' debug', flush=True)
-#     except Exception as e:
-#         print(f'Error verifying {zip_obj}: {e}' + ' error', flush=True)
-#         return_str = None
-#     del zip_metadata, contents  # Free memory
-
-#     print(
-#         f"verify_zip_objects completed for {zip_obj}, verified={verified}" + ' debug',
-#         flush=True
-#     )
-#     gc.collect()
-#     return return_str
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame with columns:
+          - zip_filename (str): The original ZIP object key.
+          - content_filename (str or None): The full path to each item inside the ZIP, or None if retrieval failed.
+          - total_contents (int): Total number of entries in the ZIP, or -1 on failure to fetch metadata.
+    """
+    output_rows = []
+    for row in df.itertuples():
+        zip_obj = row.CURRENT_OBJECTS
+        if not zip_obj.endswith('.zip') or not isinstance(zip_obj, str):
+            continue
+        logprint(f'Exploding contents of {zip_obj}', 'info')
+        path_stub = '/'.join(zip_obj.split('/')[:-1])
+        zip_metadata_uri = f'{zip_obj}.metadata'
+        try:
+            metadata = s3.get_object(bucket_name, zip_metadata_uri)[1]
+            contents = [f'{path_stub}/{c}' for c in metadata.decode().split('|') if c]
+            for content in contents:
+                output_rows.append({
+                    'zip_filename': zip_obj,
+                    'content_filename': content,
+                    'total_contents': len(contents)
+                })
+        except swiftclient.exceptions.ClientException as e:
+            logprint(f'WARNING: Error getting metadata for {zip_obj}: {e.msg}', 'warning')
+            output_rows.append({
+                'zip_filename': zip_obj,
+                'content_filename': None,
+                'total_contents': -1
+            })
+    if not output_rows:
+        return pd.DataFrame(columns=['zip_filename', 'content_filename', 'total_contents'])
+    return pd.DataFrame(output_rows)
 
 
 if __name__ == '__main__':
@@ -638,7 +536,7 @@ if __name__ == '__main__':
             current_object_names = bm.object_list(bucket, prefix=prefix, count=False)
         elif api == 'swift':
             current_object_names = bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)
-        current_object_names = pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_object_names})  # [1000000:2000000]})  # testing!!!
+        current_object_names = pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_object_names}).set_index('CURRENT_OBJECTS')  # [1000000:2000000]})  # testing!!!
         logprint('Done.', 'info')
 
         # rands = np.random.randint(0, 9e6, size=2)
@@ -662,11 +560,13 @@ if __name__ == '__main__':
         if num_co > 0:
             zip_match = r".*collated_\d+\.zip$"
             metadata_match = r".*collated_\d+\.zip\.metadata$"
-            current_objects['is_zip'] = current_objects['CURRENT_OBJECTS'].map_partitions(
-                lambda partition: partition.str.fullmatch(zip_match, na=False)  # noqa
+            current_objects['is_zip'] = current_objects['CURRENT_OBJECTS'].str.fullmatch(
+                zip_match,
+                na=False
             )
-            current_objects['is_metadata'] = current_objects['CURRENT_OBJECTS'].map_partitions(
-                lambda partition: partition.str.fullmatch(metadata_match, na=False)  # noqa
+            current_objects['is_metadata'] = current_objects['CURRENT_OBJECTS'].str.fullmatch(
+                metadata_match,
+                na=False
             )
             logprint('Persisting current_objects.', 'debug')
             # current_objects = client.persist(current_objects)  # Persist the Dask DataFrame
@@ -703,37 +603,64 @@ if __name__ == '__main__':
                 logprint('Verifying zips can be deleted (i.e., whether contents exist).', 'info')
                 # logprint(f'npartitions: {current_zips.npartitions}', 'debug')
                 if verify:
-                    current_zips['verified'] = current_zips.map_partitions(
+                    logprint('Step 1: Reading contents from all zip metadata files.', 'info')
+                    exploded_contents = current_zips.map_partitions(
                         lambda partition: partition.apply(
-                            split_and_verify,
+                            explode_zip_contents,
                             axis=1,
                             args=(
                                 s3,
                                 bucket_name,
-                                remaining_objects,
-                                # ro_path,
-                                # 'clean_zips',
                             ),
                         ),
-                        meta=('bool'),
-                    ).dropna()  # Drop NaN values
-                    logprint('Persisting verified_zips.', 'debug')
-                    # verified_zips = verified_zips.persist()  # Persist the Dask DataFrame
-                    # num_vz = verified_zips.map_partitions(
-                    #     lambda partition: len(partition)
-                    # ).compute().sum()
-                    # del current_zips  # Free memory
-                    # gc.collect()  # Collect garbage to free memory
+                        meta={
+                            'zip_filename': 'object',
+                            'content_filename': 'object',
+                            'total_contents': 'int64'
+                        },
+                    )
+                    logprint('Step 2: Merging zip contents with list of existing objects.', 'info')
+                    # ensurce remaining_objects is a Dask DataFrame not a Dask Series
+                    remaining_objects_df = remaining_objects.to_frame(name='CURRENT_OBJECTS')
+                    verified_contents = dd.merge(
+                        exploded_contents,
+                        remaining_objects_df,
+                        left_on='content_filename',
+                        right_on='CURRENT_OBJECTS',
+                        how='inner'
+                    )
+
+                    logprint('Step 3: Counting matched files to identify fully verified zips.', 'info')
+                    # Count how many contents were found for each zip
+                    verified_counts = verified_contents.groupby('zip_filename').content_filename.count().compute()
+                    # Get the original total number of contents for each zip
+                    total_counts = exploded_contents.groupby('zip_filename').total_contents.first().compute()
+
+                    # A zip is verified if the number of found files equals the total number of files
+                    verified_zips_series = (verified_counts == total_counts)
+                    verified_zips_df = verified_zips_series[verified_zips_series].reset_index()
+                    verified_zips_df.columns = ['CURRENT_OBJECTS', 'verified']
+                    verified_zips_df = verified_zips_df.set_index('CURRENT_OBJECTS')
+
+                    logprint('Step 4: Merging verification results back into main zip list.', 'info')
+                    # We do a left merge to keep all original zips, verified will be NaN for non-verified ones
+                    current_zips = dd.merge(
+                        current_zips,
+                        verified_zips_df,
+                        on='CURRENT_OBJECTS',
+                        how='left'
+                    ).fillna({'verified': False})  # Mark non-verified zips as False instead of NaN
+
                 if dryrun:
                     logprint(f'Current objects (with matching prefix): {num_co}', 'info')
                     if verify:
                         pass
-                        # current_zips = client.persist(current_zips)
-                        # logprint(
-                        #     f'{num_vz} zip objects '
-                        #     'were verified as deletable.',
-                        #     'info'
-                        # )
+                        current_zips = client.persist(current_zips)
+                        logprint(
+                            f'{len(current_zips)} zip objects '
+                            'were verified as deletable.',
+                            'info'
+                        )
                     else:
                         logprint(
                             f'Current zip objects (with matching prefix): {num_cz} '
