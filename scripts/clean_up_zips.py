@@ -216,7 +216,7 @@ def split_and_verify(
     row: pd.Series,
     s3: swiftclient.Connection,
     bucket_name: str,
-    remaining_objects: dd.dataframe.DataFrame,
+    remaining_objects: dd.DataFrame,
     client: Client,
 ) -> bool:
     if row['is_zip']:
