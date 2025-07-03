@@ -536,7 +536,7 @@ if __name__ == '__main__':
             current_object_names = bm.object_list(bucket, prefix=prefix, count=False)
         elif api == 'swift':
             current_object_names = bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)
-        current_object_names = pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_object_names}).set_index('CURRENT_OBJECTS')  # [1000000:2000000]})  # testing!!!
+        current_object_names = pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_object_names})  # [1000000:2000000]})  # testing!!!
         logprint('Done.', 'info')
 
         # rands = np.random.randint(0, 9e6, size=2)
@@ -640,7 +640,6 @@ if __name__ == '__main__':
                     verified_zips_series = (verified_counts == total_counts)
                     verified_zips_df = verified_zips_series[verified_zips_series].reset_index()
                     verified_zips_df.columns = ['CURRENT_OBJECTS', 'verified']
-                    verified_zips_df = verified_zips_df.set_index('CURRENT_OBJECTS')
 
                     logprint('Step 4: Merging verification results back into main zip list.', 'info')
                     # We do a left merge to keep all original zips, verified will be NaN for non-verified ones
