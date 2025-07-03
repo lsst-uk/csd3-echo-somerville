@@ -798,7 +798,7 @@ if __name__ == '__main__':
                     # logprint(f'Deleted {sum(subset)} / {len(subset)}', 'debug')
                     # del verified_zips, current_zips  # Free memory
                     # gc.collect()  # Collect garbage to free memory
-                    num_d = current_zips.map_partitions(lambda partition: partition['DELETED'].sum().compute())  # noqa
+                    num_d = current_zips['DELETED'].sum().compute()  # noqa
 
                     if verify:
                         # logprint(
