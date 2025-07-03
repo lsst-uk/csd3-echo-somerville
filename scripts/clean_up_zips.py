@@ -247,7 +247,7 @@ def split_and_verify(
                     columns=['ZIP_CONTENTS']
                 )
             ).set_index('ZIP_CONTENTS', drop=False)
-            return client.submit(merge_and_verify, contents, remaining_objects).compute()
+            return client.submit(merge_and_verify, contents, remaining_objects).compute().result()
         else:
             print(f'WARNING: {zip_obj} does not end with .zip' + ' warning', flush=True)
             return False
@@ -571,10 +571,11 @@ if __name__ == '__main__':
     ############################
     total_memory = mem().total
 
-    mem_limit = int(total_memory*0.8) // dask_workers # Limit memory to 0.8 total memory
-    mem_request = int(total_memory*0.5) // dask_workers # Request memory to 0.5 total memory
+    mem_limit = int(total_memory * 0.8) // dask_workers  # Limit memory to 0.8 total memory
+    mem_request = int(total_memory * 0.5) // dask_workers  # Request memory to 0.5 total memory
     cpus_per_worker = num_threads  # Number of CPUs per worker
-    max_cpus_per_worker = (cpu_count() - 8)/dask_workers  # Leave some CPUs for the scheduler and other processes
+    # Leave some CPUs for the scheduler and other processes
+    max_cpus_per_worker = (cpu_count() - 8) / dask_workers
 
     # req = int(mem().total//1024**3 - 16*1024**3)
     # lim = int(mem().total//1024**3 - 4*1024**3)
@@ -700,7 +701,7 @@ if __name__ == '__main__':
 
             if num_cz > 0:
                 logprint('Verifying zips can be deleted (i.e., whether contents exist).', 'info')
-                logprint(f'npartitions: {current_zips.npartitions}', 'debug')
+                # logprint(f'npartitions: {current_zips.npartitions}', 'debug')
                 if verify:
                     current_zips['verified'] = current_zips.map_partitions(
                         lambda partition: partition.apply(
