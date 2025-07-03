@@ -220,7 +220,10 @@ def split_and_verify(
     client: Client,
 ) -> bool:
     if row['is_zip']:
-        print(f"Grabbing zip contents and populating Series for {row['CURRENT_OBJECTS']}"+ 'debug', flush=True)
+        print(
+            f"Grabbing zip contents and populating Series for {row['CURRENT_OBJECTS']}" + ' debug',
+            flush=True
+        )
         zip_obj = row['CURRENT_OBJECTS']
         if zip_obj == 'None':
             print(f'WARNING: {zip_obj} is None' + ' warning', flush=True)
@@ -236,7 +239,14 @@ def split_and_verify(
                 print(f'WARNING: Error getting {zip_metadata_uri}: {e.msg}' + ' warning', flush=True)
                 return False
 
-            contents = pd.Series([f'{path_stub}/{c}' for c in zip_metadata.decode().split('|') if c], name='ZIP_CONTENTS')
+            contents = dd.from_pandas(
+                pd.DataFrame(
+                    [
+                        f'{path_stub}/{c}' for c in zip_metadata.decode().split('|') if c
+                    ],
+                    columns=['ZIP_CONTENTS']
+                )
+            ).set_index('ZIP_CONTENTS', drop=False)
             return client.submit(merge_and_verify, contents, remaining_objects).compute()
         else:
             print(f'WARNING: {zip_obj} does not end with .zip' + ' warning', flush=True)
@@ -704,7 +714,7 @@ if __name__ == '__main__':
                                 # 'clean_zips',
                             ),
                         ),
-                        meta=('str'),
+                        meta=('bool'),
                     ).dropna()  # Drop NaN values
                     logprint('Persisting verified_zips.', 'debug')
                     # verified_zips = verified_zips.persist()  # Persist the Dask DataFrame
@@ -781,13 +791,13 @@ if __name__ == '__main__':
                     #     part = current_zips.get_partition(i).compute()
                     #     del part
                     #     gc.collect()
-                    deleted = current_zips['DELETED'].persist(optimize_graph=True)  # Persist the Dask DataFrame
+                    # deleted = current_zips['DELETED'].persist(optimize_graph=True)  # Persist the Dask DataFrame
                     # subset = deleted.head(1000)
                     # logprint(f'Subset of deleted: {subset}', 'debug')
                     # logprint(f'Deleted {sum(subset)} / {len(subset)}', 'debug')
                     # del verified_zips, current_zips  # Free memory
                     # gc.collect()  # Collect garbage to free memory
-                    num_d = deleted.map_partitions(lambda partitions: partitions.apply(sum).compute())  # noqa
+                    num_d = current_zips.map_partitions(lambda partition: partition['DELETED'].apply(sum).compute())  # noqa
 
                     if verify:
                         # logprint(
