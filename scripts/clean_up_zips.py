@@ -212,14 +212,14 @@ def clean_orphaned_metadata(
         return False
 
 
-def explode_zip_contents(df: pd.DataFrame, s3: swiftclient.Connection, bucket_name: str) -> pd.DataFrame:
+def explode_zip_contents(row: pd.Series, s3: swiftclient.Connection, bucket_name: str) -> pd.DataFrame:
     """
     Explodes zip file entries in a DataFrame by retrieving and parsing their metadata.
 
     Parameters
     ----------
-    df : pd.DataFrame
-        Input DataFrame with a column `CURRENT_OBJECTS` containing S3 object keys.
+    row : pd.Series
+        Row of dd.dataframe with a column `CURRENT_OBJECTS` containing S3 object keys.
     s3 : swiftclient.Connection
         Authenticated Swift client connection used to fetch metadata objects.
     bucket_name : str
@@ -234,29 +234,28 @@ def explode_zip_contents(df: pd.DataFrame, s3: swiftclient.Connection, bucket_na
           - total_contents (int): Total number of entries in the ZIP, or -1 on failure to fetch metadata.
     """
     output_rows = []
-    for row in df.itertuples():
-        zip_obj = row.CURRENT_OBJECTS
-        if not zip_obj.endswith('.zip') or not isinstance(zip_obj, str):
-            continue
-        logprint(f'Exploding contents of {zip_obj}', 'info')
-        path_stub = '/'.join(zip_obj.split('/')[:-1])
-        zip_metadata_uri = f'{zip_obj}.metadata'
-        try:
-            metadata = s3.get_object(bucket_name, zip_metadata_uri)[1]
-            contents = [f'{path_stub}/{c}' for c in metadata.decode().split('|') if c]
-            for content in contents:
-                output_rows.append({
-                    'zip_filename': zip_obj,
-                    'content_filename': content,
-                    'total_contents': len(contents)
-                })
-        except swiftclient.exceptions.ClientException as e:
-            logprint(f'WARNING: Error getting metadata for {zip_obj}: {e.msg}', 'warning')
+    zip_obj = row['CURRENT_OBJECTS']
+    if not zip_obj.endswith('.zip') or not isinstance(zip_obj, str):
+        return pd.DataFrame(columns=['zip_filename', 'content_filename', 'total_contents'])
+    logprint(f'Exploding contents of {zip_obj}', 'info')
+    path_stub = '/'.join(zip_obj.split('/')[:-1])
+    zip_metadata_uri = f'{zip_obj}.metadata'
+    try:
+        metadata = s3.get_object(bucket_name, zip_metadata_uri)[1]
+        contents = [f'{path_stub}/{c}' for c in metadata.decode().split('|') if c]
+        for content in contents:
             output_rows.append({
                 'zip_filename': zip_obj,
-                'content_filename': None,
-                'total_contents': -1
+                'content_filename': content,
+                'total_contents': len(contents)
             })
+    except swiftclient.exceptions.ClientException as e:
+        logprint(f'WARNING: Error getting metadata for {zip_obj}: {e.msg}', 'warning')
+        output_rows.append({
+            'zip_filename': zip_obj,
+            'content_filename': None,
+            'total_contents': -1
+        })
     if not output_rows:
         return pd.DataFrame(columns=['zip_filename', 'content_filename', 'total_contents'])
     return pd.DataFrame(output_rows)
