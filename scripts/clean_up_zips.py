@@ -785,7 +785,6 @@ if __name__ == '__main__':
                     # subset = deleted.head(1000)
                     # logprint(f'Subset of deleted: {subset}', 'debug')
                     # logprint(f'Deleted {sum(subset)} / {len(subset)}', 'debug')
-                    sys.exit()
                     # del verified_zips, current_zips  # Free memory
                     # gc.collect()  # Collect garbage to free memory
                     num_d = deleted.map_partitions(lambda partitions: partitions.apply(sum).compute())  # noqa
