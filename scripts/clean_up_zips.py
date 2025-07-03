@@ -245,7 +245,7 @@ def split_and_verify(
 
 def merge_and_verify(
     contents: pd.Series,
-    remaining_objects: dd.dataframe.DataFrame
+    remaining_objects: dd.DataFrame
 ) -> bool:
     merged = dd.merge(contents, remaining_objects, left_on='ZIP_CONTENTS', right_on='CURRENT_OBJECTS', how='inner')
     if merged.empty:
