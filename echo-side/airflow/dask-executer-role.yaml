@@ -4,7 +4,7 @@ kind: ClusterRole
 metadata:
   name: dask-cluster-manager
 rules:
-  - apiGroups: ["dask.org"]
+  - apiGroups: ["kubernetes.dask.org"]
     resources: ["daskclusters", "daskworkergroups"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
   - apiGroups: [""]
