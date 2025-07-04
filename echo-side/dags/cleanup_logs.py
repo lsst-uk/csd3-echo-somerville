@@ -3,7 +3,7 @@ from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperato
 from datetime import timedelta, datetime
 from kubernetes.client import models
 
-# Create k8s storage mount 
+# Create k8s storage mount
 
 logs_volume_mount = models.V1VolumeMount(name="logs-volume", mount_path="/lsst-backup-logs", sub_path=None, read_only=False,)
 logs_volume = models.V1Volume(
@@ -30,7 +30,7 @@ dag = DAG(
 
 clean_up_logs = KubernetesPodOperator(
     task_id='clean_up_logs',
-    image='ghcr.io/lsst-uk/csd3-echo-somerville:ubuntu-latest',
+    image='ghcr.io/lsst-uk/ces:latest',
     arguments=['csd3-echo-somerville/scripts/clean_up_logs.sh', '/lsst-backup-logs'],
     dag=dag,
     volumes=[logs_volume],
