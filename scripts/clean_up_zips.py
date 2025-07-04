@@ -757,9 +757,7 @@ if __name__ == '__main__':
                             f'{num_d} zip files were DELETED.',
                             'info'
                         )
-                    del deleted, verified_zips  # Free memory
-                    gc.collect()  # Collect garbage to free memory
-                    logprint('Finished processing', 'info')
+                    logprint('Finished zip deletion.', 'info')
 
             else:
                 logprint(f'No zip files in bucket {bucket_name}.', 'warning')
