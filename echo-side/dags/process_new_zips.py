@@ -61,7 +61,7 @@ with DAG(
     process_zips_task = [
         KubernetesPodOperator(
             task_id=f'process_zips_{bucket_name}',
-            image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
+            image='ghcr.io/lsst-uk/ces:latest',
             cmds=['/entrypoint.sh'],
             arguments=[
                 'python',
@@ -69,8 +69,8 @@ with DAG(
                 '--bucket-name',
                 bucket_name,
                 '--extract',
-                '--nprocs',
-                '28'
+                '--dask-workers',
+                '4'
             ],
             env_vars={
                 'S3_ACCESS_KEY': Variable.get("S3_ACCESS_KEY"),
