@@ -46,27 +46,29 @@ with DAG(
     catchup=False,
 ) as dag:
 
-    print_bucket_name_task = [
+    print_bucket_name_tasks = [
         PythonOperator(
             task_id=f'print_bucket_name_{bucket_name}',
             python_callable=print_bucket_name,
             op_kwargs={'bucket_name': bucket_name},
         ) for bucket_name in bucket_names]
 
-    create_clean_up_zips_task = [
+    create_clean_up_zips_dask_tasks = [
         KubernetesPodOperator(
             task_id=f'clean_up_zips_{bucket_name}',
-            image='ghcr.io/lsst-uk/csd3-echo-somerville:latest',
+            name=f'clean_up_zips_{bucket_name}-Dask-pod',
+            namespace='airflow',
+            image='ghcr.io/lsst-uk/ces:latest',
             cmds=['/entrypoint.sh'],
             arguments=[
                 'python',
                 'csd3-echo-somerville/scripts/clean_up_zips.py',
                 '-y',
-                '-m',
                 '--bucket-name',
                 bucket_name,
-                '--nprocs',
-                '28',
+                '-D',
+                '-w',
+                '8',
             ],
             env_vars={
                 'S3_ACCESS_KEY': Variable.get("S3_ACCESS_KEY"),
@@ -76,10 +78,17 @@ with DAG(
                 'ST_USER': Variable.get("ST_USER"),
                 'ST_KEY': Variable.get("ST_KEY"),
             },
+            do_xcom_push=True,
+            is_delete_operator_pod=True,
+            in_cluster=True,
+            service_account_name='airflow-dask-executor',
             get_logs=True,
             dag=dag,
         ) for bucket_name in bucket_names]
 
     # Set task dependencies
-    for task in print_bucket_name_task:
-        task >> create_clean_up_zips_task
+    for print_bucket_name_task, create_clean_up_zips_dask_task in zip(
+        print_bucket_name_tasks,
+        create_clean_up_zips_dask_tasks
+    ):
+        print_bucket_name_task >> create_clean_up_zips_dask_task
