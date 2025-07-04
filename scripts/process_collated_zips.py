@@ -7,9 +7,10 @@ import sys
 import os
 from multiprocessing import cpu_count
 from distributed import Client
-from distributed import print as dprint
+from dask_kubernetes.operator import KubeCluster
 from dask import dataframe as dd
 import gc
+from psutil import virtual_memory as mem
 import pyarrow as pa
 import pandas as pd
 from numpy.random import randint
@@ -23,8 +24,22 @@ import swiftclient
 import argparse
 import re
 import shutil
-
+import logging
+from string import ascii_lowercase as letters
 warnings.filterwarnings('ignore')
+
+
+NAMESPACE_FILE = '/var/run/secrets/kubernetes.io/serviceaccount/namespace'
+logger = logging.getLogger('process_collated_zips')
+
+
+# Check if the namespace file exists and read it
+def get_current_namespace():
+    """Reads the namespace from the file system if available."""
+    if os.path.exists(NAMESPACE_FILE):
+        with open(NAMESPACE_FILE, 'r') as f:
+            return f.read().strip()
+    return "default"  # Fallback
 
 
 def get_md5_hash(data: bytes) -> str:
@@ -75,7 +90,6 @@ def rm_parquet(path: str) -> None:
     Returns:
         None
     """
-
     parent = os.path.dirname(path)
     if os.path.isdir(parent) and not os.path.islink(parent):
         shutil.rmtree(parent)
@@ -113,14 +127,14 @@ def find_metadata_swift(row: pd.Series, conn: swiftclient.Connection, bucket_nam
             existing_zip_contents = str(
                 conn.get_object(bucket_name, ''.join([key, '.metadata']))[1].decode('UTF-8')
             )  # .split('|') # use | as separator
-            dprint(f'Using zip-contents-object, {"".join([key, ".metadata"])} for object {key}.')
+            logger.info(f'Using zip-contents-object, {"".join([key, ".metadata"])} for object {key}.')
         except Exception:
             try:
                 existing_zip_contents = conn.head_object(
                     bucket_name,
                     key
                 )['x-object-meta-zip-contents']  # .split('|') # use | as separator
-                dprint(f'Using zip-contents metadata for {key}.')
+                logger.info(f'Using zip-contents metadata for {key}.')
             except KeyError:
                 return ''
             except Exception:
@@ -170,7 +184,7 @@ def object_list_swift(
         if count:
             o += 1
             if o % 10000 == 0:
-                dprint(f'Existing objects: {o}', end='\r', flush=True)
+                logger.info(f'Existing objects: {o}', end='\r')
     print()
     return keys
 
@@ -194,48 +208,10 @@ def match_key(row: pd.Series) -> bool:
     key = row['key']
     pattern = re.compile(r'.*collated_\d+\.zip$')
     if pattern.match(key):
-        # dprint(key)
+        # logger.debug(key)
         return True
     else:
         return False
-
-
-def verify_zip_contents(row: pd.Series, keys_series: pd.Series) -> bool:
-    """
-    Verifies the contents of a zip file based on the provided row and keys
-    series.
-
-    Args:
-        row (pd.Series): A pandas Series containing information about the zip
-        file, including 'key', 'is_zipfile', and 'contents'.
-
-        keys_series (pd.Series): A pandas Series containing keys to check
-        against the zip file contents.
-
-    Returns:
-        bool: True if the zip file needs to be extracted, False otherwise.
-    """
-    contents = row['contents']
-    if isinstance(contents, str):
-        contents = contents.split('|')
-    extract = False
-    if row['is_zipfile']:
-        dprint(f'Checking for {row["key"]} contents in all_keys list...')
-        try:
-            if len(contents) > 0:
-                if sum(keys_series.isin([contents])) != len(contents):
-                    extract = True
-                    dprint(f'{row["key"]} to be extracted.')
-                else:
-                    dprint(f'{row["key"]} contents previously extracted.')
-            else:
-                extract = True
-                dprint(f'{row["key"]} to be extracted (contents unknown).')
-        except TypeError:
-            dprint(f'{row["key"]} is empty.')
-            extract = False
-
-    return extract
 
 
 def prepend_zipfile_path_to_contents(row: pd.Series) -> str:
@@ -257,6 +233,33 @@ def prepend_zipfile_path_to_contents(row: pd.Series) -> str:
     contents = row['contents'].split('|')
     prepended = [f'{path_stub}/{c}' for c in contents]
     return '|'.join(prepended)
+
+
+def explode_zip_contents(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    For a pandas DataFrame of zip files with a 'contents' column,
+    returns a new DataFrame mapping each zip to its individual contents.
+    """
+    output_rows = []
+    for row in df.itertuples():
+        # Skip non-zip files or rows where contents couldn't be read
+        if not row.is_zipfile or not isinstance(row.contents, str) or not row.contents:
+            continue
+
+        zip_filename = row.key
+        contents = row.contents.split('|')
+        total_contents = len(contents)
+
+        for content_file in contents:
+            output_rows.append({
+                'zip_filename': zip_filename,
+                'content_filename': content_file,
+                'total_contents': total_contents
+            })
+
+    if not output_rows:
+        return pd.DataFrame(columns=['zip_filename', 'content_filename', 'total_contents'])
+    return pd.DataFrame(output_rows)
 
 
 def extract_and_upload(row: pd.Series, conn: swiftclient.Connection, bucket_name: str) -> bool:
@@ -290,13 +293,13 @@ def extract_and_upload(row: pd.Series, conn: swiftclient.Connection, bucket_name
     start = datetime.now()
     size = 0
     uploaded = False
-    # dprint(f'Extracting {row["key"]}...', flush=True)
+    # logger.debug(f'Extracting {row["key"]}...')
     path_stub = '/'.join(key.split('/')[:-1])
     try:
         zipfile_data = io.BytesIO(conn.get_object(bucket_name, key)[1])
     except swiftclient.exceptions.ClientException as e:
         if e.http_status == 404:
-            dprint(f'Object {key} not found - possibly already deleted. '
+            logger.info(f'Object {key} not found - possibly already deleted. '
                    'Skipping and marking as True to allow clean up.')
             return True
         else:
@@ -304,7 +307,7 @@ def extract_and_upload(row: pd.Series, conn: swiftclient.Connection, bucket_name
     with zipfile.ZipFile(zipfile_data) as zf:
         num_files = len(zf.namelist())
         for content_file in zf.namelist():
-            # dprint(content_file, flush=True)
+            # logger.debug(content_file)
             content_file_data = zf.open(content_file)
             size += len(content_file_data.read())
             content_file_data.seek(0)
@@ -319,29 +322,29 @@ def extract_and_upload(row: pd.Series, conn: swiftclient.Connection, bucket_name
                 existing_content = conn.head_object(bucket_name, content_key)
                 existing_md5 = existing_content['etag']
                 if existing_md5 == content_md5:
-                    # dprint(f'Skipping {content_key} ({existing_md5} == {content_md5})')
+                    # logger.debug(f'Skipping {content_key} ({existing_md5} == {content_md5})')
                     continue
                 elif existing_md5 != content_md5 and '-' in existing_md5:
-                    dprint(
+                    logger.info(
                         f'Skipping {content_key} (exists, but segmented - replacement not '
                         'currently supported).'
                     )
                     continue
                 else:
-                    dprint(f'Uploading {content_key} ({existing_md5} != {content_md5}).')
-                    # dprint('Content differs. Uploading.')
+                    logger.info(f'Uploading {content_key} ({existing_md5} != {content_md5}).')
+                    # logger.debug('Content differs. Uploading.')
                     conn.put_object(bucket_name, content_key, content_file_data)
                     uploaded = True
             except swiftclient.exceptions.ClientException as e:
                 if e.http_status == 404:
-                    # dprint('Object not found. Uploading.')
-                    # dprint(f'Uploading {content_key} (not found).')
+                    # logger.debug('Object not found. Uploading.')
+                    # logger.debug(f'Uploading {content_key} (not found).')
                     conn.put_object(bucket_name, content_key, content_file_data)
                     uploaded = True
                 else:
                     raise
             del content_file_data
-            # dprint(f'Uploaded {content_file} to {key}', flush=True)
+            # logger.debug(f'Uploaded {content_file} to {key}')
     done = True
     del zipfile_data
     gc.collect()
@@ -349,23 +352,23 @@ def extract_and_upload(row: pd.Series, conn: swiftclient.Connection, bucket_name
     duration = (end - start).total_seconds()
     try:
         if uploaded:
-            dprint(
+            logger.info(
                 f'Extracted and uploaded contents of {key} ({num_files} files, '
                 f'total size: {size/1024**2:.2f} MiB) in {duration:.2f} s '
-                f'({(size/1024**2/duration):.2f} MiB/s if all files were uploaded).', flush=True
+                f'({(size/1024**2/duration):.2f} MiB/s if all files were uploaded).'
             )
         else:
-            dprint(f'Extracted contents of {key} ({num_files} files, '
+            logger.info(f'Extracted contents of {key} ({num_files} files, '
                    f'total size: {size/1024**2:.2f} MiB) in {duration:.2f} s '
-                   '(no uploads required)', flush=True)
+                   '(no uploads required)')
     except ZeroDivisionError:
         if uploaded:
-            dprint(f'Extracted and uploaded contents of {key} ({num_files} files, '
-                   f'total size: {size/1024**2:.2f} MiB) in {duration:.2f} s', flush=True)
+            logger.info(f'Extracted and uploaded contents of {key} ({num_files} files, '
+                   f'total size: {size/1024**2:.2f} MiB) in {duration:.2f} s')
         else:
-            dprint(f'Extracted contents of {key} ({num_files} files, '
+            logger.info(f'Extracted contents of {key} ({num_files} files, '
                    f'total size: {size/1024**2:.2f} MiB) in {duration:.2f} s '
-                   '(no uploads required)', flush=True)
+                   '(no uploads required)')
 
     return done
 
@@ -407,8 +410,9 @@ def main():
          SystemExit: If invalid arguments are provided or if the bucket is not
          found.
     """
+
     all_start = datetime.now()
-    print(f'Start time: {all_start}.')
+    logger.info(f'Start time: {all_start}.')
     epilog = ''
 
     class MyParser(argparse.ArgumentParser):
@@ -441,11 +445,11 @@ def main():
         help='Extract and upload zip files for which the contents are not found in the bucket.'
     )
     parser.add_argument(
-        '--nprocs',
-        '-n',
+        '--dask-workers',
+        '-w',
         type=int,
-        help='Maximum number of processes to use for extraction and upload.',
-        default=12
+        default=4,
+        help='Number of Dask workers to use. Default is 4.'
     )
     parser.add_argument(
         '--nthreads',
@@ -469,6 +473,20 @@ def main():
     )
 
     args = parser.parse_args()
+
+    # Set up logging
+    debug = args.debug
+    debug_level = logging.DEBUG if debug else logging.INFO
+    logger.setLevel(debug_level)
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
+
     bucket_name = args.bucket_name
     if args.list_zips:
         list_zips = True
@@ -484,7 +502,7 @@ def main():
         if not list_zips:
             recover = True
         else:
-            print('Cannot list zips and recover at the same time. Exiting.')
+            logger.error('Cannot list zips and recover at the same time. Exiting.')
             sys.exit()
     else:
         recover = False
@@ -495,22 +513,8 @@ def main():
         prefix = ''
 
     if list_zips and extract:
-        print('Cannot list contents and extract at the same time. Exiting.')
+        logger.error('Cannot list contents and extract at the same time. Exiting.')
         sys.exit()
-
-    if args.nprocs:
-        nprocs = args.nprocs
-        if nprocs < 1:
-            nprocs = 1
-        elif nprocs > (cpu_count() - 1):  # allow one core for __main__ and system processes
-            print(f'Maximum number of processes set to {nprocs} but only {cpu_count() - 1} available. '
-                  f'Setting to {cpu_count() - 1}.')
-            nprocs = cpu_count() - 1
-    else:
-        nprocs = 6
-    threads_per_worker = args.nthreads  # large number as each worker may need to extract multiple files
-    n_workers = nprocs // threads_per_worker
-    mem_per_worker = 64 * 1024**3 // n_workers  # limit to 64 GiB total memory
 
     # Setup bucket object
     try:
@@ -532,15 +536,51 @@ def main():
         keys = pd.DataFrame.from_dict({'key': object_list_swift(conn, bucket_name, prefix, count=True)})
         print(keys.head())
 
-    with Client(
-        n_workers=n_workers,
-        threads_per_worker=threads_per_worker,
-        memory_limit=mem_per_worker
-    ) as client:
-        # dask.set_options(get=dask.local.get_sync)
-        dprint(f'Dask Client: {client}', flush=True)
-        dprint(f'Dashboard: {client.dashboard_link}', flush=True)
-        dprint(f'Using {n_workers} workers, each with {threads_per_worker} threads, on {nprocs} CPUs.')
+    ############################
+    #        Dask Setup        #
+    ############################
+    dask_workers = args.dask_workers
+    num_threads = args.nthreads
+    # large number as each worker may need to extract multiple files
+    total_memory = mem().total
+
+    mem_limit = int(total_memory * 0.8) // dask_workers  # Limit memory to 0.8 total memory
+    mem_request = int(total_memory * 0.5) // dask_workers  # Request memory to 0.5 total memory
+    cpus_per_worker = num_threads  # Number of CPUs per worker
+    # Leave some CPUs for the scheduler and other processes
+    max_cpus_per_worker = (cpu_count() - 8) / dask_workers
+
+    # K8s pod info
+    namespace = get_current_namespace()
+    if namespace == 'default':
+        namespace = 'dask-service-clusters'
+
+    tag = ''
+    for i in range(6):
+        tag += letters[randint(0, 25)]
+
+    logger.info(f'Using namespace: {namespace}')
+    cluster = KubeCluster(
+        name="dask-cluster-cleanzips-" + tag,
+        image="ghcr.io/lsst-uk/ces:latest",
+        namespace=namespace,
+        n_workers=dask_workers,
+        resources={
+            "requests": {
+                "memory": '64Gi',  # f'{mem_request}Gi',
+                "cpu": '8'  # f'{cpus_per_worker}'
+            },
+            "limits": {
+                "memory": '96Gi',  # f'{mem_limit}Gi',
+                "cpu": '16'  # f'{max_cpus_per_worker}'
+            }
+        },
+    )
+
+    with Client(cluster) as client:
+        logger.info(f'Dask Client: {client}')
+        logger.info(f'Dashboard: {client.dashboard_link}')
+        logger.info(f'Using {dask_workers} workers, each with {num_threads} threads.')
 
         if not recover:
             # Dask Dataframe of all keys
@@ -550,8 +590,8 @@ def main():
                 keys_only_df = keys_df['key'].copy()
                 keys_only_df = client.persist(keys_only_df)
             del keys
-            dprint(f'Partitions: {keys_df.npartitions}')
-            # dprint(keys_df)
+            logger.info(f'Partitions: {keys_df.npartitions}')
+            # logger.debug(keys_df)
             # Discover if key is a zipfile
             keys_df['is_zipfile'] = keys_df.map_partitions(
                 lambda partition: partition.apply(
@@ -566,11 +606,11 @@ def main():
         if list_zips:
             check = keys_df['is_zipfile'].any().compute()
             if not check:
-                dprint('No zipfiles found. Exiting.')
+                logger.warning('No zipfiles found. Exiting.')
                 sys.exit()
-            dprint('Zip files found:')
-            dprint(keys_df[keys_df['is_zipfile'] == True]['key'])  # noqa
-            print(f'Done. Runtime: {datetime.now() - all_start}.')
+            logger.info('Zip files found:')
+            logger.info(keys_df[keys_df['is_zipfile'] == True]['key'])  # noqa
+            logger.info(f'Done. Runtime: {datetime.now() - all_start}.')
             sys.exit()
 
         if extract:
@@ -578,7 +618,7 @@ def main():
                 # keys_df = client.persist(keys_df)
                 check = keys_df['is_zipfile'].any().compute()
                 if not check:
-                    dprint('No zipfiles found. Exiting.')
+                    logger.warning('No zipfiles found. Exiting.')
                     sys.exit()
                 # Get metadata for zipfiles
                 keys_df['contents'] = keys_df.map_partitions(  # noqa
@@ -594,7 +634,7 @@ def main():
                 )
 
                 # Prepend zipfile path to contents
-                # dprint(keys_df)
+                # logger.debug(keys_df)
                 keys_df['contents'] = keys_df.map_partitions(
                     lambda partition: partition.apply(
                         prepend_zipfile_path_to_contents,
@@ -603,44 +643,82 @@ def main():
                     meta=('contents', 'str'),
                 )
 
-                keys_series = keys_df['key'].copy().persist()
-                keys_df['extract'] = keys_df.map_partitions(
-                    lambda partition: partition.apply(
-                        verify_zip_contents,
-                        axis=1,
-                        args=(keys_series,),
-                    ),
-                    meta=('extract', 'bool'),
+                # --- Start of new verification logic ---
+                logger.info('Verifying which zip files need extraction...')
+
+                # 1. Create a clean DataFrame of all existing object keys for the merge
+                all_keys_df = keys_df[['key']].rename(columns={'key': 'CURRENT_OBJECTS'})
+
+                # 2. Explode all zip contents into a new Dask DataFrame
+                zip_files_df = keys_df[keys_df['is_zipfile'] == True].persist()  # noqa
+                exploded_contents = zip_files_df.map_partitions(
+                    explode_zip_contents,
+                    meta={
+                        'zip_filename': 'object',
+                        'content_filename': 'object',
+                        'total_contents': 'int64'
+                    }
                 )
+
+                # 3. Find which content files already exist with an efficient inner merge
+                existing_contents = dd.merge(
+                    exploded_contents,
+                    all_keys_df,
+                    left_on='content_filename',
+                    right_on='CURRENT_OBJECTS',
+                    how='inner'
+                )
+
+                # 4. Count total vs. existing contents to find incomplete zips
+                # Count how many contents were found for each zip
+                existing_counts = existing_contents.groupby('zip_filename').content_filename.count().persist()
+                # Get the original total number of contents for each zip
+                total_counts = exploded_contents.groupby('zip_filename').total_contents.first().persist()
+
+                # Align the series, filling in 0 for zips where no contents were found
+                existing_counts = existing_counts.reindex(total_counts.index.compute(), fill_value=0)
+
+                # A zip needs to be extracted if the number of existing files is NOT equal to the total
+                to_extract_series = (existing_counts.compute() != total_counts.compute())
+                to_extract_df = to_extract_series[to_extract_series].reset_index()
+                to_extract_df.columns = ['key', 'extract']
+
+                # 5. Merge the 'extract' boolean back into the main DataFrame
+                keys_df = dd.merge(
+                    keys_df,
+                    to_extract_df,
+                    on='key',
+                    how='left'
+                ).fillna({'extract': False})  # Mark zips that don't need extraction as False
+
+                # --- End of new verification logic ---
 
                 # all wrangling and decision making done - write to parquet
                 # for lazy unzipping
                 # only require key and extract boolean
                 pq = get_random_parquet_path()
-                dprint(f'tmp folder is {pq}')
+                logger.info(f'tmp folder is {pq}')
                 keys_df = keys_df[['key', 'extract']]
                 keys_df.to_parquet(pq, schema=pa.schema([
                     ('key', pa.string()),
                     ('extract', pa.bool_()),
                 ]))
-                dprint(f'Parquet file written to {os.path.abspath(pq)}.')
-                del keys_df, keys_series
-                gc.collect()
+                logger.info(f'Parquet file written to {os.path.abspath(pq)}.')
 
             else:
                 pq = 'data.parquet'
-                dprint(f'Recovering from previous run. Using {os.path.abspath(pq)}.')
+                logger.info(f'Recovering from previous run. Using {os.path.abspath(pq)}.')
 
-            dprint('Extracting zip files...')
+            logger.info('Extracting zip files...')
             keys_df = dd.read_parquet(
                 pq,
                 dtype={'key': 'str', 'extract': 'bool'},
                 chunksize=100000
             )  # small chunks to avoid memory issues
 
-            dprint(keys_df.npartitions)
+            logger.info(f'Partitions: {keys_df.npartitions}')
 
-            dprint('Zip files extracted and uploaded:')
+            logger.info('Zip files extracted and uploaded:')
             keys_df['extracted_and_uploaded'] = keys_df.map_partitions(  # noqa
                 lambda partition: partition.apply(
                     extract_and_upload,
@@ -659,10 +737,10 @@ def main():
             del keys_df
             gc.collect()
             if extracted_and_uploaded.all().compute():
-                dprint('All zip files extracted and uploaded.')
+                logger.info('All zip files extracted and uploaded.')
                 rm_parquet(pq)
 
-    print(f'Done. Runtime: {datetime.now() - all_start}.')
+    logger.info(f'Done. Runtime: {datetime.now() - all_start}.')
 
 
 if __name__ == '__main__':
