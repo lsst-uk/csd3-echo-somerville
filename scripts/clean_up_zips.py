@@ -44,11 +44,6 @@ def logprint(msg: str, level: str = 'info'):  # , log: str | logging.Logger = No
     Returns:
     None
     """
-    # if isinstance(logger, bool):
-    #     if logger:
-    #         logger = None
-    #     else:
-    #         return None
     if isinstance(logger, logging.Logger):
         if level.lower() == 'info':
             logger.info(msg)
@@ -63,9 +58,6 @@ def logprint(msg: str, level: str = 'info'):  # , log: str | logging.Logger = No
         else:
             logger.info(msg)
         return None
-    # if logger is not None:
-    #     with open(logger, 'a') as logfile:
-    #         logfile.write(f'{msg}\n')
     else:
         print(msg, flush=True)
     return None
@@ -78,7 +70,6 @@ def delete_object_swift(
     bucket_name: str,
     del_metadata: bool = True,
     verify: bool = False,
-    # log: str | logging.Logger = None
 ) -> bool:
     """
     Deletes an object and its associated metadata from a Swift storage bucket.
@@ -132,7 +123,6 @@ def delete_object_swift(
     return deleted
 
 
-# @dask.delayed
 def is_orphaned_metadata(
     row: pd.Series,
     current_objects: pd.Series,
@@ -173,7 +163,6 @@ def clean_orphaned_metadata(
     row: pd.Series,
     s3: swiftclient.Connection,
     bucket_name: str,
-    # log: str | logging.Logger = None,
 ) -> bool:
     """
     Cleans up orphaned metadata files in a Swift storage bucket.
@@ -300,13 +289,6 @@ if __name__ == '__main__':
         type=str,
         help='Prefix to be used in S3 object keys. Required.'
     )
-    # parser.add_argument(
-    #     '--nprocs',
-    #     '-n',
-    #     type=int,
-    #     help='Total number of CPU cores to use for parallel upload. Default is 4.',
-    #     default=24
-    # )
     parser.add_argument(
         '--nthreads',
         '-t',
@@ -390,20 +372,11 @@ if __name__ == '__main__':
     else:
         prefix = args.prefix
 
-    # nprocs = args.nprocs
     dryrun = args.dryrun
     yes = args.yes
     verify = not args.verify_skip  # Default is to verify
     clean_metadata = args.clean_up_metadata
     num_threads = args.nthreads
-    # if num_threads > nprocs:
-    #     logprint(
-    #         f'Number of threads ({num_threads}) cannot be greater than number of processes ({nprocs}). '
-    #         f'Setting threads per worker to {nprocs // 2}.',
-    #         'info'
-    #     )
-    #     logger.debug('Forcing number of threads per worker to nprocs // 2.')
-    #     num_threads = nprocs // 2
     dask_workers = args.dask_workers
     logprint(
         f'API: {api}, Bucket name: {bucket_name}, Prefix: {prefix}, '
@@ -476,21 +449,6 @@ if __name__ == '__main__':
     # Leave some CPUs for the scheduler and other processes
     max_cpus_per_worker = (cpu_count() - 8) / dask_workers
 
-    # req = int(mem().total//1024**3 - 16*1024**3)
-    # lim = int(mem().total//1024**3 - 4*1024**3)
-    # mem_per_worker = req // n_workers  # e.g., 7.8 GiB per worker
-    # mem_request = f'{req}GiB'  # Request memory in GiB
-    # mem_limit = f'{lim}GiB'  # Leave some memory for the scheduler and other processes
-    # mem_request = f'{mem_per_worker // 1024**3 - 1024**2}Gi'  # Request memory in GiB
-    # mem_limit = f'{mem_per_worker // 1024**3 - 128**2}Gi'  # Leave some memory for the scheduler and other processes
-
-    # logprint(
-    #     f'nprocs: {nprocs}, Threads per worker: {num_threads}, Number of workers: {n_workers}, '
-    #     f'Total memory: {total_memory/1024**3:.2f} GiB, Memory per worker: '
-    #     f'{mem_per_worker/1024**3:.2f} GiB',
-    #     'info'
-    # )
-
     # K8s pod info
     namespace = get_current_namespace()
     if namespace == 'default':
@@ -537,15 +495,8 @@ if __name__ == '__main__':
             current_object_names = bm.object_list(bucket, prefix=prefix, count=False)
         elif api == 'swift':
             current_object_names = bm.object_list_swift(s3, bucket_name, prefix=prefix, count=False)
-        current_object_names = pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_object_names})  # [1000000:2000000]})  # testing!!!
+        current_object_names = pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_object_names})
         logprint('Done.', 'info')
-
-        # rands = np.random.randint(0, 9e6, size=2)
-        # while rands[0] >= rands[1] or rands[0] < 0 or rands[1] >= len(current_object_names) or rands[1] == rands[0] or rands[1] - rands[0] > 1000000 or rands[1] - rands[0] < 100000:
-        #     rands = np.random.randint(0, 9e6, size=2)
-        # logprint(f'Taking a random slice for testing: {rands}', 'debug')
-        # if debug:
-        #     current_object_names = current_object_names[min(rands):max(rands)]
 
         current_objects = dd.from_pandas(
             current_object_names,
@@ -569,28 +520,14 @@ if __name__ == '__main__':
                 metadata_match,
                 na=False
             )
-            logprint('Persisting current_objects.', 'debug')
-            # current_objects = client.persist(current_objects)  # Persist the Dask DataFrame
-            # report partition sizes
-            partition_lens = current_objects.map_partitions(lambda partition: len(partition)).compute()
-            partition_sizes = current_objects.map_partitions(
-                lambda partition: partition.memory_usage(deep=True).sum()
-            ).compute()
-            logprint(f'Partition lengths: {partition_lens.describe()} ', 'debug')
-            logprint(f'Partition sizes: {partition_sizes.describe()}', 'debug')
-            del partition_lens, partition_sizes  # Free memory
+
             logprint('Reducing current_objects to only zip files.', 'info')
             current_zips = current_objects[current_objects['is_zip'] == True]  # noqa
-            # current_zips = current_zips.repartition(
-            #     npartitions=max(1000, current_zips.npartitions // 10)  # Reduce partitions to avoid memory issues
-            # )
-            # client.scatter(current_objects)
+
             logprint('Persisting current_zips.', 'debug')
-            # current_zips = client.persist(current_zips)  # Persist the Dask DataFrame
+
             num_cz = len(current_zips)  # noqa
             remaining_objects = current_objects[(current_objects['is_zip'] == False) & (current_objects['is_metadata'] == False)]['CURRENT_OBJECTS']  # noqa
-            # del current_objects  # Free memory
-            gc.collect()  # Collect garbage to free memory
 
             logprint(f'Persisted current_zips, len: {num_cz}', 'debug')
             logprint(f'Current_zips Partitions: {current_zips.npartitions}', 'debug')
@@ -715,43 +652,13 @@ if __name__ == '__main__':
                     )
                     logprint('Deleting zip files.', 'info')
                     logprint('Computing deleted.', 'debug')
-                    # Persist and process current_zips in manageable chunks to avoid memory issues
-                    # chunk_size = 10000  # Adjust as needed based on memory constraints
-                    # num_chunks = (len(current_zips) // chunk_size) + 1
-
-                    # for i in range(current_zips.npartitions):
-                    #     logprint(f'Processing partition {i}', 'debug')
-                    #     part = current_zips.get_partition(i).compute()
-                    #     del part
-                    #     gc.collect()
-                    # deleted = current_zips['DELETED'].persist(optimize_graph=True)  # Persist the Dask DataFrame
-                    # subset = deleted.head(1000)
-                    # logprint(f'Subset of deleted: {subset}', 'debug')
-                    # logprint(f'Deleted {sum(subset)} / {len(subset)}', 'debug')
-                    # del verified_zips, current_zips  # Free memory
-                    # gc.collect()  # Collect garbage to free memory
                     num_d = current_zips['DELETED'].sum().compute()  # noqa
 
                     if verify:
-                        # logprint(
-                        #     f'{num_vz} zip files were verified.',
-                        #     'info'
-                        # )
                         logprint(
                             f'{num_d} zip files were DELETED.',
                             'info'
                         )
-                        # logprint(
-                        #     f"{num_cz - num_vz} zip files were not "
-                        #     "verified and not deleted.",
-                        #     'info'
-                        # )
-                        # if num_vz != num_d:
-                        #     logprint(
-                        #         "Some errors may have occurred, as some zips verified for deletion were not "
-                        #         "deleted.",
-                        #         'warning'
-                        #     )
                     else:
                         logprint(
                             f'{num_d} zip files were DELETED.',

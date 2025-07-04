@@ -2,9 +2,9 @@ name: mamba env CI
 
 on:
   push:
-    branches: [ "main", "128-clean-up-zips-with-dask-k8s" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "main", "128-clean-up-zips-with-dask-k8s" ]
+    branches: [ "main" ]
 
 jobs:
 
