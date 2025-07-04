@@ -230,12 +230,13 @@ def explode_zip_contents(df: pd.DataFrame, s3: swiftclient.Connection, bucket_na
     pd.DataFrame
         A DataFrame with columns:
           - zip_filename (str): The original ZIP object key.
-          - content_filename (str or None): The full path to each item inside the ZIP, or None if retrieval failed.
+          - content_filename (str or None): The full path to each item inside the ZIP, or None if retrieval
+            failed.
           - total_contents (int): Total number of entries in the ZIP, or -1 on failure to fetch metadata.
     """
     output_rows = []
     for row in df.itertuples():
-        zip_obj = row['CURRENT_OBJECTS']
+        zip_obj = row.CURRENT_OBJECTS
         if not zip_obj.endswith('.zip') or not isinstance(zip_obj, str):
             continue  # Skip if not a valid zip file name
         logprint(f'Exploding contents of {zip_obj}', 'info')
