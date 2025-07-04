@@ -1,0 +1,14 @@
+apiVersion: kubernetes.dask.org/v1
+kind: DaskCluster
+metadata:
+  name: lsst-uk-dask-cluster
+spec:
+  template:
+    spec:
+      containers:
+        - name: dask-worker
+          image: ghcr.io/lsst-uk/ces:latest
+          resources:
+            limits:
+              memory: "400Gi"
+              cpu: "100"
