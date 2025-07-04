@@ -522,11 +522,11 @@ if __name__ == '__main__':
             )
 
             logprint('Reducing current_objects to only zip files.', 'info')
-            current_zips = current_objects[current_objects['is_zip'] == True]  # noqa
+            current_zips = current_objects[current_objects['is_zip'] == True].persist()  # noqa
 
             logprint('Persisting current_zips.', 'debug')
 
-            num_cz = len(current_zips)  # noqa
+            num_cz = current_zips.shape[0].compute()  # noqa
             remaining_objects = current_objects[(current_objects['is_zip'] == False) & (current_objects['is_metadata'] == False)]['CURRENT_OBJECTS']  # noqa
 
             logprint(f'Persisted current_zips, len: {num_cz}', 'debug')
@@ -539,7 +539,6 @@ if __name__ == '__main__':
 
             if num_cz > 0:
                 logprint('Verifying zips can be deleted (i.e., whether contents exist).', 'info')
-                # logprint(f'npartitions: {current_zips.npartitions}', 'debug')
                 if verify:
                     logprint('Reading contents from all zip metadata files.', 'info')
                     exploded_contents = current_zips.map_partitions(
@@ -567,20 +566,20 @@ if __name__ == '__main__':
                     # Count how many contents were found for each zip
                     verified_counts = verified_contents.groupby(
                         'zip_filename'
-                    ).content_filename.count().compute()
+                    ).content_filename.count().persist()
                     # Get the original total number of contents for each zip
                     total_counts = exploded_contents.groupby(
                         'zip_filename'
-                    ).total_contents.first().compute()
+                    ).total_contents.first().persist()
 
                     # Align the two series. A zip might be in total_counts but not in
                     # verified_counts if none of its contents were found. Reindex
                     # verified_counts to match the full index of total_counts, filling
                     # any zips that had 0 found files with the value 0.
-                    verified_counts = verified_counts.reindex(total_counts.index, fill_value=0)
+                    verified_counts = verified_counts.reindex(total_counts.index.compute(), fill_value=0)
 
                     # A zip is verified if the number of found files equals the total number of files
-                    verified_zips_series = (verified_counts == total_counts)
+                    verified_zips_series = (verified_counts.compute() == total_counts.compute())
                     verified_zips_df = verified_zips_series[verified_zips_series].reset_index()
                     verified_zips_df.columns = ['CURRENT_OBJECTS', 'verified']
 
@@ -599,8 +598,8 @@ if __name__ == '__main__':
                         pass
                         current_zips = client.persist(current_zips)
                         logprint(
-                            f'{len(current_zips)} zip objects '
-                            'were verified as deletable.',
+                            f'{client.compute(len(current_zips[current_zips["verified"] == True]))} zip '
+                            'objects were verified as deletable.',
                             'info'
                         )
                     else:
