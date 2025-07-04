@@ -604,7 +604,7 @@ if __name__ == '__main__':
                 logprint('Verifying zips can be deleted (i.e., whether contents exist).', 'info')
                 # logprint(f'npartitions: {current_zips.npartitions}', 'debug')
                 if verify:
-                    logprint('Step 1: Reading contents from all zip metadata files.', 'info')
+                    logprint('Reading contents from all zip metadata files.', 'info')
                     exploded_contents = current_zips.map_partitions(
                         explode_zip_contents,
                         s3=s3,
@@ -615,7 +615,7 @@ if __name__ == '__main__':
                             'total_contents': 'int64'
                         },
                     )
-                    logprint('Step 2: Merging zip contents with list of existing objects.', 'info')
+                    logprint('Merging zip contents with list of existing objects.', 'info')
                     # ensurce remaining_objects is a Dask DataFrame not a Dask Series
                     remaining_objects_df = remaining_objects.to_frame(name='CURRENT_OBJECTS')
                     verified_contents = dd.merge(
@@ -626,11 +626,21 @@ if __name__ == '__main__':
                         how='inner'
                     )
 
-                    logprint('Step 3: Counting matched files to identify fully verified zips.', 'info')
+                    logprint('Counting matched files to identify fully verified zips.', 'info')
                     # Count how many contents were found for each zip
-                    verified_counts = verified_contents.groupby('zip_filename').content_filename.count().compute()
+                    verified_counts = verified_contents.groupby(
+                        'zip_filename'
+                    ).content_filename.count().compute()
                     # Get the original total number of contents for each zip
-                    total_counts = exploded_contents.groupby('zip_filename').total_contents.first().compute()
+                    total_counts = exploded_contents.groupby(
+                        'zip_filename'
+                    ).total_contents.first().compute()
+
+                    # Align the two series. A zip might be in total_counts but not in
+                    # verified_counts if none of its contents were found. Reindex
+                    # verified_counts to match the full index of total_counts, filling
+                    # any zips that had 0 found files with the value 0.
+                    verified_counts = verified_counts.reindex(total_counts.index, fill_value=0)
 
                     # A zip is verified if the number of found files equals the total number of files
                     verified_zips_series = (verified_counts == total_counts)
