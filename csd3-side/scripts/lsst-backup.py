@@ -1497,7 +1497,7 @@ def process_files(
             pd.Series(batch_assignments, index=zip_files_ddf.index),
             npartitions=zip_files_ddf.npartitions
         )
-        del sizes, batch_assignments, cumulative_size, batch_id
+        # del sizes, batch_assignments, cumulative_size, batch_id
 
     # 5. Prepare Dask DataFrames for upload
 
