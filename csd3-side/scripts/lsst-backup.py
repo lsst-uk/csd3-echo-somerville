@@ -1489,6 +1489,7 @@ def process_files(
                 batch_id += 1
                 cumulative_size = 0
             batch_assignments.append(batch_id)
+            print(len(batch_assignments), flush=True)
             cumulative_size += row['size']
         zip_files_ddf['id'] = batch_assignments
 
