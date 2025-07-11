@@ -1443,60 +1443,64 @@ def process_files(
     print('Comparing local file list with remote objects...', flush=True)
 
     # Prepare remote objects DataFrame
-    remote_keys_df = current_objects[['CURRENT_OBJECTS']].copy()
+    remote_keys_ddf = current_objects[['CURRENT_OBJECTS']].copy()
+    local_files_ddf = dd.from_pandas(local_files_df, npartitions=remote_keys_ddf.npartitions)
 
     # Use a left merge with an indicator to find local files NOT on the remote
     # This is the core of the efficient check
-    merged_df = pd.merge(
-        local_files_df,
-        remote_keys_df,
+    merged_ddf = dd.merge(
+        local_files_ddf,
+        remote_keys_ddf,
         left_on='object_names',
         right_on='CURRENT_OBJECTS',
         how='left',
         indicator=True
     )
 
-    files_to_upload_df = merged_df[merged_df['_merge'] == 'left_only'].drop(columns=['CURRENT_OBJECTS', '_merge']).reset_index(drop=True)
+    files_to_upload_ddf = merged_ddf[merged_ddf['_merge'] == 'left_only'].drop(
+        columns=['CURRENT_OBJECTS', '_merge']
+    ).reset_index(drop=True)
 
-    if files_to_upload_df.empty:
+    if files_to_upload_ddf.empty:
         print('No new files to upload.', flush=True)
         return True
 
-    print(f'Found {len(files_to_upload_df)} files to upload.', flush=True)
+    print(f'Found {len(files_to_upload_ddf)} files to upload.', flush=True)
 
     # 3. Decide which files to zip and which to upload individually
-    files_to_upload_df['type'] = files_to_upload_df.apply(
+    files_to_upload_ddf['type'] = files_to_upload_ddf.apply(
         lambda row: 'zip' if row['size'] <= max_zip_batch_size / 2 else 'file',
         axis=1
     )
 
     # 4. Generate zip batches (this part remains iterative)
     print('Generating zip batches...', flush=True)
-    zip_files_df = files_to_upload_df[files_to_upload_df['type'] == 'zip'].copy()
-    individual_files_df = files_to_upload_df[files_to_upload_df['type'] == 'file'].copy()
+    zip_files_ddf = files_to_upload_ddf[files_to_upload_ddf['type'] == 'zip'].copy()
+    ind_uploads = files_to_upload_ddf[files_to_upload_ddf['type'] == 'file'].copy()
+    len_ind_uploads = ind_uploads.shape[0].compute()
 
     batch_assignments = []
-    if not zip_files_df.empty:
+    if not zip_files_ddf.empty:
         cumulative_size = 0
         batch_id = 1
-        for _, row in zip_files_df.iterrows():
+        for _, row in zip_files_ddf.iterrows():
             if cumulative_size + row['size'] > max_zip_batch_size and cumulative_size > 0:
                 batch_id += 1
                 cumulative_size = 0
             batch_assignments.append(batch_id)
             cumulative_size += row['size']
-        zip_files_df['id'] = batch_assignments
+        zip_files_ddf['id'] = batch_assignments
 
     # 5. Prepare Dask DataFrames for upload
 
-    # Prepare individual file uploads
-    ind_uploads = dd.from_pandas(individual_files_df, npartitions=max(1, len(individual_files_df) // 100)) if not individual_files_df.empty else None
+    # # Prepare individual file uploads
+    # ind_uploads = dd.from_pandas(individual_files_df, npartitions=max(1, len(individual_files_df) // 100)) if not individual_files_df.empty else None
 
     # Prepare zip file uploads
-    if not zip_files_df.empty:
-        zips_ddf = dd.from_pandas(zip_files_df, npartitions=max(1, zip_files_df['id'].nunique()))
+    if not zip_files_ddf.empty:
+        # zips_ddf = dd.from_pandas(zip_files_ddf, npartitions=max(1, zip_files_ddf['id'].nunique()))
         # Aggregate files into batches
-        zips_uploads = zips_ddf.groupby('id').agg({
+        zips_uploads = zip_files_ddf.groupby('id').agg({
             'paths': lambda s: '|'.join(s),
             'object_names': lambda s: '|'.join(s),
             'size': 'sum',
@@ -1522,7 +1526,7 @@ def process_files(
         )))
 
     if ind_uploads is not None:
-        print(f"Uploading {len(individual_files_df)} individual files.")
+        print(f"Uploading {len_ind_uploads} individual files.")
         upload_futures.append(client.compute(ind_uploads.apply(
             upload_files_from_series,
             axis=1,
