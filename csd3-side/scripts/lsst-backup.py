@@ -1460,12 +1460,13 @@ def process_files(
     files_to_upload_ddf = merged_ddf[merged_ddf['_merge'] == 'left_only'].drop(
         columns=['CURRENT_OBJECTS', '_merge']
     ).reset_index(drop=True)
+    len_files_to_upload = files_to_upload_ddf.shape[0].compute()
 
-    if files_to_upload_ddf.empty:
+    if len(files_to_upload_ddf.columns) == 0:
         print('No new files to upload.', flush=True)
         return True
 
-    print(f'Found {len(files_to_upload_ddf)} files to upload.', flush=True)
+    print(f'Found {len_files_to_upload} files to upload.', flush=True)
 
     # 3. Decide which files to zip and which to upload individually
     files_to_upload_ddf['type'] = files_to_upload_ddf.apply(
