@@ -1480,19 +1480,24 @@ def process_files(
     ind_uploads = files_to_upload_ddf[files_to_upload_ddf['type'] == 'file'].copy()
     len_ind_uploads = ind_uploads.shape[0].compute()
 
+    sizes = zip_files_ddf['size'].compute()
     batch_assignments = []
     if len(zip_files_ddf.index) > 0:
         cumulative_size = 0
         batch_id = 1
-        for _, row in zip_files_ddf.iterrows():
-            if cumulative_size + row['size'] > max_zip_batch_size and cumulative_size > 0:
+        for size in sizes:
+            if cumulative_size + size > max_zip_batch_size and cumulative_size > 0:
                 batch_id += 1
                 cumulative_size = 0
             batch_assignments.append(batch_id)
             print(f'Row {len(batch_assignments)}', end='\r', flush=True)
-            cumulative_size += row['size']
+            cumulative_size += size
         print()
-        zip_files_ddf['id'] = batch_assignments
+        zip_files_ddf['id'] = dd.from_pandas(
+            pd.Series(batch_assignments, index=zip_files_ddf.index),
+            npartitions=zip_files_ddf.npartitions
+        )
+        del sizes, batch_assignments, cumulative_size, batch_id
 
     # 5. Prepare Dask DataFrames for upload
 
