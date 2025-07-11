@@ -1489,8 +1489,9 @@ def process_files(
                 batch_id += 1
                 cumulative_size = 0
             batch_assignments.append(batch_id)
-            print(len(batch_assignments), flush=True)
+            print(f'{len(batch_assignments)}, ', end='\r')
             cumulative_size += row['size']
+        print('', flush=True)
         zip_files_ddf['id'] = batch_assignments
 
     # 5. Prepare Dask DataFrames for upload
