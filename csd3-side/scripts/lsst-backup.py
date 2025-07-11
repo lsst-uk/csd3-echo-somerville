@@ -1462,7 +1462,7 @@ def process_files(
     ).reset_index(drop=True)
     len_files_to_upload = files_to_upload_ddf.shape[0].compute()
 
-    if len(files_to_upload_ddf.columns) == 0:
+    if len(files_to_upload_ddf.index) == 0:
         print('No new files to upload.', flush=True)
         return True
 
@@ -1481,7 +1481,7 @@ def process_files(
     len_ind_uploads = ind_uploads.shape[0].compute()
 
     batch_assignments = []
-    if not zip_files_ddf.empty:
+    if len(zip_files_ddf.index) > 0:
         cumulative_size = 0
         batch_id = 1
         for _, row in zip_files_ddf.iterrows():
@@ -1498,7 +1498,7 @@ def process_files(
     # ind_uploads = dd.from_pandas(individual_files_df, npartitions=max(1, len(individual_files_df) // 100)) if not individual_files_df.empty else None
 
     # Prepare zip file uploads
-    if not zip_files_ddf.empty:
+    if len(zip_files_ddf.index) > 0:
         # zips_ddf = dd.from_pandas(zip_files_ddf, npartitions=max(1, zip_files_ddf['id'].nunique()))
         # Aggregate files into batches
         zips_uploads = zip_files_ddf.groupby('id').agg({
