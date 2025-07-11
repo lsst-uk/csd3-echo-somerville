@@ -1512,6 +1512,11 @@ def process_files(
     else:
         zips_uploads = None
 
+    # Write zips_uploads to a CSV file if needed
+    # if zips_uploads is not None:
+    #     zips_uploads.to_csv('batches.csv', index=False)
+    #     print(f'Zipped uploads saved to batches.csv.', flush=True)
+
     # 6. Execute uploads in parallel
     print('Starting uploads...', flush=True)
     upload_futures = []
