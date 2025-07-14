@@ -1561,7 +1561,7 @@ def process_files(
         len_zip_uploads_ddf = 0
     if len_zip_uploads_ddf > 0:
         print(f"Zipping and uploading {len_zip_uploads_ddf} batches.", flush=True)
-        zip_upload_partitions = zips_uploads_ddf.to_delayed().persist()
+        zip_upload_partitions = zips_uploads_ddf.to_delayed()
         zip_upload_futures = []
         for partition in zip_upload_partitions:
             # Create a DataFrame for each partition
