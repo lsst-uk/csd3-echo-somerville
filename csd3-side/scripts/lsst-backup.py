@@ -78,25 +78,40 @@ def set_type(row: pd.Series, max_zip_batch_size) -> pd.Series:
         return 'zip'
 
 
-def follow_symlinks(path: str, local_dir: str, destination_dir: str) -> pd.Series:
+def follow_symlinks(row) -> pd.Series:
     """
     Follows symlinks in a directory and returns a DataFrame containing the
     new path and generated object_name.
     """
-    target = to_rds_path(os.path.realpath(path), local_dir)
-    object_name = os.sep.join([destination_dir, os.path.relpath(path, local_dir)])
-    return_ser = pd.Series(
-        [
-            target,
-            object_name,
-            False
-        ],
-        index=[
-            'paths',
-            'object_names',
-            'islink'
-        ]
-    )
+    path = row['paths']
+    islink = row['islink']
+    object_name = row['object_names']
+    if islink:
+        return_ser = pd.Series(
+            [
+                os.path.realpath(path),
+                f"{object_name}.symlink",
+                True
+            ],
+            index=[
+                'paths',
+                'object_names',
+                'islink'
+            ]
+        )
+    else:
+        return_ser = pd.Series(
+            [
+                to_rds_path(os.path.realpath(path), local_dir),
+                os.sep.join([destination_dir, os.path.relpath(path, local_dir)]),
+                False
+            ],
+            index=[
+                'paths',
+                'object_names',
+                'islink'
+            ]
+        )
     return return_ser
 
 
@@ -1429,15 +1444,20 @@ def process_files(
             meta=('object_names', 'str')
         )
         ddf['islink'] = ddf['paths'].apply(os.path.islink, meta=('islink', 'bool'))
-        ddf['object_names'] = ddf.apply(
-            lambda r: f"{r['object_names']}.symlink" if r['islink'] else r['object_names'],
-            axis=1,
-            meta=('object_names', 'str')
+
+        # test links
+        # if links, add targets as new row and add '.symlink' suffix
+        ddf = ddf.map_partitions(
+            lambda partition: partition.apply(
+                follow_symlinks,
+                axis=1
+            ),
+            meta=ddf
         )
 
         # Get file sizes
         ddf['size'] = ddf.apply(
-            lambda r: os.path.getsize(os.path.realpath(r['paths'])),
+            lambda r: os.path.getsize(r['paths']) if not r['islink'] else 0,
             axis=1,
             meta=('size', 'int')
         )
