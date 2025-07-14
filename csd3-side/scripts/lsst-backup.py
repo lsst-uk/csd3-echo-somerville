@@ -1560,31 +1560,38 @@ def process_files(
     else:
         len_zip_uploads_ddf = 0
     if len_zip_uploads_ddf > 0:
-        print(f"Zipping and uploading {len_zip_uploads_ddf} batches.")
-        zip_upload_results = zips_uploads_ddf.map_partitions(
-            lambda partition: partition.apply(
-                zip_and_upload,
-                axis=1,
-                s3=s3,
-                bucket_name=bucket_name,
-                api=api,
-                destination_dir=destination_dir,
-                local_dir=local_dir,
-                total_size_uploaded=total_size_uploaded,
-                total_files_uploaded=total_files_uploaded,
-                use_compression=use_compression,
-                dryrun=dryrun,
-                processing_start=processing_start,
-                mem_per_worker=mem_per_worker,
-                log=log,
-            ),
-            meta=('zip_uploads', bool),
-        )
+        print(f"Zipping and uploading {len_zip_uploads_ddf} batches.", flush=True)
+        zip_upload_partitions = zips_uploads_ddf.to_delayed().persist()
+        zip_upload_futures = []
+        for partition in zip_upload_partitions:
+            # Create a DataFrame for each partition
+            df = partition.compute()
+            if not df.empty:
+                zip_upload_futures.append(
+                    df.apply(
+                        zip_and_upload,
+                        axis=1,
+                        s3=s3,
+                        bucket_name=bucket_name,
+                        api=api,
+                        destination_dir=destination_dir,
+                        local_dir=local_dir,
+                        total_size_uploaded=total_size_uploaded,
+                        total_files_uploaded=total_files_uploaded,
+                        use_compression=use_compression,
+                        dryrun=dryrun,
+                        processing_start=processing_start,
+                        mem_per_worker=mem_per_worker,
+                        log=log,
+                    )
+                )
+
+        zip_upload_results = client.compute(*zip_upload_futures, scheduler='distributed')
         zip_upload_results = zip_upload_results.persist()
         zips_successful = all(res.compute().all() for res in zip_upload_results if not res.empty)
 
     if len_ind_uploads_ddf > 0:
-        print(f"Uploading {len_ind_uploads_ddf} individual files.")
+        print(f"Uploading {len_ind_uploads_ddf} individual files.", flush=True)
         ind_uploads_ddf = ind_uploads_ddf.persist()
 
         ind_upload_results = ind_uploads_ddf.map_partitions(
