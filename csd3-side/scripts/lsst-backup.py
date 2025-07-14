@@ -1491,17 +1491,18 @@ def process_files(
     zip_files_ddf = dd.from_pandas(
         files_to_upload_df[files_to_upload_df['type'] == 'zip'],
         npartitions=max(1, len(files_to_upload_df) // 1000)
-    )
-    len_zip_files_ddf = zip_files_ddf.shape[0].compute()
+    ).persist()
+    len_zip_files_ddf = len(zip_files_ddf.index)
     ind_uploads_ddf = dd.from_pandas(
         files_to_upload_df[files_to_upload_df['type'] == 'file'].copy(),
         npartitions=max(1, len(files_to_upload_df) // 1000)
-    )
-    len_ind_uploads_ddf = ind_uploads_ddf.shape[0].compute()
+    ).persist()
+    del files_to_upload_df
+    len_ind_uploads_ddf = len(ind_uploads_ddf.index)
 
-    sizes = zip_files_ddf['size'].compute()
-    batch_assignments = []
     if len_zip_files_ddf > 0:
+        sizes = zip_files_ddf['size'].compute()
+        batch_assignments = []
         cumulative_size = 0
         batch_id = 1
         for size in sizes:
@@ -1519,7 +1520,7 @@ def process_files(
             ),
             npartitions=zip_files_ddf.npartitions
         )
-        # del sizes, batch_assignments, cumulative_size, batch_id
+        del sizes, batch_assignments, cumulative_size, batch_id
 
     # 5. Prepare Dask DataFrames for upload
 
@@ -1555,7 +1556,7 @@ def process_files(
     print('Starting uploads...', flush=True)
 
     if zips_uploads_ddf is not None:
-        len_zip_uploads_ddf = zips_uploads_ddf.shape[0].compute()
+        len_zip_uploads_ddf = len(zips_uploads_ddf.index)
     else:
         len_zip_uploads_ddf = 0
     if len_zip_uploads_ddf > 0:
@@ -1579,8 +1580,8 @@ def process_files(
             ),
             meta=('zip_uploads', bool),
         )
-        zip_upload_results = zip_upload_results.compute()
-        zips_successful = all(res.all() for res in zip_upload_results if not res.empty)
+        zip_upload_results = zip_upload_results.persist()
+        zips_successful = all(res.compute().all() for res in zip_upload_results if not res.empty)
 
     if len_ind_uploads_ddf > 0:
         print(f"Uploading {len_ind_uploads_ddf} individual files.")
@@ -1597,8 +1598,8 @@ def process_files(
             ),
             meta=('file_uploads', bool)
         )
-        ind_upload_results = ind_upload_results.compute()
-        ind_successful = all(res.all() for res in ind_upload_results if not res.empty)
+        ind_upload_results = ind_upload_results.persist()
+        ind_successful = all(res.compute().all() for res in ind_upload_results if not res.empty)
 
     # Define success based on the results of both uploads
     if len_ind_uploads_ddf > 0 and len_zip_uploads_ddf > 0:
