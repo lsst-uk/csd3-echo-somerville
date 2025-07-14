@@ -1529,13 +1529,13 @@ def process_files(
         batch_assignments = []
         cumulative_size = 0
         batch_id = 1
-        for size in sizes:
+        for file_num, size in enumerate(sizes):
             if cumulative_size + size > max_zip_batch_size and cumulative_size > 0:
                 batch_id += 1
                 cumulative_size = 0
             batch_assignments.append(batch_id)
-            print(f'Row {len(batch_assignments)}', end='\r', flush=True)
             cumulative_size += size
+            print(f'File {file_num}, Cumulative size: {cumulative_size}', end='\r', flush=True)
         print()
         zip_files_ddf['id'] = dd.from_pandas(
             pd.Series(
