@@ -1404,7 +1404,7 @@ def process_files(
     total_files_uploaded = 0
     upload_list_file = local_list_file.replace('local-file-list.csv', 'upload-file-list.csv')
     short_list_file = local_list_file.replace('local-file-list.csv', 'short-file-list.csv')
-    max_zip_batch_size = 1 * 1024**3
+    max_zip_batch_size = 128 * 1024**2
 
     # --- Start of New, Efficient Logic ---
 
