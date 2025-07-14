@@ -1349,14 +1349,14 @@ def upload_and_callback(
         collated
     )
     # try:
-        # refs = dict(gc.get_referrers(file_name_or_data)[-1])
-        # file_name_or_data_refs = [k for k, v in refs.items() if v is file_name_or_data]
-        # num_refs = len(file_name_or_data_refs)
-        # dprint(
-        #     f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
-        #     f'\n References: {file_name_or_data_refs}'
-        # )
-        # del refs, file_name_or_data_refs
+    #     refs = dict(gc.get_referrers(file_name_or_data)[-1])
+    #     file_name_or_data_refs = [k for k, v in refs.items() if v is file_name_or_data]
+    #     num_refs = len(file_name_or_data_refs)
+    #     dprint(
+    #         f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
+    #         f'\n References: {file_name_or_data_refs}'
+    #     )
+    #     del refs, file_name_or_data_refs
     # except Exception as e:
     #     dprint(f'Error getting references for {file_name_or_data}: {e}')
     del file_name_or_data
@@ -1385,7 +1385,8 @@ def process_files(
 ) -> bool:
     """
     Uploads files from a local directory to an S3 bucket in parallel.
-    This version uses an efficient Dask merge to determine which files need uploading.
+    This version uses an efficient Dask merge to determine which files need
+    uploading.
     """
     if api == 's3':
         try:
@@ -1423,9 +1424,16 @@ def process_files(
         ddf = dd.from_pandas(local_files_df, npartitions=max(1, len(local_files_df) // 10000))
 
         # Generate object names and handle symlinks in parallel
-        ddf['object_names'] = ddf['paths'].apply(lambda p: os.sep.join([destination_dir, os.path.relpath(p, local_dir)]), meta=('object_names', 'str'))
+        ddf['object_names'] = ddf['paths'].apply(
+            lambda p: os.sep.join([destination_dir, os.path.relpath(p, local_dir)]),
+            meta=('object_names', 'str')
+        )
         ddf['islink'] = ddf['paths'].apply(os.path.islink, meta=('islink', 'bool'))
-        ddf['object_names'] = ddf.apply(lambda r: f"{r['object_names']}.symlink" if r['islink'] else r['object_names'], axis=1, meta=('object_names', 'str'))
+        ddf['object_names'] = ddf.apply(
+            lambda r: f"{r['object_names']}.symlink" if r['islink'] else r['object_names'],
+            axis=1,
+            meta=('object_names', 'str')
+        )
 
         # Get file sizes
         ddf['size'] = ddf.apply(lambda r: os.path.getsize(r['paths']) if not r['islink'] else 0, axis=1, meta=('size', 'int'))
@@ -1459,30 +1467,41 @@ def process_files(
 
     files_to_upload_ddf = merged_ddf[merged_ddf['_merge'] == 'left_only'].drop(
         columns=['CURRENT_OBJECTS', '_merge']
-    ).reset_index(drop=True)
-    len_files_to_upload = files_to_upload_ddf.shape[0].compute()
+    )
+    len_files_to_upload = files_to_upload_ddf.shape[0]
+    if len_files_to_upload > 0:
+        print(f'Found {len_files_to_upload} files to upload.', flush=True)
 
-    if len(files_to_upload_ddf.index) == 0:
+        # 3. Decide which files to zip and which to upload individually
+        files_to_upload_ddf['type'] = files_to_upload_ddf.map_partitions(
+            lambda partition: partition.apply(
+                lambda row: 'zip' if row['size'] <= max_zip_batch_size / 2 else 'file',
+                axis=1
+            )
+        ).reset_index(drop=True)
+    else:
         print('No new files to upload.', flush=True)
         return True
 
-    print(f'Found {len_files_to_upload} files to upload.', flush=True)
-
-    # 3. Decide which files to zip and which to upload individually
-    files_to_upload_ddf['type'] = files_to_upload_ddf.apply(
-        lambda row: 'zip' if row['size'] <= max_zip_batch_size / 2 else 'file',
-        axis=1
-    )
+    # To pandas DataFrame for further processing
+    files_to_upload_df = files_to_upload_ddf.compute()
 
     # 4. Generate zip batches (this part remains iterative)
     print('Generating zip batches...', flush=True)
-    zip_files_ddf = files_to_upload_ddf[files_to_upload_ddf['type'] == 'zip'].copy()
-    ind_uploads = files_to_upload_ddf[files_to_upload_ddf['type'] == 'file'].copy()
-    len_ind_uploads = ind_uploads.shape[0].compute()
+    zip_files_ddf = dd.from_pandas(
+        files_to_upload_df[files_to_upload_df['type'] == 'zip'],
+        npartitions=max(1, len(files_to_upload_df) // 1000)
+    )
+    len_zip_files_ddf = zip_files_ddf.shape[0]
+    ind_uploads_ddf = dd.from_pandas(
+        files_to_upload_df[files_to_upload_df['type'] == 'file'].copy(),
+        npartitions=max(1, len(files_to_upload_df) // 1000)
+    )
+    len_ind_uploads_ddf = ind_uploads_ddf.shape[0]
 
     sizes = zip_files_ddf['size'].compute()
     batch_assignments = []
-    if len(zip_files_ddf.index) > 0:
+    if len_zip_files_ddf > 0:
         cumulative_size = 0
         batch_id = 1
         for size in sizes:
@@ -1494,7 +1513,10 @@ def process_files(
             cumulative_size += size
         print()
         zip_files_ddf['id'] = dd.from_pandas(
-            pd.Series(batch_assignments, index=zip_files_ddf.index),
+            pd.Series(
+                batch_assignments,
+                index=zip_files_ddf.index
+            ),
             npartitions=zip_files_ddf.npartitions
         )
         # del sizes, batch_assignments, cumulative_size, batch_id
@@ -1505,17 +1527,17 @@ def process_files(
     # ind_uploads = dd.from_pandas(individual_files_df, npartitions=max(1, len(individual_files_df) // 100)) if not individual_files_df.empty else None
 
     # Prepare zip file uploads
-    if len(zip_files_ddf.index) > 0:
+    if len_zip_files_ddf > 0:
         # zips_ddf = dd.from_pandas(zip_files_ddf, npartitions=max(1, zip_files_ddf['id'].nunique()))
         # Aggregate files into batches
-        zips_uploads = zip_files_ddf.groupby('id').agg({
+        zips_uploads_ddf = zip_files_ddf.groupby('id').agg({
             'paths': lambda s: '|'.join(s),
             'object_names': lambda s: '|'.join(s),
             'size': 'sum',
-        }).reset_index()
-        zips_uploads['type'] = 'zip'
+        }).reset_index().persist()
+        zips_uploads_ddf['type'] = 'zip'
     else:
-        zips_uploads = None
+        zips_uploads_ddf = None
 
     # Write zips_uploads to a CSV file if needed
     # if zips_uploads is not None:
@@ -1524,42 +1546,72 @@ def process_files(
 
     # 6. Execute uploads in parallel
     print('Starting uploads...', flush=True)
-    upload_futures = []
 
-    if zips_uploads is not None:
-        print(f"Zipping and uploading {zips_uploads.npartitions} batches.")
-        upload_futures.append(client.compute(zips_uploads.apply(
-            zip_and_upload,
-            axis=1,
-            s3=s3, bucket_name=bucket_name, api=api, destination_dir=destination_dir, local_dir=local_dir,
-            total_size_uploaded=total_size_uploaded, total_files_uploaded=total_files_uploaded,
-            use_compression=use_compression, dryrun=dryrun, processing_start=processing_start,
-            mem_per_worker=mem_per_worker, log=log,
-            meta=('zip_uploads', bool)
-        )))
-
-    if ind_uploads is not None:
-        print(f"Uploading {len_ind_uploads} individual files.")
-        upload_futures.append(client.compute(ind_uploads.apply(
-            upload_files_from_series,
-            axis=1,
-            s3=s3, bucket_name=bucket_name, api=api, local_dir=local_dir, dryrun=dryrun,
-            processing_start=processing_start, file_count=1, total_size_uploaded=total_size_uploaded,
-            total_files_uploaded=total_files_uploaded, mem_per_worker=mem_per_worker, log=log,
-            meta=('file_uploads', bool)
-        )))
-
-    # Wait for all uploads to complete
-    results = client.gather(upload_futures)
-
-    all_successful = all(res.all() for res in results if not res.empty)
-
-    if all_successful:
-        print('All uploads successful.', flush=True)
+    if zips_uploads_ddf is not None:
+        len_zip_uploads_ddf = zips_uploads_ddf.shape[0]
     else:
-        print('Some uploads may have failed. Please check the logs.', flush=True)
+        len_zip_uploads_ddf = 0
+    if len_zip_uploads_ddf > 0:
+        print(f"Zipping and uploading {len_zip_uploads_ddf} batches.")
+        zip_upload_results = zips_uploads_ddf.map_partitions(
+            lambda partition: partition.apply(
+                zip_and_upload,
+                axis=1,
+                s3=s3,
+                bucket_name=bucket_name,
+                api=api,
+                destination_dir=destination_dir,
+                local_dir=local_dir,
+                total_size_uploaded=total_size_uploaded,
+                total_files_uploaded=total_files_uploaded,
+                use_compression=use_compression,
+                dryrun=dryrun,
+                processing_start=processing_start,
+                mem_per_worker=mem_per_worker,
+                log=log,
+            ),
+            meta=('zip_uploads', bool),
+        )
+        zip_upload_results = zip_upload_results.compute()
+        zips_successful = all(res.all() for res in zip_upload_results if not res.empty)
 
-    return all_successful
+    if len_ind_uploads_ddf > 0:
+        print(f"Uploading {len_ind_uploads_ddf} individual files.")
+        ind_uploads_ddf = ind_uploads_ddf.persist()
+
+        ind_upload_results = ind_uploads_ddf.map_partitions(
+            lambda partition: partition.apply(
+                upload_files_from_series,
+                axis=1,
+                s3=s3, bucket_name=bucket_name, api=api, local_dir=local_dir, dryrun=dryrun,
+                processing_start=processing_start, file_count=1, total_size_uploaded=total_size_uploaded,
+                total_files_uploaded=total_files_uploaded, mem_per_worker=mem_per_worker, log=log,
+
+            ),
+            meta=('file_uploads', bool)
+        )
+        ind_upload_results = ind_upload_results.compute()
+        ind_successful = all(res.all() for res in ind_upload_results if not res.empty)
+
+    # Define success based on the results of both uploads
+    if len_ind_uploads_ddf > 0 and len_zip_uploads_ddf > 0:
+        success = zips_successful and ind_successful
+    elif len_ind_uploads_ddf > 0:
+        success = ind_successful
+    elif len_zip_uploads_ddf > 0:
+        success = zips_successful
+    else:
+        success = True
+
+    if success:
+        print('Success.', flush=True)
+    else:
+        print('Some uploads may have failed.', flush=True)
+        print(f'Zip uploads all successful?: {zips_successful}', flush=True)
+        print(f'Individual uploads all successful?: {ind_successful}', flush=True)
+        print('Please check the log file for details.', flush=True)
+
+    return success
 
 
 ##########################################
