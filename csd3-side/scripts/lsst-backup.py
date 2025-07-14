@@ -1528,13 +1528,20 @@ def process_files(
 
     # Prepare zip file uploads
     if len_zip_files_ddf > 0:
+
+        def aggregate_batch(df):
+            return pd.Series({
+                'paths': '|'.join(df['paths']),
+                'object_names': '|'.join(df['object_names']),
+                'size': df['size'].sum()
+            })
+
         # zips_ddf = dd.from_pandas(zip_files_ddf, npartitions=max(1, zip_files_ddf['id'].nunique()))
         # Aggregate files into batches
-        zips_uploads_ddf = zip_files_ddf.groupby('id').agg({
-            'paths': lambda s: '|'.join(s),
-            'object_names': lambda s: '|'.join(s),
-            'size': 'sum',
-        }).reset_index().persist()
+        zips_uploads_ddf = zip_files_ddf.groupby('id').apply(
+            aggregate_batch,
+            meta={'paths': 'str', 'object_names': 'str', 'size': 'int64'}
+        ).reset_index().persist()
         zips_uploads_ddf['type'] = 'zip'
     else:
         zips_uploads_ddf = None
