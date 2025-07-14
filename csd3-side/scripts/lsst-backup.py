@@ -1468,7 +1468,7 @@ def process_files(
     files_to_upload_ddf = merged_ddf[merged_ddf['_merge'] == 'left_only'].drop(
         columns=['CURRENT_OBJECTS', '_merge']
     )
-    len_files_to_upload = files_to_upload_ddf.shape[0]
+    len_files_to_upload = files_to_upload_ddf.shape[0].compute()
     if len_files_to_upload > 0:
         print(f'Found {len_files_to_upload} files to upload.', flush=True)
 
@@ -1492,12 +1492,12 @@ def process_files(
         files_to_upload_df[files_to_upload_df['type'] == 'zip'],
         npartitions=max(1, len(files_to_upload_df) // 1000)
     )
-    len_zip_files_ddf = zip_files_ddf.shape[0]
+    len_zip_files_ddf = zip_files_ddf.shape[0].compute()
     ind_uploads_ddf = dd.from_pandas(
         files_to_upload_df[files_to_upload_df['type'] == 'file'].copy(),
         npartitions=max(1, len(files_to_upload_df) // 1000)
     )
-    len_ind_uploads_ddf = ind_uploads_ddf.shape[0]
+    len_ind_uploads_ddf = ind_uploads_ddf.shape[0].compute()
 
     sizes = zip_files_ddf['size'].compute()
     batch_assignments = []
@@ -1548,7 +1548,7 @@ def process_files(
     print('Starting uploads...', flush=True)
 
     if zips_uploads_ddf is not None:
-        len_zip_uploads_ddf = zips_uploads_ddf.shape[0]
+        len_zip_uploads_ddf = zips_uploads_ddf.shape[0].compute()
     else:
         len_zip_uploads_ddf = 0
     if len_zip_uploads_ddf > 0:
