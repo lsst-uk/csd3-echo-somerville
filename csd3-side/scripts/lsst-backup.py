@@ -1557,34 +1557,70 @@ def process_files(
 
     if zips_uploads_ddf is not None:
         len_zip_uploads_ddf = len(zips_uploads_ddf.index)
+        # Compute the batches dataframe to iterate over it
+        zips_uploads_df = zips_uploads_ddf.compute()
     else:
         len_zip_uploads_ddf = 0
+        zips_uploads_df = pd.DataFrame()
     if len_zip_uploads_ddf > 0:
         print(f"Zipping and uploading {len_zip_uploads_ddf} batches.", flush=True)
-        zip_upload_partitions = zips_uploads_ddf.to_delayed()
+        # Limit concurrency to the number of workers
+        n_workers = len(client.scheduler_info()['workers'])
+        # Create an iterator for upload tasks
+        upload_tasks = zips_uploads_df.iterrows()
+
         zip_upload_futures = []
-        for partition in zip_upload_partitions:
-            # Create a DataFrame for each partition
-            df = partition.compute()
-            if not df.empty:
-                zip_upload_futures.append(
-                    df.apply(
-                        zip_and_upload,
-                        axis=1,
-                        s3=s3,
-                        bucket_name=bucket_name,
-                        api=api,
-                        destination_dir=destination_dir,
-                        local_dir=local_dir,
-                        total_size_uploaded=total_size_uploaded,
-                        total_files_uploaded=total_files_uploaded,
-                        use_compression=use_compression,
-                        dryrun=dryrun,
-                        processing_start=processing_start,
-                        mem_per_worker=mem_per_worker,
-                        log=log,
-                    )
+        for _ in range(min(n_workers, len_zip_uploads_ddf)):
+            try:
+                _, row = next(upload_tasks)
+
+                # Submit tasks in batches
+                future = client.submit(
+                    zip_and_upload,
+                    row,
+                    s3=s3,
+                    bucket_name=bucket_name,
+                    api=api,
+                    destination_dir=destination_dir,
+                    local_dir=local_dir,
+                    total_size_uploaded=total_size_uploaded,
+                    total_files_uploaded=total_files_uploaded,
+                    use_compression=use_compression,
+                    dryrun=dryrun,
+                    processing_start=processing_start,
+                    mem_per_worker=mem_per_worker,
+                    log=log,
                 )
+                zip_upload_futures.append(future)
+            except StopIteration:
+                break  # No more tasks
+
+        zip_upload_results = []
+        for future in as_completed(zip_upload_futures):
+            zip_upload_results.append(future.result())
+            try:
+                _, row = next(upload_tasks)
+
+                # Submit tasks in batches
+                new_future = client.submit(
+                    zip_and_upload,
+                    row,
+                    s3=s3,
+                    bucket_name=bucket_name,
+                    api=api,
+                    destination_dir=destination_dir,
+                    local_dir=local_dir,
+                    total_size_uploaded=total_size_uploaded,
+                    total_files_uploaded=total_files_uploaded,
+                    use_compression=use_compression,
+                    dryrun=dryrun,
+                    processing_start=processing_start,
+                    mem_per_worker=mem_per_worker,
+                    log=log,
+                )
+                zip_upload_futures.append(new_future)
+            except StopIteration:
+                break  # all tasks submitted
 
         zip_upload_results = client.compute(*zip_upload_futures, scheduler='distributed')
         zip_upload_results = zip_upload_results.persist()
