@@ -1421,7 +1421,7 @@ def process_files(
         print(f'Found {len(local_files_df)} local files.', flush=True)
 
         # Use Dask for parallel processing of file info
-        ddf = dd.from_pandas(local_files_df, npartitions=max(1, len(local_files_df) // 10000))
+        ddf = dd.from_pandas(local_files_df, npartitions=max(1, len(local_files_df) // 1000))
 
         # Generate object names and handle symlinks in parallel
         ddf['object_names'] = ddf['paths'].apply(
