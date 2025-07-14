@@ -1436,7 +1436,11 @@ def process_files(
         )
 
         # Get file sizes
-        ddf['size'] = ddf.apply(lambda r: os.path.getsize(r['paths']) if not r['islink'] else 0, axis=1, meta=('size', 'int'))
+        ddf['size'] = ddf.apply(
+            lambda r: os.path.getsize(os.path.realpath(r['paths'])),
+            axis=1,
+            meta=('size', 'int')
+        )
 
         # Compute the results and save
         local_files_df = ddf.compute()
