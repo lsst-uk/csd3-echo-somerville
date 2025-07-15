@@ -1411,7 +1411,7 @@ def process_files(
 
     # 1. Generate the list of all local files if it doesn't exist
     if not os.path.exists(pre_symlink_list_file):
-        print(f'Analysing local dataset {local_dir}. This may take a while...', flush=True)
+        print(f'Analysing local dataset {local_dir}. This may take a while (scales with the number of files and folders).', flush=True)
         paths = []
         for folder, _, files in os.walk(local_dir, topdown=True):
             if exclude.isin([folder]).any():
