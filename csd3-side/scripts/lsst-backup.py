@@ -1404,13 +1404,13 @@ def process_files(
     total_size_uploaded = 0
     total_files_uploaded = 0
     zip_batch_list_file = local_list_file.replace('local-file-list.csv', 'zip-batch-list.csv')
-    short_list_file = local_list_file.replace('local-file-list.csv', 'short-file-list.csv')
+    pre_symlink_list_file = local_list_file.replace('local-file-list.csv', 'short-file-list.csv')
     max_zip_batch_size = 128 * 1024**2
 
     # --- Start of New, Efficient Logic ---
 
     # 1. Generate the list of all local files if it doesn't exist
-    if not os.path.exists(local_list_file):
+    if not os.path.exists(pre_symlink_list_file):
         print(f'Analysing local dataset {local_dir}. This may take a while...', flush=True)
         paths = []
         for folder, _, files in os.walk(local_dir, topdown=True):
@@ -1431,11 +1431,18 @@ def process_files(
         # )
         ddf['islink'] = ddf['paths'].apply(os.path.islink, meta=('islink', 'bool'))
         ddf['object_names'] = ddf.apply(
-            lambda r: f"{destination_dir}/{os.path.relpath(r['paths'], local_dir)}" + (".symlink" if r['islink'] else ""),
+            lambda r: (
+                f"{destination_dir}/{os.path.relpath(r['paths'], local_dir)}"
+                + (".symlink" if r['islink'] else "")
+            ),
             axis=1,
             meta=('object_names', 'str')
         )
-
+        ddf.to_csv(pre_symlink_list_file, index=False, single_file=True)
+    else:
+        print(f'Reading pre-symlink file list from {pre_symlink_list_file}.', flush=True)
+        ddf = dd.read_csv(pre_symlink_list_file)
+    if not os.path.exists(local_list_file):
         # test links
         # if links, add targets as new row and add '.symlink' suffix
         followed_link_ddf = ddf.map_partitions(
@@ -1454,23 +1461,21 @@ def process_files(
             axis=1,
             meta=('size', 'int')
         )
-
-        total_upload_size = ddf['size'].sum().compute()
-
-        print(f'Total upload size: {total_upload_size / 1024**2:.2f} MiB', flush=True)
-
-        if total_upload_size == 0:
-            print('Error - all files are symlinks or empty and problem resolving targets. Exiting.', flush=True)
-            sys.exit(1)
-
-        # Compute the results and save
         local_files_df = ddf.compute()
-        if save_local_file:
-            local_files_df.to_csv(local_list_file, index=False)
-        print('Finished analysing local dataset.', flush=True)
+        local_files_df.to_csv(local_list_file, index=False)
     else:
         print(f'Reading local file list from {local_list_file}.', flush=True)
         local_files_df = pd.read_csv(local_list_file)
+
+    total_upload_size = local_files_df['size'].sum()
+
+    print(f'Total upload size: {total_upload_size / 1024**2:.2f} MiB', flush=True)
+
+    if total_upload_size == 0:
+        print('Error - all files are symlinks or empty and problem resolving targets. Exiting.', flush=True)
+        sys.exit(1)
+
+    print('Finished analysing local dataset.', flush=True)
 
     # 2. Determine which files need to be uploaded using a merge
     print('Comparing local file list with remote objects...', flush=True)
