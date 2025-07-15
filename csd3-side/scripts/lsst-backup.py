@@ -85,21 +85,7 @@ def follow_symlinks(row) -> pd.Series:
     """
     path = row['paths']
     islink = row['islink']
-    object_name = row['object_names']
     if islink:
-        return_ser = pd.Series(
-            [
-                os.path.realpath(path),
-                f"{object_name}.symlink",
-                True
-            ],
-            index=[
-                'paths',
-                'object_names',
-                'islink'
-            ]
-        )
-    else:
         return_ser = pd.Series(
             [
                 to_rds_path(os.path.realpath(path), local_dir),
@@ -1439,15 +1425,20 @@ def process_files(
         ddf = dd.from_pandas(local_files_df, npartitions=max(1, len(local_files_df) // 1000))
 
         # Generate object names and handle symlinks in parallel
-        ddf['object_names'] = ddf['paths'].apply(
-            lambda p: os.sep.join([destination_dir, os.path.relpath(p, local_dir)]),
+        # ddf['object_names'] = ddf['paths'].apply(
+        #     lambda p: os.sep.join([destination_dir, os.path.relpath(p, local_dir)]),
+        #     meta=('object_names', 'str')
+        # )
+        ddf['islink'] = ddf['paths'].apply(os.path.islink, meta=('islink', 'bool'))
+        ddf['object_names'] = ddf.apply(
+            lambda r: f"{destination_dir}/{os.path.relpath(r['paths'], local_dir)}" + (".symlink" if r['islink'] else ""),
+            axis=1,
             meta=('object_names', 'str')
         )
-        ddf['islink'] = ddf['paths'].apply(os.path.islink, meta=('islink', 'bool'))
 
         # test links
         # if links, add targets as new row and add '.symlink' suffix
-        ddf = ddf.map_partitions(
+        followed_link_ddf = ddf.map_partitions(
             lambda partition: partition.apply(
                 follow_symlinks,
                 axis=1
@@ -1455,12 +1446,22 @@ def process_files(
             meta=ddf
         )
 
+        ddf = dd.concat([ddf, followed_link_ddf], ignore_index=True)
+
         # Get file sizes
         ddf['size'] = ddf.apply(
             lambda r: os.path.getsize(r['paths']) if not r['islink'] else 0,
             axis=1,
             meta=('size', 'int')
         )
+
+        total_upload_size = ddf['size'].sum().compute()
+
+        print(f'Total upload size: {total_upload_size / 1024**2:.2f} MiB', flush=True)
+
+        if total_upload_size == 0:
+            print('Error - all files are symlinks or empty and problem resolving targets. Exiting.', flush=True)
+            sys.exit(1)
 
         # Compute the results and save
         local_files_df = ddf.compute()
@@ -1566,7 +1567,7 @@ def process_files(
         zips_uploads_ddf = zip_files_ddf.groupby('id').apply(
             aggregate_batch,
             meta={'paths': 'str', 'object_names': 'str', 'size': 'int64'}
-        ).reset_index().persist()
+        )
         zips_uploads_ddf['type'] = 'zip'
     else:
         zips_uploads_ddf = None
