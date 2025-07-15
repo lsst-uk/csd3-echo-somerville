@@ -1092,14 +1092,14 @@ def upload_to_bucket_collated(
         header:
         LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,UPLOAD_TIME,UPLOAD_START,UPLOAD_END
         """
-        if link:
-            log_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}"'
-        else:
-            log_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}"'
-        if link:
-            log_string += ',"n/a"'
-        else:
-            log_string += f',"{checksum_string}"'
+        # if link:
+        log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}"'
+        # else:
+        #     log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}"'
+        # if link:
+        #     log_string += ',"n/a"'
+        # else:
+        log_string += f',"{checksum_string}"'
 
         # for no zip contents
         log_string += ',"n/a"'
@@ -1417,7 +1417,7 @@ def process_files(
     processing_start = datetime.now()
     total_size_uploaded = 0
     total_files_uploaded = 0
-    upload_list_file = local_list_file.replace('local-file-list.csv', 'upload-file-list.csv')
+    zip_batch_list_file = local_list_file.replace('local-file-list.csv', 'zip-batch-list.csv')
     short_list_file = local_list_file.replace('local-file-list.csv', 'short-file-list.csv')
     max_zip_batch_size = 128 * 1024**2
 
@@ -1571,30 +1571,29 @@ def process_files(
     else:
         zips_uploads_ddf = None
 
-    # Write zips_uploads to a CSV file if needed
-    # if zips_uploads is not None:
-    #     zips_uploads.to_csv('batches.csv', index=False)
-    #     print(f'Zipped uploads saved to batches.csv.', flush=True)
-
     # 6. Execute uploads in parallel
     print('Starting uploads...', flush=True)
 
     if zips_uploads_ddf is not None:
-        len_zip_uploads_ddf = len(zips_uploads_ddf.index)
-        # Compute the batches dataframe to iterate over it
-        zips_uploads_df = zips_uploads_ddf.compute()
+        num_zip_uploads = len(zips_uploads_ddf.index)
+        # Write final dask dataframe to a single csv file
+        zips_uploads_ddf.to_csv(zip_batch_list_file, index=False, single_file=True)
     else:
-        len_zip_uploads_ddf = 0
+        num_zip_uploads = 0
         zips_uploads_df = pd.DataFrame()
-    if len_zip_uploads_ddf > 0:
-        print(f"Zipping and uploading {len_zip_uploads_ddf} batches.", flush=True)
+    del zips_uploads_ddf, zip_files_ddf
+    if num_zip_uploads > 0:
+        # Now one pandas dataframe in scheduler memory
+        zips_uploads_df = pd.read_csv(zip_batch_list_file)
+        client.scatter(zips_uploads_df)
+        print(f"Zipping and uploading {num_zip_uploads} batches.", flush=True)
         # Limit concurrency to the number of workers
         n_workers = len(client.scheduler_info()['workers'])
         # Create an iterator for upload tasks
         upload_tasks = zips_uploads_df.iterrows()
 
         zip_upload_futures = []
-        for _ in range(min(n_workers, len_zip_uploads_ddf)):
+        for _ in range(min(n_workers, num_zip_uploads)):
             try:
                 _, row = next(upload_tasks)
 
