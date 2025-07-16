@@ -1462,7 +1462,7 @@ def process_files(
 
         # Get file sizes
         ddf['size'] = ddf.apply(
-            lambda r: os.path.getsize(r['paths']) if not r['islink'] else 0,
+            lambda r: os.stat(r['paths']).st_size if not r['islink'] else os.lstat(r['paths']).st_size,
             axis=1,
             meta=('size', 'int')
         )
