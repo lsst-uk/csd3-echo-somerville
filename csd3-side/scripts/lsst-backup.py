@@ -1525,68 +1525,51 @@ def process_files(
     # 4. Generate zip batches (this part remains iterative)
     print('Generating zip batches...', flush=True)
     zip_files_ddf = files_to_upload_ddf[files_to_upload_ddf['type'] == 'zip'].copy()
-    len_zip_files_ddf = zip_files_ddf.shape[0].compute()
     ind_uploads_ddf = files_to_upload_ddf[files_to_upload_ddf['type'] == 'file'].copy()
-    len_ind_uploads_ddf = ind_uploads_ddf.shape[0].compute()
 
-    if len_zip_files_ddf > 0:
-        sizes = zip_files_ddf['size'].compute()
+    # Compute into pandas DataFrames for sequential processing
+    zip_files_df = zip_files_ddf.compute()
+    ind_uploads_df = ind_uploads_ddf.compute()
+    len_zip_files_df = len(zip_files_df)
+    len_ind_uploads_df = len(ind_uploads_df)
+
+    if len_zip_files_df > 0:
+        zip_files_df = zip_files_df.sort_values(by='paths').reset_index(drop=True)
+        sizes = zip_files_df['size']
         batch_assignments = []
         cumulative_size = 0
         batch_id = 1
-        for file_num, size in enumerate(sizes):
-            if cumulative_size + size > max_zip_batch_size and cumulative_size > 0:
+        for i, row in zip_files_df.iterrows():
+            if cumulative_size + row['size'] > max_zip_batch_size and cumulative_size > 0:
                 batch_id += 1
                 cumulative_size = 0
             batch_assignments.append(batch_id)
-            cumulative_size += size
-            print(f'File {file_num}, Cumulative size: {cumulative_size}', end='\r', flush=True)
+            cumulative_size += row['size']
+            print(f'File {i}, Cumulative size: {cumulative_size}', end='\r', flush=True)
         print()
-        zip_files_ddf['id'] = dd.from_pandas(
-            pd.Series(
-                batch_assignments,
-                index=zip_files_ddf.index
-            ),
-            npartitions=zip_files_ddf.npartitions
-        )
+        zip_files_ddf['id'] = batch_assignments
         del sizes, batch_assignments, cumulative_size, batch_id
 
-    # 5. Prepare Dask DataFrames for upload
+    # 5. Aggregate zip files into batches
 
-    # # Prepare individual file uploads
-    # ind_uploads = dd.from_pandas(individual_files_df, npartitions=max(1, len(individual_files_df) // 100)) if not individual_files_df.empty else None
-
-    # Prepare zip file uploads
-    if len_zip_files_ddf > 0:
-
-        def aggregate_batch(df):
-            return pd.Series({
-                'paths': '|'.join(df['paths']),
-                'object_names': '|'.join(df['object_names']),
-                'size': df['size'].sum()
-            })
-
-        # zips_ddf = dd.from_pandas(zip_files_ddf, npartitions=max(1, zip_files_ddf['id'].nunique()))
-        # Aggregate files into batches
-        zips_uploads_ddf = zip_files_ddf.groupby('id').apply(
-            aggregate_batch,
-            meta={'paths': 'str', 'object_names': 'str', 'size': 'int64'}
-        )
-        zips_uploads_ddf['type'] = 'zip'
-    else:
-        zips_uploads_ddf = None
+    zips_uploads_df = zip_files_df.groupby('id').agg(
+        paths=('paths', lambda s: '|'.join(s)),
+        object_names=('object_names', lambda s: '|'.join(s)),
+        size=('size', 'sum')
+    ).reset_index()
+    zips_uploads_df['type'] = 'zip'
 
     # 6. Execute uploads in parallel
     print('Starting uploads...', flush=True)
 
-    if zips_uploads_ddf is not None:
-        num_zip_uploads = len(zips_uploads_ddf.index)
+    if zips_uploads_df is not None:
+        num_zip_uploads = len(zips_uploads_df)
         # Write final dask dataframe to a single csv file
-        zips_uploads_ddf.to_csv(zip_batch_list_file, index=False, single_file=True)
+        zips_uploads_df.to_csv(zip_batch_list_file, index=False, single_file=True)
     else:
         num_zip_uploads = 0
         zips_uploads_df = pd.DataFrame()
-    del zips_uploads_ddf, zip_files_ddf
+    del zips_uploads_df, zip_files_df
     if num_zip_uploads > 0:
         # Now one pandas dataframe in scheduler memory
         zips_uploads_df = pd.read_csv(zip_batch_list_file)
