@@ -1531,11 +1531,10 @@ def process_files(
     zip_files_df = zip_files_ddf.compute()
     ind_uploads_df = ind_uploads_ddf.compute()
     len_zip_files_df = len(zip_files_df)
-    len_ind_uploads_df = len(ind_uploads_df)
+    num_ind_uploads = len(ind_uploads_df)
 
     if len_zip_files_df > 0:
         zip_files_df = zip_files_df.sort_values(by='paths').reset_index(drop=True)
-        sizes = zip_files_df['size']
         batch_assignments = []
         cumulative_size = 0
         batch_id = 1
@@ -1545,9 +1544,9 @@ def process_files(
                 cumulative_size = 0
             batch_assignments.append(batch_id)
             cumulative_size += row['size']
-            print(f'File {i}, Cumulative size: {cumulative_size}', end='\r', flush=True)
+            print(f'File {i}, Cumulative size: {cumulative_size / 1024**2:.2f} MiB', end='\r', flush=True)
         print()
-        zip_files_ddf['id'] = batch_assignments
+        zip_files_df['id'] = batch_assignments
         del sizes, batch_assignments, cumulative_size, batch_id
 
     # 5. Aggregate zip files into batches
@@ -1637,9 +1636,10 @@ def process_files(
         zip_upload_results = zip_upload_results.persist()
         zips_successful = all(res.compute().all() for res in zip_upload_results if not res.empty)
 
-    if len_ind_uploads_ddf > 0:
-        print(f"Uploading {len_ind_uploads_ddf} individual files.", flush=True)
-        ind_uploads_ddf = ind_uploads_ddf.persist()
+    if num_ind_uploads > 0:
+        print(f"Uploading {num_ind_uploads} individual files.", flush=True)
+
+        ind_uploads_ddf = dd.from_pandas(ind_uploads_df, npartitions=max(1, num_ind_uploads // 1000))
 
         ind_upload_results = ind_uploads_ddf.map_partitions(
             lambda partition: partition.apply(
@@ -1656,11 +1656,11 @@ def process_files(
         ind_successful = all(res.compute().all() for res in ind_upload_results if not res.empty)
 
     # Define success based on the results of both uploads
-    if len_ind_uploads_ddf > 0 and len_zip_uploads_ddf > 0:
+    if num_ind_uploads > 0 and num_zip_uploads > 0:
         success = zips_successful and ind_successful
-    elif len_ind_uploads_ddf > 0:
+    elif num_ind_uploads > 0:
         success = ind_successful
-    elif len_zip_uploads_ddf > 0:
+    elif num_zip_uploads > 0:
         success = zips_successful
     else:
         success = True
