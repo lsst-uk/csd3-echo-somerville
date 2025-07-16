@@ -1456,9 +1456,9 @@ def process_files(
             meta=ddf
         ).persist()
 
-        print('Finished following symlinks.', flush=True)
-
         ddf = dd.concat([ddf, followed_link_ddf], ignore_index=True)
+
+        print('Finished following symlinks.', flush=True)
 
         # Get file sizes
         ddf['size'] = ddf.apply(
