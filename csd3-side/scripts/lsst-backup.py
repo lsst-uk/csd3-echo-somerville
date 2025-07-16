@@ -94,8 +94,8 @@ def follow_symlinks(row) -> pd.Series:
             ],
             index=[
                 'paths',
+                'islink',
                 'object_names',
-                'islink'
             ]
         )
     return return_ser
