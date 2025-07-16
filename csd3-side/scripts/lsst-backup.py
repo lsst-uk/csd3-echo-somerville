@@ -1467,12 +1467,10 @@ def process_files(
         )
 
         ddf.to_csv(local_list_file, index=False)
-        num_uploads = len(ddf.index)
-        local_files_ddf = dd.read_csv(local_list_file, npartitions=max(1, num_uploads // 1000))
+        local_files_ddf = dd.read_csv(local_list_file)
     else:
         print(f'Reading local file list from {local_list_file}.', flush=True)
-        local_files_ddf = dd.read_csv(local_list_file, npartitions=max(1, num_uploads // 1000))
-        num_uploads = len(local_files_ddf.index)
+        local_files_ddf = dd.read_csv(local_list_file)
 
     del ddf
     total_upload_size = local_files_ddf['size'].sum().compute()
