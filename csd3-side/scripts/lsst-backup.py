@@ -1467,7 +1467,7 @@ def process_files(
             meta=('size', 'int')
         )
 
-        ddf.to_csv(local_list_file, index=False)
+        ddf.to_csv(local_list_file, index=False, single_file=True)
         local_files_ddf = dd.read_csv(local_list_file)
     else:
         print(f'Reading local file list from {local_list_file}.', flush=True)
