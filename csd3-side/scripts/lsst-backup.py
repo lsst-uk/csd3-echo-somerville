@@ -90,7 +90,7 @@ def follow_symlinks(row) -> pd.Series:
             [
                 to_rds_path(os.path.realpath(path), local_dir),
                 False,
-                os.sep.join([destination_dir, os.path.relpath(path, local_dir)]),
+                row['object_names'],
             ],
             index=[
                 'paths',
