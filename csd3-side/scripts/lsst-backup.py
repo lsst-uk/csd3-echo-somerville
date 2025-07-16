@@ -1525,9 +1525,9 @@ def process_files(
     # 4. Generate zip batches (this part remains iterative)
     print('Generating zip batches...', flush=True)
     zip_files_ddf = files_to_upload_ddf[files_to_upload_ddf['type'] == 'zip'].copy()
-    len_zip_files_ddf = zip_files_ddf.shape[0]
+    len_zip_files_ddf = zip_files_ddf.shape[0].compute()
     ind_uploads_ddf = files_to_upload_ddf[files_to_upload_ddf['type'] == 'file'].copy()
-    len_ind_uploads_ddf = ind_uploads_ddf.shape[0]
+    len_ind_uploads_ddf = ind_uploads_ddf.shape[0].compute()
 
     if len_zip_files_ddf > 0:
         sizes = zip_files_ddf['size'].compute()
