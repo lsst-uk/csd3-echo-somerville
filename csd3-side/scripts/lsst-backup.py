@@ -1407,6 +1407,7 @@ def process_files(
     total_files_uploaded = 0
     zip_batch_list_file = local_list_file.replace('local-file-list.csv', 'zip-batch-list.csv')
     pre_symlink_list_file = local_list_file.replace('local-file-list.csv', 'short-file-list.csv')
+    upload_list_file = local_list_file.replace('local-file-list.csv', 'upload-list.csv')
     max_zip_batch_size = 128 * 1024**2
 
     # --- Start of New, Efficient Logic ---
@@ -1519,20 +1520,14 @@ def process_files(
         return True
 
     # To pandas DataFrame for further processing
-    files_to_upload_df = files_to_upload_ddf.compute()
+    files_to_upload_ddf.to_csv(upload_list_file, index=False, single_file=True)
+    files_to_upload_ddf = dd.read_csv(upload_list_file)
 
     # 4. Generate zip batches (this part remains iterative)
     print('Generating zip batches...', flush=True)
-    zip_files_ddf = dd.from_pandas(
-        files_to_upload_df[files_to_upload_df['type'] == 'zip'],
-        npartitions=max(1, len(files_to_upload_df) // 1000)
-    ).persist()
+    zip_files_ddf = files_to_upload_ddf[files_to_upload_ddf['type'] == 'zip']
     len_zip_files_ddf = len(zip_files_ddf.index)
-    ind_uploads_ddf = dd.from_pandas(
-        files_to_upload_df[files_to_upload_df['type'] == 'file'].copy(),
-        npartitions=max(1, len(files_to_upload_df) // 1000)
-    ).persist()
-    del files_to_upload_df
+    ind_uploads_ddf = files_to_upload_ddf[files_to_upload_ddf['type'] == 'file']
     len_ind_uploads_ddf = len(ind_uploads_ddf.index)
 
     if len_zip_files_ddf > 0:
