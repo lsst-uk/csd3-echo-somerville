@@ -1451,7 +1451,7 @@ def process_files(
                 axis=1
             ),
             meta=ddf
-        )
+        ).persist()
 
         ddf = dd.concat([ddf, followed_link_ddf], ignore_index=True)
 
