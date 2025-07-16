@@ -98,6 +98,8 @@ def follow_symlinks(row) -> pd.Series:
                 'object_names',
             ]
         )
+    # debugging
+    print(f'Following symlink: {path} -> {return_ser["paths"]}', flush=True)
     return return_ser
 
 
