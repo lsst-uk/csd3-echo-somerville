@@ -1547,7 +1547,7 @@ def process_files(
             print(f'File {i}, Cumulative size: {cumulative_size / 1024**2:.2f} MiB', end='\r', flush=True)
         print()
         zip_files_df['id'] = batch_assignments
-        del sizes, batch_assignments, cumulative_size, batch_id
+        del batch_assignments
 
     # 5. Aggregate zip files into batches
 
