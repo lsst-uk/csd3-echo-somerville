@@ -1465,13 +1465,15 @@ def process_files(
             axis=1,
             meta=('size', 'int')
         )
-        local_files_df = ddf.compute()
-        local_files_df.to_csv(local_list_file, index=False)
+        total_upload_size = ddf['size'].sum().compute()
+        num_uploads = len(ddf.index)
+        ddf.to_csv(local_list_file, index=False)
+
     else:
         print(f'Reading local file list from {local_list_file}.', flush=True)
-        local_files_df = pd.read_csv(local_list_file)
+        # local_files_df = pd.read_csv(local_list_file)
 
-    total_upload_size = local_files_df['size'].sum()
+    del ddf
 
     print(f'Total upload size: {total_upload_size / 1024**2:.2f} MiB', flush=True)
 
@@ -1486,7 +1488,7 @@ def process_files(
 
     # Prepare remote objects DataFrame
     remote_keys_ddf = current_objects[['CURRENT_OBJECTS']].copy()
-    local_files_ddf = dd.from_pandas(local_files_df, npartitions=remote_keys_ddf.npartitions)
+    local_files_ddf = dd.read_csv(local_list_file, npartitions=max(1, num_uploads // 1000))
 
     # Use a left merge with an indicator to find local files NOT on the remote
     # This is the core of the efficient check
