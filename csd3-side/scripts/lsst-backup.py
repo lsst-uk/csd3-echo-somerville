@@ -1564,7 +1564,7 @@ def process_files(
     if zips_uploads_df is not None:
         num_zip_uploads = len(zips_uploads_df)
         # Write final dask dataframe to a single csv file
-        zips_uploads_df.to_csv(zip_batch_list_file, index=False, single_file=True)
+        zips_uploads_df.to_csv(zip_batch_list_file, index=False)
     else:
         num_zip_uploads = 0
         zips_uploads_df = pd.DataFrame()
