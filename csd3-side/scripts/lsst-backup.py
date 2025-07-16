@@ -1448,6 +1448,7 @@ def process_files(
     if not os.path.exists(local_list_file):
         # test links
         # if links, add targets as new row and add '.symlink' suffix
+        print('Following symlinks and calculating file sizes.', flush=True)
         followed_link_ddf = ddf.map_partitions(
             lambda partition: partition.apply(
                 follow_symlinks,
@@ -1457,8 +1458,6 @@ def process_files(
         ).persist()
 
         ddf = dd.concat([ddf, followed_link_ddf], ignore_index=True)
-
-        print('Finished following symlinks.', flush=True)
 
         # Get file sizes
         ddf['size'] = ddf.apply(
