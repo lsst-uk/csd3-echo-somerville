@@ -291,14 +291,19 @@ def mem_check(futures):
     worker_mems = []
     worker_mem_limit = None
     for w in workers.items():
-        used = w[1]['metrics']['managed_bytes'] + w[1]['metrics']['spilled_bytes']['memory']
-        worker_mems.append(used)
         if worker_mem_limit is None:
             worker_mem_limit = w[1]['memory_limit']
-
-    if any([w_m > worker_mem_limit / 4 for w_m in worker_mems]):
-        dprint(f'High memory usage on one or more workers: {worker_mems}. Rebalancing.', flush=True)
-        client.rebalance()
+        used = w[1]['metrics']['managed_bytes'] + w[1]['metrics']['spilled_bytes']['memory']
+        if used > worker_mem_limit / 4:
+            worker_mems.append(used)
+    workers_to_restart = []
+    for w in [w_m > worker_mem_limit / 4 for w_m in worker_mems]:
+        worker = workers[worker_mems.index(w)]
+        workers_to_restart.append(worker)
+        dprint(f'Worker {worker} is running out of memory.', flush=True)
+    dprint('Restarting and rebalancing.', flush=True)
+    client.restart_workers(workers_to_restart)
+    client.rebalance()
         # wait(futures)
 
 
@@ -1612,7 +1617,7 @@ def process_files(
     if num_zip_uploads > 0:
         # Now one pandas dataframe in scheduler memory
         zips_uploads_df = pd.read_csv(zip_batch_list_file)
-        client.scatter(zips_uploads_df)
+        # client.scatter(zips_uploads_df)
         print(f"Zipping and uploading {num_zip_uploads} batches.", flush=True)
         # Limit concurrency to the number of workers
         n_workers = len(client.scheduler_info()['workers'])
