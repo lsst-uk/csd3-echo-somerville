@@ -289,12 +289,14 @@ def mem_check(futures):
     system_perc = mem().percent
     dprint(f'System memory usage: {system_perc:.0f}%.', flush=True)
     worker_mems = []
-    worker_mem_limit = workers[0][1]['memory_limit']
+    worker_mem_limit = None
     for w in workers.items():
         used = w[1]['metrics']['managed_bytes'] + w[1]['metrics']['spilled_bytes']['memory']
         worker_mems.append(used)
+        if worker_mem_limit is None:
+            worker_mem_limit = w[1]['memory_limit']
 
-    if any([w_m > worker_mem_limit * 0.25 for w_m in worker_mems]):
+    if any([w_m > worker_mem_limit / 4 for w_m in worker_mems]):
         dprint(f'High memory usage on one or more workers: {worker_mems}. Rebalancing.', flush=True)
         client.rebalance()
         # wait(futures)
