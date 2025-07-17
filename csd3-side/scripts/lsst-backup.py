@@ -948,6 +948,7 @@ def upload_to_bucket_collated(
         format. The format is: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,
         DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY
     """
+    sep = ','  # separator
     if api == 's3':
         s3 = bm.get_resource()
         bucket = s3.Bucket(bucket_name)
@@ -1007,7 +1008,7 @@ def upload_to_bucket_collated(
         header:
         LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,UPLOAD_TIME,UPLOAD_START,UPLOAD_END
         """
-        sep = ','  # separator
+
         log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}","{checksum_string}","{sep.join(zip_contents)}",None,None,None' # noqa
 
         with open(log, 'a') as f:
