@@ -1410,6 +1410,7 @@ def process_files(
     zip_batch_list_file = local_list_file.replace('local-file-list.csv', 'zip-batch-list.csv')
     pre_symlink_list_file = local_list_file.replace('local-file-list.csv', 'short-file-list.csv')
     upload_list_file = local_list_file.replace('local-file-list.csv', 'upload-list.csv')
+    ind_upload_list_file = upload_list_file.replace('.csv', '_individual.csv')
     max_zip_batch_size = 128 * 1024**2
 
     # --- Start of New, Efficient Logic ---
@@ -1485,92 +1486,109 @@ def process_files(
 
     print('Finished analysing local dataset.', flush=True)
 
-    # 2. Determine which files need to be uploaded using a merge
-    print('Comparing local file list with remote objects...', flush=True)
+    if not os.path.exists(upload_list_file):
 
-    # Prepare remote objects DataFrame
-    remote_keys_ddf = current_objects[['CURRENT_OBJECTS']].copy()
+        # 2. Determine which files need to be uploaded using a merge
+        print('Comparing local file list with remote objects...', flush=True)
 
-    # Use a left merge with an indicator to find local files NOT on the remote
-    # This is the core of the efficient check
-    merged_ddf = dd.merge(
-        local_files_ddf,
-        remote_keys_ddf,
-        left_on='object_names',
-        right_on='CURRENT_OBJECTS',
-        how='left',
-        indicator=True
-    )
+        # Prepare remote objects DataFrame
+        remote_keys_ddf = current_objects[['CURRENT_OBJECTS']].copy()
 
-    files_to_upload_ddf = merged_ddf[merged_ddf['_merge'] == 'left_only'].drop(
-        columns=['CURRENT_OBJECTS', '_merge']
-    )
-    len_files_to_upload = files_to_upload_ddf.shape[0].compute()
-    if len_files_to_upload > 0:
-        print(f'Found {len_files_to_upload} files to upload.', flush=True)
+        # Use a left merge with an indicator to find local files NOT on the remote
+        # This is the core of the efficient check
+        merged_ddf = dd.merge(
+            local_files_ddf,
+            remote_keys_ddf,
+            left_on='object_names',
+            right_on='CURRENT_OBJECTS',
+            how='left',
+            indicator=True
+        )
 
-        # 3. Decide which files to zip and which to upload individually
-        files_to_upload_ddf['type'] = files_to_upload_ddf.map_partitions(
-            lambda partition: partition.apply(
-                lambda row: 'zip' if row['size'] <= max_zip_batch_size / 2 else 'file',
-                axis=1
-            )
-        ).reset_index(drop=True)
+        files_to_upload_ddf = merged_ddf[merged_ddf['_merge'] == 'left_only'].drop(
+            columns=['CURRENT_OBJECTS', '_merge']
+        )
+        len_files_to_upload = files_to_upload_ddf.shape[0].compute()
+        if len_files_to_upload > 0:
+            print(f'Found {len_files_to_upload} files to upload.', flush=True)
+
+            # 3. Decide which files to zip and which to upload individually
+            files_to_upload_ddf['type'] = files_to_upload_ddf.map_partitions(
+                lambda partition: partition.apply(
+                    lambda row: 'zip' if row['size'] <= max_zip_batch_size / 2 else 'file',
+                    axis=1
+                )
+            ).reset_index(drop=True)
+        else:
+            print('No new files to upload.', flush=True)
+            return True
+
+        # To pandas DataFrame for further processing
+        files_to_upload_ddf.to_csv(upload_list_file, index=False, single_file=True)
     else:
-        print('No new files to upload.', flush=True)
-        return True
+        print(f'Reading upload list from {upload_list_file}.', flush=True)
+        # Read the upload list file
 
-    # To pandas DataFrame for further processing
-    files_to_upload_ddf.to_csv(upload_list_file, index=False, single_file=True)
-    files_to_upload_ddf = dd.read_csv(upload_list_file)
+    if not os.path.exists(ind_upload_list_file) or not os.path.exists(zip_batch_list_file):
+        print('Generating upload list and zip batch list...', flush=True)
+        # Read the upload list file
+        files_to_upload_ddf = dd.read_csv(upload_list_file)
 
-    # 4. Generate zip batches (this part remains iterative)
-    print('Generating zip batches...', flush=True)
-    zip_files_ddf = files_to_upload_ddf[files_to_upload_ddf['type'] == 'zip'].copy()
-    ind_uploads_ddf = files_to_upload_ddf[files_to_upload_ddf['type'] == 'file'].copy()
+        # 4. Generate zip batches (this part remains iterative)
+        print('Generating zip batches...', flush=True)
+        zip_files_ddf = files_to_upload_ddf[files_to_upload_ddf['type'] == 'zip'].copy()
+        ind_uploads_ddf = files_to_upload_ddf[files_to_upload_ddf['type'] == 'file'].copy()
+        ind_uploads_ddf.to_csv(ind_upload_list_file, index=False, single_file=True)
 
-    # Compute into pandas DataFrames for sequential processing
-    zip_files_df = zip_files_ddf.compute()
-    ind_uploads_df = ind_uploads_ddf.compute()
-    len_zip_files_df = len(zip_files_df)
-    num_ind_uploads = len(ind_uploads_df)
+        # Compute into pandas DataFrames for sequential processing
+        zip_files_df = zip_files_ddf.compute()
+        ind_uploads_df = ind_uploads_ddf.compute()
+        len_zip_files_df = len(zip_files_df)
+        num_ind_uploads = len(ind_uploads_df)
+        del ind_uploads_ddf, files_to_upload_ddf, ind_uploads_df
 
-    if len_zip_files_df > 0:
-        zip_files_df = zip_files_df.sort_values(by='paths').reset_index(drop=True)
-        batch_assignments = []
-        cumulative_size = 0
-        batch_id = 1
-        for i, row in tqdm(zip_files_df.iterrows(),
-                           total=len(zip_files_df),
-                           desc="Decising on zip files."):
-            if cumulative_size + row['size'] > max_zip_batch_size and cumulative_size > 0:
-                batch_id += 1
-                cumulative_size = 0
-            batch_assignments.append(batch_id)
-            cumulative_size += row['size']
-        zip_files_df['id'] = batch_assignments
-        del batch_assignments
+        if len_zip_files_df > 0:
+            zip_files_df = zip_files_df.sort_values(by='paths').reset_index(drop=True)
+            batch_assignments = []
+            cumulative_size = 0
+            batch_id = 1
+            for i, row in tqdm(
+                zip_files_df.iterrows(),
+                total=len(zip_files_df),
+                desc="Deciding on zip files."
+            ):
+                if cumulative_size + row['size'] > max_zip_batch_size and cumulative_size > 0:
+                    batch_id += 1
+                    cumulative_size = 0
+                batch_assignments.append(batch_id)
+                cumulative_size += row['size']
+            zip_files_df['id'] = batch_assignments
+            del batch_assignments
 
-    # 5. Aggregate zip files into batches
+        # 5. Aggregate zip files into batches
 
-    zips_uploads_df = zip_files_df.groupby('id').agg(
-        paths=('paths', lambda s: '|'.join(s)),
-        object_names=('object_names', lambda s: '|'.join(s)),
-        size=('size', 'sum')
-    ).reset_index()
-    zips_uploads_df['type'] = 'zip'
+        zips_uploads_df = zip_files_df.groupby('id').agg(
+            paths=('paths', lambda s: '|'.join(s)),
+            object_names=('object_names', lambda s: '|'.join(s)),
+            size=('size', 'sum')
+        ).reset_index()
+        zips_uploads_df['type'] = 'zip'
 
-    # 6. Execute uploads in parallel
-    print('Starting uploads...', flush=True)
+        # 6. Execute uploads in parallel
+        print('Starting uploads...', flush=True)
 
-    if zips_uploads_df is not None:
+        if zips_uploads_df is not None:
+            num_zip_uploads = len(zips_uploads_df)
+            # Write final dask dataframe to a single csv file
+            zips_uploads_df.to_csv(zip_batch_list_file, index=False)
+        else:
+            num_zip_uploads = 0
+            zips_uploads_df = pd.DataFrame()
+        del zips_uploads_df, zip_files_df
+    else:
+        print(f'Reading zip batch list from {zip_batch_list_file}.', flush=True)
+        zips_uploads_df = pd.read_csv(zip_batch_list_file)
         num_zip_uploads = len(zips_uploads_df)
-        # Write final dask dataframe to a single csv file
-        zips_uploads_df.to_csv(zip_batch_list_file, index=False)
-    else:
-        num_zip_uploads = 0
-        zips_uploads_df = pd.DataFrame()
-    del zips_uploads_df, zip_files_df
     if num_zip_uploads > 0:
         # Now one pandas dataframe in scheduler memory
         zips_uploads_df = pd.read_csv(zip_batch_list_file)
@@ -1643,16 +1661,23 @@ def process_files(
     if num_ind_uploads > 0:
         print(f"Uploading {num_ind_uploads} individual files.", flush=True)
 
-        ind_uploads_ddf = dd.from_pandas(ind_uploads_df, npartitions=max(1, num_ind_uploads // 1000))
+        ind_uploads_ddf = dd.read_csv(ind_upload_list_file)
 
         ind_upload_results = ind_uploads_ddf.map_partitions(
             lambda partition: partition.apply(
                 upload_files_from_series,
                 axis=1,
-                s3=s3, bucket_name=bucket_name, api=api, local_dir=local_dir, dryrun=dryrun,
-                processing_start=processing_start, file_count=1, total_size_uploaded=total_size_uploaded,
-                total_files_uploaded=total_files_uploaded, mem_per_worker=mem_per_worker, log=log,
-
+                s3=s3,
+                bucket_name=bucket_name,
+                api=api,
+                local_dir=local_dir,
+                dryrun=dryrun,
+                processing_start=processing_start,
+                file_count=1,
+                total_size_uploaded=total_size_uploaded,
+                total_files_uploaded=total_files_uploaded,
+                mem_per_worker=mem_per_worker,
+                log=log,
             ),
             meta=('file_uploads', bool)
         )
