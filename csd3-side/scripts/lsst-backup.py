@@ -295,12 +295,12 @@ def mem_check(futures):
             min_w_mem = w[1]['memory_limit']
         used = w[1]['metrics']['managed_bytes'] + w[1]['metrics']['spilled_bytes']['memory']
         used_perc = used / w[1]['memory_limit'] * 100
-        if used_perc > 80:
+        if used_perc > 25:
             high_mem_workers.append(w[1]['id'])
     if high_mem_workers:
         dprint(f'High memory usage on workers: {high_mem_workers}.', file=sys.stderr)
         client.rebalance()
-        wait(futures)
+        # wait(futures)
 
 
 def remove_duplicates(list_of_dicts: list[dict]) -> list[dict]:
