@@ -1650,6 +1650,7 @@ def process_files(
         for future in as_completed(zip_upload_futures):
             zip_upload_results.append(future.result())
             del future
+            mem_check(zip_upload_futures)
             gc.collect()  # Force garbage collection
             try:
                 _, row = next(upload_tasks)
