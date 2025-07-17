@@ -948,7 +948,8 @@ def upload_to_bucket_collated(
         format. The format is: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,
         DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY
     """
-    sep = ','  # separator
+    logsep = ','  # separator
+    metasep = '|'  # metadata separator
     if api == 's3':
         s3 = bm.get_resource()
         bucket = s3.Bucket(bucket_name)
@@ -979,7 +980,7 @@ def upload_to_bucket_collated(
                 """
                 dprint(f'Uploading zip file "{filename}" ({file_data_size} bytes) to '
                        f'{bucket_name}/{object_key}')
-                metadata_value = '|'.join(zip_contents)  # use | as separator
+                metadata_value = metasep.join(zip_contents)
 
                 metadata_object_key = object_key + '.metadata'
                 dprint(f'Writing zip contents to {metadata_object_key}.', flush=True)
@@ -1009,7 +1010,7 @@ def upload_to_bucket_collated(
         LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,UPLOAD_TIME,UPLOAD_START,UPLOAD_END
         """
 
-        log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}","{checksum_string}","{sep.join(zip_contents)}",None,None,None' # noqa
+        log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}","{checksum_string}","{logsep.join(zip_contents)}",None,None,None' # noqa
 
         with open(log, 'a') as f:
             f.write(log_string + '\n')
@@ -1049,7 +1050,7 @@ def upload_to_bucket_collated(
                 """
                 dprint(f'Uploading zip file "{filename}" ({file_data_size} bytes) to '
                        f'{bucket_name}/{object_key}', flush=True)
-                metadata_value = '|'.join(zip_contents)  # use | as separator
+                metadata_value = metasep.join(zip_contents)  # use | as separator
 
                 metadata_object_key = object_key + '.metadata'
                 dprint(f'Writing zip contents to {metadata_object_key}.', flush=True)
@@ -1109,7 +1110,10 @@ def upload_to_bucket_collated(
         log_string += f',"{checksum_string}"'
 
         # for zip contents
-        log_string += f',"{sep.join(zip_contents)}"'
+        if len(zip_contents) > 50:
+            log_string += f',"{logsep.join(zip_contents)}"'
+        else:
+            log_string += f',"{logsep.join(zip_contents[:50])} abbreviated"'
 
         # upload time
         log_string += f',"{upload_time.total_seconds()}","{upload_start}","{upload_end}"'
