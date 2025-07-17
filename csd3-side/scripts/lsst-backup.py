@@ -287,18 +287,15 @@ def mem_check(futures):
     client = get_client()
     workers = client.scheduler_info()['workers']
     system_perc = mem().percent
-    dprint(f'System memory usage: {system_perc:.0f}%.', file=sys.stderr)
-    min_w_mem = None
-    high_mem_workers = []
+    dprint(f'System memory usage: {system_perc:.0f}%.', flush=True)
+    worker_mems = []
+    worker_mem_limit = workers[0][1]['memory_limit']
     for w in workers.items():
-        if min_w_mem is None or min_w_mem > w[1]['memory_limit']:
-            min_w_mem = w[1]['memory_limit']
         used = w[1]['metrics']['managed_bytes'] + w[1]['metrics']['spilled_bytes']['memory']
-        used_perc = used / w[1]['memory_limit'] * 100
-        if used_perc > 25:
-            high_mem_workers.append(w[1]['id'])
-    if high_mem_workers:
-        dprint(f'High memory usage on workers: {high_mem_workers}.', file=sys.stderr)
+        worker_mems.append(used)
+
+    if any([w_m > worker_mem_limit * 0.25 for w_m in worker_mems]):
+        dprint(f'High memory usage on one or more workers: {worker_mems}. Rebalancing.', flush=True)
         client.rebalance()
         # wait(futures)
 
