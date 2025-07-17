@@ -304,7 +304,7 @@ def mem_check(futures):
     dprint('Restarting and rebalancing.', flush=True)
     client.restart_workers(workers_to_restart)
     client.rebalance()
-        # wait(futures)
+    # wait(futures)
 
 
 def remove_duplicates(list_of_dicts: list[dict]) -> list[dict]:
@@ -1628,7 +1628,6 @@ def process_files(
         for _ in range(min(n_workers, num_zip_uploads)):
             try:
                 _, row = next(upload_tasks)
-                mem_check(zip_upload_futures)
                 # Submit tasks in batches
                 future = client.submit(
                     zip_and_upload,
