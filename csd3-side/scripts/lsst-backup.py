@@ -1653,31 +1653,32 @@ def process_files(
         for future in as_completed(zip_upload_futures):
             zip_upload_results.append(future.result())
             del future
-            mem_check(zip_upload_futures)
-            gc.collect()  # Force garbage collection
-            try:
-                _, row = next(upload_tasks)
-
-                # Submit tasks in batches
-                new_future = client.submit(
-                    zip_and_upload,
-                    row,
-                    s3=s3,
-                    bucket_name=bucket_name,
-                    api=api,
-                    destination_dir=destination_dir,
-                    local_dir=local_dir,
-                    total_size_uploaded=total_size_uploaded,
-                    total_files_uploaded=total_files_uploaded,
-                    use_compression=use_compression,
-                    dryrun=dryrun,
-                    processing_start=processing_start,
-                    mem_per_worker=mem_per_worker,
-                    log=log,
-                )
-                zip_upload_futures.append(new_future)
-            except StopIteration:
-                break  # all tasks submitted
+            if len(zip_upload_results) == 0:
+                mem_check(zip_upload_futures)
+                gc.collect()  # Force garbage collection
+                for _ in range(min(n_workers, num_zip_uploads)):
+                    try:
+                        _, row = next(upload_tasks)
+                        # Submit tasks in batches
+                        future = client.submit(
+                            zip_and_upload,
+                            row,
+                            s3=s3,
+                            bucket_name=bucket_name,
+                            api=api,
+                            destination_dir=destination_dir,
+                            local_dir=local_dir,
+                            total_size_uploaded=total_size_uploaded,
+                            total_files_uploaded=total_files_uploaded,
+                            use_compression=use_compression,
+                            dryrun=dryrun,
+                            processing_start=processing_start,
+                            mem_per_worker=mem_per_worker,
+                            log=log,
+                        )
+                        zip_upload_futures.append(future)
+                    except StopIteration:
+                        break  # No more tasks
 
         zip_upload_results = client.compute(*zip_upload_futures, scheduler='distributed')
         zip_upload_results = zip_upload_results.persist()
