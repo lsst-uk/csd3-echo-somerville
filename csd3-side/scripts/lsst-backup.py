@@ -150,7 +150,7 @@ def filesize(path: str):
 
 def isntin(obj: object, series: pd.Series):
     """
-    Returns True if obj is not in list, False otherwise.
+    Returns True if obj is not in a Series, False otherwise.
 
     Args:
         obj: The object to check for.
@@ -304,6 +304,22 @@ def mem_check(futures):
 
 
 def remove_duplicates(list_of_dicts: list[dict]) -> list[dict]:
+    """
+    Removes duplicate dictionaries from a list.
+
+    Args:
+        list_of_dicts (list[dict]): A list of dictionaries to deduplicate.
+
+    Returns:
+        list[dict]: A new list with duplicate dictionaries removed,
+                    preserving the order of first occurrences.
+
+    Example:
+        >>> remove_duplicates([
+        ...     {"a": 1}, {"b": 2}, {"a": 1}, {"c": 3}
+        ... ])
+        [{"a": 1}, {"b": 2}, {"c": 3}]
+    """
     return pd.DataFrame(list_of_dicts).drop_duplicates().to_dict(orient='records')
 
 
@@ -1091,8 +1107,8 @@ def upload_to_bucket_collated(
         # else:
         log_string += f',"{checksum_string}"'
 
-        # for no zip contents
-        log_string += ',"n/a"'
+        # for zip contents
+        log_string += f',"{sep.join(zip_contents)}"'
 
         # upload time
         log_string += f',"{upload_time.total_seconds()}","{upload_start}","{upload_end}"'
