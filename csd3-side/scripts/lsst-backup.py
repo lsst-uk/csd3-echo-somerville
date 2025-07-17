@@ -46,6 +46,8 @@ from dask.distributed import Client, get_client, wait, as_completed
 from dask.distributed import print as dprint
 import subprocess
 from typing import List
+import tqdm
+from tqdm import tqdm
 warnings.filterwarnings('ignore')
 
 
@@ -1538,14 +1540,14 @@ def process_files(
         batch_assignments = []
         cumulative_size = 0
         batch_id = 1
-        for i, row in zip_files_df.iterrows():
+        for i, row in tqdm(zip_files_df.iterrows(),
+                           total=len(zip_files_df),
+                           desc="Decising on zip files."):
             if cumulative_size + row['size'] > max_zip_batch_size and cumulative_size > 0:
                 batch_id += 1
                 cumulative_size = 0
             batch_assignments.append(batch_id)
             cumulative_size += row['size']
-            print(f'File {i}, Cumulative size: {cumulative_size / 1024**2:.2f} MiB', end='\r', flush=True)
-        print()
         zip_files_df['id'] = batch_assignments
         del batch_assignments
 
@@ -1608,6 +1610,8 @@ def process_files(
         zip_upload_results = []
         for future in as_completed(zip_upload_futures):
             zip_upload_results.append(future.result())
+            del future
+            gc.collect()  # Force garbage collection
             try:
                 _, row = next(upload_tasks)
 
