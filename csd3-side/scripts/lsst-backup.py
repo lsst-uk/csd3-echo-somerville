@@ -1653,6 +1653,7 @@ def process_files(
         for future in as_completed(zip_upload_futures):
             zip_upload_results.append(future.result())
             del future
+            print(f'Completed a zip upload task. {len(zip_upload_results)} completed so far.', flush=True)
             if len(zip_upload_results) == 0:
                 mem_check(zip_upload_futures)
                 gc.collect()  # Force garbage collection
