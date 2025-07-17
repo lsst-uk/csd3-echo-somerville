@@ -1628,7 +1628,7 @@ def process_files(
         for _ in range(min(n_workers, num_zip_uploads)):
             try:
                 _, row = next(upload_tasks)
-
+                mem_check(zip_upload_futures)
                 # Submit tasks in batches
                 future = client.submit(
                     zip_and_upload,
