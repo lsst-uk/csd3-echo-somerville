@@ -24,17 +24,4 @@ export ECHO_SWIFT_SECRET_KEY=$(grep secret_key <SWIFT JSON file> | awk -F \" '{p
 
 ## Configuration
 
-Create a file in `~/.config/dask` called `/distributed.yaml` with the following text.
-
-```yaml
-distributed:
-  worker:
-   # Fractions of worker process memory at which we take action to avoid memory
-   # blowup. Set any of the values to False to turn off the behavior entirely.
-    memory:
-      target: 0.80     # fraction of managed memory where we start spilling to disk
-      spill: 0.95      # fraction of process memory where we start spilling to disk
-      pause: 0.98      # fraction of process memory at which we pause worker threads
-      terminate: 0.99  # fraction of process memory at which we terminate the worker
-  temporary-directory: "/rds/project/rds-rPTGgs6He74/$USER/temp"
-```
+Copy [`distributed.yaml`](distributed.yaml) to `~/.config/dask`.
