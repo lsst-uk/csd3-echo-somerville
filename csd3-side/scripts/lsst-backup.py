@@ -1656,23 +1656,24 @@ def process_files(
 
         zip_upload_results = []
         # Use tqdm for a progress bar
-        with tqdm(total=num_zip_uploads, desc="Uploading zip batches") as pbar:
-            for future in as_completed(zip_upload_futures):
-                try:
-                    # This will now raise an exception if the non-retried task failed
-                    result = future.result()
-                    zip_upload_results.append(result)
-                except dask.distributed.KilledWorker as e:
-                    dprint(f"Task failed: Worker was killed. Task will not be retried. Error: {e}", flush=True)
-                    zip_upload_results.append(False)  # Record the failure
-                except Exception as e:
-                    # Catch other potential exceptions from the task
-                    dprint(f"Task failed with an unexpected exception: {e}", flush=True)
-                    zip_upload_results.append(False)
-                finally:
-                    # Clean up the future to release memory
-                    future.release()
-                    pbar.update(1)
+        # with tqdm(total=num_zip_uploads, desc="Uploading zip batches") as pbar:
+        for future in as_completed(zip_upload_futures):
+            try:
+                # This will now raise an exception if the non-retried task failed
+                result = future.result()
+                zip_upload_results.append(result)
+            except dask.distributed.KilledWorker as e:
+                dprint(f"Task failed: Worker was killed. Task will not be retried. Error: {e}", flush=True)
+                zip_upload_results.append(False)  # Record the failure
+            except Exception as e:
+                # Catch other potential exceptions from the task
+                dprint(f"Task failed with an unexpected exception: {e}", flush=True)
+                dprint(future, flush=True)
+                zip_upload_results.append(False)
+            finally:
+                # Clean up the future to release memory
+                future.release()
+                    # pbar.update(1)
 
         # zip_upload_results = client.compute(*zip_upload_futures, scheduler='distributed')
         # zip_upload_results = zip_upload_results.persist()
