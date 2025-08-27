@@ -80,13 +80,14 @@ def set_type(row: pd.Series, max_zip_batch_size) -> pd.Series:
         return 'zip'
 
 
-def follow_symlinks(row) -> pd.Series:
+def follow_symlinks(row) -> pd.Series | None:
     """
     Follows symlinks in a directory and returns a DataFrame containing the
     new path and generated object_name.
     """
     path = row['paths']
     islink = row['islink']
+
     if islink:
         return_ser = pd.Series(
             [
@@ -100,8 +101,10 @@ def follow_symlinks(row) -> pd.Series:
                 'object_names',
             ]
         )
+    else:
+        return None
     # debugging
-    print(f'Followed symlinks: {row.name}', end='\r', flush=True)
+    # print(f'Followed symlinks: {row.name}', end='\r', flush=True)
     return return_ser
 
 
