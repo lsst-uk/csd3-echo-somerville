@@ -42,6 +42,7 @@ from psutil import virtual_memory as mem
 import argparse
 from dask import dataframe as dd
 # from dask import compute
+import dask.distributed
 from dask.distributed import Client, get_client, wait, as_completed
 from dask.distributed import print as dprint
 import subprocess
@@ -1628,7 +1629,7 @@ def process_files(
         upload_tasks = zips_uploads_df.iterrows()
 
         zip_upload_futures = []
-        for _ in range(min(n_workers, num_zip_uploads)):
+        for _ in range(num_zip_uploads):
             try:
                 _, row = next(upload_tasks)
                 # Submit tasks in batches
@@ -1647,46 +1648,35 @@ def process_files(
                     processing_start=processing_start,
                     mem_per_worker=mem_per_worker,
                     log=log,
+                    retries=0,  # Do not retry this task if the worker fails
                 )
                 zip_upload_futures.append(future)
             except StopIteration:
                 break  # No more tasks
 
         zip_upload_results = []
-        for future in as_completed(zip_upload_futures):
-            zip_upload_results.append(future.result())
-            del future
-            print(f'Completed a zip upload task. {len(zip_upload_results)} completed so far.', flush=True)
-            if len(zip_upload_results) == 0:
-                mem_check(zip_upload_futures)
-                gc.collect()  # Force garbage collection
-                for _ in range(min(n_workers, num_zip_uploads)):
-                    try:
-                        _, row = next(upload_tasks)
-                        # Submit tasks in batches
-                        future = client.submit(
-                            zip_and_upload,
-                            row,
-                            s3=s3,
-                            bucket_name=bucket_name,
-                            api=api,
-                            destination_dir=destination_dir,
-                            local_dir=local_dir,
-                            total_size_uploaded=total_size_uploaded,
-                            total_files_uploaded=total_files_uploaded,
-                            use_compression=use_compression,
-                            dryrun=dryrun,
-                            processing_start=processing_start,
-                            mem_per_worker=mem_per_worker,
-                            log=log,
-                        )
-                        zip_upload_futures.append(future)
-                    except StopIteration:
-                        break  # No more tasks
+        # Use tqdm for a progress bar
+        with tqdm(total=num_zip_uploads, desc="Uploading zip batches") as pbar:
+            for future in as_completed(zip_upload_futures):
+                try:
+                    # This will now raise an exception if the non-retried task failed
+                    result = future.result()
+                    zip_upload_results.append(result)
+                except dask.distributed.KilledWorker as e:
+                    dprint(f"Task failed: Worker was killed. Task will not be retried. Error: {e}", flush=True)
+                    zip_upload_results.append(False)  # Record the failure
+                except Exception as e:
+                    # Catch other potential exceptions from the task
+                    dprint(f"Task failed with an unexpected exception: {e}", flush=True)
+                    zip_upload_results.append(False)
+                finally:
+                    # Clean up the future to release memory
+                    future.release()
+                    pbar.update(1)
 
-        zip_upload_results = client.compute(*zip_upload_futures, scheduler='distributed')
-        zip_upload_results = zip_upload_results.persist()
-        zips_successful = all(res.compute().all() for res in zip_upload_results if not res.empty)
+        # zip_upload_results = client.compute(*zip_upload_futures, scheduler='distributed')
+        # zip_upload_results = zip_upload_results.persist()
+        zips_successful = all(zip_upload_results)
 
     if num_ind_uploads > 0:
         print(f"Uploading {num_ind_uploads} individual files.", flush=True)
