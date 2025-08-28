@@ -1637,65 +1637,87 @@ def process_files(
             indicator=True
         )
         zips_uploads_ddf = zips_uploads_ddf[zips_uploads_ddf['_merge'] == 'left_only']
-        zips_uploads_df = zips_uploads_ddf.drop(columns=['_merge', 'CURRENT_OBJECTS']).compute()
+        zips_uploads_ddf = zips_uploads_ddf.drop(columns=['_merge', 'CURRENT_OBJECTS'])
+
+        # Update (rewrite) CSV file
+        zips_uploads_ddf.to_csv(zip_batch_list_file, index=False, single_file=True)
+
+        zips_uploads_delayed = zips_uploads_ddf.to_delayed()
 
         # client.scatter(zips_uploads_df)
-        print(f"Zipping and uploading {num_zip_uploads} batches.", flush=True)
+        print(
+            f"Zipping and uploading {num_zip_uploads} batches in {len(zips_uploads_delayed)} chunks.",
+            flush=True
+        )
         # Limit concurrency to the number of workers
-        n_workers = len(client.scheduler_info()['workers'])
-        # Create an iterator for upload tasks
-        upload_tasks = zips_uploads_df.iterrows()
+        # n_workers = len(client.scheduler_info()['workers'])
 
-        zip_upload_futures = []
-        for _ in range(num_zip_uploads):
-            try:
-                _, row = next(upload_tasks)
-                # Submit tasks in batches
-                future = client.submit(
-                    zip_and_upload,
-                    row,
-                    s3=s3,
-                    bucket_name=bucket_name,
-                    api=api,
-                    destination_dir=destination_dir,
-                    local_dir=local_dir,
-                    total_size_uploaded=total_size_uploaded,
-                    total_files_uploaded=total_files_uploaded,
-                    use_compression=use_compression,
-                    dryrun=dryrun,
-                    processing_start=processing_start,
-                    mem_per_worker=mem_per_worker,
-                    log=log,
-                    retries=0,  # Do not retry this task if the worker fails
-                )
-                zip_upload_futures.append(future)
-            except StopIteration:
-                break  # No more tasks
+        all_zip_upload_results = []
 
-        zip_upload_results = []
-        # Use tqdm for a progress bar
-        # with tqdm(total=num_zip_uploads, desc="Uploading zip batches") as pbar:
-        for future in as_completed(zip_upload_futures):
-            try:
-                # This will now raise an exception if the non-retried task failed
-                result = future.result()
-                zip_upload_results.append(result)
-            except dask.distributed.KilledWorker as e:
-                dprint(f"Task failed: Worker was killed. Task will not be retried. Error: {e}", flush=True)
-                zip_upload_results.append(False)  # Record the failure
-            except Exception as e:
-                # Catch other potential exceptions from the task
-                dprint(f"Task failed with an unexpected exception: {e}", flush=True)
-                dprint(future, flush=True)
-                zip_upload_results.append(False)
-            finally:
-                # Clean up the future to release memory
-                future.release()
-                # pbar.update(1)
+        for i, chunk_delayed in enumerate(zips_uploads_delayed):
+            print(f"--- Processing chunk {i+1}/{len(zips_uploads_delayed)} ---", flush=True)
 
-        # zip_upload_results = client.compute(*zip_upload_futures, scheduler='distributed')
-        # zip_upload_results = zip_upload_results.persist()
-        zips_successful = all(zip_upload_results)
+            # Compute only the current chunk into a pandas DataFrame
+            zips_uploads_df_chunk = chunk_delayed.compute()
+
+            if zips_uploads_df_chunk.empty:
+                print("Chunk is empty, skipping.", flush=True)
+                continue
+
+            num_uploads_in_chunk = len(zips_uploads_df_chunk)
+            print(f"Zipping and uploading {num_uploads_in_chunk} batches in this chunk.", flush=True)
+
+            upload_tasks = zips_uploads_df_chunk.iterrows()
+
+            # This list will only hold futures for the current chunk
+            zip_upload_futures = []
+
+            # Submit initial set of tasks for this chunk, up to the number of workers
+            for _ in range(min(n_workers, num_uploads_in_chunk)):
+                try:
+                    _, row = next(upload_tasks)
+                    future = client.submit(
+                        zip_and_upload,
+                        row,
+                        s3=s3,
+                        bucket_name=bucket_name,
+                        api=api,
+                        destination_dir=destination_dir,
+                        local_dir=local_dir,
+                        total_size_uploaded=total_size_uploaded,
+                        total_files_uploaded=total_files_uploaded,
+                        use_compression=use_compression,
+                        dryrun=dryrun,
+                        processing_start=processing_start,
+                        mem_per_worker=mem_per_worker,
+                        log=log,
+                        retries=0,
+                    )
+                    zip_upload_futures.append(future)
+                except StopIteration:
+                    break
+
+            # Use as_completed to process futures for the current chunk
+            with tqdm(total=num_uploads_in_chunk, desc=f"Uploading chunk {i+1}") as pbar:
+                for future in as_completed(zip_upload_futures):
+                    try:
+                        result = future.result()
+                        all_zip_upload_results.append(result)
+                    except dask.distributed.KilledWorker as e:
+                        dprint(f"Task in chunk {i+1} failed: Worker killed. Error: {e}", flush=True)
+                        all_zip_upload_results.append(False)
+                    except Exception as e:
+                        dprint(f"Task in chunk {i+1} failed with an exception: {e}", flush=True)
+                        all_zip_upload_results.append(False)
+                    finally:
+                        future.release()
+                        pbar.update(1)
+
+            # All futures for this chunk are now complete and released.
+            print(f"--- Finished processing chunk {i+1} ---", flush=True)
+            gc.collect()  # Explicitly ask for garbage collection
+
+        zips_successful = all(all_zip_upload_results)
 
     if num_ind_uploads > 0:
         print(f"Uploading {num_ind_uploads} individual files.", flush=True)
