@@ -1604,6 +1604,11 @@ def process_files(
         ).reset_index()
         zips_uploads_df['type'] = 'zip'
 
+        zips_uploads_df['zip_names'] = zips_uploads_df.apply(
+            lambda row: os.path.relpath(f'{local_dir}/collated_{row["id"]}.zip', local_dir),
+            axis=1
+        )
+
         # 6. Execute uploads in parallel
         print('Starting uploads...', flush=True)
 
@@ -1621,7 +1626,19 @@ def process_files(
         num_zip_uploads = len(zips_uploads_df)
     if num_zip_uploads > 0:
         # Now one pandas dataframe in scheduler memory
-        zips_uploads_df = pd.read_csv(zip_batch_list_file)
+        zips_uploads_ddf = dd.from_pandas(zips_uploads_df, npartitions=num_zip_uploads // 100)
+
+        #  Drop any files now in current_objects ( for a retry )
+        zips_uploads_ddf = zips_uploads_ddf.merge(
+            current_objects[['CURRENT_OBJECTS']],
+            left_on='zip_names',
+            right_on='CURRENT_OBJECTS',
+            how='left',
+            indicator=True
+        )
+        zips_uploads_ddf = zips_uploads_ddf[zips_uploads_ddf['_merge'] == 'left_only']
+        zips_uploads_df = zips_uploads_ddf.drop(columns=['_merge', 'CURRENT_OBJECTS']).compute()
+
         # client.scatter(zips_uploads_df)
         print(f"Zipping and uploading {num_zip_uploads} batches.", flush=True)
         # Limit concurrency to the number of workers
@@ -1684,6 +1701,17 @@ def process_files(
         print(f"Uploading {num_ind_uploads} individual files.", flush=True)
 
         ind_uploads_ddf = dd.read_csv(ind_upload_list_file)
+
+        #  Drop any files now in current_objects ( for a retry )
+        ind_uploads_ddf = ind_uploads_ddf.merge(
+            current_objects[['CURRENT_OBJECTS']],
+            left_on='object_names',
+            right_on='CURRENT_OBJECTS',
+            how='left',
+            indicator=True
+        )
+        ind_uploads_ddf = ind_uploads_ddf[ind_uploads_ddf['_merge'] == 'left_only']
+        ind_uploads_ddf = ind_uploads_ddf.drop(columns=['_merge', 'CURRENT_OBJECTS'])
 
         ind_upload_results = ind_uploads_ddf.map_partitions(
             lambda partition: partition.apply(
