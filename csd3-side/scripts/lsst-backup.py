@@ -784,10 +784,11 @@ def upload_to_bucket(
             link = True
         if link:
             file_data = to_rds_path(os.path.realpath(filename), local_dir)
+            file_size = len(file_data)
         else:
             file_data = open(filename, 'rb').read()
+            file_size = os.stat(filename).st_size
 
-        file_size = os.path.getsize(filename)
         use_future = False
 
         dprint(f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, {file_size} bytes, '
@@ -1492,7 +1493,7 @@ def process_files(
 
         # Get file sizes
         ddf['size'] = ddf.apply(
-            lambda r: os.stat(r['paths']).st_size if not r['islink'] else os.lstat(r['paths']).st_size,
+            lambda r: os.stat(r['paths']).st_size if not r['islink'] else len(r['object_names']),
             axis=1,
             meta=('size', 'int')
         )
@@ -1543,7 +1544,7 @@ def process_files(
             # 3. Decide which files to zip and which to upload individually
             files_to_upload_ddf['type'] = files_to_upload_ddf.map_partitions(
                 lambda partition: partition.apply(
-                    lambda row: 'zip' if row['size'] <= max_zip_batch_size / 2 else 'file',
+                    lambda row: 'zip' if row['size'] <= max_zip_batch_size / 2 and not row['islink'] else 'file',
                     axis=1
                 )
             ).reset_index(drop=True)
@@ -1673,7 +1674,7 @@ def process_files(
             finally:
                 # Clean up the future to release memory
                 future.release()
-                    # pbar.update(1)
+                # pbar.update(1)
 
         # zip_upload_results = client.compute(*zip_upload_futures, scheduler='distributed')
         # zip_upload_results = zip_upload_results.persist()
