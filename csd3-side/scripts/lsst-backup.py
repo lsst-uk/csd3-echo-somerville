@@ -1465,14 +1465,7 @@ def process_files(
         #     meta=('object_names', 'str')
         # )
         ddf['islink'] = ddf['paths'].apply(os.path.islink, meta=('islink', 'bool'))
-        ddf['object_names'] = ddf.apply(
-            lambda r: (
-                f"{destination_dir}/{os.path.relpath(r['paths'], local_dir)}"
-                + (".symlink" if r['islink'] else "")
-            ),
-            axis=1,
-            meta=('object_names', 'str')
-        )
+
         ddf.to_csv(pre_symlink_list_file, index=False, single_file=True)
     else:
         print(f'Reading pre-symlink file list from {pre_symlink_list_file}.', flush=True)
@@ -1487,7 +1480,15 @@ def process_files(
                 axis=1
             ),
             meta=ddf
-        ).persist()
+        )
+        ddf['object_names'] = ddf.apply(
+            lambda r: (
+                f"{destination_dir}/{os.path.relpath(r['paths'], local_dir)}"
+                + (".symlink" if r['islink'] else "")
+            ),
+            axis=1,
+            meta=('object_names', 'str')
+        )
 
         ddf = dd.concat([ddf, followed_link_ddf], ignore_index=True)
 
