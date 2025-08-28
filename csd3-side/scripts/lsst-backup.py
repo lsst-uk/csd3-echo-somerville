@@ -1619,7 +1619,7 @@ def process_files(
         else:
             num_zip_uploads = 0
             zips_uploads_df = pd.DataFrame()
-        del zips_uploads_df, zip_files_df
+        del zip_files_df
     else:
         print(f'Reading zip batch list from {zip_batch_list_file}.', flush=True)
         zips_uploads_df = pd.read_csv(zip_batch_list_file)
