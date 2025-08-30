@@ -1471,6 +1471,16 @@ def process_files(
         print(f'Reading pre-symlink file list from {pre_symlink_list_file}.', flush=True)
         ddf = dd.read_csv(pre_symlink_list_file)
     if not os.path.exists(local_list_file):
+        # Set object names
+        ddf['object_names'] = ddf.apply(
+            lambda r: (
+                f"{destination_dir}/{os.path.relpath(r['paths'], local_dir)}"
+                + (".symlink" if r['islink'] else "")
+            ),
+            axis=1,
+            meta=('object_names', 'str')
+        )
+
         # test links
         # if links, add targets as new row and add '.symlink' suffix
         print('Following symlinks and calculating file sizes.', flush=True)
@@ -1483,15 +1493,6 @@ def process_files(
         )
 
         ddf = dd.concat([ddf, followed_link_ddf], ignore_index=True)
-
-        ddf['object_names'] = ddf.apply(
-            lambda r: (
-                f"{destination_dir}/{os.path.relpath(r['paths'], local_dir)}"
-                + (".symlink" if r['islink'] else "")
-            ),
-            axis=1,
-            meta=('object_names', 'str')
-        ).compute()
 
         # Get file sizes
         ddf['size'] = ddf.apply(
