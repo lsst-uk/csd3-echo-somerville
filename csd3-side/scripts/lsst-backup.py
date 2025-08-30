@@ -1481,6 +1481,9 @@ def process_files(
             ),
             meta=ddf
         )
+
+        ddf = dd.concat([ddf, followed_link_ddf], ignore_index=True)
+
         ddf['object_names'] = ddf.apply(
             lambda r: (
                 f"{destination_dir}/{os.path.relpath(r['paths'], local_dir)}"
@@ -1488,9 +1491,7 @@ def process_files(
             ),
             axis=1,
             meta=('object_names', 'str')
-        )
-
-        ddf = dd.concat([ddf, followed_link_ddf], ignore_index=True)
+        ).compute()
 
         # Get file sizes
         ddf['size'] = ddf.apply(
