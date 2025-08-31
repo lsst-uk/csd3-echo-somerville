@@ -1757,7 +1757,7 @@ def process_files(
             meta=('file_uploads', bool)
         )
         ind_upload_results = ind_upload_results.persist()
-        ind_successful = all(res.compute().all() for res in ind_upload_results if not res.empty)
+        ind_successful = ind_upload_results.all().compute()
 
     # Define success based on the results of both uploads
     if num_ind_uploads > 0 and num_zip_uploads > 0:
