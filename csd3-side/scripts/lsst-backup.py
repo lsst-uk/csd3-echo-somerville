@@ -1627,6 +1627,8 @@ def process_files(
         print(f'Reading zip batch list from {zip_batch_list_file}.', flush=True)
         zips_uploads_df = pd.read_csv(zip_batch_list_file)
         num_zip_uploads = len(zips_uploads_df)
+        ind_uploads_ddf = dd.read_csv(ind_upload_list_file)
+        num_ind_uploads = len(ind_uploads_ddf.index)
     if num_zip_uploads > 0:
         # Now one pandas dataframe in scheduler memory
         zips_uploads_ddf = dd.from_pandas(zips_uploads_df, npartitions=num_zip_uploads // 100)
@@ -1724,8 +1726,6 @@ def process_files(
 
     if num_ind_uploads > 0:
         print(f"Uploading {num_ind_uploads} individual files.", flush=True)
-
-        ind_uploads_ddf = dd.read_csv(ind_upload_list_file)
 
         #  Drop any files now in current_objects ( for a retry )
         ind_uploads_ddf = ind_uploads_ddf.merge(
