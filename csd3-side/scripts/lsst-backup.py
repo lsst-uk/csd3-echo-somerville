@@ -1586,9 +1586,9 @@ def process_files(
         # Compute into pandas DataFrames for sequential processing
         if len(zip_files_ddf.index) > 0:
             zip_files_ddf = zip_files_ddf.repartition(npartitions=len(zip_files_ddf.index) // 100)
-        zip_files_df = zip_files_ddf.compute()
+            zip_files_df = zip_files_ddf.compute()
+            len_zip_files_df = len(zip_files_df)
         ind_uploads_df = ind_uploads_ddf.compute()
-        len_zip_files_df = len(zip_files_df)
         num_ind_uploads = len(ind_uploads_df)
         del ind_uploads_ddf, files_to_upload_ddf, ind_uploads_df
 
@@ -1610,19 +1610,19 @@ def process_files(
             zip_files_df['id'] = batch_assignments
             del batch_assignments
 
-        # 5. Aggregate zip files into batches
+            # 5. Aggregate zip files into batches
 
-        zips_uploads_df = zip_files_df.groupby('id').agg(
-            paths=('paths', lambda s: '|'.join(s)),
-            object_names=('object_names', lambda s: '|'.join(s)),
-            size=('size', 'sum')
-        ).reset_index()
-        zips_uploads_df['type'] = 'zip'
+            zips_uploads_df = zip_files_df.groupby('id').agg(
+                paths=('paths', lambda s: '|'.join(s)),
+                object_names=('object_names', lambda s: '|'.join(s)),
+                size=('size', 'sum')
+            ).reset_index()
+            zips_uploads_df['type'] = 'zip'
 
-        zips_uploads_df['zip_names'] = zips_uploads_df.apply(
-            lambda row: os.path.relpath(f'{local_dir}/collated_{row["id"]}.zip', local_dir),
-            axis=1
-        )
+            zips_uploads_df['zip_names'] = zips_uploads_df.apply(
+                lambda row: os.path.relpath(f'{local_dir}/collated_{row["id"]}.zip', local_dir),
+                axis=1
+            )
 
         # 6. Execute uploads in parallel
         print('Starting uploads...', flush=True)
@@ -1634,7 +1634,8 @@ def process_files(
         else:
             num_zip_uploads = 0
             zips_uploads_df = pd.DataFrame()
-        del zip_files_df
+        if len_zip_files_df > 0:
+            del zip_files_df
     else:
         print(f'Reading zip batch list from {zip_batch_list_file}.', flush=True)
         zips_uploads_df = pd.read_csv(zip_batch_list_file)
