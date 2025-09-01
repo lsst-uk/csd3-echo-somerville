@@ -1472,34 +1472,42 @@ def process_files(
         print(f'Reading pre-symlink file list from {pre_symlink_list_file}.', flush=True)
         ddf = dd.read_csv(pre_symlink_list_file)
     if not os.path.exists(local_list_file):
-        # follow symlinks
-        print('Following symlinks and calculating file sizes.', flush=True)
-        followed_link_ddf = ddf.map_partitions(
-            lambda partition: partition.apply(
-                follow_symlinks,
-                axis=1
-            ),
-            meta=ddf
-        ).reset_index(drop=True).compute()
-        # Set object names
-        ddf['object_names'] = ddf.apply(
-            lambda r: (
-                f"{destination_dir}/{os.path.relpath(r['paths'], local_dir)}"
-                + (".symlink" if r['islink'] else "")
-            ),
-            axis=1,
+        # Generate object names for all paths first
+        ddf['object_names'] = ddf['paths'].apply(
+            lambda p: f"{destination_dir}/{os.path.relpath(p, local_dir)}",
             meta=('object_names', 'str')
-        ).compute()
+        )
 
-        ddf_conc = dd.concat([ddf, followed_link_ddf], ignore_index=True)
-        del followed_link_ddf, ddf
-        # Get file sizes
+        # Separate symlinks from regular files
+        symlinks_ddf = ddf[ddf['islink']].copy()
+        regular_files_ddf = ddf[~ddf['islink']].copy()
+
+        # Create the new "data records" by following the symlinks
+        # The object_names here will initially be incorrect (copied from the symlink record)
+        followed_links_ddf = symlinks_ddf.map_partitions(
+            lambda partition: partition.apply(follow_symlinks, axis=1, meta=symlinks_ddf._meta),
+        ).dropna(subset=['paths'])
+
+        # Now, modify the original symlink records to add the .symlink suffix
+        symlinks_ddf['object_names'] = symlinks_ddf['object_names'] + ".symlink"
+
+        # Concatenate the three parts: regular files, the symlink records, and the new data records
+        ddf_conc = dd.concat([regular_files_ddf, symlinks_ddf, followed_links_ddf], ignore_index=True)
+        del ddf, regular_files_ddf, symlinks_ddf, followed_links_ddf
+
+        # Get file sizes in parallel
+        # For symlinks, the size is the length of the object name (the target path)
+        # For regular files, it's the actual file size
         ddf_conc['size'] = ddf_conc.apply(
             lambda r: os.stat(r['paths']).st_size if not r['islink'] else len(r['object_names']),
             axis=1,
             meta=('size', 'int')
         )
 
+        # Persist the result before writing to CSV
+        ddf_conc = ddf_conc.persist()
+
+        print("Writing final local file list to CSV...", flush=True)
         ddf_conc.to_csv(local_list_file, index=False, single_file=True)
         del ddf_conc
         local_files_ddf = dd.read_csv(local_list_file)
