@@ -1648,7 +1648,7 @@ def process_files(
         ind_uploads_df = None
     if num_zip_uploads > 0:
         # Now one pandas dataframe in scheduler memory
-        zips_uploads_ddf = dd.from_pandas(zips_uploads_df, npartitions=num_zip_uploads // 1000)
+        zips_uploads_ddf = dd.from_pandas(zips_uploads_df, chunksize=100)
 
         #  Drop any files now in current_objects ( for a retry )
         zips_uploads_ddf = zips_uploads_ddf.merge(
