@@ -1495,7 +1495,7 @@ def process_files(
         symlinks_ddf['object_names'] = symlinks_ddf['object_names'] + ".symlink"
 
         # Concatenate the three parts: regular files, the symlink records, and the new data records
-        ddf_conc = dd.concat([regular_files_ddf, symlinks_ddf, followed_links_ddf], ignore_index=True)
+        ddf_conc = dd.concat([regular_files_ddf, symlinks_ddf, followed_links_ddf], ignore_index=True, axis=0)
         del ddf, regular_files_ddf, symlinks_ddf, followed_links_ddf
 
         # Get file sizes in parallel
