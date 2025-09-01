@@ -1444,7 +1444,7 @@ def process_files(
     upload_list_file = local_list_file.replace('local-file-list.csv', 'upload-list.csv')
     ind_upload_list_file = upload_list_file.replace('.csv', '_individual.csv')
     max_zip_batch_size = 128 * 1024**2
-    max_zip_batch_count = int(getoutput('ulimit -n')) // 2 - 50
+    max_zip_batch_count = min(int(getoutput('ulimit -n')) // 2 - 50, 462)
 
     # --- Start of New, Efficient Logic ---
 
@@ -1609,11 +1609,8 @@ def process_files(
                 total=len(zip_files_df),
                 desc="Deciding on zip files."
             ):
-                if (
-                    cumulative_size + row['size'] > max_zip_batch_size
-                ) or (
-                    files_in_zip_count >= max_zip_batch_count
-                ):
+                if (cumulative_size + row['size'] > max_zip_batch_size and cumulative_size > 0) or \
+                   (files_in_zip_count >= max_zip_batch_count):
                     batch_id += 1
                     cumulative_size = 0
                 batch_assignments.append(batch_id)
