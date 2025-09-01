@@ -1437,6 +1437,8 @@ def process_files(
     processing_start = datetime.now()
     total_size_uploaded = 0
     total_files_uploaded = 0
+    num_ind_uploads = 0
+    num_zip_uploads = 0
     zip_batch_list_file = local_list_file.replace('local-file-list.csv', 'zip-batch-list.csv')
     pre_symlink_list_file = local_list_file.replace('local-file-list.csv', 'short-file-list.csv')
     upload_list_file = local_list_file.replace('local-file-list.csv', 'upload-list.csv')
@@ -1581,15 +1583,18 @@ def process_files(
         print('Generating zip batches...', flush=True)
         zip_files_ddf = files_to_upload_ddf[files_to_upload_ddf['type'] == 'zip'].copy()
         ind_uploads_ddf = files_to_upload_ddf[files_to_upload_ddf['type'] == 'file'].copy()
+        num_ind_uploads = len(ind_uploads_ddf.index)
         ind_uploads_ddf.to_csv(ind_upload_list_file, index=False, single_file=True)
-
+        len_zip_files_df = 0
+        zips_uploads_df = None
+        zip_files_df = None
         # Compute into pandas DataFrames for sequential processing
         if len(zip_files_ddf.index) > 0:
             zip_files_ddf = zip_files_ddf.repartition(npartitions=len(zip_files_ddf.index) // 100)
             zip_files_df = zip_files_ddf.compute()
             len_zip_files_df = len(zip_files_df)
         ind_uploads_df = ind_uploads_ddf.compute()
-        num_ind_uploads = len(ind_uploads_df)
+        # num_ind_uploads = len(ind_uploads_df)
         del ind_uploads_ddf, files_to_upload_ddf, ind_uploads_df
 
         if len_zip_files_df > 0:
@@ -1634,14 +1639,13 @@ def process_files(
         else:
             num_zip_uploads = 0
             zips_uploads_df = pd.DataFrame()
-        if len_zip_files_df > 0:
+        if len_zip_files_df > 0 and zip_files_df is not None:
             del zip_files_df
     else:
         print(f'Reading zip batch list from {zip_batch_list_file}.', flush=True)
         zips_uploads_df = pd.read_csv(zip_batch_list_file)
         num_zip_uploads = len(zips_uploads_df)
-        ind_uploads_ddf = dd.read_csv(ind_upload_list_file)
-        num_ind_uploads = len(ind_uploads_ddf.index)
+        ind_uploads_df = None
     if num_zip_uploads > 0:
         # Now one pandas dataframe in scheduler memory
         zips_uploads_ddf = dd.from_pandas(zips_uploads_df, npartitions=num_zip_uploads // 100)
@@ -1739,6 +1743,8 @@ def process_files(
 
     if num_ind_uploads > 0:
         print(f"Uploading {num_ind_uploads} individual files.", flush=True)
+
+        ind_uploads_ddf = dd.read_csv(ind_upload_list_file)
 
         #  Drop any files now in current_objects ( for a retry )
         ind_uploads_ddf = ind_uploads_ddf.merge(
