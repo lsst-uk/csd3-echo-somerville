@@ -1485,7 +1485,10 @@ def process_files(
         # Create the new "data records" by following the symlinks
         # The object_names here will initially be incorrect (copied from the symlink record)
         followed_links_ddf = symlinks_ddf.map_partitions(
-            lambda partition: partition.apply(follow_symlinks, axis=1, meta=symlinks_ddf._meta),
+            lambda partition: partition.apply(
+                follow_symlinks,
+                axis=1),
+            meta=symlinks_ddf._meta,
         ).dropna(subset=['paths'])
 
         # Now, modify the original symlink records to add the .symlink suffix
