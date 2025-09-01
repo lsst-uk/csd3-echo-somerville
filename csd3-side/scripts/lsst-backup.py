@@ -1573,7 +1573,8 @@ def process_files(
         ind_uploads_ddf.to_csv(ind_upload_list_file, index=False, single_file=True)
 
         # Compute into pandas DataFrames for sequential processing
-        zip_files_ddf = zip_files_ddf.repartition(npartitions=len(zip_files_ddf.index) // 100)
+        if len_zip_files_df > 0:
+            zip_files_ddf = zip_files_ddf.repartition(npartitions=len(zip_files_ddf.index) // 100)
         zip_files_df = zip_files_ddf.compute()
         ind_uploads_df = ind_uploads_ddf.compute()
         len_zip_files_df = len(zip_files_df)
