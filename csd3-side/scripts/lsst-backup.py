@@ -47,8 +47,8 @@ from dask.distributed import Client, get_client, wait, as_completed
 from dask.distributed import print as dprint
 import subprocess
 from typing import List
-import tqdm
 from tqdm import tqdm
+from subprocess import getoutput
 warnings.filterwarnings('ignore')
 
 
@@ -1444,6 +1444,7 @@ def process_files(
     upload_list_file = local_list_file.replace('local-file-list.csv', 'upload-list.csv')
     ind_upload_list_file = upload_list_file.replace('.csv', '_individual.csv')
     max_zip_batch_size = 128 * 1024**2
+    max_zip_batch_count = int(getoutput('ulimit -n')) // 2 - 50
 
     # --- Start of New, Efficient Logic ---
 
@@ -1602,16 +1603,22 @@ def process_files(
             batch_assignments = []
             cumulative_size = 0
             batch_id = 1
+            files_in_zip_count = 0
             for i, row in tqdm(
                 zip_files_df.iterrows(),
                 total=len(zip_files_df),
                 desc="Deciding on zip files."
             ):
-                if cumulative_size + row['size'] > max_zip_batch_size and cumulative_size > 0:
+                if (
+                    cumulative_size + row['size'] > max_zip_batch_size
+                ) or (
+                    files_in_zip_count >= max_zip_batch_count
+                ):
                     batch_id += 1
                     cumulative_size = 0
                 batch_assignments.append(batch_id)
                 cumulative_size += row['size']
+                files_in_zip_count += 1
             zip_files_df['id'] = batch_assignments
             del batch_assignments
 
@@ -1648,7 +1655,7 @@ def process_files(
         ind_uploads_df = None
     if num_zip_uploads > 0:
         # Now one pandas dataframe in scheduler memory
-        zips_uploads_ddf = dd.from_pandas(zips_uploads_df, chunksize=1000)
+        zips_uploads_ddf = dd.from_pandas(zips_uploads_df, chunksize=100)
 
         #  Drop any files now in current_objects ( for a retry )
         zips_uploads_ddf = zips_uploads_ddf.merge(
