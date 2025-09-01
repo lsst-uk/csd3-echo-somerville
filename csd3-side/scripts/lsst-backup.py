@@ -88,13 +88,14 @@ def follow_symlinks(row) -> pd.Series | None:
     """
     path = row['paths']
     islink = row['islink']
+    link_name = row['object_names']
 
     if islink:
         return_ser = pd.Series(
             [
                 to_rds_path(os.path.realpath(path), local_dir),
                 False,
-                row['object_names'],
+                link_name,
             ],
             index=[
                 'paths',
@@ -1479,7 +1480,7 @@ def process_files(
                 axis=1
             ),
             meta=ddf
-        )
+        ).reset_index(drop=True).compute()
         # Set object names
         ddf['object_names'] = ddf.apply(
             lambda r: (
@@ -1488,24 +1489,25 @@ def process_files(
             ),
             axis=1,
             meta=('object_names', 'str')
-        )
+        ).compute()
 
-        ddf = dd.concat([ddf, followed_link_ddf], ignore_index=True)
-
+        ddf_conc = dd.concat([ddf, followed_link_ddf], ignore_index=True)
+        del followed_link_ddf, ddf
         # Get file sizes
-        ddf['size'] = ddf.apply(
+        ddf_conc['size'] = ddf_conc.apply(
             lambda r: os.stat(r['paths']).st_size if not r['islink'] else len(r['object_names']),
             axis=1,
             meta=('size', 'int')
         )
 
-        ddf.to_csv(local_list_file, index=False, single_file=True)
+        ddf_conc.to_csv(local_list_file, index=False, single_file=True)
+        del ddf_conc
         local_files_ddf = dd.read_csv(local_list_file)
     else:
         print(f'Reading local file list from {local_list_file}.', flush=True)
         local_files_ddf = dd.read_csv(local_list_file)
 
-    del ddf
+
     total_upload_size = local_files_ddf['size'].sum().compute()
 
     print(f'Total upload size: {total_upload_size / 1024**2:.2f} MiB', flush=True)
