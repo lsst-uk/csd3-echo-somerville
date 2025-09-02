@@ -491,6 +491,7 @@ def zip_folders(
                     else:
                         exit(f'Path is wrong: {file}')
                     arc_name = os.path.relpath(object_names[i], local_dir)
+                    print(f'Adding {file_path} as {arc_name} to zip.', flush=True)
                     try:
                         zipped_size += os.path.getsize(file_path)
                         with open(file_path, 'rb') as src_file:
