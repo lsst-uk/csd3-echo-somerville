@@ -760,7 +760,8 @@ def upload_to_bucket_collated(
     """
     logsep = ','  # separator
     metasep = '|'  # metadata separator
-
+    if api != 'swift':
+        raise ValueError('api must be "swift" for upload_to_bucket_collated.')
     try:
         assert type(s3) is swiftclient.Connection
     except AssertionError:
