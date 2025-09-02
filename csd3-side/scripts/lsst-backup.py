@@ -1233,8 +1233,9 @@ def process_files(
         symlinks_ddf['target'] = symlinks_ddf['paths'].map_partitions(
             lambda partition: partition.apply(
                 get_target_or_none,
-                meta=('target', 'str')
-            )
+                axis=1,
+            ),
+            meta=('target', 'str')
         )
         symlinks_ddf.to_csv(symlink_list_file, index=False, single_file=True)
         print('Uploading symlink CSV file.')
