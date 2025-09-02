@@ -219,7 +219,11 @@ def find_metadata(key: str, bucket) -> List[str] | None:
         return None
 
 
-def find_metadata_swift(row: pd.Series, conn: swiftclient.Connection, container_name: str) -> List[str] | None:
+def find_metadata_swift(
+    row: pd.Series,
+    conn: swiftclient.Connection,
+    container_name: str
+) -> List[str] | None:
     """
     Retrieve metadata for a given key from a Swift container.
 
@@ -247,7 +251,7 @@ def find_metadata_swift(row: pd.Series, conn: swiftclient.Connection, container_
             try:
                 existing_zip_contents = str(conn.get_object(container_name, ''.join([key, '.metadata']))[
                     1
-                ].decode('UTF-8')).split('|')  # use | as separator  # noqa
+                ].decode('UTF-8')).split('|')  # use | as separator  # type: ignore
             except Exception:
                 try:
                     existing_zip_contents = conn.head_object(container_name, key)[
@@ -426,17 +430,6 @@ def zip_and_upload(
             mem_per_worker,
             log
         )
-        # try:
-        # refs = dict(gc.get_referrers(zip_data)[-1])
-        # zip_data_refs = [k for k, v in refs.items() if v is zip_data]
-        # num_refs = len(zip_data_refs)
-        # dprint(
-        #     f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
-        #     f'\n References: {zip_data_refs}'
-        # )
-        # del refs, zip_data_refs
-        # except Exception as e:
-        #     dprint(f'Error getting references for zip_data: {e}', flush=True)
         del zip_data, namelist, file_paths
         gc.collect()
         return uploaded
@@ -604,7 +597,6 @@ def upload_to_bucket(
         file_data = open(filename, 'rb').read()
         file_size = os.stat(filename).st_size
 
-        use_future = False
         upload_time = None
         upload_start = None
         upload_end = None
@@ -620,7 +612,7 @@ def upload_to_bucket(
             """
             checksum_hash = hashlib.md5(file_data)
             if hasattr(file_data, 'seek'):
-                file_data.seek(0)
+                file_data.seek(0)  # type: ignore
             checksum_string = checksum_hash.hexdigest()
 
             try:
@@ -648,8 +640,10 @@ def upload_to_bucket(
                     for so in segment_objects:
                         segmented_upload.append(so)
 
-                    dprint(f'Uploading {filename} to {bucket_name}/{object_key} in '
-                            f'{n_segments} parts.', flush=True)
+                    dprint(
+                        f'Uploading {filename} to {bucket_name}/{object_key} in '
+                        f'{n_segments} parts.', flush=True
+                    )
                     upload_start = datetime.now()
                     _ = swift_service.upload(
                         bucket_name,
@@ -683,23 +677,7 @@ def upload_to_bucket(
             except Exception as e:
                 dprint(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
                 return False
-            # try:
-                # refs = dict(gc.get_referrers(file_data)[-1])
-                # file_data_refs = [
-                #     k for k, v in refs.items() if v is file_data
-                # ]
-                # num_refs = len(file_data_refs)
-                # dprint(
-                #     f'in zip_and_upload {num_refs} references to filename,
-                #     'only 1 will be deleted'
-                #     f'\n References: {file_data_refs}'
-                # )
-            #     del refs, file_data_refs
-            # except Exception as e:
-            #     dprint(
-            #         f'Error getting references for file_data: {e}',
-            #         flush=True
-            #     )
+
             del file_data
         else:
             checksum_string = "DRYRUN"
@@ -844,20 +822,6 @@ def upload_to_bucket_collated(
         except Exception as e:
             dprint(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
             return False
-        # try:
-            # refs = dict(gc.get_referrers(file_data)[-1])
-            # file_data_refs = [k for k, v in refs.items() if v is file_data]
-            # num_refs = len(file_data_refs)
-            # dprint(
-            #     f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
-            #     f'\n References: {file_data_refs}'
-            # )
-        #     del refs, file_data_refs
-        # except Exception as e:
-        #     dprint(
-            #   f'Error getting references for file_data: {e}',
-            #   flush=True
-            # )
         del file_data
     else:
         checksum_string = "DRYRUN"
@@ -1012,20 +976,6 @@ def print_stats(
                f'{total_size / 1024**2 / elapsed_seconds:.2f} MiB/s', flush=True)
     except ZeroDivisionError:
         pass
-    # try:
-        # refs = dict(gc.get_referrers(file_name_or_data)[-1])
-        # file_name_or_data_refs = [
-            # k for k, v in refs.items() if v is file_name_or_data
-        # ]
-        # num_refs = len(file_name_or_data_refs)
-        # dprint(
-        #     f'in zip_and_upload {num_refs} references to filename, '
-        #     'only 1 will be deleted'
-        #     f'\n References: {file_name_or_data_refs}'
-        # )
-    #     del refs, file_name_or_data_refs
-    # except Exception as e:
-    #     dprint(f'Error getting references for {file_name_or_data}: {e}')
     del file_name_or_data
 
 
@@ -1243,7 +1193,7 @@ def process_files(
         print(f'Found {len(local_files_df)} local files.', flush=True)
 
         # Use Dask for parallel processing of file info
-        ddf = dd.from_pandas(local_files_df, npartitions=max(1, len(local_files_df) // 1000))
+        ddf = dd.from_pandas(local_files_df, npartitions=max(1, len(local_files_df) // 1000))  # type: ignore
 
         # Identify symlinks
         ddf['islink'] = ddf['paths'].apply(os.path.islink, meta=('islink', 'bool'))
@@ -1251,7 +1201,7 @@ def process_files(
         ddf.to_csv(pre_symlink_list_file, index=False, single_file=True)
     else:
         print(f'Reading pre-symlink file list from {pre_symlink_list_file}.', flush=True)
-        ddf = dd.read_csv(pre_symlink_list_file)  # noqa
+        ddf = dd.read_csv(pre_symlink_list_file)  # type: ignore
     if not os.path.exists(local_list_file):
         # Generate object names for all paths first
         ddf['object_names'] = ddf['paths'].apply(
@@ -1293,7 +1243,7 @@ def process_files(
         del symlinks_ddf
         # Concatenate the three parts: regular files, the symlink records,
         # and the new data records
-        ddf_conc = dd.concat(
+        ddf_conc = dd.concat(  # type: ignore
             [df for df in [regular_files_ddf, followed_links_ddf] if len(df.index) > 0],
             ignore_index=True,
             axis=0
@@ -1316,10 +1266,10 @@ def process_files(
         print("Writing final local file list to CSV...", flush=True)
         ddf_conc.to_csv(local_list_file, index=False, single_file=True)
         del ddf_conc
-        local_files_ddf = dd.read_csv(local_list_file)
+        local_files_ddf = dd.read_csv(local_list_file)  # type: ignore
     else:
         print(f'Reading local file list from {local_list_file}.', flush=True)
-        local_files_ddf = dd.read_csv(local_list_file)
+        local_files_ddf = dd.read_csv(local_list_file)  # type: ignore
 
     total_upload_size = local_files_ddf['size'].sum().compute()
 
@@ -1342,7 +1292,7 @@ def process_files(
         # Use a left merge with an indicator to find local files
         # NOT on the remote
         # This is the core of the efficient check
-        merged_ddf = dd.merge(
+        merged_ddf = dd.merge(  # type: ignore
             local_files_ddf,
             remote_keys_ddf,
             left_on='object_names',
@@ -1378,7 +1328,7 @@ def process_files(
     if not os.path.exists(ind_upload_list_file) or not os.path.exists(zip_batch_list_file):
         print('Generating upload list and zip batch list...', flush=True)
         # Read the upload list file
-        files_to_upload_ddf = dd.read_csv(upload_list_file)
+        files_to_upload_ddf = dd.read_csv(upload_list_file)  # type: ignore
 
         # 4. Generate zip batches (this part remains iterative)
         print('Generating zip batches...', flush=True)
@@ -1399,7 +1349,7 @@ def process_files(
         del ind_uploads_ddf, files_to_upload_ddf, ind_uploads_df
 
         if len_zip_files_df > 0:
-            zip_files_df = zip_files_df.sort_values(by='paths').reset_index(drop=True)
+            zip_files_df = zip_files_df.sort_values(by='paths').reset_index(drop=True)  # type: ignore
             batch_assignments = []
             cumulative_size = 0
             batch_id = 1
@@ -1453,7 +1403,7 @@ def process_files(
         ind_uploads_df = None
     if num_zip_uploads > 0:
         # Now one pandas dataframe in scheduler memory
-        zips_uploads_ddf = dd.from_pandas(zips_uploads_df, chunksize=100)  # ignore
+        zips_uploads_ddf = dd.from_pandas(zips_uploads_df, chunksize=100)  # type: ignore
 
         #  Drop any files now in current_objects ( for a retry )
         zips_uploads_ddf = zips_uploads_ddf.merge(
@@ -1529,7 +1479,7 @@ def process_files(
             with tqdm(total=num_uploads_in_chunk, desc=f"Uploading chunk {i+1}") as pbar:
                 for future in as_completed(zip_upload_futures):
                     try:
-                        result = future.result()
+                        result = future.result()  # type: ignore
                         all_zip_upload_results.append(result)
                     except dask.distributed.KilledWorker as e:
                         dprint(f"Task in chunk {i+1} failed: Worker killed. Error: {e}", flush=True)
@@ -1538,7 +1488,7 @@ def process_files(
                         dprint(f"Task in chunk {i+1} failed with an exception: {e}", flush=True)
                         all_zip_upload_results.append(False)
                     finally:
-                        future.release()
+                        future.release()  # type: ignore
                         pbar.update(1)
 
             # All futures for this chunk are now complete and released.
@@ -1550,7 +1500,7 @@ def process_files(
     if num_ind_uploads > 0:
         print(f"Uploading {num_ind_uploads} individual files.", flush=True)
 
-        ind_uploads_ddf = dd.read_csv(ind_upload_list_file)
+        ind_uploads_ddf = dd.read_csv(ind_upload_list_file)  # type: ignore
 
         #  Drop any files now in current_objects ( for a retry )
         ind_uploads_ddf = ind_uploads_ddf.merge(
@@ -1816,7 +1766,7 @@ if __name__ == '__main__':
     print(f'Config: {args}')
 
     if save_config:
-        with open(config_file, 'w') as f:
+        with open(config_file, 'w') as f:  # type: ignore
             yaml.dump(
                 {
                     'bucket_name': bucket_name,
@@ -1889,12 +1839,11 @@ if __name__ == '__main__':
                 )
 
     # Setup bucket
+    s3_host = ''
     try:
         if bm.check_keys(api):
             if api == 's3':
-                access_key = os.environ['S3_ACCESS_KEY']
-                secret_key = os.environ['S3_ACCESS_KEY']
-                s3_host = os.environ['S3_HOST_URL']
+                raise DeprecationWarning('S3 support has been deprecated. Please use Swift API.')
             elif api == 'swift':
                 access_key = os.environ['ST_USER']
                 secret_key = os.environ['ST_KEY']
@@ -1921,11 +1870,9 @@ if __name__ == '__main__':
     if bucket_name not in bucket_list:
         if not dryrun:
             if api == 's3':
-                r = s3.Bucket(bucket_name).create()
-                print(r)
-                bucket = s3.Bucket(bucket_name)
+                raise DeprecationWarning('S3 support has been deprecated. Please use Swift API.')
             elif api == 'swift':
-                s3.put_container(bucket_name)
+                s3.put_container(bucket_name)  # type: ignore
                 bucket = None
             print(f'Added bucket: {bucket_name}')
     else:
@@ -1964,16 +1911,21 @@ if __name__ == '__main__':
               f'{datetime.now()}, elapsed time = {datetime.now() - start_main}', flush=True)
 
         if api == 's3':
-            current_objects = bm.object_list(bucket, prefix=destination_dir, count=True)
+            raise DeprecationWarning('S3 support has been deprecated. Please use Swift API.')
         elif api == 'swift':
-            current_objects = bm.object_list_swift(s3, bucket_name, prefix=destination_dir, count=True)
+            current_objects = bm.object_list_swift(
+                s3,  # type: ignore
+                bucket_name,
+                prefix=destination_dir,
+                count=True
+            )
         print()
         print(
             f'Done.\nFinished at {datetime.now()}, elapsed time = {datetime.now() - start_main}',
             flush=True
         )
 
-        current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_objects})
+        current_objects = pd.DataFrame.from_dict({'CURRENT_OBJECTS': current_objects})  # type: ignore
 
         print(f'Current objects (with matching prefix): {len(current_objects)}', flush=True)
 
@@ -1988,11 +1940,9 @@ if __name__ == '__main__':
                 flush=True
             )
             if api == 's3':
-                current_objects['METADATA'] = current_objects['CURRENT_OBJECTS'].apply(
-                    find_metadata,
-                    bucket=bucket)  # can't Daskify this without passing all bucket objects
+                raise DeprecationWarning('S3 support has been deprecated. Please use Swift API.')
             elif api == 'swift':
-                current_objects = dd.from_pandas(
+                current_objects = dd.from_pandas(  # type: ignore
                     current_objects,
                     npartitions=len(client.scheduler_info()['workers']) * 10
                 )
@@ -2017,18 +1967,28 @@ if __name__ == '__main__':
         print(f'Checking for existing log files in bucket {bucket_name}, elapsed time = '
               f'{datetime.now() - start_main}', flush=True)
         if len(current_objects.index) > 0:
-            if current_objects['CURRENT_OBJECTS'].isin([log]).compute().any():
+            if current_objects['CURRENT_OBJECTS'].isin([log]).compute().any():  # type: ignore
                 print(f'Log file {log} already exists in bucket. Downloading.')
                 if api == 's3':
-                    bucket.download_file(log, log)
+                    raise DeprecationWarning('S3 support has been deprecated. Please use Swift API.')
                 elif api == 'swift':
-                    bm.download_file_swift(s3, bucket_name, log, log)
-            elif current_objects['CURRENT_OBJECTS'].isin([previous_log]).compute().any():
+                    bm.download_file_swift(
+                        s3,  # type: ignore
+                        bucket_name,
+                        log,
+                        log
+                    )
+            elif current_objects['CURRENT_OBJECTS'].isin([previous_log]).compute().any():  # type: ignore
                 print(f'Previous log file {previous_log} already exists in bucket. Downloading.')
                 if api == 's3':
-                    bucket.download_file(previous_log, log)
+                    raise DeprecationWarning('S3 support has been deprecated. Please use Swift API.')
                 elif api == 'swift':
-                    bm.download_file_swift(s3, bucket_name, previous_log, log)
+                    bm.download_file_swift(
+                        s3,  # type: ignore
+                        bucket_name,
+                        previous_log,
+                        log
+                    )
         print(f'Done, elapsed time = {datetime.now() - start_main}', flush=True)
 
         if api == 's3':
@@ -2051,28 +2011,10 @@ if __name__ == '__main__':
             with warnings.catch_warnings():
                 warnings.filterwarnings('ignore')
                 if api == 's3':
-                    upload_successful = process_files(
-                        s3,
-                        bucket_name,
-                        api,
-                        current_objects,
-                        exclude,
-                        local_dir,
-                        destination_dir,
-                        dryrun,
-                        log,
-                        global_collate,
-                        use_compression,
-                        client,
-                        mem_per_worker,
-                        local_list_file,
-                        save_local_list,
-                        file_count_stop,
-                        n_workers
-                    )
+                    raise DeprecationWarning('S3 support has been deprecated. Please use Swift API.')
                 elif api == 'swift':
                     upload_successful = process_files(
-                        s3,
+                        s3,  # type: ignore
                         bucket_name,
                         api,
                         current_objects,
@@ -2122,7 +2064,7 @@ if __name__ == '__main__':
     if not dryrun:
         print('Uploading log file.')
         upload_to_bucket(
-            s3,
+            s3,  # type: ignore
             bucket_name,
             api,
             local_dir,
