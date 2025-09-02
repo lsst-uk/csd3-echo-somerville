@@ -760,171 +760,104 @@ def upload_to_bucket_collated(
     """
     logsep = ','  # separator
     metasep = '|'  # metadata separator
-    if api == 's3':
-        s3 = bm.get_resource()
-        bucket = s3.Bucket(bucket_name)
 
-        filename = object_key.split('/')[-1]
-        file_data_size = len(file_data)
+    try:
+        assert type(s3) is swiftclient.Connection
+    except AssertionError:
+        raise AssertionError('s3_host must be a swiftclient.Connection object.')
+
+    filename = object_key.split('/')[-1]
+    file_data_size = len(file_data)
+    if hasattr(file_data, 'seek'):
+        file_data.seek(0)
+
+    dprint(f'Uploading zip file "{filename}" for {folder} to {bucket_name}/{object_key}, '
+            f'{file_data_size} bytes, checksum = True, dryrun = {dryrun}', flush=True)
+    """
+    - Upload the file to the bucket
+    """
+    if not dryrun:
+        """
+        - Create checksum object
+        """
+        checksum_hash = hashlib.md5(file_data)
         if hasattr(file_data, 'seek'):
             file_data.seek(0)
+        checksum_string = checksum_hash.hexdigest()
+        checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
 
-        dprint(f'Uploading zip file "{filename}" for {folder} to {bucket_name}/{object_key}, '
-               f'{file_data_size} bytes, checksum = True, dryrun = {dryrun}', flush=True)
-        """
-        - Upload the file to the bucket
-        """
-        if not dryrun:
-            """
-            - Create checksum object
-            """
-            checksum_hash = hashlib.md5(file_data)
-            if hasattr(file_data, 'seek'):
-                file_data.seek(0)
-            checksum_string = checksum_hash.hexdigest()
-            checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
-
-            try:
-                """
-                - Upload the file to the bucket
-                """
-                dprint(f'Uploading zip file "{filename}" ({file_data_size} bytes) to '
-                       f'{bucket_name}/{object_key}')
-                metadata_value = metasep.join(zip_contents)
-
-                metadata_object_key = object_key + '.metadata'
-                dprint(f'Writing zip contents to {metadata_object_key}.', flush=True)
-                bucket.put_object(
-                    Body=metadata_value,
-                    Key=metadata_object_key,
-                    Metadata={'corresponding-zip': object_key}
-                )
-                metadata = {'zip-contents-object': metadata_object_key}
-
-                bucket.put_object(
-                    Body=file_data,
-                    Key=object_key,
-                    ContentMD5=checksum_base64,
-                    Metadata=metadata
-                )
-            except Exception as e:
-                dprint(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
-                return False
-        else:
-            checksum_string = "DRYRUN"
-
-        """
-        report actions
-        CSV formatted
-        header:
-        LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,UPLOAD_TIME,UPLOAD_START,UPLOAD_END
-        """
-
-        log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}","{checksum_string}","{logsep.join(zip_contents)}",None,None,None' # noqa
-
-        with open(log, 'a') as f:
-            f.write(log_string + '\n')
-        del file_data
-        return True
-
-    elif api == 'swift':
         try:
-            assert type(s3) is swiftclient.Connection
-        except AssertionError:
-            raise AssertionError('s3_host must be a swiftclient.Connection object.')
 
-        filename = object_key.split('/')[-1]
-        file_data_size = len(file_data)
-        if hasattr(file_data, 'seek'):
-            file_data.seek(0)
-
-        dprint(f'Uploading zip file "{filename}" for {folder} to {bucket_name}/{object_key}, '
-               f'{file_data_size} bytes, checksum = True, dryrun = {dryrun}', flush=True)
-        """
-        - Upload the file to the bucket
-        """
-        if not dryrun:
             """
-            - Create checksum object
+            - Upload the file to the bucket
             """
-            checksum_hash = hashlib.md5(file_data)
-            if hasattr(file_data, 'seek'):
-                file_data.seek(0)
-            checksum_string = checksum_hash.hexdigest()
-            checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
+            dprint(f'Uploading zip file "{filename}" ({file_data_size} bytes) to '
+                    f'{bucket_name}/{object_key}', flush=True)
+            metadata_value = metasep.join(zip_contents)  # use | as separator
 
-            try:
+            metadata_object_key = object_key + '.metadata'
+            dprint(f'Writing zip contents to {metadata_object_key}.', flush=True)
+            responses = [{}, {}]
+            upload_start = datetime.now()
+            s3.put_object(
+                container=bucket_name,
+                contents=metadata_value,
+                content_type='text/plain',
+                obj=metadata_object_key,
+                headers={'x-object-meta-corresponding-zip': object_key},
+                response_dict=responses[0]
+            )
 
-                """
-                - Upload the file to the bucket
-                """
-                dprint(f'Uploading zip file "{filename}" ({file_data_size} bytes) to '
-                       f'{bucket_name}/{object_key}', flush=True)
-                metadata_value = metasep.join(zip_contents)  # use | as separator
+            upload_end = datetime.now()
+            upload_time = upload_end - upload_start
+            s3.put_object(
+                container=bucket_name,
+                contents=file_data,
+                content_type='multipart/mixed',
+                obj=object_key,
+                etag=checksum_string,
+                headers={'x-object-meta-zip-contents-object': metadata_object_key},
+                response_dict=responses[1]
+            )
+        except Exception as e:
+            dprint(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
+            return False
+        # try:
+            # refs = dict(gc.get_referrers(file_data)[-1])
+            # file_data_refs = [k for k, v in refs.items() if v is file_data]
+            # num_refs = len(file_data_refs)
+            # dprint(
+            #     f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
+            #     f'\n References: {file_data_refs}'
+            # )
+        #     del refs, file_data_refs
+        # except Exception as e:
+        #     dprint(f'Error getting references for file_data: {e}', flush=True)
+        del file_data
+    else:
+        checksum_string = "DRYRUN"
 
-                metadata_object_key = object_key + '.metadata'
-                dprint(f'Writing zip contents to {metadata_object_key}.', flush=True)
-                responses = [{}, {}]
-                upload_start = datetime.now()
-                s3.put_object(
-                    container=bucket_name,
-                    contents=metadata_value,
-                    content_type='text/plain',
-                    obj=metadata_object_key,
-                    headers={'x-object-meta-corresponding-zip': object_key},
-                    response_dict=responses[0]
-                )
+    """
+    report actions
+    CSV formatted
+    header:
+    LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,UPLOAD_TIME,UPLOAD_START,UPLOAD_END
+    """
+    log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}"'
+    log_string += f',"{checksum_string}"'
 
-                upload_end = datetime.now()
-                upload_time = upload_end - upload_start
-                s3.put_object(
-                    container=bucket_name,
-                    contents=file_data,
-                    content_type='multipart/mixed',
-                    obj=object_key,
-                    etag=checksum_string,
-                    headers={'x-object-meta-zip-contents-object': metadata_object_key},
-                    response_dict=responses[1]
-                )
-            except Exception as e:
-                dprint(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
-                return False
-            # try:
-                # refs = dict(gc.get_referrers(file_data)[-1])
-                # file_data_refs = [k for k, v in refs.items() if v is file_data]
-                # num_refs = len(file_data_refs)
-                # dprint(
-                #     f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
-                #     f'\n References: {file_data_refs}'
-                # )
-            #     del refs, file_data_refs
-            # except Exception as e:
-            #     dprint(f'Error getting references for file_data: {e}', flush=True)
-            del file_data
-        else:
-            checksum_string = "DRYRUN"
+    # for zip contents
+    if len(zip_contents) > 50:
+        log_string += f',"{logsep.join(zip_contents)}"'
+    else:
+        log_string += f',"{logsep.join(zip_contents[:50])} abbreviated"'
 
-        """
-        report actions
-        CSV formatted
-        header:
-        LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,UPLOAD_TIME,UPLOAD_START,UPLOAD_END
-        """
-        log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}"'
-        log_string += f',"{checksum_string}"'
+    # upload time
+    log_string += f',"{upload_time.total_seconds()}","{upload_start}","{upload_end}"'
 
-        # for zip contents
-        if len(zip_contents) > 50:
-            log_string += f',"{logsep.join(zip_contents)}"'
-        else:
-            log_string += f',"{logsep.join(zip_contents[:50])} abbreviated"'
-
-        # upload time
-        log_string += f',"{upload_time.total_seconds()}","{upload_start}","{upload_end}"'
-
-        with open(log, 'a') as f:
-            f.write(log_string + '\n')
-        return True
+    with open(log, 'a') as f:
+        f.write(log_string + '\n')
+    return True
 
 
 def upload_files_from_series(
