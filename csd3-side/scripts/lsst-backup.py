@@ -71,9 +71,9 @@ def set_type(row: pd.Series, max_zip_batch_size) -> str:
         return 'zip'
 
 
-def get_target_or_none(path: str | None) -> str | None:
-    if path is not None:
-        return os.readlink(path) if os.path.islink(path) else None
+def get_target_or_none(row: pd.Series) -> str | None:
+    if row['paths'] is not None:
+        return os.readlink(row['paths']) if os.path.islink(row['paths']) else None
     return None
 
 
@@ -1230,11 +1230,11 @@ def process_files(
         ).dropna(subset=['paths'])
         followed_links_ddf.to_csv('TEMP_DEBUGGING_targets.csv', index=False, single_file=True)
         # Now, modify the original symlink records to add the target
-        symlinks_ddf['target'] = symlinks_ddf['paths'].map_partitions(
+        symlinks_ddf['target'] = symlinks_ddf.map_partitions(
             lambda partition: partition.apply(
                 get_target_or_none,
+                axis=1,
             ),
-            axis=1,
             meta=('target', 'str')
         )
         symlinks_ddf.to_csv(symlink_list_file, index=False, single_file=True)
