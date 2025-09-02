@@ -1614,6 +1614,7 @@ def process_files(
                    (files_in_zip_count >= max_zip_batch_count):
                     batch_id += 1
                     cumulative_size = 0
+                    files_in_zip_count = 0
                 batch_assignments.append(batch_id)
                 cumulative_size += row['size']
                 files_in_zip_count += 1
