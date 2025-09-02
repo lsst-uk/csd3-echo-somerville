@@ -1153,16 +1153,13 @@ def process_files(
     This version uses an efficient Dask merge to determine which files need
     uploading.
     """
-    if api == 's3':
-        try:
-            assert s3 is None
-        except AssertionError:
-            raise AssertionError('s3 must be None if using S3 API.')
-    elif api == 'swift':
+    if api == 'swift':
         try:
             assert type(s3) is swiftclient.Connection
         except AssertionError:
             raise AssertionError('s3 must be a swiftclient.Connection object if using Swift API.')
+    else:
+        raise ValueError('api must be "swift".')
 
     processing_start = datetime.now()
     total_size_uploaded = 0
@@ -1593,7 +1590,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--api',
         type=str,
-        help='API to use; "S3" or "Swift". Default is "Swift". Case insensitive.'
+        help='API to use; Default is "Swift". Case insensitive. "S3" support has been deprecated.'
     )
     parser.add_argument(
         '--bucket-name',
@@ -1749,8 +1746,8 @@ if __name__ == '__main__':
 
     save_config = args.save_config
     api = args.api.lower()
-    if api not in ['s3', 'swift']:
-        parser.error('API must be "S3" or "Swift" (case insensitive).')
+    if api != 'swift':
+        parser.error('API must be "Swift" (case insensitive).')
     bucket_name = args.bucket_name
     local_dir = args.local_path
     if not os.path.exists(local_dir):
