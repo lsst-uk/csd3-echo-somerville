@@ -30,7 +30,6 @@ import sys
 import os
 from datetime import datetime
 import hashlib
-import base64
 import pandas as pd
 from ast import literal_eval
 import numpy as np
@@ -62,14 +61,6 @@ def list_aggregation(x) -> str:
         str: The aggregated string.
     """
     print(x.name)
-    # if isinstance(x['paths'], list):
-    #     print('|'.join(x['']))
-    # else:
-    #     print(x[0])
-    # # dprint(x, flush=True)
-    # # dprint([y[0] for y in x], flush=True)
-    # dprint('|'.join([y[1] for y in x]), flush=True)
-    # return '|'.join([y[0] for y in x])
     return x[0]
 
 
