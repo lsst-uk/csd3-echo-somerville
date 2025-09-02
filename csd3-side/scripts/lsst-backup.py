@@ -71,6 +71,12 @@ def set_type(row: pd.Series, max_zip_batch_size) -> str:
         return 'zip'
 
 
+def get_target_or_none(path: str | None) -> str | None:
+    if path is not None:
+        return os.readlink(path) if os.path.islink(path) else None
+    return None
+
+
 def follow_symlinks(row) -> pd.Series | None:
     """
     Follows symlinks in a directory and returns a DataFrame containing the
@@ -1224,8 +1230,11 @@ def process_files(
         ).dropna(subset=['paths'])
         followed_links_ddf.to_csv('TEMP_DEBUGGING_targets.csv', index=False, single_file=True)
         # Now, modify the original symlink records to add the target
-        symlinks_ddf['target'] = symlinks_ddf['paths'].apply(
-            lambda x: os.readlink(x) if os.path.islink(x) else ''
+        symlinks_ddf['target'] = symlinks_ddf['paths'].map_partitions(
+            lambda partition: partition.apply(
+                get_target_or_none,
+                meta=('target', 'str')
+            )
         )
         symlinks_ddf.to_csv(symlink_list_file, index=False, single_file=True)
         print('Uploading symlink CSV file.')
@@ -1344,8 +1353,6 @@ def process_files(
             zip_files_ddf = zip_files_ddf.repartition(npartitions=len(zip_files_ddf.index) // 100)
             zip_files_df = zip_files_ddf.compute()
             len_zip_files_df = len(zip_files_df)
-        ind_uploads_df = ind_uploads_ddf.compute()
-        # num_ind_uploads = len(ind_uploads_df)
         del ind_uploads_ddf, files_to_upload_ddf, ind_uploads_df
 
         if len_zip_files_df > 0:
@@ -1400,7 +1407,7 @@ def process_files(
         print(f'Reading zip batch list from {zip_batch_list_file}.', flush=True)
         zips_uploads_df = pd.read_csv(zip_batch_list_file)
         num_zip_uploads = len(zips_uploads_df)
-        ind_uploads_df = None
+
     if num_zip_uploads > 0:
         # Now one pandas dataframe in scheduler memory
         zips_uploads_ddf = dd.from_pandas(zips_uploads_df, chunksize=100)  # type: ignore
