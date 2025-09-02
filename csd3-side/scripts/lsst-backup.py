@@ -1445,7 +1445,7 @@ def process_files(
     ind_upload_list_file = upload_list_file.replace('.csv', '_individual.csv')
     max_zip_batch_size = 128 * 1024**2
     max_zip_batch_count = min(int(getoutput('ulimit -n')) // 2 - 50, 462)
-    print(f'DEBUG: max_zip_batch_size={max_zip_batch_size}, max_zip_batch_count={max_zip_batch_count}')
+    print(f'DEBUG: max_zip_batch_size={max_zip_batch_size}, max_zip_batch_count={max_zip_batch_count}', flush=True)
 
     # --- Start of New, Efficient Logic ---
 
