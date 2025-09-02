@@ -490,7 +490,7 @@ def zip_folders(
                         file_path = file
                     else:
                         exit(f'Path is wrong: {file}')
-                    arc_name = os.path.relpath(object_names[i], local_dir)
+                    arc_name = to_rds_path(object_names[i], local_dir)
                     dprint(f'Adding {file_path} as {arc_name} to zip.')
                     try:
                         zipped_size += os.path.getsize(file_path)
