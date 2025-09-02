@@ -434,6 +434,7 @@ def zip_and_upload(
         # except Exception as e:
         #     dprint(f'Error getting references for zip_data: {e}', flush=True)
         del zip_data, namelist, file_paths
+        gc.collect()
         return uploaded
 
 
@@ -1444,8 +1445,7 @@ def process_files(
     upload_list_file = local_list_file.replace('local-file-list.csv', 'upload-list.csv')
     ind_upload_list_file = upload_list_file.replace('.csv', '_individual.csv')
     max_zip_batch_size = 128 * 1024**2
-    max_zip_batch_count = min(int(getoutput('ulimit -n')) // 2 - 50, 462)
-    print(f'DEBUG: max_zip_batch_size={max_zip_batch_size}, max_zip_batch_count={max_zip_batch_count}', flush=True)
+    max_zip_batch_count = min(int(getoutput('ulimit -n')) // 2 - 50, 250) # extremely safe file descriptor limit
 
     # --- Start of New, Efficient Logic ---
 
