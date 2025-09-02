@@ -806,6 +806,7 @@ def upload_to_bucket(
                 - Upload the link target _path_ to an object
                 """
                 s3.put_object(container=bucket_name, obj=object_key, contents=file_data)
+                checksum_string = 'n/a'
             if not link:
                 """
                 - Create checksum object
@@ -910,7 +911,10 @@ def upload_to_bucket(
         log_string += ',"n/a"'
 
         # upload time
-        log_string += f',"{upload_time.total_seconds()}","{upload_start}","{upload_end}"'
+        if not link and not dryrun:
+            log_string += f',"{upload_time.total_seconds()}","{upload_start}","{upload_end}"'
+        elif link:
+            log_string += ',"n/a","n/a","n/a"'
 
         with open(log, 'a') as f:
             f.write(log_string + '\n')
