@@ -1417,7 +1417,8 @@ def process_files(
     mem_per_worker,
     local_list_file,
     save_local_file,
-    file_count_stop
+    file_count_stop,
+    n_workers
 ) -> bool:
     """
     Uploads files from a local directory to an S3 bucket in parallel.
@@ -1445,7 +1446,27 @@ def process_files(
     upload_list_file = local_list_file.replace('local-file-list.csv', 'upload-list.csv')
     ind_upload_list_file = upload_list_file.replace('.csv', '_individual.csv')
     max_zip_batch_size = 128 * 1024**2
-    max_zip_batch_count = min(int(getoutput('ulimit -n')) // 2 - 50, 250) # extremely safe file descriptor limit
+
+    # Set a conservative total for the per-user file descriptor limit.
+    # This is based on the observation that many workers fail while fewer
+    # succeed (or fail after doing a lot more work).
+    # A value of 10000-16000 is a common user limit on HPC systems.
+    USER_FD_LIMIT = 10000
+
+    # Distribute the total available file handles among all workers.
+    # This prevents the sum of open files across all processes from exceeding
+    # the user limit.
+    # A small safety margin is subtracted.
+    max_zip_batch_count = (USER_FD_LIMIT // n_workers) - 10
+
+    # Ensure the count is at least a sane minimum, especially with high worker
+    # counts.
+    if max_zip_batch_count < 50:
+        dprint(f"Warning: Calculated max_zip_batch_count is very low ({max_zip_batch_count}). "
+               f"Consider reducing the number of workers if errors persist.")
+        max_zip_batch_count = 50
+
+    dprint(f"Calculated max files per zip batch: {max_zip_batch_count}", flush=True)
 
     # --- Start of New, Efficient Logic ---
 
@@ -2267,7 +2288,8 @@ if __name__ == '__main__':
                         mem_per_worker,
                         local_list_file,
                         save_local_list,
-                        file_count_stop
+                        file_count_stop,
+                        n_workers
                     )
                 elif api == 'swift':
                     upload_successful = process_files(
@@ -2286,7 +2308,8 @@ if __name__ == '__main__':
                         mem_per_worker,
                         local_list_file,
                         save_local_list,
-                        file_count_stop
+                        file_count_stop,
+                        n_workers
                     )
             if os.path.exists(local_list_file):
                 with open(local_list_file, 'r') as clf:
