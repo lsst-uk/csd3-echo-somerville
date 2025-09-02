@@ -383,12 +383,14 @@ def zip_and_upload(
     """
     # dprint(row, flush=True)
     file_paths = row['paths'].split('|')
+    object_names = row['object_names'].split('|')
     id = row['id']
+    # reverse_link_targets = [to_rds_path(on, local_dir) for on in row['object_names'].split('|')]
 
     #############
     #  zip part #
     #############
-    zip_data, namelist = zip_folders(local_dir, file_paths, use_compression, dryrun, id, mem_per_worker)
+    zip_data, namelist = zip_folders(local_dir, file_paths, use_compression, dryrun, id, mem_per_worker, object_names)
     gc.collect()
     dprint('Created zipFile in memory', flush=True)
     ###############
@@ -445,7 +447,8 @@ def zip_folders(
     use_compression: bool,
     dryrun: bool,
     id: int,
-    mem_per_worker: int
+    mem_per_worker: int,
+    object_names: list[str],
 ) -> tuple[str, int, bytes]:
     """
     Collates the specified folders into a zip file.
@@ -482,12 +485,12 @@ def zip_folders(
             else:
                 compression = zipfile.ZIP_STORED  # zipfile.ZIP_STORED = no compression
             with zipfile.ZipFile(zip_buffer, "a", compression, True) as zip_file:
-                for file in file_paths:
+                for i, file in enumerate(file_paths):
                     if file.startswith('/'):
                         file_path = file
                     else:
                         exit(f'Path is wrong: {file}')
-                    arc_name = os.path.relpath(file_path, local_dir)
+                    arc_name = os.path.relpath(object_names[i], local_dir)
                     try:
                         zipped_size += os.path.getsize(file_path)
                         with open(file_path, 'rb') as src_file:
@@ -565,7 +568,7 @@ def upload_to_bucket(
 
         bucket_name (str): The name of the S3 bucket or Swift container name.
 
-        api (str): The API to use for the S3 connection, 's3' or 'swift'.
+        api (str): The API to use for the S3 connection, must be 'swift'.
 
         folder (str): The local folder containing the file to upload.
 
@@ -582,198 +585,7 @@ def upload_to_bucket(
     Returns:
         bool: True if the file was uploaded, False if not.
     """
-    if api == 's3':  # Need to make a new S3 connection
-        s3 = bm.get_resource()
-        s3_client = bm.get_client()
-        bucket = s3.Bucket(bucket_name)
-
-        # Check if the file is a symlink
-        # If it is, upload an object containing the target path instead
-        link = False
-        if os.path.islink(filename):
-            link = True
-        if link:
-            file_data = to_rds_path(os.path.realpath(filename), local_dir)
-        else:
-            file_data = open(filename, 'rb').read()
-
-        file_size = os.path.getsize(filename)
-        use_future = False
-
-        if file_size > 10 * 1024**3:
-            if not dryrun:
-                dprint(f'WARNING: File size of {file_size} bytes exceeds memory per worker of '
-                       f'{mem_per_worker} bytes.', flush=True)
-                dprint('Running upload_object.py.', flush=True)
-                dprint('This upload WILL NOT be checksummed or tracked!', flush=True)
-
-                del file_data
-                # Ensure consistent path to upload_object.py
-                upload_object_path = os.path.join(
-                    os.path.dirname(os.path.abspath(__file__)),
-                    '../../scripts/upload_object.py'
-                )
-                _ = subprocess.Popen(
-                    [
-                        'nohup',
-                        'nice',
-                        '-n',
-                        '10',
-                        'python',
-                        upload_object_path,
-                        '--bucket-name',
-                        bucket_name,
-                        '--object-name',
-                        object_key,
-                        '--local-path',
-                        filename,
-                    ],
-                    stdout=open(f'{os.environ["PWD"]}/ext_uploads.log', 'a'),
-                    stderr=open(f'{os.environ["PWD"]}/ext_uploads.err', 'a'),
-                    env=os.environ,
-                    preexec_fn=os.setsid
-                )
-
-                dprint(f'Running upload_object.py for {filename}.', flush=True)
-                log_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}","n/a","n/a"'
-                with open(log, 'a') as f:
-                    f.write(log_string + '\n')
-                # try:
-                #     refs = dict(gc.get_referrers(filename)[-1])
-                #     filename_refs = [k for k, v in refs.items() if v is filename]
-                #     num_refs = len(filename_refs)
-                #     dprint(
-                #         f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
-                #         f'\n References: {filename_refs}'
-                #     )
-                #     del refs, filename_refs
-                # except Exception as e:
-                #     dprint(f'Error getting references for filename: {e}', flush=True)
-                del filename
-                return True
-
-        dprint(f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, {file_size} bytes, '
-               f'checksum = True, dryrun = {dryrun}', flush=True)
-        """
-        - Upload the file to the bucket
-        """
-        if not dryrun:
-            if link:
-                """
-                - Upload the link target _path_ to an object
-                """
-                if use_future:
-                    bucket.put_object(Body=get_client().gather(file_data), Key=object_key)
-                    try:
-                        get_client().scatter(file_data)
-                    except TypeError as e:
-                        dprint(f'Error scattering {filename}: {e}')
-                        exit(1)
-                else:
-                    bucket.put_object(Body=file_data, Key=object_key)
-            if not link:
-                """
-                - Create checksum object
-                """
-                if use_future:
-                    file_data = get_client().gather(file_data)
-                checksum_hash = hashlib.md5(file_data)
-                checksum_string = checksum_hash.hexdigest()
-                checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
-                if use_future:
-                    try:
-                        file_data = get_client().scatter(file_data)
-                    except TypeError as e:
-                        dprint(f'Error scattering {filename}: {e}')
-                        exit(1)
-                try:
-                    # Check if file size is larger than 5GiB
-                    if file_size > mem_per_worker or file_size > 5 * 1024**3:
-                        """
-                        - Use multipart upload for large files
-                        """
-
-                        obj = bucket.Object(object_key)
-                        mp_upload = obj.initiate_multipart_upload()
-                        chunk_size = 512 * 1024**2  # 512 MiB
-                        chunk_count = int(np.ceil(file_size / chunk_size))
-                        dprint(f'Uploading {filename} to {bucket_name}/{object_key} in {chunk_count} parts.')
-                        parts = []
-                        part_futures = []
-                        for i in range(chunk_count):
-                            start = i * chunk_size
-                            end = min(start + chunk_size, file_size)
-                            part_number = i + 1
-                            part_futures.append(get_client().submit(
-                                part_uploader,
-                                bucket_name,
-                                object_key,
-                                part_number,
-                                file_data[start:end],
-                                mp_upload.id
-                            ))
-                        for future in as_completed(part_futures):
-                            parts.append(future.result())
-                            del future
-                        s3_client.complete_multipart_upload(
-                            Bucket=bucket_name,
-                            Key=object_key,
-                            UploadId=mp_upload.id,
-                            MultipartUpload={"Parts": parts}
-                        )
-                    else:
-                        """
-                        - Upload the file to the bucket
-                        """
-                        dprint(f'Uploading {filename} to {bucket_name}/{object_key}')
-                        if use_future:
-                            bucket.put_object(
-                                Body=get_client().gather(file_data),
-                                Key=object_key,
-                                ContentMD5=checksum_base64
-                            )
-                        else:
-                            bucket.put_object(
-                                Body=file_data,
-                                Key=object_key,
-                                ContentMD5=checksum_base64
-                            )
-                except Exception as e:
-                    dprint(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
-                    return False
-
-                del file_data
-                if mem().percent > 50:
-                    gc.collect()
-        else:
-            checksum_string = "DRYRUN"
-
-        """
-        report actions
-        CSV formatted
-        header:
-        LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,UPLOAD_TIME,UPLOAD_START,UPLOAD_END
-        """
-        if link:
-            log_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}"'
-        else:
-            log_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}"'
-        if link:
-            log_string += ',"n/a"'
-        else:
-            log_string += f',"{checksum_string}"'
-
-        # for no zip contents
-        log_string += ',"n/a"'
-
-        # for upload time
-        log_string += ',None,None,None'
-        with open(log, 'a') as f:
-            f.write(log_string + '\n')
-
-        return True
-
-    elif api == 'swift':
+    if api == 'swift':
         try:
             assert type(s3) is swiftclient.Connection
         except AssertionError:
@@ -785,13 +597,10 @@ def upload_to_bucket(
         # If it is, upload an object containing the target path instead
         link = False
         if os.path.islink(filename):
-            link = True
-        if link:
-            file_data = to_rds_path(os.path.realpath(filename), local_dir)
-            file_size = len(file_data)
-        else:
-            file_data = open(filename, 'rb').read()
-            file_size = os.stat(filename).st_size
+            raise ValueError('Symlink upload is not supported - these are now listed in a CSV file only.')
+
+        file_data = open(filename, 'rb').read()
+        file_size = os.stat(filename).st_size
 
         use_future = False
 
@@ -801,94 +610,87 @@ def upload_to_bucket(
         - Upload the file to the bucket
         """
         if not dryrun:
-            if link:
-                """
-                - Upload the link target _path_ to an object
-                """
-                s3.put_object(container=bucket_name, obj=object_key, contents=file_data)
-                checksum_string = 'n/a'
-            if not link:
-                """
-                - Create checksum object
-                """
-                checksum_hash = hashlib.md5(file_data)
-                if hasattr(file_data, 'seek'):
-                    file_data.seek(0)
-                checksum_string = checksum_hash.hexdigest()
-                checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
+            """
+            - Create checksum object
+            """
+            checksum_hash = hashlib.md5(file_data)
+            if hasattr(file_data, 'seek'):
+                file_data.seek(0)
+            checksum_string = checksum_hash.hexdigest()
+            checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
 
-                try:
-                    # Check if file size is larger than 5GiB
-                    if file_size > mem_per_worker or file_size > 5 * 1024**3:
-                        """
-                        - Use multipart upload for large files
-                        """
-                        swift_service = bm.get_service_swift()
-                        segment_size = 512 * 1024**2
-                        segments = []
-                        n_segments = int(np.ceil(file_size / segment_size))
-                        for i in range(n_segments):
-                            start = i * segment_size
-                            end = min(start + segment_size, file_size)
-                            segments.append(file_data[start:end])
-                        segment_objects = [
-                            bm.get_SwiftUploadObject(
-                                filename,
-                                object_name=object_key,
-                                options={'contents': segment, 'content_type': None}
-                            ) for segment in segments
-                        ]
-                        segmented_upload = [filename]
-                        for so in segment_objects:
-                            segmented_upload.append(so)
+            try:
+                # Check if file size is larger than 5GiB
+                if file_size > mem_per_worker or file_size > 5 * 1024**3:
+                    """
+                    - Use multipart upload for large files
+                    """
+                    swift_service = bm.get_service_swift()
+                    segment_size = 512 * 1024**2
+                    segments = []
+                    n_segments = int(np.ceil(file_size / segment_size))
+                    for i in range(n_segments):
+                        start = i * segment_size
+                        end = min(start + segment_size, file_size)
+                        segments.append(file_data[start:end])
+                    segment_objects = [
+                        bm.get_SwiftUploadObject(
+                            filename,
+                            object_name=object_key,
+                            options={'contents': segment, 'content_type': None}
+                        ) for segment in segments
+                    ]
+                    segmented_upload = [filename]
+                    for so in segment_objects:
+                        segmented_upload.append(so)
 
-                        dprint(f'Uploading {filename} to {bucket_name}/{object_key} in '
-                               f'{n_segments} parts.', flush=True)
-                        upload_start = datetime.now()
-                        _ = swift_service.upload(
-                            bucket_name,
-                            segmented_upload,
-                            options={
-                                'meta': [],
-                                'header': [],
-                                'segment_size': segment_size,
-                                'use_slo': True,
-                                'segment_container': bucket_name + '-segments'
-                            }
-                        )
-                        upload_end = datetime.now()
-                        upload_time = upload_end - upload_start
-                    else:
-                        """
-                        - Upload the file to the bucket
-                        """
-                        dprint(f'Uploading {filename} to {bucket_name}/{object_key}')
-                        upload_start = datetime.now()
+                    dprint(f'Uploading {filename} to {bucket_name}/{object_key} in '
+                            f'{n_segments} parts.', flush=True)
+                    upload_start = datetime.now()
+                    _ = swift_service.upload(
+                        bucket_name,
+                        segmented_upload,
+                        options={
+                            'meta': [],
+                            'header': [],
+                            'segment_size': segment_size,
+                            'use_slo': True,
+                            'segment_container': bucket_name + '-segments'
+                        }
+                    )
+                    upload_end = datetime.now()
+                    upload_time = upload_end - upload_start
+                else:
+                    """
+                    - Upload the file to the bucket
+                    """
+                    dprint(f'Uploading {filename} to {bucket_name}/{object_key}')
+                    upload_start = datetime.now()
 
-                        s3.put_object(
-                            container=bucket_name,
-                            contents=file_data,
-                            content_type='multipart/mixed',
-                            obj=object_key,
-                            etag=checksum_string
-                        )
-                        upload_end = datetime.now()
-                        upload_time = upload_end - upload_start
-                except Exception as e:
-                    dprint(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
-                    return False
-                # try:
-                    # refs = dict(gc.get_referrers(file_data)[-1])
-                    # file_data_refs = [k for k, v in refs.items() if v is file_data]
-                    # num_refs = len(file_data_refs)
-                    # dprint(
-                    #     f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
-                    #     f'\n References: {file_data_refs}'
-                    # )
-                #     del refs, file_data_refs
-                # except Exception as e:
-                #     dprint(f'Error getting references for file_data: {e}', flush=True)
-                del file_data
+                    s3.put_object(
+                        container=bucket_name,
+                        contents=file_data,
+                        content_type='multipart/mixed',
+                        obj=object_key,
+                        etag=checksum_string
+                    )
+                    upload_end = datetime.now()
+                    upload_time = upload_end - upload_start
+            except Exception as e:
+                dprint(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
+                return False
+            # try:
+                # refs = dict(gc.get_referrers(file_data)[-1])
+                # file_data_refs = [k for k, v in refs.items() if v is file_data]
+                # num_refs = len(file_data_refs)
+                # dprint(
+                #     f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
+                #     f'\n References: {file_data_refs}'
+                # )
+            #     del refs, file_data_refs
+            # except Exception as e:
+            #     dprint(f'Error getting references for file_data: {e}', flush=True)
+            del file_data
         else:
             checksum_string = "DRYRUN"
 
@@ -898,23 +700,15 @@ def upload_to_bucket(
         header:
         LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,UPLOAD_TIME,UPLOAD_START,UPLOAD_END
         """
-        if link:
-            log_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}"'
-        else:
-            log_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}"'
-        if link:
-            log_string += ',"n/a"'
-        else:
-            log_string += f',"{checksum_string}"'
+        log_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}"'
+        log_string += f',"{checksum_string}"'
 
         # for no zip contents
         log_string += ',"n/a"'
 
         # upload time
-        if not link and not dryrun:
+        if not dryrun:
             log_string += f',"{upload_time.total_seconds()}","{upload_start}","{upload_end}"'
-        elif link:
-            log_string += ',"n/a","n/a","n/a"'
 
         with open(log, 'a') as f:
             f.write(log_string + '\n')
@@ -1116,13 +910,7 @@ def upload_to_bucket_collated(
         header:
         LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,UPLOAD_TIME,UPLOAD_START,UPLOAD_END
         """
-        # if link:
         log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}"'
-        # else:
-        #     log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}"'
-        # if link:
-        #     log_string += ',"n/a"'
-        # else:
         log_string += f',"{checksum_string}"'
 
         # for zip contents
@@ -1449,6 +1237,7 @@ def process_files(
     num_zip_uploads = 0
     zip_batch_list_file = local_list_file.replace('local-file-list.csv', 'zip-batch-list.csv')
     pre_symlink_list_file = local_list_file.replace('local-file-list.csv', 'short-file-list.csv')
+    symlink_list_file = local_list_file.replace('local-file-list.csv', 'symlink-list.csv')
     upload_list_file = local_list_file.replace('local-file-list.csv', 'upload-list.csv')
     ind_upload_list_file = upload_list_file.replace('.csv', '_individual.csv')
     max_zip_batch_size = 128 * 1024**2
@@ -1478,7 +1267,8 @@ def process_files(
 
     # 1. Generate the list of all local files if it doesn't exist
     if not os.path.exists(pre_symlink_list_file):
-        print(f'Analysing local dataset {local_dir}. This may take a while (scales with the number of files and folders).', flush=True)
+        print(f'Analysing local dataset {local_dir}. This may take a while (scales with the number of '
+              'files and folders).', flush=True)
         paths = []
         for folder, _, files in os.walk(local_dir, topdown=True):
             if exclude.isin([folder]).any():
@@ -1491,11 +1281,7 @@ def process_files(
         # Use Dask for parallel processing of file info
         ddf = dd.from_pandas(local_files_df, npartitions=max(1, len(local_files_df) // 1000))
 
-        # Generate object names and handle symlinks in parallel
-        # ddf['object_names'] = ddf['paths'].apply(
-        #     lambda p: os.sep.join([destination_dir, os.path.relpath(p, local_dir)]),
-        #     meta=('object_names', 'str')
-        # )
+        # Identify symlinks
         ddf['islink'] = ddf['paths'].apply(os.path.islink, meta=('islink', 'bool'))
 
         ddf.to_csv(pre_symlink_list_file, index=False, single_file=True)
@@ -1521,19 +1307,36 @@ def process_files(
                 axis=1),
             meta=symlinks_ddf._meta,
         ).dropna(subset=['paths'])
-
-        # Now, modify the original symlink records to add the .symlink suffix
-        symlinks_ddf['object_names'] = symlinks_ddf['object_names'] + ".symlink"
-
+        followed_links_ddf.to_csv('TEMP_DEBUGGING_targets.csv', index=False, single_file=True)
+        # Now, modify the original symlink records to add the target
+        symlinks_ddf['target'] = symlinks_ddf['paths'].apply(lambda x: os.readlink(x) if os.path.islink(x) else '')
+        symlinks_ddf.to_csv(symlink_list_file, index=False, single_file=True)
+        print('Uploading symlink CSV file.')
+        upload_to_bucket(
+            s3,
+            bucket_name,
+            api,
+            local_dir,
+            '/',  # path
+            symlink_list_file,
+            os.path.basename(symlink_list_file),
+            False,  # dryrun
+            os.path.dirname(symlink_list_file) + 'symlink_csv_file.log',
+        )
+        del symlinks_ddf
         # Concatenate the three parts: regular files, the symlink records, and the new data records
-        ddf_conc = dd.concat([df for df in [regular_files_ddf, symlinks_ddf, followed_links_ddf] if len(df.index) > 0], ignore_index=True, axis=0)
-        del ddf, regular_files_ddf, symlinks_ddf, followed_links_ddf
+        ddf_conc = dd.concat(
+            [df for df in [regular_files_ddf, followed_links_ddf] if len(df.index) > 0],
+            ignore_index=True,
+            axis=0
+        )
+        del ddf, regular_files_ddf, followed_links_ddf
 
         # Get file sizes in parallel
         # For symlinks, the size is the length of the object name (the target path)
         # For regular files, it's the actual file size
         ddf_conc['size'] = ddf_conc.apply(
-            lambda r: os.stat(r['paths']).st_size if not r['islink'] else len(r['object_names']),
+            lambda r: os.stat(r['paths']).st_size,
             axis=1,
             meta=('size', 'int')
         )
@@ -1589,7 +1392,7 @@ def process_files(
             # 3. Decide which files to zip and which to upload individually
             files_to_upload_ddf['type'] = files_to_upload_ddf.map_partitions(
                 lambda partition: partition.apply(
-                    lambda row: 'zip' if row['size'] <= max_zip_batch_size / 2 and not row['islink'] else 'file',
+                    lambda row: 'zip' if row['size'] <= max_zip_batch_size / 2 else 'file',
                     axis=1
                 )
             ).reset_index(drop=True)
@@ -2062,8 +1865,8 @@ if __name__ == '__main__':
                 f)
         sys.exit(0)
 
-    print('Symlinks will be replaced with the target file. A new file <simlink_file>.symlink '
-          'will contain the symlink target path.')
+    print('Symlinks will be replaced with the target file. And a CSV file will be created to map historical '
+          'symlinks to target paths. ')
 
     if not local_dir or not prefix or not bucket_name:
         print('local_dir, s3_prefix and bucket_name must be provided and must not be empty strings or null.')
