@@ -389,6 +389,7 @@ def zip_and_upload(
     #  zip part #
     #############
     zip_data, namelist = zip_folders(local_dir, file_paths, use_compression, dryrun, id, mem_per_worker)
+    gc.collect()
     dprint('Created zipFile in memory', flush=True)
     ###############
     # upload part #
@@ -508,6 +509,7 @@ def zip_folders(
             exit(1)
         if namelist == []:
             return b'', []
+        gc.collect()
         return zip_buffer.getvalue(), namelist
     else:
         return b'', []
