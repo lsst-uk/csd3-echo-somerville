@@ -43,12 +43,11 @@ import argparse
 from dask import dataframe as dd
 # from dask import compute
 import dask.distributed
-from dask.distributed import Client, get_client, wait, as_completed
+from dask.distributed import Client, get_client, as_completed
 from dask.distributed import print as dprint
 import subprocess
 from typing import List
 from tqdm import tqdm
-from subprocess import getoutput
 warnings.filterwarnings('ignore')
 
 
@@ -74,7 +73,7 @@ def list_aggregation(x) -> str:
     return x[0]
 
 
-def set_type(row: pd.Series, max_zip_batch_size) -> pd.Series:
+def set_type(row: pd.Series, max_zip_batch_size) -> str:
     if row['size'] > max_zip_batch_size / 2:
         return 'file'
     else:
@@ -110,7 +109,7 @@ def follow_symlinks(row) -> pd.Series | None:
     return return_ser
 
 
-def my_lit_eval(x: object) -> object:
+def my_lit_eval(x: str) -> object:
     """
     Safely evaluates a string containing a Python literal expression.
 
@@ -119,8 +118,7 @@ def my_lit_eval(x: object) -> object:
     original input is returned unchanged.
 
     Parameters:
-        x (object): The input to evaluate. Typically, this is expected to be a
-        string.
+        x (str): The input to evaluate.
 
     Returns:
         object: The evaluated Python literal if successful, otherwise the
@@ -168,6 +166,8 @@ def isntin(obj: object, series: pd.Series):
 
 
 def to_rds_path(home_path: str, local_dir: str) -> str:
+    home_path_base = ''
+    local_dir_base = ''
     # get base folder for rds- folders
     if 'rds-' in local_dir:
         split = local_dir.split('/')
@@ -189,13 +189,13 @@ def to_rds_path(home_path: str, local_dir: str) -> str:
         return home_path
 
 
-def find_metadata(key: str, bucket) -> List[str]:
+def find_metadata(key: str, bucket) -> List[str] | None:
     """
-    Finds the metadata for a given key in an S3 bucket.
+    Finds the metadata for a given key in a Ceph Object Store.
 
     Args:
         key (dd.core.Scalar or str): The key to search for metadata.
-        s3: The S3 object.
+        s3: The S3 Connection object.
 
     Returns:
         list[str]: A list of existing metadata contents if found, otherwise
@@ -228,7 +228,7 @@ def find_metadata(key: str, bucket) -> List[str]:
         return None
 
 
-def find_metadata_swift(row: pd.Series, conn: swiftclient.Connection, container_name: str) -> List[str]:
+def find_metadata_swift(row: pd.Series, conn: swiftclient.Connection, container_name: str) -> List[str] | None:
     """
     Retrieve metadata for a given key from a Swift container.
 
@@ -256,7 +256,7 @@ def find_metadata_swift(row: pd.Series, conn: swiftclient.Connection, container_
             try:
                 existing_zip_contents = str(conn.get_object(container_name, ''.join([key, '.metadata']))[
                     1
-                ].decode('UTF-8')).split('|')  # use | as separator
+                ].decode('UTF-8')).split('|')  # use | as separator  # noqa
             except Exception:
                 try:
                     existing_zip_contents = conn.head_object(container_name, key)[
@@ -301,13 +301,14 @@ def mem_check(futures):
         if used > worker_mem_limit / 4:
             worker_mems.append(used)
     workers_to_restart = []
-    for w in [w_m > worker_mem_limit / 4 for w_m in worker_mems]:
-        worker = workers[worker_mems.index(w)]
-        workers_to_restart.append(worker)
-        dprint(f'Worker {worker} is running out of memory.', flush=True)
-    dprint('Restarting and rebalancing.', flush=True)
-    client.restart_workers(workers_to_restart)
-    client.rebalance()
+    if worker_mem_limit is not None:
+        for w in [w_m > worker_mem_limit / 4 for w_m in worker_mems]:
+            worker = workers[worker_mems.index(w)]
+            workers_to_restart.append(worker)
+            dprint(f'Worker {worker} is running out of memory.', flush=True)
+        dprint('Restarting and rebalancing.', flush=True)
+        client.restart_workers(workers_to_restart)
+        client.rebalance()
     # wait(futures)
 
 
@@ -385,12 +386,21 @@ def zip_and_upload(
     file_paths = row['paths'].split('|')
     object_names = row['object_names'].split('|')
     id = row['id']
-    # reverse_link_targets = [to_rds_path(on, local_dir) for on in row['object_names'].split('|')]
+    # reverse_link_targets = [to_rds_path(on, local_dir)
+    # for on in row['object_names'].split('|')]
 
     #############
     #  zip part #
     #############
-    zip_data, namelist = zip_folders(local_dir, file_paths, use_compression, dryrun, id, mem_per_worker, object_names)
+    zip_data, namelist = zip_folders(
+        local_dir,
+        file_paths,
+        use_compression,
+        dryrun,
+        id,
+        mem_per_worker,
+        object_names
+    )
     gc.collect()
     dprint('Created zipFile in memory', flush=True)
     ###############
@@ -426,14 +436,14 @@ def zip_and_upload(
             log
         )
         # try:
-            # refs = dict(gc.get_referrers(zip_data)[-1])
-            # zip_data_refs = [k for k, v in refs.items() if v is zip_data]
-            # num_refs = len(zip_data_refs)
-            # dprint(
-            #     f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
-            #     f'\n References: {zip_data_refs}'
-            # )
-            # del refs, zip_data_refs
+        # refs = dict(gc.get_referrers(zip_data)[-1])
+        # zip_data_refs = [k for k, v in refs.items() if v is zip_data]
+        # num_refs = len(zip_data_refs)
+        # dprint(
+        #     f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
+        #     f'\n References: {zip_data_refs}'
+        # )
+        # del refs, zip_data_refs
         # except Exception as e:
         #     dprint(f'Error getting references for zip_data: {e}', flush=True)
         del zip_data, namelist, file_paths
@@ -449,7 +459,7 @@ def zip_folders(
     id: int,
     mem_per_worker: int,
     object_names: list[str],
-) -> tuple[str, int, bytes]:
+) -> tuple[bytes, list[str]]:
     """
     Collates the specified folders into a zip file.
 
@@ -585,7 +595,9 @@ def upload_to_bucket(
     Returns:
         bool: True if the file was uploaded, False if not.
     """
-    if api == 'swift':
+    if api != 'swift':
+        raise ValueError('API must be swift')
+    else:
         try:
             assert type(s3) is swiftclient.Connection
         except AssertionError:
@@ -595,7 +607,6 @@ def upload_to_bucket(
 
         # Check if the file is a symlink
         # If it is, upload an object containing the target path instead
-        link = False
         if os.path.islink(filename):
             raise ValueError('Symlink upload is not supported - these are now listed in a CSV file only.')
 
@@ -603,6 +614,9 @@ def upload_to_bucket(
         file_size = os.stat(filename).st_size
 
         use_future = False
+        upload_time = None
+        upload_start = None
+        upload_end = None
 
         dprint(f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, {file_size} bytes, '
                f'checksum = True, dryrun = {dryrun}', flush=True)
@@ -617,7 +631,6 @@ def upload_to_bucket(
             if hasattr(file_data, 'seek'):
                 file_data.seek(0)
             checksum_string = checksum_hash.hexdigest()
-            checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
 
             try:
                 # Check if file size is larger than 5GiB
@@ -681,15 +694,21 @@ def upload_to_bucket(
                 return False
             # try:
                 # refs = dict(gc.get_referrers(file_data)[-1])
-                # file_data_refs = [k for k, v in refs.items() if v is file_data]
+                # file_data_refs = [
+                #     k for k, v in refs.items() if v is file_data
+                # ]
                 # num_refs = len(file_data_refs)
                 # dprint(
-                #     f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
+                #     f'in zip_and_upload {num_refs} references to filename,
+                #     'only 1 will be deleted'
                 #     f'\n References: {file_data_refs}'
                 # )
             #     del refs, file_data_refs
             # except Exception as e:
-            #     dprint(f'Error getting references for file_data: {e}', flush=True)
+            #     dprint(
+            #         f'Error getting references for file_data: {e}',
+            #         flush=True
+            #     )
             del file_data
         else:
             checksum_string = "DRYRUN"
@@ -708,7 +727,10 @@ def upload_to_bucket(
 
         # upload time
         if not dryrun:
-            log_string += f',"{upload_time.total_seconds()}","{upload_start}","{upload_end}"'
+            if upload_time and upload_start and upload_end:
+                log_string += f',"{upload_time.total_seconds()}","{upload_start}","{upload_end}"'
+            else:
+                log_string += ',"n/a","n/a","n/a"'
 
         with open(log, 'a') as f:
             f.write(log_string + '\n')
@@ -772,8 +794,14 @@ def upload_to_bucket_collated(
     if hasattr(file_data, 'seek'):
         file_data.seek(0)
 
-    dprint(f'Uploading zip file "{filename}" for {folder} to {bucket_name}/{object_key}, '
-            f'{file_data_size} bytes, checksum = True, dryrun = {dryrun}', flush=True)
+    upload_start = None
+    upload_end = None
+    upload_time = None
+
+    dprint(
+        f'Uploading zip file "{filename}" for {folder} to {bucket_name}/{object_key}, '
+        f'{file_data_size} bytes, checksum = True, dryrun = {dryrun}', flush=True
+    )
     """
     - Upload the file to the bucket
     """
@@ -785,15 +813,17 @@ def upload_to_bucket_collated(
         if hasattr(file_data, 'seek'):
             file_data.seek(0)
         checksum_string = checksum_hash.hexdigest()
-        checksum_base64 = base64.b64encode(checksum_hash.digest()).decode()
 
         try:
 
             """
             - Upload the file to the bucket
             """
-            dprint(f'Uploading zip file "{filename}" ({file_data_size} bytes) to '
-                    f'{bucket_name}/{object_key}', flush=True)
+            dprint(
+                f'Uploading zip file "{filename}" ({file_data_size} bytes) to '
+                f'{bucket_name}/{object_key}',
+                flush=True
+            )
             metadata_value = metasep.join(zip_contents)  # use | as separator
 
             metadata_object_key = object_key + '.metadata'
@@ -833,7 +863,10 @@ def upload_to_bucket_collated(
             # )
         #     del refs, file_data_refs
         # except Exception as e:
-        #     dprint(f'Error getting references for file_data: {e}', flush=True)
+        #     dprint(
+            #   f'Error getting references for file_data: {e}',
+            #   flush=True
+            # )
         del file_data
     else:
         checksum_string = "DRYRUN"
@@ -854,7 +887,10 @@ def upload_to_bucket_collated(
         log_string += f',"{logsep.join(zip_contents[:50])} abbreviated"'
 
     # upload time
-    log_string += f',"{upload_time.total_seconds()}","{upload_start}","{upload_end}"'
+    if upload_time and upload_start and upload_end:
+        log_string += f',"{upload_time.total_seconds()}","{upload_start}","{upload_end}"'
+    else:
+        log_string += ',"","",""'
 
     with open(log, 'a') as f:
         f.write(log_string + '\n')
@@ -987,10 +1023,13 @@ def print_stats(
         pass
     # try:
         # refs = dict(gc.get_referrers(file_name_or_data)[-1])
-        # file_name_or_data_refs = [k for k, v in refs.items() if v is file_name_or_data]
+        # file_name_or_data_refs = [
+            # k for k, v in refs.items() if v is file_name_or_data
+        # ]
         # num_refs = len(file_name_or_data_refs)
         # dprint(
-        #     f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
+        #     f'in zip_and_upload {num_refs} references to filename, '
+        #     'only 1 will be deleted'
         #     f'\n References: {file_name_or_data_refs}'
         # )
     #     del refs, file_name_or_data_refs
@@ -1114,10 +1153,13 @@ def upload_and_callback(
     )
     # try:
     #     refs = dict(gc.get_referrers(file_name_or_data)[-1])
-    #     file_name_or_data_refs = [k for k, v in refs.items() if v is file_name_or_data]
+    #     file_name_or_data_refs = [
+    #         k for k, v in refs.items() if v is file_name_or_data
+    #     ]
     #     num_refs = len(file_name_or_data_refs)
     #     dprint(
-    #         f'in zip_and_upload {num_refs} references to filename, only 1 will be deleted'
+    #         f'in zip_and_upload {num_refs} references to filename, '
+    #         f'only 1 will be deleted'
     #         f'\n References: {file_name_or_data_refs}'
     #     )
     #     del refs, file_name_or_data_refs
@@ -1218,7 +1260,7 @@ def process_files(
         ddf.to_csv(pre_symlink_list_file, index=False, single_file=True)
     else:
         print(f'Reading pre-symlink file list from {pre_symlink_list_file}.', flush=True)
-        ddf = dd.read_csv(pre_symlink_list_file)
+        ddf = dd.read_csv(pre_symlink_list_file)  # noqa
     if not os.path.exists(local_list_file):
         # Generate object names for all paths first
         ddf['object_names'] = ddf['paths'].apply(
@@ -1231,7 +1273,8 @@ def process_files(
         regular_files_ddf = ddf[~ddf['islink']].copy()
 
         # Create the new "data records" by following the symlinks
-        # The object_names here will initially be incorrect (copied from the symlink record)
+        # The object_names here will initially be incorrect
+        # (copied from the symlink record)
         followed_links_ddf = symlinks_ddf.map_partitions(
             lambda partition: partition.apply(
                 follow_symlinks,
@@ -1240,7 +1283,9 @@ def process_files(
         ).dropna(subset=['paths'])
         followed_links_ddf.to_csv('TEMP_DEBUGGING_targets.csv', index=False, single_file=True)
         # Now, modify the original symlink records to add the target
-        symlinks_ddf['target'] = symlinks_ddf['paths'].apply(lambda x: os.readlink(x) if os.path.islink(x) else '')
+        symlinks_ddf['target'] = symlinks_ddf['paths'].apply(
+            lambda x: os.readlink(x) if os.path.islink(x) else ''
+        )
         symlinks_ddf.to_csv(symlink_list_file, index=False, single_file=True)
         print('Uploading symlink CSV file.')
         upload_to_bucket(
@@ -1255,7 +1300,8 @@ def process_files(
             os.path.dirname(symlink_list_file) + 'symlink_csv_file.log',
         )
         del symlinks_ddf
-        # Concatenate the three parts: regular files, the symlink records, and the new data records
+        # Concatenate the three parts: regular files, the symlink records,
+        # and the new data records
         ddf_conc = dd.concat(
             [df for df in [regular_files_ddf, followed_links_ddf] if len(df.index) > 0],
             ignore_index=True,
@@ -1264,7 +1310,8 @@ def process_files(
         del ddf, regular_files_ddf, followed_links_ddf
 
         # Get file sizes in parallel
-        # For symlinks, the size is the length of the object name (the target path)
+        # For symlinks, the size is the length of the object name
+        # (the target path)
         # For regular files, it's the actual file size
         ddf_conc['size'] = ddf_conc.apply(
             lambda r: os.stat(r['paths']).st_size,
@@ -1282,7 +1329,6 @@ def process_files(
     else:
         print(f'Reading local file list from {local_list_file}.', flush=True)
         local_files_ddf = dd.read_csv(local_list_file)
-
 
     total_upload_size = local_files_ddf['size'].sum().compute()
 
@@ -1302,7 +1348,8 @@ def process_files(
         # Prepare remote objects DataFrame
         remote_keys_ddf = current_objects[['CURRENT_OBJECTS']].copy()
 
-        # Use a left merge with an indicator to find local files NOT on the remote
+        # Use a left merge with an indicator to find local files
+        # NOT on the remote
         # This is the core of the efficient check
         merged_ddf = dd.merge(
             local_files_ddf,
@@ -1415,7 +1462,7 @@ def process_files(
         ind_uploads_df = None
     if num_zip_uploads > 0:
         # Now one pandas dataframe in scheduler memory
-        zips_uploads_ddf = dd.from_pandas(zips_uploads_df, chunksize=100)
+        zips_uploads_ddf = dd.from_pandas(zips_uploads_df, chunksize=100)  # ignore
 
         #  Drop any files now in current_objects ( for a retry )
         zips_uploads_ddf = zips_uploads_ddf.merge(
@@ -1461,7 +1508,8 @@ def process_files(
             # This list will only hold futures for the current chunk
             zip_upload_futures = []
 
-            # Submit initial set of tasks for this chunk, up to the number of workers
+            # Submit initial set of tasks for this chunk, up to the
+            # number of workers
             for _ in range(min(n_workers, num_uploads_in_chunk)):
                 try:
                     _, row = next(upload_tasks)
