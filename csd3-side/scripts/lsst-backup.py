@@ -1354,7 +1354,7 @@ def process_files(
             zip_files_ddf = zip_files_ddf.repartition(npartitions=len(zip_files_ddf.index) // 100)
             zip_files_df = zip_files_ddf.compute()
             len_zip_files_df = len(zip_files_df)
-        del ind_uploads_ddf, files_to_upload_ddf, ind_uploads_df
+        del ind_uploads_ddf, files_to_upload_ddf
 
         if len_zip_files_df > 0:
             zip_files_df = zip_files_df.sort_values(by='paths').reset_index(drop=True)  # type: ignore
@@ -2000,8 +2000,7 @@ if __name__ == '__main__':
         print(f'Done, elapsed time = {datetime.now() - start_main}', flush=True)
 
         if api == 's3':
-            s3 = None
-            del bucket
+            raise DeprecationWarning('S3 support has been deprecated. Please use Swift API.')
 
         # check local_dir formatting for trailing slash(es)
         while local_dir[-1] == '/':
