@@ -138,7 +138,7 @@ def filesize(path: str):
         int: The size of the file in bytes.
     """
     try:
-        size = os.lstat(path).st_size
+        size = os.stat(path).st_size
     except PermissionError:
         print(f'WARNING: Permission error reading {path}. '
               'File will not be backed up.', flush=True)
@@ -146,6 +146,19 @@ def filesize(path: str):
     except ValueError:
         return 0
     return size
+
+
+def filesize_row(row: pd.Series):
+    """
+    Returns the size of a file in bytes.
+
+    Args:
+        row (pd.Series): The row containing the path to the file.
+
+    Returns:
+        int: The size of the file in bytes.
+    """
+    return filesize(row['paths'])
 
 
 def isntin(obj: object, series: pd.Series):
@@ -1272,9 +1285,9 @@ def process_files(
         # (the target path)
         # For regular files, it's the actual file size
         ddf_conc['size'] = ddf_conc.map_partitions(
-            lambda partition: partition['paths'].apply(
-                filesize,
-                axis=1,
+            lambda partition: partition.apply(
+                filesize_row,
+                axis=1
             ),
             meta=('size', 'int64')  # Using the tuple shorthand is fine here
         )
