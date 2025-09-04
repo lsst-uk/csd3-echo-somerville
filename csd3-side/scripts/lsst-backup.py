@@ -1265,10 +1265,9 @@ def process_files(
         # For symlinks, the size is the length of the object name
         # (the target path)
         # For regular files, it's the actual file size
-        ddf_conc['size'] = ddf_conc.apply(
-            lambda r: os.stat(r['paths']).st_size,
-            axis=1,
-            meta=('size', 'int')
+        ddf_conc['size'] = ddf_conc.map_partitions(
+            lambda partition: partition['paths'].apply(os.stat).str.st_size,
+            meta=('size', 'int64') # Using the tuple shorthand is fine here
         )
 
         # Persist the result before writing to CSV
