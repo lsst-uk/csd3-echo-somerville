@@ -602,7 +602,7 @@ def upload_to_bucket(
             raise ValueError('Symlink upload is not supported - these are now listed in a CSV file only.')
 
         file_data = open(filename, 'rb').read()
-        file_size = os.stat(filename).st_size
+        file_size = filesize(filename)
 
         upload_time = None
         upload_start = None
@@ -1272,8 +1272,11 @@ def process_files(
         # (the target path)
         # For regular files, it's the actual file size
         ddf_conc['size'] = ddf_conc.map_partitions(
-            lambda partition: partition['paths'].apply(os.stat).str.st_size,
-            meta=('size', 'int64') # Using the tuple shorthand is fine here
+            lambda partition: partition['paths'].apply(
+                filesize,
+                axis=1,
+            ),
+            meta=('size', 'int64')  # Using the tuple shorthand is fine here
         )
 
         # Persist the result before writing to CSV
