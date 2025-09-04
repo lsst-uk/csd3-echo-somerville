@@ -646,11 +646,13 @@ def upload_to_bucket(
                     segmented_upload = [filename]
                     for so in segment_objects:
                         segmented_upload.append(so)
-
                     dprint(
-                        f'Uploading {filename} to {bucket_name}/{object_key} in '
-                        f'{n_segments} parts.', flush=True
+                        f'Uploading {filename} from {folder} to {bucket_name}/{object_key} in '
+                        f'{n_segments} parts, total {file_size} bytes, '
+                        f'checksum = True, dryrun = {dryrun}',
+                        flush=True
                     )
+
                     upload_start = datetime.now()
                     _ = swift_service.upload(
                         bucket_name,
@@ -669,7 +671,11 @@ def upload_to_bucket(
                     """
                     - Upload the file to the bucket
                     """
-                    dprint(f'Uploading {filename} to {bucket_name}/{object_key}')
+                    dprint(
+                        f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, {file_size} bytes, '
+                        f'checksum = True, dryrun = {dryrun}',
+                        flush=True
+                    )
                     upload_start = datetime.now()
 
                     s3.put_object(
