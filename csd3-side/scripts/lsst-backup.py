@@ -1317,7 +1317,7 @@ def process_files(
         ddf_conc = ddf_conc.persist()
 
         print("Writing final local file list to CSV...", flush=True)
-        ddf_conc.to_csv(local_list_file, index=False, single_file=True)
+        ddf_conc.to_csv(local_list_file, index=True, single_file=True)
         del ddf_conc
         local_files_ddf = dd.read_csv(local_list_file)  # type: ignore
     else:
