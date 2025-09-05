@@ -1296,20 +1296,22 @@ def process_files(
         # --- Phase 2: Bring paths to client, sort in-memory, and create final Dask DataFrame ---
         print("Consolidating and sorting file paths...", flush=True)
         # Compute the results into pandas DataFrames
-        regular_files_df = regular_files_ddf.compute()
-        followed_links_df = followed_links_ddf.compute()
+        regular_files_ddf.to_csv('reg_temp.csv', index=False, single_file=True)
+        followed_links_ddf.to_csv('fl_temp.csv', index=False, single_file=True)
 
         # Concatenate into a single pandas DataFrame
-        all_files_pd = pd.concat([regular_files_df, followed_links_df], ignore_index=True)
-        del regular_files_df, followed_links_df, ddf, regular_files_ddf, followed_links_ddf
+        all_files_pd = dd.read_csv(['reg_temp.csv', 'fl_temp.csv']).compute()
+        del regular_files_ddf, followed_links_ddf, ddf
 
         # Perform a single, fast, deterministic sort in memory
         print(f"Sorting {len(all_files_pd)} file paths in memory (this may take a moment)...", flush=True)
-        all_files_pd.sort_values('paths', inplace=True, ignore_index=True)
+        all_files_pd.sort_values('paths', inplace=True, ignore_index=True).to_csv('all_files_sorted.csv', index=False)
+        del all_files_pd
 
         # Create the final, globally-sorted Dask DataFrame
-        ddf_conc = dd.from_pandas(all_files_pd, npartitions=max(1, len(all_files_pd) // 10000))
-        del all_files_pd
+        ddf_conc = dd.read_csv('all_files_sorted.csv', npartitions=max(1, len(all_files_pd) // 10000))
+
+        print('Using filesize_row function to get file sizes...', flush=True)
 
         # Get file sizes in parallel
         # For symlinks, the size is the length of the object name
