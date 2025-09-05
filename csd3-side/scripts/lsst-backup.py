@@ -1269,7 +1269,7 @@ def process_files(
                 axis=1),
             meta=symlinks_ddf._meta,
         ).dropna(subset=['paths'])
-        followed_links_ddf.to_csv('TEMP_DEBUGGING_targets.csv', index=False, single_file=True)
+
         # Now, modify the original symlink records to add the target
         symlinks_ddf['target'] = symlinks_ddf.map_partitions(
             lambda partition: partition.apply(
@@ -1292,14 +1292,24 @@ def process_files(
             os.path.dirname(symlink_list_file) + 'symlink_csv_file.log',
         )
         del symlinks_ddf
-        # Concatenate the three parts: regular files, the symlink records,
-        # and the new data records
-        ddf_conc = dd.concat(  # type: ignore
-            [df for df in [regular_files_ddf, followed_links_ddf] if len(df.index) > 0],
-            ignore_index=True,
-            axis=0
-        )
-        del ddf, regular_files_ddf, followed_links_ddf
+
+        # --- Phase 2: Bring paths to client, sort in-memory, and create final Dask DataFrame ---
+        print("Consolidating and sorting file paths...", flush=True)
+        # Compute the results into pandas DataFrames
+        regular_files_df = regular_files_ddf.compute()
+        followed_links_df = followed_links_ddf.compute()
+
+        # Concatenate into a single pandas DataFrame
+        all_files_pd = pd.concat([regular_files_df, followed_links_df], ignore_index=True)
+        del regular_files_df, followed_links_df, ddf, regular_files_ddf, followed_links_ddf
+
+        # Perform a single, fast, deterministic sort in memory
+        print(f"Sorting {len(all_files_pd)} file paths in memory (this may take a moment)...", flush=True)
+        all_files_pd.sort_values('paths', inplace=True, ignore_index=True)
+
+        # Create the final, globally-sorted Dask DataFrame
+        ddf_conc = dd.from_pandas(all_files_pd, npartitions=max(1, len(all_files_pd) // 10000))
+        del all_files_pd
 
         # Get file sizes in parallel
         # For symlinks, the size is the length of the object name
@@ -1397,17 +1407,9 @@ def process_files(
         del ind_uploads_ddf, files_to_upload_ddf
 
         if len_zip_files_df > 0:
-            zip_files_ddf = zip_files_ddf.repartition(npartitions=len_zip_files_df // 1000 + 1)
-            # Create a temporary column for a cheaper, more memory-efficient
-            # partitioning.
-            # This key is built from the filename only, not the full path.
-            # This is a heuristic to avoid a full sort on the unique path,
-            # which is slow and memory-intensive.
-            zip_files_ddf['partition_key'] = zip_files_ddf['paths'].str.split('/').str[-1]
-
-            # Set the index to this new key. This is a much cheaper shuffle
-            # than sorting by the full, unique path.
-            zip_files_ddf = zip_files_ddf.set_index('partition_key', sorted=True)
+            # The zip_files_ddf is already globally sorted by 'paths' because it's a
+            # subset of the pre-sorted local_files_ddf. We can proceed directly
+            # to batching within partitions.
 
             # Apply batch numbering for each partition
             zip_files_ddf = zip_files_ddf.map_partitions(
@@ -1416,9 +1418,10 @@ def process_files(
                 max_zip_batch_count,
                 meta=zip_files_ddf._meta.assign(batch_in_partition=int)
             )
+
             # MAX_BATCHES_IN_PARTITION
             # Unlikely to ever exceed 1e6
-            MAX_BATCHES_IN_PARTITION = 1e6
+            MAX_BATCHES_IN_PARTITION = 1_000_000
             # Create a globally unique batch ID
             zip_files_ddf['id'] = zip_files_ddf['dask_partition_id'] * MAX_BATCHES_IN_PARTITION + zip_files_ddf['batch_in_partition']  # noqa
 
