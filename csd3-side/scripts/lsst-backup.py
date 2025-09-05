@@ -1397,13 +1397,19 @@ def process_files(
         del ind_uploads_ddf, files_to_upload_ddf
 
         if len_zip_files_df > 0:
-            # Set the index to 'paths' and sort. This forces a deterministic
-            # shuffle and partitioning based on the path values. This is much
-            # more memory-efficient than a full sort_values on a non-index column.
-            zip_files_ddf = zip_files_ddf.set_index('paths', sorted=True)
+            # Create a temporary column for a cheaper, more memory-efficient
+            # partitioning.
+            # This key is built from the last few directory names in the path,
+            # which provides a much better distribution than a simple prefix.
+            # The directory structure is typically deep, so assuming at least
+            # 4 folders is safe.
+            # This is a heuristic to avoid a full sort on the unique path,
+            # which is slow and memory-intensive.
+            zip_files_ddf['partition_key'] = zip_files_ddf['paths'].str.split('/').str[-4:-1].str.join('')
 
-            # npartitions = max(1, len_zip_files_df // 10000)
-            # zip_files_ddf = zip_files_ddf.repartition(npartitions=npartitions)
+            # Set the index to this new key. This is a much cheaper shuffle
+            # than sorting by the full, unique path.
+            zip_files_ddf = zip_files_ddf.set_index('partition_key', sorted=True)
 
             # Apply batch numbering for each partition
             zip_files_ddf = zip_files_ddf.map_partitions(
