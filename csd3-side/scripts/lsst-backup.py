@@ -1406,7 +1406,7 @@ def process_files(
             # 4 folders is safe.
             # This is a heuristic to avoid a full sort on the unique path,
             # which is slow and memory-intensive.
-            zip_files_ddf['partition_key'] = zip_files_ddf['paths'].str.split('/').str[-4:-1].str.join('')
+            zip_files_ddf['partition_key'] = zip_files_ddf['paths'].str.split('/').str[-4:-1].str.join('').str[:5]
 
             # Set the index to this new key. This is a much cheaper shuffle
             # than sorting by the full, unique path.
