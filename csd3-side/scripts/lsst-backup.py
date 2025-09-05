@@ -1397,6 +1397,7 @@ def process_files(
         del ind_uploads_ddf, files_to_upload_ddf
 
         if len_zip_files_df > 0:
+            zip_files_ddf = zip_files_ddf.repartition(npartitions=len_zip_files_df // 1000 + 1)
             # Create a temporary column for a cheaper, more memory-efficient
             # partitioning.
             # This key is built from the last few directory names in the path,
