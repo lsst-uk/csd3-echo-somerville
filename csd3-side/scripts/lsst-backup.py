@@ -1402,11 +1402,11 @@ def process_files(
             # partitioning.
             # This key is built from the last few directory names in the path,
             # which provides a much better distribution than a simple prefix.
-            # The directory structure is typically deep, so assuming at least
-            # 4 folders is safe.
-            # This is a heuristic to avoid a full sort on the unique path,
-            # which is slow and memory-intensive.
-            zip_files_ddf['partition_key'] = zip_files_ddf['paths'].str.split('/').str[-4:-1].str.join('').str[:5]
+            key_series = zip_files_ddf['paths'].str.split('/').str[-4:-1].str.join('')
+
+            # Fill any potential NaN/empty values and pad to a fixed length
+            # to make the key robust and uniform for Dask's sorter.
+            zip_files_ddf['partition_key'] = key_series.fillna('defaultkey').str.pad(5, side='right', fillchar='_').str[:5]
 
             # Set the index to this new key. This is a much cheaper shuffle
             # than sorting by the full, unique path.
