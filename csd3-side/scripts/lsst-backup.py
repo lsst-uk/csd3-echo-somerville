@@ -1300,7 +1300,7 @@ def process_files(
         followed_links_ddf.to_csv('fl_temp.csv', index=False, single_file=True)
 
         # Concatenate into a single pandas DataFrame
-        all_files_pd = dd.read_csv(['reg_temp.csv', 'fl_temp.csv']).compute()
+        all_files_pd = pd.concat([pd.read_csv('reg_temp.csv'), pd.read_csv('fl_temp.csv')])
         del regular_files_ddf, followed_links_ddf, ddf
 
         # Perform a single, fast, deterministic sort in memory
