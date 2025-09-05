@@ -64,6 +64,27 @@ def list_aggregation(x) -> str:
     return x[0]
 
 
+def assign_batch_ids(df, max_size, max_count):
+    # expects data to already be sorted
+    batch_assignments = []
+    cumulative_size = 0
+    files_in_batch = 0
+    batch_id = 0  # Start at 0 for each partition
+
+    for _, row in df.iterrows():
+        if (cumulative_size + row['size'] > max_size and cumulative_size > 0) or \
+           (files_in_batch >= max_count):
+            batch_id += 1
+            cumulative_size = 0
+            files_in_batch = 0
+        batch_assignments.append(batch_id)
+        cumulative_size += row['size']
+        files_in_batch += 1
+
+    df['batch_in_partition'] = batch_assignments
+    return df
+
+
 def set_type(row: pd.Series, max_zip_batch_size) -> str:
     if row['size'] > max_zip_batch_size / 2:
         return 'file'
@@ -1373,43 +1394,70 @@ def process_files(
         # zip_files_df = None
         # Compute into pandas DataFrames for sequential processing
         len_zip_files_df = len(zip_files_ddf.index)
-        if len_zip_files_df > 0:
-            zip_files_ddf = zip_files_ddf.repartition(npartitions=len_zip_files_df // 100)
         del ind_uploads_ddf, files_to_upload_ddf
 
         if len_zip_files_df > 0:
-            zip_files_ddf = zip_files_ddf.sort_values(by='paths').reset_index(drop=True)  # type: ignore
-            zip_files_ddf_chunks = zip_files_ddf.to_delayed()
-            batch_assignments = []
-            for i, chunk in enumerate(zip_files_ddf_chunks):
-                cumulative_size = 0
-                batch_id = 1
-                files_in_zip_count = 0
-                for i, row in tqdm(
-                    chunk.iterrows(),
-                    total=len(chunk),
-                    desc="Deciding on zip files."
-                ):
-                    if (cumulative_size + row['size'] > max_zip_batch_size and cumulative_size > 0) or \
-                       (files_in_zip_count >= max_zip_batch_count):
-                        batch_id += 1
-                        cumulative_size = 0
-                        files_in_zip_count = 0
-                    batch_assignments.append(batch_id)
-                    cumulative_size += row['size']
-                    files_in_zip_count += 1
-            zip_batches = pd.Series(batch_assignments, name='id')
-            del batch_assignments
-            zip_files_ddf['id'] = zip_batches.values
-            del zip_batches
-            # 5. Aggregate zip files into batches
+            # Set the index to 'paths' and sort. This forces a deterministic
+            # shuffle and partitioning based on the path values. This is much
+            # more memory-efficient than a full sort_values on a non-index column.
+            zip_files_ddf = zip_files_ddf.set_index('paths', sorted=True)
 
-            zips_uploads_ddf = zip_files_ddf.groupby('id').agg(
-                paths=('paths', lambda s: '|'.join(s)),
-                object_names=('object_names', lambda s: '|'.join(s)),
-                size=('size', 'sum')
-            ).reset_index()
+            # npartitions = max(1, len_zip_files_df // 10000)
+            # zip_files_ddf = zip_files_ddf.repartition(npartitions=npartitions)
+
+            # Apply batch numbering for each partition
+            zip_files_ddf = zip_files_ddf.map_partitions(
+                assign_batch_ids,
+                max_zip_batch_size,
+                max_zip_batch_count,
+                meta=zip_files_ddf._meta.assign(batch_in_partition=int)
+            )
+            # MAX_BATCHES_IN_PARTITION
+            # Unlikely to ever exceed 1e6
+            MAX_BATCHES_IN_PARTITION = 1e6
+            # Create a globally unique batch ID
+            zip_files_ddf['id'] = zip_files_ddf['dask_partition_id'] * MAX_BATCHES_IN_PARTITION + zip_files_ddf['batch_in_partition']  # noqa
+
+            # Aggregate zip files into batches
+            zips_uploads_ddf = zip_files_ddf.groupby('id').agg({
+                'paths': lambda s: '|'.join(s),
+                'object_names': lambda s: '|'.join(s),
+                'size': 'sum'
+            }).reset_index()
             zips_uploads_ddf['type'] = 'zip'
+
+            # zip_files_ddf = zip_files_ddf.sort_values(by='paths').reset_index(drop=True)  # type: ignore
+            # zip_files_ddf_chunks = zip_files_ddf.to_delayed()
+            # batch_assignments = []
+            # for i, chunk in enumerate(zip_files_ddf_chunks):
+            #     cumulative_size = 0
+            #     batch_id = 1
+            #     files_in_zip_count = 0
+            #     for i, row in tqdm(
+            #         chunk.iterrows(),
+            #         total=len(chunk),
+            #         desc="Deciding on zip files."
+            #     ):
+            #         if (cumulative_size + row['size'] > max_zip_batch_size and cumulative_size > 0) or \
+            #            (files_in_zip_count >= max_zip_batch_count):
+            #             batch_id += 1
+            #             cumulative_size = 0
+            #             files_in_zip_count = 0
+            #         batch_assignments.append(batch_id)
+            #         cumulative_size += row['size']
+            #         files_in_zip_count += 1
+            # zip_batches = pd.Series(batch_assignments, name='id')
+            # del batch_assignments
+            # zip_files_ddf['id'] = zip_batches.values
+            # del zip_batches
+            # # 5. Aggregate zip files into batches
+
+            # zips_uploads_ddf = zip_files_ddf.groupby('id').agg(
+            #     paths=('paths', lambda s: '|'.join(s)),
+            #     object_names=('object_names', lambda s: '|'.join(s)),
+            #     size=('size', 'sum')
+            # ).reset_index()
+            # zips_uploads_ddf['type'] = 'zip'
 
             zips_uploads_ddf['zip_names'] = zips_uploads_ddf.map_partitions(
                 lambda partition: partition.apply(
