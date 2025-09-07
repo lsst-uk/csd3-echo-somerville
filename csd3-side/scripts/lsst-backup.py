@@ -1300,8 +1300,15 @@ def process_files(
         # followed_links_ddf.to_csv('fl_temp.csv', index=False, single_file=True)
 
         # Concatenate into a single pandas DataFrame
-        all_files_pd = pd.concat([regular_files_ddf.compute(), followed_links_ddf.compute()])
-        del regular_files_ddf, followed_links_ddf, ddf
+        print('1', flush=True)
+        rf_df = regular_files_ddf.reset_index(drop=True).compute()
+        print('2', flush=True)
+        fl_df = followed_links_ddf.reset_index(drop=True).compute()
+        print('3', flush=True)
+        all_files_pd = pd.concat([rf_df, fl_df])
+        print('4', flush=True)
+        del regular_files_ddf, followed_links_ddf, ddf, rf_df, fl_df
+        gc.collect()
 
         # Perform a single, fast, deterministic sort in memory
         print(f"Sorting {len(all_files_pd)} file paths in memory (this may take a moment)...", flush=True)
