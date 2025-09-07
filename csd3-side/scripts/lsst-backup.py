@@ -1296,20 +1296,21 @@ def process_files(
         # --- Phase 2: Bring paths to client, sort in-memory, and create final Dask DataFrame ---
         print("Consolidating and sorting file paths...", flush=True)
         # Compute the results into pandas DataFrames
-        regular_files_ddf.to_csv('reg_temp.csv', index=False, single_file=True)
-        followed_links_ddf.to_csv('fl_temp.csv', index=False, single_file=True)
+        # regular_files_ddf.to_csv('reg_temp.csv', index=False, single_file=True)
+        # followed_links_ddf.to_csv('fl_temp.csv', index=False, single_file=True)
 
         # Concatenate into a single pandas DataFrame
-        all_files_pd = pd.concat([pd.read_csv('reg_temp.csv'), pd.read_csv('fl_temp.csv')])
+        all_files_pd = pd.concat([regular_files_ddf.compute(), followed_links_ddf.compute()])
         del regular_files_ddf, followed_links_ddf, ddf
 
         # Perform a single, fast, deterministic sort in memory
         print(f"Sorting {len(all_files_pd)} file paths in memory (this may take a moment)...", flush=True)
-        all_files_pd.sort_values('paths', inplace=True, ignore_index=True).to_csv('all_files_sorted.csv', index=False)
+        all_files_pd.sort_values('paths', inplace=True, ignore_index=True)
+        local_files_ddf = dd.from_pandas(all_files_pd, npartitions=max(1, len(all_files_pd) // 10000))
         del all_files_pd
 
         # Create the final, globally-sorted Dask DataFrame
-        ddf_conc = dd.read_csv('all_files_sorted.csv', npartitions=max(1, len(all_files_pd) // 10000))
+        local_files_ddf = local_files_ddf.persist()
 
         print('Using filesize_row function to get file sizes...', flush=True)
 
@@ -1317,7 +1318,7 @@ def process_files(
         # For symlinks, the size is the length of the object name
         # (the target path)
         # For regular files, it's the actual file size
-        ddf_conc['size'] = ddf_conc.map_partitions(
+        local_files_ddf['size'] = local_files_ddf.map_partitions(
             lambda partition: partition.apply(
                 filesize_row,
                 axis=1
@@ -1326,12 +1327,12 @@ def process_files(
         )
 
         # Persist the result before writing to CSV
-        ddf_conc = ddf_conc.persist()
+        local_files_ddf = local_files_ddf.persist()
 
         print("Writing final local file list to CSV...", flush=True)
-        ddf_conc.to_csv(local_list_file, index=True, single_file=True)
-        del ddf_conc
-        local_files_ddf = dd.read_csv(local_list_file)  # type: ignore
+        local_files_ddf.to_csv(local_list_file, index=True, single_file=True)
+
+        # local_files_ddf = dd.read_csv(local_list_file)  # type: ignore
     else:
         print(f'Reading local file list from {local_list_file}.', flush=True)
         local_files_ddf = dd.read_csv(local_list_file)  # type: ignore
