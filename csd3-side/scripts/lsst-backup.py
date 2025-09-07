@@ -1301,11 +1301,8 @@ def process_files(
 
         # Concatenate into a single pandas DataFrame
         print('1', flush=True)
-        rf_df = pd.DataFrame(columns=regular_files_ddf._meta.columns)  # type: ignore
-        rf_df = regular_files_ddf.map_partitions(
-            lambda partition: rf_df.concat(partition),
-            meta=regular_files_ddf._meta
-        )
+        # rf_df = pd.DataFrame(columns=regular_files_ddf._meta.columns)  # type: ignore
+        rf_df = regular_files_ddf.compute(scheduler='processes')
         print('2', flush=True)
         fl_df = followed_links_ddf.reset_index(drop=True).compute()
         print('3', flush=True)
