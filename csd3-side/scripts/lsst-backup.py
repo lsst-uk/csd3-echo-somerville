@@ -1238,18 +1238,18 @@ def process_files(
 
         local_files_df = pd.DataFrame(paths, columns=['paths'])
         print(f'Found {len(local_files_df)} local files.', flush=True)
+        # Save the initial, unsorted file list. This "freezes" the order for all future runs.
+        local_files_df.to_csv(pre_symlink_list_file, index=False)
 
         # Use Dask for parallel processing of file info
         ddf = dd.from_pandas(local_files_df, npartitions=max(1, len(local_files_df) // 1000))  # type: ignore
-
-        # Identify symlinks
-        ddf['islink'] = ddf['paths'].apply(os.path.islink, meta=('islink', 'bool'))
-
-        ddf.to_csv(pre_symlink_list_file, index=False, single_file=True)
     else:
         print(f'Reading pre-symlink file list from {pre_symlink_list_file}.', flush=True)
-        ddf = dd.read_csv(pre_symlink_list_file)  # type: ignore
+        local_files_pd = pd.read_csv(pre_symlink_list_file)
+        ddf = dd.from_pandas(local_files_pd, npartitions=max(1, len(local_files_pd) // 1000))  # type: ignore
     if not os.path.exists(local_list_file):
+        # Identify symlinks
+        ddf['islink'] = ddf['paths'].apply(os.path.islink, meta=('islink', 'bool'))
         # Generate object names for all paths first
         ddf['object_names'] = ddf['paths'].apply(
             lambda p: f"{destination_dir}/{os.path.relpath(p, local_dir)}",
@@ -1258,17 +1258,19 @@ def process_files(
 
         # Separate symlinks from regular files
         symlinks_ddf = ddf[ddf['islink']].copy()
-        regular_files_ddf = ddf[~ddf['islink']].copy()
+        regular_files_df = ddf[~ddf['islink']].copy().compute()
+        del ddf
+        gc.collect()
 
         # Create the new "data records" by following the symlinks
         # The object_names here will initially be incorrect
         # (copied from the symlink record)
-        followed_links_ddf = symlinks_ddf.map_partitions(
+        followed_links_df = symlinks_ddf.map_partitions(
             lambda partition: partition.apply(
                 follow_symlinks,
                 axis=1),
             meta=symlinks_ddf._meta,
-        ).dropna(subset=['paths'])
+        ).dropna(subset=['paths']).compute()
 
         # Now, modify the original symlink records to add the target
         symlinks_ddf['target'] = symlinks_ddf.map_partitions(
@@ -1300,22 +1302,14 @@ def process_files(
         # followed_links_ddf.to_csv('fl_temp.csv', index=False, single_file=True)
 
         # Concatenate into a single pandas DataFrame
-        print('1', flush=True)
-        # rf_df = pd.DataFrame(columns=regular_files_ddf._meta.columns)  # type: ignore
-        rf_df = regular_files_ddf.compute(scheduler='processes')
-        print('2', flush=True)
-        fl_df = followed_links_ddf.reset_index(drop=True).compute()
-        print('3', flush=True)
-        all_files_pd = pd.concat([rf_df, fl_df])
-        print('4', flush=True)
-        del regular_files_ddf, followed_links_ddf, ddf, rf_df, fl_df
+        all_files_df = pd.concat([regular_files_df, followed_links_df])
+        del regular_files_df, followed_links_df
         gc.collect()
 
-        # Perform a single, fast, deterministic sort in memory
-        print(f"Sorting {len(all_files_pd)} file paths in memory (this may take a moment)...", flush=True)
-        all_files_pd.sort_values('paths', inplace=True, ignore_index=True)
-        local_files_ddf = dd.from_pandas(all_files_pd, npartitions=max(1, len(all_files_pd) // 10000))
-        del all_files_pd
+        # NO SORTING NEEDED - The order is already deterministic based on the initial file.
+        print(f"Processing {len(all_files_df)} file paths with fixed order.", flush=True)
+        local_files_ddf = dd.from_pandas(all_files_df, npartitions=max(1, len(all_files_df) // 10000))
+        del all_files_df
 
         # Create the final, globally-sorted Dask DataFrame
         local_files_ddf = local_files_ddf.persist()
