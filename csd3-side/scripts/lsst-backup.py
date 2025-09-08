@@ -1415,7 +1415,7 @@ def process_files(
                 assign_batch_ids,
                 max_zip_batch_size,
                 max_zip_batch_count,
-                meta=zip_files_ddf._meta.assign(batch_in_partition=int)
+                meta=zip_files_ddf._meta.assign(batch_in_partition='int64')
             )
 
             # MAX_BATCHES_IN_PARTITION
