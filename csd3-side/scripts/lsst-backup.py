@@ -1490,15 +1490,18 @@ def process_files(
 
         if zips_uploads_ddf is not None:
             num_zip_uploads = len(zips_uploads_ddf.index)
+            zips_uploads_ddf = zips_uploads_ddf.persist()
             # Write final dask dataframe to a csv files
-            # zips_uploads_ddf.to_csv(zip_batch_list_file)
+            zips_uploads_ddf.to_csv(zip_batch_list_file)
         else:
             num_zip_uploads = 0
+        update = False
 
     else:
         print(f'Reading zip batch list from {zip_batch_list_file}.', flush=True)
-        zips_uploads_ddf = dd.read_csv(zip_batch_list_file)  # type: ignore
+        zips_uploads_ddf = dd.read_csv(zip_batch_list_file).persist()  # type: ignore
         num_zip_uploads = len(zips_uploads_ddf.index)
+        update = True
 
     if num_zip_uploads > 0:
         # 6. Execute uploads in parallel
@@ -1506,20 +1509,20 @@ def process_files(
 
         # Now one pandas dataframe in scheduler memory
         # zips_uploads_ddf = dd.from_pandas(zips_uploads_df, chunksize=1000)  # type: ignore
+        if update:
+            #  Drop any files now in current_objects ( for a retry )
+            zips_uploads_ddf = zips_uploads_ddf.merge(
+                current_objects[['CURRENT_OBJECTS']],
+                left_on='zip_names',
+                right_on='CURRENT_OBJECTS',
+                how='left',
+                indicator=True
+            )
+            zips_uploads_ddf = zips_uploads_ddf[zips_uploads_ddf['_merge'] == 'left_only']
+            zips_uploads_ddf = zips_uploads_ddf.drop(columns=['_merge', 'CURRENT_OBJECTS'])
 
-        #  Drop any files now in current_objects ( for a retry )
-        zips_uploads_ddf = zips_uploads_ddf.merge(
-            current_objects[['CURRENT_OBJECTS']],
-            left_on='zip_names',
-            right_on='CURRENT_OBJECTS',
-            how='left',
-            indicator=True
-        )
-        zips_uploads_ddf = zips_uploads_ddf[zips_uploads_ddf['_merge'] == 'left_only']
-        zips_uploads_ddf = zips_uploads_ddf.drop(columns=['_merge', 'CURRENT_OBJECTS'])
-
-        # Update (rewrite) CSV file
-        # zips_uploads_ddf.to_csv('updated_' + zip_batch_list_file, single_file=True)
+            # Update (rewrite) CSV file
+            zips_uploads_ddf.to_csv('updated_' + zip_batch_list_file, single_file=True)
 
         zips_uploads_delayed = zips_uploads_ddf.to_delayed()
 
