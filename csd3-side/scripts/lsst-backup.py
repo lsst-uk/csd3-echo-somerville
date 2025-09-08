@@ -1245,11 +1245,11 @@ def process_files(
         local_files_df.to_csv(pre_symlink_list_file, index=False)
 
         # Use Dask for parallel processing of file info
-        ddf = dd.from_pandas(local_files_df, npartitions=max(1, len(local_files_df) // 1000))  # type: ignore
+        ddf = dd.from_pandas(local_files_df, chunksize=100_000)  # type: ignore
     else:
         print(f'Reading pre-symlink file list from {pre_symlink_list_file}.', flush=True)
         local_files_pd = pd.read_csv(pre_symlink_list_file)
-        ddf = dd.from_pandas(local_files_pd, npartitions=max(1, len(local_files_pd) // 1000))  # type: ignore
+        ddf = dd.from_pandas(local_files_pd, chunksize=100_000)  # type: ignore
     if not os.path.exists(local_list_file):
         # Identify symlinks
         ddf['islink'] = ddf['paths'].apply(os.path.islink, meta=('islink', 'bool'))
