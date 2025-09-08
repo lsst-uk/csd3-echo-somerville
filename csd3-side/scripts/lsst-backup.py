@@ -706,7 +706,8 @@ def upload_to_bucket(
                     - Upload the file to the bucket
                     """
                     dprint(
-                        f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, {file_size} bytes, '
+                        f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, '
+                        f'{file_size} bytes, '
                         f'checksum = True, dryrun = {dryrun}',
                         flush=True
                     )
@@ -1202,6 +1203,8 @@ def process_files(
     upload_list_file = local_list_file.replace('local-file-list.csv', 'upload-list.csv')
     ind_upload_list_file = upload_list_file.replace('.csv', '_individual.csv')
     max_zip_batch_size = 128 * 1024**2
+    ind_successful = False
+    zips_successful = False
 
     # Set a conservative total for the per-user file descriptor limit.
     # This is based on the observation that many workers fail while fewer
@@ -1308,7 +1311,10 @@ def process_files(
 
         # NO SORTING NEEDED - The order is already deterministic based on the initial file.
         print(f"Processing {len(all_files_df)} file paths with fixed order.", flush=True)
-        local_files_ddf = dd.from_pandas(all_files_df, npartitions=max(1, len(all_files_df) // 10000))
+        local_files_ddf = dd.from_pandas(  # type: ignore
+            all_files_df,
+            npartitions=max(1, len(all_files_df) // 10000)
+        )
         del all_files_df
 
         # Create the final, globally-sorted Dask DataFrame
@@ -1953,6 +1959,8 @@ if __name__ == '__main__':
         sys.exit()
 
     print(f'Using {api.capitalize()} API with host {s3_host}')
+
+    bucket_list = []
 
     if api == 's3':
         s3 = bm.get_resource()
