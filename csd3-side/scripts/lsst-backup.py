@@ -1435,9 +1435,9 @@ def process_files(
             # functions for string joining.
             string_join_agg = dd.Aggregation(  # type: ignore
                 name='string_join',
-                chunk=lambda s: s.tolist(),
-                agg=lambda s: '|'.join(s),  # .sum() on lists of lists concatenates them
-                finalize=lambda s: '|'.join(s),
+                chunk=lambda s: s.str.cat(sep='|'),
+                agg=lambda s: s.str.cat(sep='|'),
+                finalize=lambda s: s.str.cat(sep='|'),
                 # meta='object'
             )
 
