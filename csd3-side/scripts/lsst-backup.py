@@ -1436,8 +1436,9 @@ def process_files(
             string_join_agg = dd.Aggregation(  # type: ignore
                 name='string_join',
                 chunk=lambda s: s.tolist(),
-                agg=lambda s: s.sum(),  # .sum() on lists of lists concatenates them
-                finalize=lambda s: '|'.join(s)
+                agg=lambda s: '|'.join(s),  # .sum() on lists of lists concatenates them
+                finalize=lambda s: '|'.join(s),
+                # meta='object'
             )
 
             # Aggregate zip files into batches
