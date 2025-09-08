@@ -1487,9 +1487,6 @@ def process_files(
                 meta=('zip_names', 'str')
             )
 
-        # 6. Execute uploads in parallel
-        print('Starting uploads...', flush=True)
-
         if zips_uploads_ddf is not None:
             num_zip_uploads = len(zips_uploads_ddf.index)
             # Write final dask dataframe to a csv files
@@ -1505,6 +1502,9 @@ def process_files(
         num_zip_uploads = len(zips_uploads_df)
 
     if num_zip_uploads > 0:
+        # 6. Execute uploads in parallel
+        print('Starting uploads...', flush=True)
+
         # Now one pandas dataframe in scheduler memory
         zips_uploads_ddf = dd.from_pandas(zips_uploads_df, chunksize=100)  # type: ignore
 
