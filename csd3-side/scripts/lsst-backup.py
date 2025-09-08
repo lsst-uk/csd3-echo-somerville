@@ -1430,23 +1430,20 @@ def process_files(
                 meta=('id', 'int64')
             )
 
-            # Define a custom Dask aggregation for string joining.
-            # Dask's default `agg` does not know how to handle lambda
-            # functions for string joining.
-            string_join_agg = dd.Aggregation(  # type: ignore
-                name='string_join',
-                chunk=lambda s: s.str.cat(sep='|'),
-                agg=lambda s: s.str.cat(sep='|'),
-                finalize=lambda s: s.str.cat(sep='|'),
-                # meta='object'
-            )
+            # Define a function to apply to each group. This is more robust than a
+            # custom aggregation when metadata inference is difficult.
+            def aggregate_group(group):
+                return pd.Series({
+                    'paths': '|'.join(group['paths']),
+                    'object_names': '|'.join(group['object_names']),
+                    'size': group['size'].sum()
+                })
 
-            # Aggregate zip files into batches
-            zips_uploads_ddf = zip_files_ddf.groupby('id').agg({
-                'paths': string_join_agg,
-                'object_names': string_join_agg,
-                'size': 'sum'
-            }).reset_index()
+            # Use groupby().apply() with explicit metadata
+            zips_uploads_ddf = zip_files_ddf.groupby('id').apply(
+                aggregate_group,
+                meta={'paths': 'object', 'object_names': 'object', 'size': 'int64'}
+            ).reset_index()
             zips_uploads_ddf['type'] = 'zip'
 
             # zip_files_ddf = zip_files_ddf.sort_values(by='paths').reset_index(drop=True)  # type: ignore
