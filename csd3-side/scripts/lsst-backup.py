@@ -1421,8 +1421,14 @@ def process_files(
             # MAX_BATCHES_IN_PARTITION
             # Unlikely to ever exceed 1e6
             MAX_BATCHES_IN_PARTITION = 1_000_000
-            # Create a globally unique batch ID
-            zip_files_ddf['id'] = zip_files_ddf['dask_partition_id'] * MAX_BATCHES_IN_PARTITION + zip_files_ddf['batch_in_partition']  # noqa
+            # Create a globally unique batch ID using a map_partitions call to access
+            # the partition number from Dask's metadata.
+            zip_files_ddf['id'] = zip_files_ddf.map_partitions(
+                lambda partition, partition_info: (
+                    partition_info['number'] * MAX_BATCHES_IN_PARTITION
+                ) + partition['batch_in_partition'],
+                meta=('id', 'int64')
+            )
 
             # Aggregate zip files into batches
             zips_uploads_ddf = zip_files_ddf.groupby('id').agg({
