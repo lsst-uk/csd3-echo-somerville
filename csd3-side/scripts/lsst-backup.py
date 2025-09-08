@@ -1445,6 +1445,7 @@ def process_files(
                 meta={'paths': 'object', 'object_names': 'object', 'size': 'int64'}
             ).reset_index()
             zips_uploads_ddf['type'] = 'zip'
+            del zip_files_ddf
 
             # zip_files_ddf = zip_files_ddf.sort_values(by='paths').reset_index(drop=True)  # type: ignore
             # zip_files_ddf_chunks = zip_files_ddf.to_delayed()
@@ -1488,26 +1489,23 @@ def process_files(
             )
 
         if zips_uploads_ddf is not None:
-            zips_uploads_df = zips_uploads_ddf.compute()
-            num_zip_uploads = len(zips_uploads_df)
+            num_zip_uploads = len(zips_uploads_ddf.index)
             # Write final dask dataframe to a csv files
-            zips_uploads_df.to_csv(zip_batch_list_file, index=False)
+            zips_uploads_ddf.to_csv(zip_batch_list_file)
         else:
             num_zip_uploads = 0
-            zips_uploads_df = pd.DataFrame()
-        # if len_zip_files_df > 0 and zip_files_ddf is not None:
-        del zip_files_ddf
+
     else:
         print(f'Reading zip batch list from {zip_batch_list_file}.', flush=True)
-        zips_uploads_df = pd.read_csv(zip_batch_list_file)
-        num_zip_uploads = len(zips_uploads_df)
+        zips_uploads_ddf = dd.read_csv(zip_batch_list_file)  # type: ignore
+        num_zip_uploads = len(zips_uploads_ddf.index)
 
     if num_zip_uploads > 0:
         # 6. Execute uploads in parallel
         print('Starting uploads...', flush=True)
 
         # Now one pandas dataframe in scheduler memory
-        zips_uploads_ddf = dd.from_pandas(zips_uploads_df, chunksize=1000)  # type: ignore
+        # zips_uploads_ddf = dd.from_pandas(zips_uploads_df, chunksize=1000)  # type: ignore
 
         #  Drop any files now in current_objects ( for a retry )
         zips_uploads_ddf = zips_uploads_ddf.merge(
@@ -1521,7 +1519,7 @@ def process_files(
         zips_uploads_ddf = zips_uploads_ddf.drop(columns=['_merge', 'CURRENT_OBJECTS'])
 
         # Update (rewrite) CSV file
-        zips_uploads_ddf.to_csv(zip_batch_list_file, index=False, single_file=True)
+        zips_uploads_ddf.to_csv(zip_batch_list_file, single_file=True)
 
         zips_uploads_delayed = zips_uploads_ddf.to_delayed()
 
