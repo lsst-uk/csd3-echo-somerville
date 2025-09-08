@@ -1239,10 +1239,6 @@ def process_files(
                 continue
             paths.extend([os.path.join(folder, filename) for filename in files])
 
-        with open('raw' + pre_symlink_list_file, 'w') as f:
-            f.write('paths\n')
-            f.writelines("\n".join(paths))
-
         local_files_df = pd.DataFrame(paths, columns=['paths'])
         print(f'Found {len(local_files_df)} local files.', flush=True)
         # Save the initial, unsorted file list. This "freezes" the order for all future runs.
