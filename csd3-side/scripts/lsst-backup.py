@@ -1239,6 +1239,10 @@ def process_files(
                 continue
             paths.extend([os.path.join(folder, filename) for filename in files])
 
+        with open('raw' + pre_symlink_list_file, 'w') as f:
+            f.write('paths\n')
+            f.writelines("\n".join(paths))
+
         local_files_df = pd.DataFrame(paths, columns=['paths'])
         print(f'Found {len(local_files_df)} local files.', flush=True)
         # Save the initial, unsorted file list. This "freezes" the order for all future runs.
@@ -1261,19 +1265,19 @@ def process_files(
 
         # Separate symlinks from regular files
         symlinks_ddf = ddf[ddf['islink']].copy()
-        regular_files_df = ddf[~ddf['islink']].copy().compute()
+        regular_files_ddf = ddf[~ddf['islink']].copy()
         del ddf
-        gc.collect()
 
         # Create the new "data records" by following the symlinks
         # The object_names here will initially be incorrect
         # (copied from the symlink record)
-        followed_links_df = symlinks_ddf.map_partitions(
+        followed_links_ddf = symlinks_ddf.map_partitions(
             lambda partition: partition.apply(
                 follow_symlinks,
-                axis=1),
+                axis=1
+            ),
             meta=symlinks_ddf._meta,
-        ).dropna(subset=['paths']).compute()
+        ).dropna(subset=['paths'])
 
         # Now, modify the original symlink records to add the target
         symlinks_ddf['target'] = symlinks_ddf.map_partitions(
@@ -1298,49 +1302,37 @@ def process_files(
         )
         del symlinks_ddf
 
-        # --- Phase 2: Bring paths to client, sort in-memory, and create final Dask DataFrame ---
+        # --- Phase 2: Bring paths to client, sort in-memory, and create final
+        # Dask DataFrame ---
         print("Consolidating and sorting file paths...", flush=True)
-        # Compute the results into pandas DataFrames
-        # regular_files_ddf.to_csv('reg_temp.csv', index=False, single_file=True)
-        # followed_links_ddf.to_csv('fl_temp.csv', index=False, single_file=True)
-
-        # Concatenate into a single pandas DataFrame
-        all_files_df = pd.concat([regular_files_df, followed_links_df])
-        del regular_files_df, followed_links_df
+        # Concatenate into a single DataFrame lazily
+        all_files_ddf = dd.concat([regular_files_ddf, followed_links_ddf])  # type: ignore
+        del regular_files_ddf, followed_links_ddf
         gc.collect()
 
-        # NO SORTING NEEDED - The order is already deterministic based on the initial file.
-        print(f"Processing {len(all_files_df)} file paths with fixed order.", flush=True)
-        local_files_ddf = dd.from_pandas(  # type: ignore
-            all_files_df,
-            npartitions=max(1, len(all_files_df) // 10000)
-        )
-        del all_files_df
-
-        # Create the final, globally-sorted Dask DataFrame
-        local_files_ddf = local_files_ddf.persist()
-
-        print('Using filesize_row function to get file sizes...', flush=True)
+        # The order is preserved from the initial os.walk, no sorting is needed.
+        print("File order is fixed. Calculating file sizes...", flush=True)
 
         # Get file sizes in parallel
         # For symlinks, the size is the length of the object name
         # (the target path)
         # For regular files, it's the actual file size
-        local_files_ddf['size'] = local_files_ddf.map_partitions(
+        all_files_ddf['size'] = all_files_ddf.map_partitions(
             lambda partition: partition.apply(
                 filesize_row,
                 axis=1
             ),
-            meta=('size', 'int64')  # Using the tuple shorthand is fine here
+            meta=('size', 'int64')
         )
 
         # Persist the result before writing to CSV
-        local_files_ddf = local_files_ddf.persist()
+        all_files_ddf = all_files_ddf.persist()
 
         print("Writing final local file list to CSV...", flush=True)
-        local_files_ddf.to_csv(local_list_file, index=True, single_file=True)
-
-        # local_files_ddf = dd.read_csv(local_list_file)  # type: ignore
+        all_files_ddf.to_csv(local_list_file, index=True, single_file=True)
+        del all_files_ddf
+        gc.collect()
+        local_files_ddf = dd.read_csv(local_list_file)  # type: ignore
     else:
         print(f'Reading local file list from {local_list_file}.', flush=True)
         local_files_ddf = dd.read_csv(local_list_file)  # type: ignore
