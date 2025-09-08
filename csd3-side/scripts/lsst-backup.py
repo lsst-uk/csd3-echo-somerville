@@ -1491,7 +1491,7 @@ def process_files(
         if zips_uploads_ddf is not None:
             num_zip_uploads = len(zips_uploads_ddf.index)
             # Write final dask dataframe to a csv files
-            zips_uploads_ddf.to_csv(zip_batch_list_file)
+            # zips_uploads_ddf.to_csv(zip_batch_list_file)
         else:
             num_zip_uploads = 0
 
@@ -1519,7 +1519,7 @@ def process_files(
         zips_uploads_ddf = zips_uploads_ddf.drop(columns=['_merge', 'CURRENT_OBJECTS'])
 
         # Update (rewrite) CSV file
-        zips_uploads_ddf.to_csv(zip_batch_list_file, single_file=True)
+        # zips_uploads_ddf.to_csv('updated_' + zip_batch_list_file, single_file=True)
 
         zips_uploads_delayed = zips_uploads_ddf.to_delayed()
 
