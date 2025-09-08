@@ -1481,9 +1481,10 @@ def process_files(
 
             zips_uploads_ddf['zip_names'] = zips_uploads_ddf.map_partitions(
                 lambda partition: partition.apply(
-                    lambda row: os.path.relpath(f'{local_dir}/collated_{row["id"]}.zip', local_dir),
+                    lambda row: os.path.relpath(f'{local_dir}/collated_{str(row["id"])}.zip', local_dir),
                     axis=1
-                )
+                ),
+                meta=('zip_names', 'str')
             )
 
         # 6. Execute uploads in parallel
