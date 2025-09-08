@@ -1430,10 +1430,20 @@ def process_files(
                 meta=('id', 'int64')
             )
 
+            # Define a custom Dask aggregation for string joining.
+            # Dask's default `agg` does not know how to handle lambda
+            # functions for string joining.
+            string_join_agg = dd.Aggregation(  # type: ignore
+                name='string_join',
+                chunk=lambda s: s.tolist(),
+                agg=lambda s: s.sum(),  # .sum() on lists of lists concatenates them
+                finalize=lambda s: '|'.join(s)
+            )
+
             # Aggregate zip files into batches
             zips_uploads_ddf = zip_files_ddf.groupby('id').agg({
-                'paths': lambda s: '|'.join(s),
-                'object_names': lambda s: '|'.join(s),
+                'paths': string_join_agg,
+                'object_names': string_join_agg,
                 'size': 'sum'
             }).reset_index()
             zips_uploads_ddf['type'] = 'zip'
