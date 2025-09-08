@@ -1488,9 +1488,10 @@ def process_files(
             )
 
         if zips_uploads_ddf is not None:
-            num_zip_uploads = len(zips_uploads_ddf.index)
+            zips_uploads_df = zips_uploads_ddf.compute()
+            num_zip_uploads = len(zips_uploads_df)
             # Write final dask dataframe to a csv files
-            zips_uploads_ddf.to_csv(zip_batch_list_file, index=False)
+            zips_uploads_df.to_csv(zip_batch_list_file, index=False)
         else:
             num_zip_uploads = 0
             zips_uploads_df = pd.DataFrame()
@@ -1506,7 +1507,7 @@ def process_files(
         print('Starting uploads...', flush=True)
 
         # Now one pandas dataframe in scheduler memory
-        zips_uploads_ddf = dd.from_pandas(zips_uploads_df, chunksize=100)  # type: ignore
+        zips_uploads_ddf = dd.from_pandas(zips_uploads_df, chunksize=1000)  # type: ignore
 
         #  Drop any files now in current_objects ( for a retry )
         zips_uploads_ddf = zips_uploads_ddf.merge(
