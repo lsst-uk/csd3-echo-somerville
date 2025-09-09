@@ -65,6 +65,30 @@ def list_aggregation(x) -> str:
 
 
 def assign_batch_ids(df, max_size, max_count):
+    """Assigns batch IDs to rows in a DataFrame based on size and count
+    constraints.
+
+    This function iterates through a pre-sorted DataFrame, grouping rows into
+    batches.
+    A new batch is started whenever adding the next row would exceed the
+    `max_size` threshold for the current batch, or when the number of files in
+    the current batch reaches `max_count`.
+
+    Note: The input DataFrame is expected to be sorted according to the desired
+    order of file processing before being passed to this function.
+
+    Args:
+        df (pd.DataFrame): The input DataFrame. Must contain a 'size' column
+            representing the size of each item (e.g., file size in bytes).
+        max_size (int or float): The maximum cumulative size that a single
+            batch can hold.
+        max_count (int): The maximum number of items (rows) that a single
+            batch can contain.
+
+    Returns:
+        pd.DataFrame: The input DataFrame with a new 'batch_in_partition'
+            column containing the assigned integer batch ID for each row.
+    """
     # expects data to already be sorted
     batch_assignments = []
     cumulative_size = 0
@@ -85,7 +109,46 @@ def assign_batch_ids(df, max_size, max_count):
     return df
 
 
+def aggregate_group(group):
+    """
+    Aggregates a DataFrame group by concatenating 'paths' and 'object_names'
+    columns with '|' and summing the 'size' column.
+
+    Parameters:
+        group (pd.DataFrame): A pandas DataFrame group with columns 'paths',
+        'object_names', and 'size'.
+
+    Returns:
+        pd.Series: A Series with aggregated 'paths', 'object_names', and total
+        'size'.
+    """
+    return pd.Series({
+        'paths': '|'.join(group['paths']),
+        'object_names': '|'.join(group['object_names']),
+        'size': group['size'].sum()
+    })
+
+
 def set_type(row: pd.Series, max_zip_batch_size) -> str:
+    """Determines the transfer type for a file based on its size.
+
+    This function is intended to be used with pandas DataFrame's `apply`
+    method.
+    It categorizes a file (represented by a row) as either 'file' for
+    individual transfer or 'zip' for batch transfer in a zip archive.
+    The decision is based on whether the file's size exceeds half of the
+    maximum batch size for zipped files.
+
+    Args:
+        row (pd.Series): A row from a pandas DataFrame, representing a single
+            file. It must contain a 'size' key with the file size in bytes.
+        max_zip_batch_size (int | float): The maximum total size allowed for a
+            single zip archive batch.
+
+    Returns:
+        str: 'file' if the file is larger than half the max_zip_batch_size,
+             'zip' otherwise.
+    """
     if row['size'] > max_zip_batch_size / 2:
         return 'file'
     else:
@@ -93,6 +156,20 @@ def set_type(row: pd.Series, max_zip_batch_size) -> str:
 
 
 def get_target_or_none(row: pd.Series) -> str | None:
+    """Gets the target of a symbolic link from a pandas Series row.
+
+    If the 'paths' key in the input Series contains a path to a symbolic
+    link, this function reads and returns the target of that link.
+
+    Args:
+        row (pd.Series): A pandas Series object, expected to contain a
+            'paths' key with a file path string.
+
+    Returns:
+        str | None: The target path of the symbolic link as a string,
+            or None if the path in `row['paths']` is not a symbolic link
+            or if `row['paths']` is None.
+    """
     if row['paths'] is not None:
         return os.readlink(row['paths']) if os.path.islink(row['paths']) else None
     return None
@@ -197,6 +274,25 @@ def isntin(obj: object, series: pd.Series):
 
 
 def to_rds_path(home_path: str, local_dir: str) -> str:
+    """Replaces an 'rds-iris' base path with a generic 'rds-' base path.
+
+    This function translates a path, typically from a user's home
+    directory, to a corresponding path in a local RDS-like structure.
+    It looks for an 'rds-*' component in `local_dir` and an 'rds-iris'
+    component in `home_path`. If both are found, it replaces the base
+    path of `home_path` (up to and including 'rds-iris') with the base
+    path from `local_dir` (up to and including 'rds-*').
+
+    Args:
+        home_path (str): The source path, potentially containing an
+            'rds-iris' component.
+        local_dir (str): The path to inspect for a generic 'rds-*'
+            component to use as the new base.
+
+    Returns:
+        str: The translated path with the new 'rds-' base, or the
+            original `home_path` if no translation was performed.
+    """
     home_path_base = ''
     local_dir_base = ''
     # get base folder for rds- folders
@@ -1429,15 +1525,6 @@ def process_files(
                 ) + partition['batch_in_partition'],
                 meta=('id', 'int64')
             )
-
-            # Define a function to apply to each group. This is more robust than a
-            # custom aggregation when metadata inference is difficult.
-            def aggregate_group(group):
-                return pd.Series({
-                    'paths': '|'.join(group['paths']),
-                    'object_names': '|'.join(group['object_names']),
-                    'size': group['size'].sum()
-                })
 
             # Use groupby().apply() with explicit metadata
             zips_uploads_ddf = zip_files_ddf.groupby('id').apply(
