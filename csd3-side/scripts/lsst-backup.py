@@ -1337,7 +1337,8 @@ def process_files(
 
         local_files_df = pd.DataFrame(paths, columns=['paths'])
         print(f'Found {len(local_files_df)} local files.', flush=True)
-        # Save the initial, unsorted file list. This "freezes" the order for all future runs.
+        # Save the initial, unsorted file list. This "freezes" the order for
+        # all future runs.
         local_files_df.to_csv(pre_symlink_list_file, index=False)
 
         # Use Dask for parallel processing of file info
@@ -1402,7 +1403,8 @@ def process_files(
         del regular_files_ddf, followed_links_ddf
         gc.collect()
 
-        # The order is preserved from the initial os.walk, no sorting is needed.
+        # The order is preserved from the initial os.walk, no sorting is
+        # needed.
         print("File order is fixed. Calculating file sizes...", flush=True)
 
         # Get file sizes in parallel
@@ -1502,9 +1504,9 @@ def process_files(
         del ind_uploads_ddf, files_to_upload_ddf
 
         if len_zip_files_df > 0:
-            # The zip_files_ddf is already globally sorted by 'paths' because it's a
-            # subset of the pre-sorted local_files_ddf. We can proceed directly
-            # to batching within partitions.
+            # The zip_files_ddf is already globally sorted by 'paths' because
+            # it's a subset of the pre-sorted local_files_ddf. We can proceed
+            # directly to batching within partitions.
 
             # Apply batch numbering for each partition
             zip_files_ddf = zip_files_ddf.map_partitions(
@@ -1517,8 +1519,8 @@ def process_files(
             # MAX_BATCHES_IN_PARTITION
             # Unlikely to ever exceed 1e6
             MAX_BATCHES_IN_PARTITION = 1_000_000
-            # Create a globally unique batch ID using a map_partitions call to access
-            # the partition number from Dask's metadata.
+            # Create a globally unique batch ID using a map_partitions call to
+            # access the partition number from Dask's metadata.
             zip_files_ddf['id'] = zip_files_ddf.map_partitions(
                 lambda partition, partition_info: (
                     partition_info['number'] * MAX_BATCHES_IN_PARTITION
@@ -1534,7 +1536,9 @@ def process_files(
             zips_uploads_ddf['type'] = 'zip'
             del zip_files_ddf
 
-            # zip_files_ddf = zip_files_ddf.sort_values(by='paths').reset_index(drop=True)  # type: ignore
+            # zip_files_ddf = zip_files_ddf.sort_values(
+            #   by='paths'
+            # ).reset_index(drop=True)  # type: ignore
             # zip_files_ddf_chunks = zip_files_ddf.to_delayed()
             # batch_assignments = []
             # for i, chunk in enumerate(zip_files_ddf_chunks):
@@ -1546,7 +1550,11 @@ def process_files(
             #         total=len(chunk),
             #         desc="Deciding on zip files."
             #     ):
-            #         if (cumulative_size + row['size'] > max_zip_batch_size and cumulative_size > 0) or \
+            #         if (
+            #             cumulative_size + row['size'] > max_zip_batch_size \
+            #             and \
+            #             cumulative_size > 0
+            #         ) or \
             #            (files_in_zip_count >= max_zip_batch_count):
             #             batch_id += 1
             #             cumulative_size = 0
@@ -1595,10 +1603,13 @@ def process_files(
         print('Starting uploads...', flush=True)
 
         # Now one pandas dataframe in scheduler memory
-        # zips_uploads_ddf = dd.from_pandas(zips_uploads_df, chunksize=1000)  # type: ignore
+        # zips_uploads_ddf = dd.from_pandas(  # type: ignore
+        #   zips_uploads_df,
+        #   chunksize=1000
+        # )
         if update:
             #  Drop any files now in current_objects ( for a retry )
-            zips_uploads_ddf = zips_uploads_ddf.merge(
+            zips_uploads_ddf = zips_uploads_ddf.merge(  # type: ignore
                 current_objects[['CURRENT_OBJECTS']],
                 left_on='zip_names',
                 right_on='CURRENT_OBJECTS',
@@ -1611,7 +1622,7 @@ def process_files(
             # Update (rewrite) CSV file
             zips_uploads_ddf.to_csv('updated_' + zip_batch_list_file, single_file=True)
 
-        zips_uploads_delayed = zips_uploads_ddf.to_delayed()
+        zips_uploads_delayed = zips_uploads_ddf.to_delayed()  # type: ignore
 
         # client.scatter(zips_uploads_df)
         print(
