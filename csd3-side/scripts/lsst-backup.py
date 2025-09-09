@@ -820,6 +820,9 @@ def upload_to_bucket(
                     upload_time = upload_end - upload_start
             except Exception as e:
                 dprint(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
+                if 'QuotaExceeded' in str(e):
+                    dprint('Quota exceeded, stopping uploads.')
+                    sys.exit(1)
                 return False
 
             del file_data
@@ -965,6 +968,9 @@ def upload_to_bucket_collated(
             )
         except Exception as e:
             dprint(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
+            if 'QuotaExceeded' in str(e):
+                dprint('Quota exceeded, stopping uploads.')
+                sys.exit(1)
             return False
         del file_data
     else:
@@ -1208,6 +1214,9 @@ def upload_and_callback(
             )
         except Exception as e:
             dprint(f'Error uploading {folder} to {bucket_name}/{object_key}: {e}')
+            if 'QuotaExceeded' in str(e):
+                dprint('Quota exceeded, stopping uploads.')
+                sys.exit(1)
             return False
     else:
         try:
@@ -1225,6 +1234,9 @@ def upload_and_callback(
             )
         except Exception as e:
             dprint(f'Error uploading {folder} to {bucket_name}/{object_key}: {e}')
+            if 'QuotaExceeded' in str(e):
+                dprint('Quota exceeded, stopping uploads.')
+                sys.exit(1)
             return False
 
     file_end = datetime.now()
