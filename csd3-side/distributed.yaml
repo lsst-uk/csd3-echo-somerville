@@ -1,0 +1,13 @@
+distributed:
+  worker:
+   # Fractions of worker process memory at which we take action to avoid memory
+   # blowup. Set any of the values to False to turn off the behavior entirely.
+    memory:
+      target: 0.80     # fraction of managed memory where we start spilling to disk
+      spill: 0.90      # fraction of process memory where we start spilling to disk
+      pause: 0.94      # fraction of process memory at which we pause worker threads
+      terminate: 0.95  # fraction of process memory at which we terminate the worker
+  temporary-directory: /rds/project/rds-rPTGgs6He74/davem/temp
+  scheduler:
+    scheduler_timeout: 500
+    allowed-failures: 100
