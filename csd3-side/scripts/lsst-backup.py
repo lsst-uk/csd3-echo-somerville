@@ -830,13 +830,13 @@ def upload_to_bucket(
         report actions
         CSV formatted
         header:
-        LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,UPLOAD_TIME,UPLOAD_START,UPLOAD_END
+        LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,FILES_PER_ZIP,UPLOAD_TIME,UPLOAD_START,UPLOAD_END
         """
         log_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}"'
         log_string += f',"{checksum_string}"'
 
-        # for no zip contents
-        log_string += ',"n/a"'
+        # for no zip contents and files per zip
+        log_string += ',"n/a","n/a"'
 
         # upload time
         if not dryrun:
@@ -974,16 +974,19 @@ def upload_to_bucket_collated(
     report actions
     CSV formatted
     header:
-    LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,UPLOAD_TIME,UPLOAD_START,UPLOAD_END
+    LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,FILES_PER_ZIP,UPLOAD_TIME,UPLOAD_START,UPLOAD_END
     """
     log_string = f'"{folder}","{filename}",{file_data_size},"{bucket_name}","{object_key}"'
     log_string += f',"{checksum_string}"'
 
     # for zip contents
-    if len(zip_contents) > 50:
-        log_string += f',"{logsep.join(zip_contents)}"'
+    if len(zip_contents) > 5:
+        log_string += f',"{logsep.join(zip_contents[:5])} abbreviated"'
     else:
-        log_string += f',"{logsep.join(zip_contents[:50])} abbreviated"'
+        log_string += f',"{logsep.join(zip_contents)}"'
+
+    # for FILES_PER_ZIP
+    log_string += f',"{len(zip_contents)}"'
 
     # upload time
     if upload_time and upload_start and upload_end:
@@ -2038,7 +2041,7 @@ if __name__ == '__main__':
             print(f'Created backup log file {log}')
             with open(log, 'a') as logfile:  # don't open as 'w' in case this is a continuation
                 logfile.write(
-                    'LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,UPLOAD_TIME,UPLOAD_START,UPLOAD_END\n' # noqa
+                    'LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,FILES_PER_ZIP,UPLOAD_TIME,UPLOAD_START,UPLOAD_END\n' # noqa
                 )
 
     # Setup bucket
