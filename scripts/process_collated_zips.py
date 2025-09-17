@@ -299,8 +299,10 @@ def extract_and_upload(row: pd.Series, conn: swiftclient.Connection, bucket_name
         zipfile_data = io.BytesIO(conn.get_object(bucket_name, key)[1])
     except swiftclient.exceptions.ClientException as e:
         if e.http_status == 404:
-            logger.info(f'Object {key} not found - possibly already deleted. '
-                   'Skipping and marking as True to allow clean up.')
+            logger.info(
+                f'Object {key} not found - possibly already deleted. '
+                'Skipping and marking as True to allow clean up.'
+            )
             return True
         else:
             raise
@@ -358,17 +360,23 @@ def extract_and_upload(row: pd.Series, conn: swiftclient.Connection, bucket_name
                 f'({(size/1024**2/duration):.2f} MiB/s if all files were uploaded).'
             )
         else:
-            logger.info(f'Extracted contents of {key} ({num_files} files, '
-                   f'total size: {size/1024**2:.2f} MiB) in {duration:.2f} s '
-                   '(no uploads required)')
+            logger.info(
+                f'Extracted contents of {key} ({num_files} files, '
+                f'total size: {size/1024**2:.2f} MiB) in {duration:.2f} s '
+                '(no uploads required)'
+            )
     except ZeroDivisionError:
         if uploaded:
-            logger.info(f'Extracted and uploaded contents of {key} ({num_files} files, '
-                   f'total size: {size/1024**2:.2f} MiB) in {duration:.2f} s')
+            logger.info(
+                f'Extracted and uploaded contents of {key} ({num_files} files, '
+                f'total size: {size/1024**2:.2f} MiB) in {duration:.2f} s'
+            )
         else:
-            logger.info(f'Extracted contents of {key} ({num_files} files, '
-                   f'total size: {size/1024**2:.2f} MiB) in {duration:.2f} s '
-                   '(no uploads required)')
+            logger.info(
+                f'Extracted contents of {key} ({num_files} files, '
+                f'total size: {size/1024**2:.2f} MiB) in {duration:.2f} s '
+                '(no uploads required)'
+            )
 
     return done
 
@@ -646,7 +654,8 @@ def main():
                 # --- Start of new verification logic ---
                 logger.info('Verifying which zip files need extraction...')
 
-                # 1. Create a clean DataFrame of all existing object keys for the merge
+                # 1. Create a clean DataFrame of all existing object keys for
+                # the merge
                 all_keys_df = keys_df[['key']].rename(columns={'key': 'CURRENT_OBJECTS'})
 
                 # 2. Explode all zip contents into a new Dask DataFrame
@@ -660,8 +669,9 @@ def main():
                     }
                 )
 
-                # 3. Find which content files already exist with an efficient inner merge
-                existing_contents = dd.merge(
+                # 3. Find which content files already exist with an efficient
+                # inner merge
+                existing_contents = dd.merge(  # type: ignore
                     exploded_contents,
                     all_keys_df,
                     left_on='content_filename',
@@ -675,16 +685,18 @@ def main():
                 # Get the original total number of contents for each zip
                 total_counts = exploded_contents.groupby('zip_filename').total_contents.first().persist()
 
-                # Align the series, filling in 0 for zips where no contents were found
+                # Align the series, filling in 0 for zips where no contents
+                # were found
                 existing_counts = existing_counts.reindex(total_counts.index.compute(), fill_value=0)
 
-                # A zip needs to be extracted if the number of existing files is NOT equal to the total
+                # A zip needs to be extracted if the number of existing files
+                # is NOT equal to the total
                 to_extract_series = (existing_counts.compute() != total_counts.compute())
                 to_extract_df = to_extract_series[to_extract_series].reset_index()
                 to_extract_df.columns = ['key', 'extract']
 
                 # 5. Merge the 'extract' boolean back into the main DataFrame
-                keys_df = dd.merge(
+                keys_df = dd.merge(  # type: ignore
                     keys_df,
                     to_extract_df,
                     on='key',
