@@ -1464,6 +1464,12 @@ def process_files(
         # Prepare remote objects DataFrame
         remote_keys_ddf = current_objects[['CURRENT_OBJECTS']].copy()
 
+        # --- FIX: Ensure key columns have the same data type ---
+        # Explicitly cast both merge keys to string ('object') to prevent dtype mismatch errors,
+        # especially when one of the DataFrames might be empty.
+        local_files_ddf['object_names'] = local_files_ddf['object_names'].astype(str)
+        remote_keys_ddf['CURRENT_OBJECTS'] = remote_keys_ddf['CURRENT_OBJECTS'].astype(str)
+
         # Use a left merge with an indicator to find local files
         # NOT on the remote
         # This is the core of the efficient check
