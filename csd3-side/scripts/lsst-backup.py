@@ -1726,6 +1726,12 @@ def process_files(
 
         ind_uploads_ddf = dd.read_csv(ind_upload_list_file)  # type: ignore
 
+        # --- FIX: Ensure key columns have the same data type ---
+        # Explicitly cast both merge keys to string ('object') to prevent dtype mismatch errors,
+        # especially when one of the DataFrames might be empty.
+        ind_uploads_ddf['object_names'] = ind_uploads_ddf['object_names'].astype(str)
+        current_objects['CURRENT_OBJECTS'] = current_objects['CURRENT_OBJECTS'].astype(str)
+
         #  Drop any files now in current_objects ( for a retry )
         ind_uploads_ddf = ind_uploads_ddf.merge(
             current_objects[['CURRENT_OBJECTS']],
