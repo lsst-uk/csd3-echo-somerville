@@ -732,25 +732,27 @@ def upload_to_bucket(
                 file_size = os.path.getsize(filename)
                 dprint(f'Uploading {filename} to {bucket_name}/{object_key}, {file_size} bytes, '
                        f'checksum = True, dryrun = {dryrun}', flush=True)
-
-                # Open the file for streaming
-                with open(filename, 'rb') as file_stream:
-                    # Calculate checksum by streaming
-                    checksum_hash = hashlib.md5()
-                    while chunk := file_stream.read(8192):
-                        checksum_hash.update(chunk)
-                    checksum_string = checksum_hash.hexdigest()
-
-                    # Rewind the stream for the upload
-                    file_stream.seek(0)
-
+                with bm.get_service_swift() as service:
                     upload_start = datetime.now()
-                    s3.put_object(
+
+                    # Open the file for streaming
+                    with open(filename, 'rb') as file_stream:
+                        # Calculate checksum by streaming
+                        checksum_hash = hashlib.md5()
+                        while chunk := file_stream.read(8192):
+                            checksum_hash.update(chunk)
+                        checksum_string = checksum_hash.hexdigest()
+
+                    service.upload(
                         container=bucket_name,
-                        contents=file_stream,  # Pass the file handle directly
-                        content_type='application/octet-stream',  # More generic type
-                        obj=object_key,
-                        etag=checksum_string
+                        objects=[
+                            {
+                                'source': filename,
+                                'destination': object_key,
+                                'etag': checksum_string,
+                                'content_type': 'application/octet-stream',
+                            }
+                        ]
                     )
                     upload_end = datetime.now()
                     upload_time = upload_end - upload_start
@@ -1241,8 +1243,9 @@ def process_files(
     temp_dir = os.path.join(local_dir, '.lsst-backup-tmp')
     try:
         os.makedirs(temp_dir, exist_ok=True)
-    except:
-        dprint(f'Error creating temporary directory {temp_dir}. Check permissions. Exiting.', flush=True)
+    except Exception as e:
+        dprint(f'Error creating temporary directory {temp_dir}: {e}\n'
+               'Check permissions. Exiting.', flush=True)
         sys.exit(1)
 
     processing_start = datetime.now()
