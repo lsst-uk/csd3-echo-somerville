@@ -474,6 +474,7 @@ def zip_and_upload(
     api: str,
     destination_dir: str,
     local_dir: str,
+    temp_dir: str,
     total_size_uploaded: int,
     total_files_uploaded: int,
     use_compression: bool,
@@ -536,7 +537,8 @@ def zip_and_upload(
         dryrun,
         id,
         mem_per_worker,
-        object_names
+        object_names,
+        temp_dir
     )
 
     if not temp_zip_path or not namelist:
@@ -583,6 +585,7 @@ def zip_folders(
     id: int,
     mem_per_worker: int,
     object_names: list[str],
+    temp_dir: str
 ) -> tuple[str, list[str]]:
     """
     Collates the specified folders into a temporary zip file on disk.
@@ -595,7 +598,7 @@ def zip_folders(
     if not dryrun:
         # Create a temporary file to write the zip archive to.
         # This avoids holding the entire zip in memory.
-        temp_zip_path = f"/tmp/collated_{id}_{os.getpid()}.zip"
+        temp_zip_path = os.path.join(temp_dir, f"collated_{id}_{os.getpid()}.zip")
         namelist = []
         try:
             if use_compression:
@@ -1234,6 +1237,14 @@ def process_files(
     else:
         raise ValueError('api must be "swift".')
 
+    # Define a temporary directory on the (assumed) large data volume
+    temp_dir = os.path.join(local_dir, '.lsst-backup-tmp')
+    try:
+        os.makedirs(temp_dir, exist_ok=True)
+    except:
+        dprint(f'Error creating temporary directory {temp_dir}. Check permissions. Exiting.', flush=True)
+        sys.exit(1)
+
     processing_start = datetime.now()
     total_size_uploaded = 0
     total_files_uploaded = 0
@@ -1618,6 +1629,7 @@ def process_files(
                         api=api,
                         destination_dir=destination_dir,
                         local_dir=local_dir,
+                        temp_dir=temp_dir,
                         total_size_uploaded=total_size_uploaded,
                         total_files_uploaded=total_files_uploaded,
                         use_compression=use_compression,
@@ -1657,6 +1669,7 @@ def process_files(
                             api=api,
                             destination_dir=destination_dir,
                             local_dir=local_dir,
+                            temp_dir=temp_dir,
                             total_size_uploaded=total_size_uploaded,
                             total_files_uploaded=total_files_uploaded,
                             use_compression=use_compression,
