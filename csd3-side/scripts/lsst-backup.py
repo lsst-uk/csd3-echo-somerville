@@ -522,6 +522,10 @@ def zip_and_upload(
     object_names = row['object_names'].split('|')
     id = row['id']
 
+    # --- FIX: Create connection inside the worker if it doesn't exist ---
+    if s3 is None:
+        s3 = bm.get_conn_swift()
+
     #############
     #  zip part #
     #############
@@ -980,9 +984,11 @@ def upload_files_from_series(
     # print(row, flush=True)
     path = row['paths']
     object_name = row['object_names']
-    # print(path, flush=True)
-    # print(object_name, flush=True)
-    # exit()
+
+    # --- FIX: Create connection inside the worker if it doesn't exist ---
+    if s3 is None:
+        s3 = bm.get_conn_swift()
+
     return upload_and_callback(
         s3,
         bucket_name,
@@ -1607,7 +1613,7 @@ def process_files(
                     future = client.submit(
                         zip_and_upload,
                         row,
-                        s3=s3,
+                        s3=None,  # Let the worker create the connection
                         bucket_name=bucket_name,
                         api=api,
                         destination_dir=destination_dir,
@@ -1646,7 +1652,7 @@ def process_files(
                         new_future = client.submit(
                             zip_and_upload,
                             row,
-                            s3=s3,
+                            s3=None,  # Let the worker create the connection
                             bucket_name=bucket_name,
                             api=api,
                             destination_dir=destination_dir,
@@ -1722,7 +1728,7 @@ def process_files(
                     future = client.submit(
                         upload_files_from_series,
                         row,
-                        s3=s3,
+                        s3=None,  # Let the worker create the connection
                         bucket_name=bucket_name,
                         api=api,
                         local_dir=local_dir,
@@ -1758,7 +1764,7 @@ def process_files(
                         new_future = client.submit(
                             upload_files_from_series,
                             row,
-                            s3=s3,
+                            s3=None,  # Let the worker create the connection
                             bucket_name=bucket_name,
                             api=api,
                             local_dir=local_dir,
@@ -2073,6 +2079,7 @@ if __name__ == '__main__':
     # Add titles to log file
     if not os.path.exists(log):
         if os.path.exists(previous_log):
+            {
             # rename previous log
             os.rename(previous_log, log)
             print(f'Renamed {previous_log} to {log}')
