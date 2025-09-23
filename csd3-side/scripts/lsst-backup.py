@@ -517,13 +517,11 @@ def zip_and_upload(
     file_paths = row['paths'].split('|')
     object_names = row['object_names'].split('|')
     id = row['id']
-    # reverse_link_targets = [to_rds_path(on, local_dir)
-    # for on in row['object_names'].split('|')]
 
     #############
     #  zip part #
     #############
-    zip_data, namelist = zip_folders(
+    temp_zip_path, namelist = zip_folders(
         local_dir,
         file_paths,
         use_compression,
@@ -532,43 +530,41 @@ def zip_and_upload(
         mem_per_worker,
         object_names
     )
-    gc.collect()
-    dprint('Created zipFile in memory', flush=True)
+
+    if not temp_zip_path or not namelist:
+        dprint('No files to upload in zip file or zip creation failed.', flush=True)
+        return False
+
+    dprint(f'Created temporary zipFile at {temp_zip_path}', flush=True)
     ###############
     # upload part #
     ###############
-    # zips now placed at top level of backup == local_dir
     zip_object_key = os.sep.join([
         destination_dir,
         os.path.relpath(f'{local_dir}/collated_{id}.zip', local_dir)
     ])
 
-    if namelist == []:
-        dprint('No files to upload in zip file.')
-        return False
-    else:  # for no subtasks
-        uploaded = upload_and_callback(
-            s3,
-            bucket_name,
-            api,
-            local_dir,
-            destination_dir,
-            zip_data,
-            namelist,
-            zip_object_key,
-            dryrun,
-            processing_start,
-            1,  # i.e., 1 zip file
-            len(zip_data),
-            total_size_uploaded,
-            total_files_uploaded,
-            True,
-            mem_per_worker,
-            log
-        )
-        del zip_data, namelist, file_paths
-        gc.collect()
-        return uploaded
+    uploaded = upload_and_callback(
+        s3,
+        bucket_name,
+        api,
+        local_dir,
+        destination_dir,
+        temp_zip_path,  # Pass the path, not the data
+        namelist,
+        zip_object_key,
+        dryrun,
+        processing_start,
+        1,  # i.e., 1 zip file
+        os.path.getsize(temp_zip_path) if not dryrun and os.path.exists(temp_zip_path) else 0,
+        total_size_uploaded,
+        total_files_uploaded,
+        True,
+        mem_per_worker,
+        log
+    )
+    # The temp file is now cleaned up inside upload_to_bucket_collated
+    return uploaded
 
 
 def zip_folders(
@@ -579,74 +575,59 @@ def zip_folders(
     id: int,
     mem_per_worker: int,
     object_names: list[str],
-) -> tuple[bytes, list[str]]:
+) -> tuple[str, list[str]]:
     """
-    Collates the specified folders into a zip file.
-
-    Args:
-        file_paths (list): A list of lists containing files to be included in
-        the zip file for each subfolder.
-
-        use_compression (bool): Flag indicating whether to use compression for
-        the zip file.
-
-        dryrun (bool): Flag indicating whether to perform a dry run without
-        actually creating the zip file.
-
-        id (int, optional): An optional identifier for the zip file. Defaults
-        to 0.
-
-        mem_per_worker (int): The memory per worker in bytes.
+    Collates the specified folders into a temporary zip file on disk.
 
     Returns:
-        tuple: A tuple containing the parent folder path, the identifier, and
-        the compressed zip file as a bytes object.
-
-    Raises:
-        None
-
+        tuple: A tuple containing the path to the temporary zip file and its namelist.
     """
     zipped_size = 0
     if not dryrun:
+        # Create a temporary file to write the zip archive to.
+        # This avoids holding the entire zip in memory.
+        temp_zip_path = f"/tmp/collated_{id}_{os.getpid()}.zip"
+        namelist = []
         try:
-            zip_buffer = io.BytesIO()
             if use_compression:
-                compression = zipfile.ZIP_DEFLATED  # zipfile.ZIP_DEFLATED = standard compression
+                compression = zipfile.ZIP_DEFLATED
             else:
-                compression = zipfile.ZIP_STORED  # zipfile.ZIP_STORED = no compression
-            with zipfile.ZipFile(zip_buffer, "a", compression, True) as zip_file:
+                compression = zipfile.ZIP_STORED
+            with zipfile.ZipFile(temp_zip_path, "w", compression, True) as zip_file:
                 for i, file in enumerate(file_paths):
-                    if file.startswith('/'):
-                        file_path = file
-                    else:
-                        exit(f'Path is wrong: {file}')
-                    arc_name = to_rds_path(object_names[i], local_dir)
-                    dprint(f'Adding {file_path} as {arc_name} to zip.')
-                    try:
-                        zipped_size += os.path.getsize(file_path)
-                        with open(file_path, 'rb') as src_file:
-                            zip_file.writestr(arc_name, src_file.read())
-                    except PermissionError:
-                        dprint(f'WARNING: Permission error reading {file_path}. File will not be backed up.')
+                    if not file.startswith('/'):
+                        dprint(f'Path is wrong: {file}', flush=True)
                         continue
-                    except OSError:
-                        dprint(f'WARNING: OSError reading {file_path}. File will not be backed up.')
+
+                    arc_name = to_rds_path(object_names[i], local_dir)
+                    dprint(f'Adding {file} as {arc_name} to zip {temp_zip_path}.', flush=True)
+                    try:
+                        file_size = os.path.getsize(file)
+                        zipped_size += file_size
+                        # This writes the file content directly to the zip archive on disk
+                        zip_file.write(file, arcname=arc_name)
+                    except (PermissionError, OSError, FileNotFoundError) as e:
+                        dprint(f'WARNING: Error reading {file}: {e}. File will not be backed up.', flush=True)
                         continue
                 namelist = zip_file.namelist()
+
             if zipped_size > mem_per_worker:
                 dprint(f'WARNING: Zipped size of {zipped_size} bytes exceeds memory per core of '
-                       f'{mem_per_worker} bytes.')
+                       f'{mem_per_worker} bytes.', flush=True)
 
-        except MemoryError as e:
-            dprint(f'Error zipping: {e}')
-            dprint(f'Namespace: {globals()}')
-            exit(1)
-        if namelist == []:
-            return b'', []
-        gc.collect()
-        return zip_buffer.getvalue(), namelist
+            if not namelist:
+                os.remove(temp_zip_path)  # Clean up empty temp file
+                return "", []
+
+            return temp_zip_path, namelist
+
+        except Exception as e:
+            dprint(f'Error zipping to {temp_zip_path}: {e}', flush=True)
+            if os.path.exists(temp_zip_path):
+                os.remove(temp_zip_path)
+            return "", []
     else:
-        return b'', []
+        return "", []
 
 
 def part_uploader(bucket_name, object_key, part_number, chunk_data, upload_id) -> dict:
@@ -724,133 +705,76 @@ def upload_to_bucket(
         except AssertionError:
             raise AssertionError('s3_host must be a swiftclient.Connection object.')
 
-        # filename = object_key.split('/')[-1]
-
-        # Check if the file is a symlink
-        # If it is, upload an object containing the target path instead
         if os.path.islink(filename):
             raise ValueError('Symlink upload is not supported - these are now listed in a CSV file only.')
-
-        file_data = open(filename, 'rb').read()
-        file_size = filesize(filename)
 
         upload_time = None
         upload_start = None
         upload_end = None
+        checksum_string = "DRYRUN"
+        file_size = 0
 
-        dprint(f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, {file_size} bytes, '
-               f'checksum = True, dryrun = {dryrun}', flush=True)
-        """
-        - Upload the file to the bucket
-        """
         if not dryrun:
-            """
-            - Create checksum object
-            """
-            checksum_hash = hashlib.md5(file_data)
-            if hasattr(file_data, 'seek'):
-                file_data.seek(0)  # type: ignore
-            checksum_string = checksum_hash.hexdigest()
-
             try:
-                # Check if file size is larger than 5GiB
-                if file_size > mem_per_worker or file_size > 5 * 1024**3:
-                    """
-                    - Use multipart upload for large files
-                    """
-                    swift_service = bm.get_service_swift()
-                    segment_size = 512 * 1024**2
-                    segments = []
-                    n_segments = int(np.ceil(file_size / segment_size))
-                    for i in range(n_segments):
-                        start = i * segment_size
-                        end = min(start + segment_size, file_size)
-                        segments.append(file_data[start:end])
-                    segment_objects = [
-                        bm.get_SwiftUploadObject(
-                            filename,
-                            object_name=object_key,
-                            options={'contents': segment, 'content_type': None}
-                        ) for segment in segments
-                    ]
-                    segmented_upload = [filename]
-                    for so in segment_objects:
-                        segmented_upload.append(so)
-                    dprint(
-                        f'Uploading {filename} from {folder} to {bucket_name}/{object_key} in '
-                        f'{n_segments} parts, total {file_size} bytes, '
-                        f'checksum = True, dryrun = {dryrun}',
-                        flush=True
-                    )
+                file_size = os.path.getsize(filename)
+                dprint(f'Uploading {filename} to {bucket_name}/{object_key}, {file_size} bytes, '
+                       f'checksum = True, dryrun = {dryrun}', flush=True)
+
+                # Open the file for streaming
+                with open(filename, 'rb') as file_stream:
+                    # Calculate checksum by streaming
+                    checksum_hash = hashlib.md5()
+                    while chunk := file_stream.read(8192):
+                        checksum_hash.update(chunk)
+                    checksum_string = checksum_hash.hexdigest()
+
+                    # Rewind the stream for the upload
+                    file_stream.seek(0)
 
                     upload_start = datetime.now()
-                    _ = swift_service.upload(
-                        bucket_name,
-                        segmented_upload,
-                        options={
-                            'meta': [],
-                            'header': [],
-                            'segment_size': segment_size,
-                            'use_slo': True,
-                            'segment_container': bucket_name + '-segments'
-                        }
-                    )
-                    upload_end = datetime.now()
-                    upload_time = upload_end - upload_start
-                else:
-                    """
-                    - Upload the file to the bucket
-                    """
-                    dprint(
-                        f'Uploading {filename} from {folder} to {bucket_name}/{object_key}, '
-                        f'{file_size} bytes, '
-                        f'checksum = True, dryrun = {dryrun}',
-                        flush=True
-                    )
-                    upload_start = datetime.now()
-
                     s3.put_object(
                         container=bucket_name,
-                        contents=file_data,
-                        content_type='multipart/mixed',
+                        contents=file_stream,  # Pass the file handle directly
+                        content_type='application/octet-stream', # More generic type
                         obj=object_key,
                         etag=checksum_string
                     )
                     upload_end = datetime.now()
                     upload_time = upload_end - upload_start
+
             except Exception as e:
                 dprint(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
                 if 'QuotaExceeded' in str(e):
                     dprint('Quota exceeded, stopping uploads.')
                     sys.exit(1)
                 return False
-
-            del file_data
         else:
-            checksum_string = "DRYRUN"
+            # For dryrun, we might still want to know the size
+            if os.path.exists(filename):
+                file_size = os.path.getsize(filename)
 
-        """
-        report actions
-        CSV formatted
-        header:
-        LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,FILES_PER_ZIP,UPLOAD_TIME,UPLOAD_START,UPLOAD_END
-        """
-        log_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}"'
-        log_string += f',"{checksum_string}"'
+    """
+    report actions
+    CSV formatted
+    header:
+    LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,DESTINATION_KEY,CHECKSUM,ZIP_CONTENTS,FILES_PER_ZIP,UPLOAD_TIME,UPLOAD_START,UPLOAD_END
+    """
+    log_string = f'"{folder}","{filename}",{file_size},"{bucket_name}","{object_key}"'
+    log_string += f',"{checksum_string}"'
 
-        # for no zip contents and files per zip
-        log_string += ',"n/a","n/a"'
+    # for no zip contents and files per zip
+    log_string += ',"n/a","n/a"'
 
-        # upload time
-        if not dryrun:
-            if upload_time and upload_start and upload_end:
-                log_string += f',"{upload_time.total_seconds()}","{upload_start}","{upload_end}"'
-            else:
-                log_string += ',"n/a","n/a","n/a"'
+    # upload time
+    if not dryrun:
+        if upload_time and upload_start and upload_end:
+            log_string += f',"{upload_time.total_seconds()}","{upload_start}","{upload_end}"'
+        else:
+            log_string += ',"n/a","n/a","n/a"'
 
-        with open(log, 'a') as f:
-            f.write(log_string + '\n')
-        return True
+    with open(log, 'a') as f:
+        f.write(log_string + '\n')
+    return True
 
 
 def upload_to_bucket_collated(
@@ -858,7 +782,7 @@ def upload_to_bucket_collated(
     bucket_name,
     api,
     folder,
-    file_data,
+    temp_zip_path,  # Changed from file_data
     zip_contents,
     object_key,
     dryrun,
@@ -869,16 +793,16 @@ def upload_to_bucket_collated(
     Calculates a checksum for the file
 
     Args:
-        s3 (None | swiftclient.Connection): None or Swift
-        swiftclient.Connection object.
+        s3 (None | swiftclient.Connection): None or swiftclient Connection
+        object.
 
-        bucket_name (str): The name of the S3 bucket.
+        bucket_name (str): The name of the S3 bucket or Swift container name.
 
-        api (str): The API to use for the S3 connection, 's3' or 'swift'.
+        api (str): The API to use for the S3 connection, must be 'swift'.
 
         folder (str): The local folder containing the file to upload.
 
-        file_data (bytes): The file data to upload (zipped).
+        temp_zip_path (str): The path to the temporary zip file.
 
         zip_contents (list): A list of files included in the zip file
         (file_data).
@@ -889,92 +813,83 @@ def upload_to_bucket_collated(
         dryrun (bool): Flag indicating whether to perform a dry run (no actual
         upload).
 
-        mem_per_worker (int): memory limit of each Dask worker.
+        mem_per_worker (int): The memory per worker in bytes.
 
     Returns:
-        str: A string containing information about the uploaded file in CSV
-        format. The format is: LOCAL_FOLDER,LOCAL_PATH,FILE_SIZE,BUCKET_NAME,
-        DESTINATION_KEY,CHECKSUM,CHECKSUM_SIZE,CHECKSUM_KEY
+        bool: True if the file was uploaded, False if not.
     """
-    logsep = ','  # separator
-    metasep = '|'  # metadata separator
     if api != 'swift':
-        raise ValueError('api must be "swift" for upload_to_bucket_collated.')
-    try:
-        assert type(s3) is swiftclient.Connection
-    except AssertionError:
-        raise AssertionError('s3_host must be a swiftclient.Connection object.')
+        raise ValueError('API must be swift')
+    else:
+        try:
+            assert type(s3) is swiftclient.Connection
+        except AssertionError:
+            raise AssertionError('s3_host must be a swiftclient.Connection object.')
 
     filename = object_key.split('/')[-1]
-    file_data_size = len(file_data)
-    if hasattr(file_data, 'seek'):
-        file_data.seek(0)
 
     upload_start = None
     upload_end = None
     upload_time = None
 
-    dprint(
-        f'Uploading zip file "{filename}" for {folder} to {bucket_name}/{object_key}, '
-        f'{file_data_size} bytes, checksum = True, dryrun = {dryrun}', flush=True
-    )
-    """
-    - Upload the file to the bucket
-    """
     if not dryrun:
-        """
-        - Create checksum object
-        """
-        checksum_hash = hashlib.md5(file_data)
-        if hasattr(file_data, 'seek'):
-            file_data.seek(0)
-        checksum_string = checksum_hash.hexdigest()
-
         try:
-
-            """
-            - Upload the file to the bucket
-            """
+            file_data_size = os.path.getsize(temp_zip_path)
             dprint(
-                f'Uploading zip file "{filename}" ({file_data_size} bytes) to '
-                f'{bucket_name}/{object_key}',
-                flush=True
-            )
-            metadata_value = metasep.join(zip_contents)  # use | as separator
-
-            metadata_object_key = object_key + '.metadata'
-            dprint(f'Writing zip contents to {metadata_object_key}.', flush=True)
-            responses = [{}, {}]
-            upload_start = datetime.now()
-            s3.put_object(
-                container=bucket_name,
-                contents=metadata_value,
-                content_type='text/plain',
-                obj=metadata_object_key,
-                headers={'x-object-meta-corresponding-zip': object_key},
-                response_dict=responses[0]
+                f'Uploading zip file "{filename}" from {folder} to {bucket_name}/{object_key}, '
+                f'{file_data_size} bytes, checksum = True, dryrun = {dryrun}', flush=True
             )
 
-            upload_end = datetime.now()
-            upload_time = upload_end - upload_start
-            s3.put_object(
-                container=bucket_name,
-                contents=file_data,
-                content_type='multipart/mixed',
-                obj=object_key,
-                etag=checksum_string,
-                headers={'x-object-meta-zip-contents-object': metadata_object_key},
-                response_dict=responses[1]
-            )
+            # Open the temp file for reading in binary mode
+            with open(temp_zip_path, 'rb') as file_stream:
+                checksum_hash = hashlib.md5()
+                # Read in chunks to calculate checksum without loading all to memory
+                while chunk := file_stream.read(8192):
+                    checksum_hash.update(chunk)
+                checksum_string = checksum_hash.hexdigest()
+
+                # Rewind the stream to the beginning for the upload
+                file_stream.seek(0)
+
+                metadata_value = metasep.join(zip_contents)
+                metadata_object_key = object_key + '.metadata'
+                dprint(f'Writing zip contents to {metadata_object_key}.', flush=True)
+
+                upload_start = datetime.now()
+                # First, upload the small metadata object
+                s3.put_object(
+                    container=bucket_name,
+                    contents=metadata_value,
+                    content_type='text/plain',
+                    obj=metadata_object_key,
+                    headers={'x-object-meta-corresponding-zip': object_key},
+                )
+
+                # Now, stream the large zip file from disk
+                s3.put_object(
+                    container=bucket_name,
+                    contents=file_stream,  # Pass the file handle, not the data
+                    content_type='application/zip',
+                    obj=object_key,
+                    etag=checksum_string,
+                    headers={'x-object-meta-zip-contents-object': metadata_object_key},
+                )
+                upload_end = datetime.now()
+                upload_time = upload_end - upload_start
+
         except Exception as e:
-            dprint(f'Error uploading "{filename}" ({file_data_size}) to {bucket_name}/{object_key}: {e}')
+            dprint(f'Error uploading "{filename}" ({temp_zip_path}) to {bucket_name}/{object_key}: {e}', flush=True)
             if 'QuotaExceeded' in str(e):
                 dprint('Quota exceeded, stopping uploads.')
                 sys.exit(1)
             return False
-        del file_data
+        finally:
+            # CRITICAL: Clean up the temporary file
+            if os.path.exists(temp_zip_path):
+                os.remove(temp_zip_path)
     else:
         checksum_string = "DRYRUN"
+        file_data_size = 0 # Placeholder for dryrun
 
     """
     report actions
