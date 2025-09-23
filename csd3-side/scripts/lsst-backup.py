@@ -1313,7 +1313,7 @@ def process_files(
     symlink_list_file = local_list_file.replace('local-file-list.csv', 'symlink-list.csv')
     upload_list_file = local_list_file.replace('local-file-list.csv', 'upload-list.csv')
     ind_upload_list_file = upload_list_file.replace('.csv', '_individual.csv')
-    max_zip_batch_size = 128 * 1024**2
+    max_zip_batch_size = 1 * 1024**3  # 1 GiB
     ind_successful = False
     zips_successful = False
 
@@ -2276,51 +2276,51 @@ if __name__ == '__main__':
         while local_dir[-1] == '/':
             local_dir = local_dir[:-1]
 
-        remaining_uploads = True
-        retries = 0
-        global_retry_limit = 10
-        while remaining_uploads and retries <= global_retry_limit:
-            print(
-                f'Processing files in {local_dir}, elapsed time = {datetime.now() - start_main}, '
-                f'try number: {retries+1}',
-                flush=True
-            )
-            with warnings.catch_warnings():
-                warnings.filterwarnings('ignore')
-                if api == 's3':
-                    raise DeprecationWarning('S3 support has been deprecated. Please use Swift API.')
-                elif api == 'swift':
-                    upload_successful = process_files(
-                        s3,  # type: ignore
-                        bucket_name,
-                        api,
-                        current_objects,
-                        exclude,
-                        local_dir,
-                        destination_dir,
-                        dryrun,
-                        log,
-                        global_collate,
-                        use_compression,
-                        client,
-                        mem_per_worker,
-                        local_list_file,
-                        save_local_list,
-                        file_count_stop,
-                        n_workers
-                    )
-            if os.path.exists(local_list_file):
-                with open(local_list_file, 'r') as clf:
-                    upload_checks = []
-                    for line in clf.readlines():
-                        if line.split(',')[-1] == 'True':
-                            upload_checks.append(True)
-                        else:
-                            upload_checks.append(False)
-                remaining_uploads = any(upload_checks)
-                retries += 1
-            else:
-                break
+        # remaining_uploads = True
+        # retries = 0
+        # global_retry_limit = 10
+        # while remaining_uploads and retries <= global_retry_limit:
+        print(
+            f'Processing files in {local_dir}, elapsed time = {datetime.now() - start_main}, ',
+            # f'try number: {retries+1}',
+            flush=True
+        )
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore')
+            if api == 's3':
+                raise DeprecationWarning('S3 support has been deprecated. Please use Swift API.')
+            elif api == 'swift':
+                upload_successful = process_files(
+                    s3,  # type: ignore
+                    bucket_name,
+                    api,
+                    current_objects,
+                    exclude,
+                    local_dir,
+                    destination_dir,
+                    dryrun,
+                    log,
+                    global_collate,
+                    use_compression,
+                    client,
+                    mem_per_worker,
+                    local_list_file,
+                    save_local_list,
+                    file_count_stop,
+                    n_workers
+                )
+            # if os.path.exists(local_list_file):
+            #     with open(local_list_file, 'r') as clf:
+            #         upload_checks = []
+            #         for line in clf.readlines():
+            #             if line.split(',')[-1] == 'True':
+            #                 upload_checks.append(True)
+            #             else:
+            #                 upload_checks.append(False)
+            #     remaining_uploads = any(upload_checks)
+            #     retries += 1
+            # else:
+            #     break
 
     print(f'Finished uploads at {datetime.now()}')
     print(f'Dask Client closed at {datetime.now()}')
