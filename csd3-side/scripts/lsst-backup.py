@@ -1465,7 +1465,8 @@ def process_files(
         remote_keys_ddf = current_objects[['CURRENT_OBJECTS']].copy()
 
         # --- FIX: Ensure key columns have the same data type ---
-        # Explicitly cast both merge keys to string ('object') to prevent dtype mismatch errors,
+        # Explicitly cast both merge keys to string ('object') to prevent
+        # dtype mismatch errors,
         # especially when one of the DataFrames might be empty.
         local_files_ddf['object_names'] = local_files_ddf['object_names'].astype(str)
         remote_keys_ddf['CURRENT_OBJECTS'] = remote_keys_ddf['CURRENT_OBJECTS'].astype(str)
@@ -1727,7 +1728,8 @@ def process_files(
         ind_uploads_ddf = dd.read_csv(ind_upload_list_file)  # type: ignore
 
         # --- FIX: Ensure key columns have the same data type ---
-        # Explicitly cast both merge keys to string ('object') to prevent dtype mismatch errors,
+        # Explicitly cast both merge keys to string ('object') to prevent
+        # dtype mismatch errors,
         # especially when one of the DataFrames might be empty.
         ind_uploads_ddf['object_names'] = ind_uploads_ddf['object_names'].astype(str)
         current_objects['CURRENT_OBJECTS'] = current_objects['CURRENT_OBJECTS'].astype(str)
@@ -1743,26 +1745,70 @@ def process_files(
         ind_uploads_ddf = ind_uploads_ddf[ind_uploads_ddf['_merge'] == 'left_only']
         ind_uploads_ddf = ind_uploads_ddf.drop(columns=['_merge', 'CURRENT_OBJECTS'])
 
-        ind_upload_results = ind_uploads_ddf.map_partitions(
-            lambda partition: partition.apply(
-                upload_files_from_series,
-                axis=1,
-                s3=s3,
-                bucket_name=bucket_name,
-                api=api,
-                local_dir=local_dir,
-                dryrun=dryrun,
-                processing_start=processing_start,
-                file_count=1,
-                total_size_uploaded=total_size_uploaded,
-                total_files_uploaded=total_files_uploaded,
-                mem_per_worker=mem_per_worker,
-                log=log,
-            ),
-            meta=('file_uploads', bool)
+        # --- NEW: Use client.submit for true parallelism ---
+        all_ind_upload_results = []
+        ind_uploads_delayed = ind_uploads_ddf.to_delayed()
+
+        print(
+            f"Uploading {num_ind_uploads} individual files in {len(ind_uploads_delayed)} chunks.",
+            flush=True
         )
-        ind_upload_results = ind_upload_results.persist()
-        ind_successful = ind_upload_results.all().compute()
+
+        for i, chunk_delayed in enumerate(ind_uploads_delayed):
+            print(f"--- Processing individual file chunk {i+1}/{len(ind_uploads_delayed)} ---", flush=True)
+
+            ind_uploads_df_chunk = chunk_delayed.compute()
+
+            if ind_uploads_df_chunk.empty:
+                print("Chunk is empty, skipping.", flush=True)
+                continue
+
+            num_uploads_in_chunk = len(ind_uploads_df_chunk)
+            upload_tasks = ind_uploads_df_chunk.iterrows()
+            ind_upload_futures = []
+
+            # Submit initial batch of tasks
+            for _ in range(min(n_workers, num_uploads_in_chunk)):
+                try:
+                    _, row = next(upload_tasks)
+                    future = client.submit(
+                        upload_files_from_series,
+                        row,
+                        s3=s3,
+                        bucket_name=bucket_name,
+                        api=api,
+                        local_dir=local_dir,
+                        dryrun=dryrun,
+                        processing_start=processing_start,
+                        file_count=1,
+                        total_size_uploaded=total_size_uploaded,
+                        total_files_uploaded=total_files_uploaded,
+                        mem_per_worker=mem_per_worker,
+                        log=log,
+                        retries=0,
+                    )
+                    ind_upload_futures.append(future)
+                except StopIteration:
+                    break
+
+            # Process futures as they complete
+            with tqdm(total=num_uploads_in_chunk, desc=f"Uploading individual files chunk {i+1}") as pbar:
+                for future in as_completed(ind_upload_futures):
+                    assert isinstance(future, dask.distributed.Future)
+                    try:
+                        result = future.result()
+                        all_ind_upload_results.append(result)
+                    except Exception as e:
+                        dprint(f"Individual file upload task failed: {e}", flush=True)
+                        all_ind_upload_results.append(False)
+                    finally:
+                        future.release()
+                        pbar.update(1)
+
+            print(f"--- Finished processing individual file chunk {i+1} ---", flush=True)
+            gc.collect()
+
+        ind_successful = all(all_ind_upload_results)
 
     # Define success based on the results of both uploads
     if num_ind_uploads > 0 and num_zip_uploads > 0:
