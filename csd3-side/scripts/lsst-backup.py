@@ -2352,12 +2352,9 @@ if __name__ == '__main__':
     print(f'Final size: {final_size:.2f} MiB.')
     print(f'Uploaded {file_count} files including zips.')
     file_count_expand_zips = 0
-    for zc in logdf['FILES_PER_ZIP']:
-        if isinstance(zc, str):
-            if zc != '':
-                file_count_expand_zips += int(zc)
-            else:
-                file_count_expand_zips += 1
+    logdf['FILES_PER_ZIP'] = logdf['FILES_PER_ZIP'].fillna(0).astype(int)
+    file_count_expand_zips = logdf['FILES_PER_ZIP'].sum()
+
     print(f'Files on Source disk: {file_count_expand_zips}.')
 
     if final_time > 0:
@@ -2370,9 +2367,12 @@ if __name__ == '__main__':
         uploading_transfer_speed = 0
 
     total_time_per_file = final_time / file_count
+    upload_time_per_file = final_upload_time_seconds / file_count
+
+    if file_count_expand_zips == 0:
+        file_count_expand_zips = 1  # avoid divide by zero
     total_time_per_file_expand_zips = final_time / file_count_expand_zips
 
-    upload_time_per_file = final_upload_time_seconds / file_count
     upload_time_per_file_expand_zips = final_upload_time_seconds / file_count_expand_zips
 
     print(f'Finished at {datetime.now()}, elapsed time = {datetime.now() - start_main}')
