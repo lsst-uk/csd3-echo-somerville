@@ -2079,7 +2079,6 @@ if __name__ == '__main__':
     # Add titles to log file
     if not os.path.exists(log):
         if os.path.exists(previous_log):
-            {
             # rename previous log
             os.rename(previous_log, log)
             print(f'Renamed {previous_log} to {log}')
