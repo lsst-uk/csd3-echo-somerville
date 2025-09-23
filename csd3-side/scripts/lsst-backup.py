@@ -32,9 +32,9 @@ from datetime import datetime
 import hashlib
 import pandas as pd
 from ast import literal_eval
-import numpy as np
+# import numpy as np
 import yaml
-import io
+# import io
 import zipfile
 import warnings
 from psutil import virtual_memory as mem
@@ -48,6 +48,10 @@ import subprocess
 from typing import List
 from tqdm import tqdm
 warnings.filterwarnings('ignore')
+
+# Define separators for metadata and logging
+metasep = '|'
+logsep = '|'
 
 
 def list_aggregation(x) -> str:
@@ -580,7 +584,8 @@ def zip_folders(
     Collates the specified folders into a temporary zip file on disk.
 
     Returns:
-        tuple: A tuple containing the path to the temporary zip file and its namelist.
+        tuple: A tuple containing the path to the temporary zip file and its
+        namelist.
     """
     zipped_size = 0
     if not dryrun:
@@ -604,7 +609,8 @@ def zip_folders(
                     try:
                         file_size = os.path.getsize(file)
                         zipped_size += file_size
-                        # This writes the file content directly to the zip archive on disk
+                        # This writes the file content directly to the zip
+                        # archive on disk
                         zip_file.write(file, arcname=arc_name)
                     except (PermissionError, OSError, FileNotFoundError) as e:
                         dprint(f'WARNING: Error reading {file}: {e}. File will not be backed up.', flush=True)
@@ -735,7 +741,7 @@ def upload_to_bucket(
                     s3.put_object(
                         container=bucket_name,
                         contents=file_stream,  # Pass the file handle directly
-                        content_type='application/octet-stream', # More generic type
+                        content_type='application/octet-stream',  # More generic type
                         obj=object_key,
                         etag=checksum_string
                     )
@@ -843,7 +849,8 @@ def upload_to_bucket_collated(
             # Open the temp file for reading in binary mode
             with open(temp_zip_path, 'rb') as file_stream:
                 checksum_hash = hashlib.md5()
-                # Read in chunks to calculate checksum without loading all to memory
+                # Read in chunks to calculate checksum without loading all
+                # to memory
                 while chunk := file_stream.read(8192):
                     checksum_hash.update(chunk)
                 checksum_string = checksum_hash.hexdigest()
@@ -878,7 +885,10 @@ def upload_to_bucket_collated(
                 upload_time = upload_end - upload_start
 
         except Exception as e:
-            dprint(f'Error uploading "{filename}" ({temp_zip_path}) to {bucket_name}/{object_key}: {e}', flush=True)
+            dprint(
+                f'Error uploading "{filename}" ({temp_zip_path}) to {bucket_name}/{object_key}: {e}',
+                flush=True
+            )
             if 'QuotaExceeded' in str(e):
                 dprint('Quota exceeded, stopping uploads.')
                 sys.exit(1)
@@ -889,7 +899,7 @@ def upload_to_bucket_collated(
                 os.remove(temp_zip_path)
     else:
         checksum_string = "DRYRUN"
-        file_data_size = 0 # Placeholder for dryrun
+        file_data_size = 0  # Placeholder for dryrun
 
     """
     report actions
