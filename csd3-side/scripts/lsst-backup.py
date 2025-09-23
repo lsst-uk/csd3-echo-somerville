@@ -1716,6 +1716,29 @@ def process_files(
                         future.release()  # type: ignore
                         pbar.update(1)
 
+                    try:
+                        _, row = next(upload_tasks)
+                        new_future = client.submit(
+                            zip_and_upload,
+                            row,
+                            s3=s3,
+                            bucket_name=bucket_name,
+                            api=api,
+                            destination_dir=destination_dir,
+                            local_dir=local_dir,
+                            total_size_uploaded=total_size_uploaded,
+                            total_files_uploaded=total_files_uploaded,
+                            use_compression=use_compression,
+                            dryrun=dryrun,
+                            processing_start=processing_start,
+                            mem_per_worker=mem_per_worker,
+                            log=log,
+                        )
+                        zip_upload_futures.append(new_future)
+                    except StopIteration:
+                        # No more tasks to submit
+                        pass
+
             # All futures for this chunk are now complete and released.
             print(f"--- Finished processing chunk {i+1} ---", flush=True)
             gc.collect()  # Explicitly ask for garbage collection
@@ -1804,6 +1827,28 @@ def process_files(
                     finally:
                         future.release()
                         pbar.update(1)
+
+                    try:
+                        _, row = next(upload_tasks)
+                        new_future = client.submit(
+                            upload_files_from_series,
+                            row,
+                            s3=s3,
+                            bucket_name=bucket_name,
+                            api=api,
+                            local_dir=local_dir,
+                            dryrun=dryrun,
+                            processing_start=processing_start,
+                            file_count=1,
+                            total_size_uploaded=total_size_uploaded,
+                            total_files_uploaded=total_files_uploaded,
+                            mem_per_worker=mem_per_worker,
+                            log=log,
+                        )
+                        ind_upload_futures.append(new_future)
+                    except StopIteration:
+                        # No more tasks to submit
+                        pass
 
             print(f"--- Finished processing individual file chunk {i+1} ---", flush=True)
             gc.collect()
