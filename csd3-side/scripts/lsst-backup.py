@@ -2360,15 +2360,13 @@ if __name__ == '__main__':
     print(f'Final size: {final_size:.2f} MiB.')
     print(f'Uploaded {file_count} files including zips.')
     file_count_expand_zips = 0
-    for zc in logdf['ZIP_CONTENTS']:
+    for zc in logdf['FILES_PER_ZIP']:
         if isinstance(zc, str):
-            if isinstance(zc, list):
-                file_count_expand_zips += len(zc)
+            if zc != '':
+                file_count_expand_zips += int(zc)
             else:
-                file_count_expand_zips += len(zc.split(','))
-        else:
-            file_count_expand_zips += 1
-    print(f'Files on CSD3: {file_count_expand_zips}.')
+                file_count_expand_zips += 1
+    print(f'Files on Source disk: {file_count_expand_zips}.')
 
     if final_time > 0:
         total_transfer_speed = final_size / final_time
