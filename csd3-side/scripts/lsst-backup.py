@@ -732,28 +732,40 @@ def upload_to_bucket(
                 file_size = os.path.getsize(filename)
                 dprint(f'Uploading {filename} to {bucket_name}/{object_key}, {file_size} bytes, '
                        f'checksum = True, dryrun = {dryrun}', flush=True)
+
+                # Calculate checksum for logging purposes ONLY.
+                with open(filename, 'rb') as file_stream:
+                    checksum_hash = hashlib.md5()
+                    while chunk := file_stream.read(8192):
+                        checksum_hash.update(chunk)
+                    checksum_string = checksum_hash.hexdigest()
+
                 with bm.get_service_swift() as service:
-                    # Open the file for streaming
-                    with open(filename, 'rb') as file_stream:
-                        # Calculate checksum by streaming
-                        checksum_hash = hashlib.md5()
-                        while chunk := file_stream.read(8192):
-                            checksum_hash.update(chunk)
-                        checksum_string = checksum_hash.hexdigest()
                     upload_start = datetime.now()
+
+                    # service.upload() returns a generator. We must iterate
+                    # over it to trigger the upload and get the results.
+                    upload_results_generator = service.upload(
+                        container=bucket_name,
+                        objects=[{
+                            'source': filename,
+                            'destination': object_key,
+                            'content_type': 'application/octet-stream',
+                        }]
+                    )
+
+                    # Consume the generator to get the result dictionary
                     with open('ind_file_upload_log', 'a') as iful:
-                        iful.write(
-                            str(
-                                service.upload(
-                                    container=bucket_name,
-                                    objects=[{
-                                        'source': filename,
-                                        'destination': object_key,
-                                        'content_type': 'application/octet-stream',
-                                    }]
-                                )
-                            ) + '\n'
-                        )
+                        for result in upload_results_generator:
+                            if result['success']:
+                                # The HTTP response is in the 'response_dict'
+                                response = result.get('response_dict')
+                                iful.write(f"SUCCESS: {object_key} -> {str(response)}\n")
+                            else:
+                                # Log the error if the upload failed
+                                error = result.get('error')
+                                iful.write(f"ERROR: {object_key} -> {str(error)}\n")
+
                     upload_end = datetime.now()
                     upload_time = upload_end - upload_start
 
