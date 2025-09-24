@@ -33,7 +33,7 @@ import hashlib
 import pandas as pd
 from ast import literal_eval
 from swiftclient.service import SwiftUploadObject
-# import numpy as np
+import numpy as np
 import yaml
 # import io
 import zipfile
@@ -644,33 +644,33 @@ def zip_folders(
         return "", []
 
 
-def part_uploader(bucket_name, object_key, part_number, chunk_data, upload_id) -> dict:
-    """
-    Uploads a part of a file to an S3 bucket.
+# def part_uploader(bucket_name, object_key, part_number, chunk_data, upload_id) -> dict:
+#     """
+#     Uploads a part of a file to an S3 bucket.
 
-    Args:
-        bucket_name (str): The name of the S3 bucket.
-        object_key (str): The key of the object in the S3 bucket.
-        part_number (int): The part number of the chunk being uploaded.
-        chunk_data (bytes): The data of the chunk being uploaded.
-        upload_id (str): The ID of the ongoing multipart upload.
+#     Args:
+#         bucket_name (str): The name of the S3 bucket.
+#         object_key (str): The key of the object in the S3 bucket.
+#         part_number (int): The part number of the chunk being uploaded.
+#         chunk_data (bytes): The data of the chunk being uploaded.
+#         upload_id (str): The ID of the ongoing multipart upload.
 
-    Returns:
-        dict: A dictionary containing the part number and ETag of the uploaded
-        part.
-    """
-    s3_client = bm.get_client()
-    return {
-        "PartNumber": part_number,
-        "ETag":
-            s3_client.upload_part(
-                Body=chunk_data,
-                Bucket=bucket_name,
-                Key=object_key,
-                PartNumber=part_number,
-                UploadId=upload_id
-            )["ETag"]
-    }
+#     Returns:
+#         dict: A dictionary containing the part number and ETag of the uploaded
+#         part.
+#     """
+#     s3_client = bm.get_client()
+#     return {
+#         "PartNumber": part_number,
+#         "ETag":
+#             s3_client.upload_part(
+#                 Body=chunk_data,
+#                 Bucket=bucket_name,
+#                 Key=object_key,
+#                 PartNumber=part_number,
+#                 UploadId=upload_id
+#             )["ETag"]
+#     }
 
 
 def upload_to_bucket(
@@ -741,33 +741,42 @@ def upload_to_bucket(
                         checksum_hash.update(chunk)
                     checksum_string = checksum_hash.hexdigest()
 
+                # Use the SwiftService context manager for robust uploads.
+                # It handles connection setup and teardown.
                 with bm.get_service_swift() as service:
                     upload_start = datetime.now()
 
-                    # service.upload() returns a generator. We must iterate
-                    # over it to trigger the upload and get the results.
-                    # --- FIX: Use SwiftUploadObject to specify source and destination ---
+                    # Create the upload object, specifying source and destination.
                     upload_object = SwiftUploadObject(
                         source=filename,
                         object_name=object_key,
                         options={'header': ['Content-Type:application/octet-stream']}
                     )
+                    if file_size > 1024**3:
+                        # --- FIX: Explicitly set segment_size to force multipart upload (SLO) ---
+                        # This forces swiftclient to segment files into 1 GiB chunks.
+                        upload_options = {
+                            'segment_size': 1024**3,
+                            'use_slo': True
+                        }  # 1 GiB
+                    else:
+                        upload_options = {}
+
+                    # service.upload handles streaming from disk, segmentation (SLO),
+                    # and manifest creation automatically for large files.
+                    # We must iterate over the generator to trigger the upload.
                     upload_results_generator = service.upload(
                         container=bucket_name,
-                        objects=[upload_object]
+                        objects=[upload_object],
+                        options=upload_options
                     )
-
-                    # Consume the generator to get the result dictionary
-                    with open('ind_file_upload_log', 'a') as iful:
-                        for result in upload_results_generator:
-                            if result['success']:
-                                # The HTTP response is in the 'response_dict'
-                                response = result.get('response_dict')
-                                iful.write(f"SUCCESS: {object_key} -> {str(response)}\n")
-                            else:
-                                # Log the error if the upload failed
-                                error = result.get('error')
-                                iful.write(f"ERROR: {object_key} -> {str(error)}\n")
+                    upload_results = [result for result in upload_results_generator]
+                    # Consume the generator to get the result.
+                    for result in upload_results:
+                        if not result['success']:
+                            error = result.get('error')
+                            dprint(f"Upload failed for {object_key}: {error}", flush=True)
+                            return False
 
                     upload_end = datetime.now()
                     upload_time = upload_end - upload_start
