@@ -2380,10 +2380,10 @@ if __name__ == '__main__':
     print(
         f'Upload speed (based on CPU time): {(uploading_transfer_speed):.2f} '
         f'MiB/s; {upload_time_per_file:.2f} '
-        f's/file uploaded; {upload_time_per_file_expand_zips:.2f} s/file on CSD3'
+        f's/file uploaded; {upload_time_per_file_expand_zips:.2f} s/file (local files pre-collation)'
     )
     print(
         f'Upload speed (based on walltime, includes data processing time): {(total_transfer_speed):.2f} '
         f'MiB/s; {total_time_per_file:.2f} '
-        f's/file uploaded; {total_time_per_file_expand_zips:.2f} s/file on CSD3'
+        f's/file uploaded; {total_time_per_file_expand_zips:.2f} s/file (local files pre-collation)'
     )
