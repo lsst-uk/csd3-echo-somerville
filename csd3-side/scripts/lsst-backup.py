@@ -869,7 +869,6 @@ def upload_to_bucket_collated(
                 metadata_object_key = object_key + '.metadata'
                 dprint(f'Writing zip contents to {metadata_object_key}.', flush=True)
 
-
                 # First, upload the small metadata object
                 s3.put_object(
                     container=bucket_name,
@@ -1459,13 +1458,16 @@ def process_files(
         print('Generating zip batches...', flush=True)
         zip_files_ddf = files_to_upload_ddf[files_to_upload_ddf['type'] == 'zip'].copy()
         ind_uploads_ddf = files_to_upload_ddf[files_to_upload_ddf['type'] == 'file'].copy()
-        num_ind_uploads = len(ind_uploads_ddf.index)
+
+        # --- FIX: Eagerly compute the counts to get actual integers ---
+        num_ind_uploads = len(ind_uploads_ddf.index.compute())
+        len_zip_files_df = len(zip_files_ddf.index.compute())
+
+        print(f"Found {num_ind_uploads} files for individual upload.", flush=True)
+        print(f"Found {len_zip_files_df} files for zip upload.", flush=True)
+
         ind_uploads_ddf.to_csv(ind_upload_list_file, index=False, single_file=True)
-        # len_zip_files_df = 0
         zips_uploads_ddf = None
-        # zip_files_df = None
-        # Compute into pandas DataFrames for sequential processing
-        len_zip_files_df = len(zip_files_ddf.index)
         del ind_uploads_ddf, files_to_upload_ddf
 
         if len_zip_files_df > 0:
@@ -1693,25 +1695,43 @@ def process_files(
     if num_ind_uploads > 0:
         print(f"Uploading {num_ind_uploads} individual files.", flush=True)
 
+        # Explode the zip dataframe to get a list of all individual files that
+        # were just uploaded inside zip archives.
+        if num_zip_uploads > 0 and zips_uploads_ddf is not None:
+            print("Determining which files were uploaded in zips...", flush=True)
+            # Split the | separated strings into lists of strings
+            files_in_zips_ddf = zips_uploads_ddf[['object_names']].copy()
+            files_in_zips_ddf['object_names'] = files_in_zips_ddf['object_names'].str.split('|')
+            # Explode the lists to create one row per file
+            files_in_zips_ddf = files_in_zips_ddf.explode('object_names')
+            files_in_zips_ddf = files_in_zips_ddf.persist()
+            print(f"Found {len(files_in_zips_ddf.index)} files already included in zip uploads.", flush=True)
+        else:
+            # If no zips were uploaded, create an empty dataframe to avoid
+            # errors
+            files_in_zips_ddf = dd.from_pandas(  # type: ignore
+                pd.DataFrame(columns=['object_names']),
+                npartitions=1
+            )
+
         ind_uploads_ddf = dd.read_csv(ind_upload_list_file)  # type: ignore
 
         # --- FIX: Ensure key columns have the same data type ---
         # Explicitly cast both merge keys to string ('object') to prevent
-        # dtype mismatch errors,
-        # especially when one of the DataFrames might be empty.
+        # dtype mismatch errors.
         ind_uploads_ddf['object_names'] = ind_uploads_ddf['object_names'].astype(str)
-        current_objects['CURRENT_OBJECTS'] = current_objects['CURRENT_OBJECTS'].astype(str)
+        files_in_zips_ddf['object_names'] = files_in_zips_ddf['object_names'].astype(str)
 
-        #  Drop any files now in current_objects ( for a retry )
+        #  Drop any files that were just uploaded in zips.
+        #  This is an anti-join.
         ind_uploads_ddf = ind_uploads_ddf.merge(
-            current_objects[['CURRENT_OBJECTS']],
-            left_on='object_names',
-            right_on='CURRENT_OBJECTS',
+            files_in_zips_ddf[['object_names']],
+            on='object_names',
             how='left',
             indicator=True
         )
         ind_uploads_ddf = ind_uploads_ddf[ind_uploads_ddf['_merge'] == 'left_only']
-        ind_uploads_ddf = ind_uploads_ddf.drop(columns=['_merge', 'CURRENT_OBJECTS'])
+        ind_uploads_ddf = ind_uploads_ddf.drop(columns=['_merge'])
 
         # --- NEW: Use client.submit for true parallelism ---
         all_ind_upload_results = []
