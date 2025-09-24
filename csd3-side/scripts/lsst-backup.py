@@ -33,9 +33,7 @@ import hashlib
 import pandas as pd
 from ast import literal_eval
 from swiftclient.service import SwiftUploadObject
-import numpy as np
 import yaml
-# import io
 import zipfile
 import warnings
 from psutil import virtual_memory as mem
@@ -644,35 +642,6 @@ def zip_folders(
         return "", []
 
 
-# def part_uploader(bucket_name, object_key, part_number, chunk_data, upload_id) -> dict:
-#     """
-#     Uploads a part of a file to an S3 bucket.
-
-#     Args:
-#         bucket_name (str): The name of the S3 bucket.
-#         object_key (str): The key of the object in the S3 bucket.
-#         part_number (int): The part number of the chunk being uploaded.
-#         chunk_data (bytes): The data of the chunk being uploaded.
-#         upload_id (str): The ID of the ongoing multipart upload.
-
-#     Returns:
-#         dict: A dictionary containing the part number and ETag of the uploaded
-#         part.
-#     """
-#     s3_client = bm.get_client()
-#     return {
-#         "PartNumber": part_number,
-#         "ETag":
-#             s3_client.upload_part(
-#                 Body=chunk_data,
-#                 Bucket=bucket_name,
-#                 Key=object_key,
-#                 PartNumber=part_number,
-#                 UploadId=upload_id
-#             )["ETag"]
-#     }
-
-
 def upload_to_bucket(
     s3,
     bucket_name,
@@ -746,15 +715,16 @@ def upload_to_bucket(
                 with bm.get_service_swift() as service:
                     upload_start = datetime.now()
 
-                    # Create the upload object, specifying source and destination.
+                    # Create the upload object, specifying source and
+                    # object_name.
                     upload_object = SwiftUploadObject(
                         source=filename,
                         object_name=object_key,
                         options={'header': ['Content-Type:application/octet-stream']}
                     )
                     if file_size > 1024**3:
-                        # --- FIX: Explicitly set segment_size to force multipart upload (SLO) ---
-                        # This forces swiftclient to segment files into 1 GiB chunks.
+                        # Explicitly set segment_size to force multipart upload
+                        # (SLO).
                         upload_options = {
                             'segment_size': 1024**3,
                             'use_slo': True
@@ -762,7 +732,8 @@ def upload_to_bucket(
                     else:
                         upload_options = {}
 
-                    # service.upload handles streaming from disk, segmentation (SLO),
+                    # service.upload handles streaming from disk, segmentation
+                    # (SLO),
                     # and manifest creation automatically for large files.
                     # We must iterate over the generator to trigger the upload.
                     upload_results_generator = service.upload(
@@ -1759,7 +1730,7 @@ def process_files(
         ind_uploads_ddf = ind_uploads_ddf[ind_uploads_ddf['_merge'] == 'left_only']
         ind_uploads_ddf = ind_uploads_ddf.drop(columns=['_merge'])
 
-        # --- FIX: Persist the final list of files to upload and check if it's empty ---
+        # Persist the final list of files to upload and check if it's empty
         print("Persisting final list of individual files to upload...", flush=True)
         ind_uploads_ddf = ind_uploads_ddf.persist()
 
@@ -1780,7 +1751,10 @@ def process_files(
             )
 
             for i, chunk_delayed in enumerate(ind_uploads_delayed):
-                print(f"--- Processing individual file chunk {i+1}/{len(ind_uploads_delayed)} ---", flush=True)
+                print(
+                    f"Processing individual file chunk {i+1}/{len(ind_uploads_delayed)}",
+                    flush=True
+                )
 
                 ind_uploads_df_chunk = chunk_delayed.compute()
 
