@@ -733,8 +733,6 @@ def upload_to_bucket(
                 dprint(f'Uploading {filename} to {bucket_name}/{object_key}, {file_size} bytes, '
                        f'checksum = True, dryrun = {dryrun}', flush=True)
                 with bm.get_service_swift() as service:
-                    upload_start = datetime.now()
-
                     # Open the file for streaming
                     with open(filename, 'rb') as file_stream:
                         # Calculate checksum by streaming
@@ -742,7 +740,7 @@ def upload_to_bucket(
                         while chunk := file_stream.read(8192):
                             checksum_hash.update(chunk)
                         checksum_string = checksum_hash.hexdigest()
-
+                    upload_start = datetime.now()
                     service.upload(
                         container=bucket_name,
                         objects=[
@@ -871,7 +869,7 @@ def upload_to_bucket_collated(
                 metadata_object_key = object_key + '.metadata'
                 dprint(f'Writing zip contents to {metadata_object_key}.', flush=True)
 
-                upload_start = datetime.now()
+
                 # First, upload the small metadata object
                 s3.put_object(
                     container=bucket_name,
@@ -880,7 +878,7 @@ def upload_to_bucket_collated(
                     obj=metadata_object_key,
                     headers={'x-object-meta-corresponding-zip': object_key},
                 )
-
+                upload_start = datetime.now()
                 # Now, stream the large zip file from disk
                 s3.put_object(
                     container=bucket_name,
