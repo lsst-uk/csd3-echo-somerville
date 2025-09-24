@@ -741,16 +741,19 @@ def upload_to_bucket(
                             checksum_hash.update(chunk)
                         checksum_string = checksum_hash.hexdigest()
                     upload_start = datetime.now()
-                    service.upload(
-                        container=bucket_name,
-                        objects=[
-                            {
-                                'source': filename,
-                                'destination': object_key,
-                                'content_type': 'application/octet-stream',
-                            }
-                        ]
-                    )
+                    with open('ind_file_upload_log', 'a') as iful:
+                        iful.write(
+                            str(
+                                service.upload(
+                                    container=bucket_name,
+                                    objects=[{
+                                        'source': filename,
+                                        'destination': object_key,
+                                        'content_type': 'application/octet-stream',
+                                    }]
+                                )
+                            ) + '\n'
+                        )
                     upload_end = datetime.now()
                     upload_time = upload_end - upload_start
 
