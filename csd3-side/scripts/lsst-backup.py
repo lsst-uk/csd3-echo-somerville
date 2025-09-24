@@ -747,7 +747,6 @@ def upload_to_bucket(
                             {
                                 'source': filename,
                                 'destination': object_key,
-                                'etag': checksum_string,
                                 'content_type': 'application/octet-stream',
                             }
                         ]
