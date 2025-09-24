@@ -1733,69 +1733,44 @@ def process_files(
         ind_uploads_ddf = ind_uploads_ddf[ind_uploads_ddf['_merge'] == 'left_only']
         ind_uploads_ddf = ind_uploads_ddf.drop(columns=['_merge'])
 
-        # --- NEW: Use client.submit for true parallelism ---
-        all_ind_upload_results = []
-        ind_uploads_delayed = ind_uploads_ddf.to_delayed()
+        # --- FIX: Persist the final list of files to upload and check if it's empty ---
+        print("Persisting final list of individual files to upload...", flush=True)
+        ind_uploads_ddf = ind_uploads_ddf.persist()
 
-        print(
-            f"Uploading {num_ind_uploads} individual files in {len(ind_uploads_delayed)} chunks.",
-            flush=True
-        )
+        # Eagerly compute the final count after filtering
+        final_ind_upload_count = len(ind_uploads_ddf.index)
+        if final_ind_upload_count == 0:
+            print("No individual files remaining to upload after accounting for zips.", flush=True)
+            ind_successful = True  # No files to upload, so this step is successful
+        else:
+            print(f"Final count of individual files to upload: {final_ind_upload_count}", flush=True)
+            # --- NEW: Use client.submit for true parallelism ---
+            all_ind_upload_results = []
+            ind_uploads_delayed = ind_uploads_ddf.to_delayed()
 
-        for i, chunk_delayed in enumerate(ind_uploads_delayed):
-            print(f"--- Processing individual file chunk {i+1}/{len(ind_uploads_delayed)} ---", flush=True)
+            print(
+                f"Uploading {final_ind_upload_count} individual files in {len(ind_uploads_delayed)} chunks.",
+                flush=True
+            )
 
-            ind_uploads_df_chunk = chunk_delayed.compute()
+            for i, chunk_delayed in enumerate(ind_uploads_delayed):
+                print(f"--- Processing individual file chunk {i+1}/{len(ind_uploads_delayed)} ---", flush=True)
 
-            if ind_uploads_df_chunk.empty:
-                print("Chunk is empty, skipping.", flush=True)
-                continue
+                ind_uploads_df_chunk = chunk_delayed.compute()
 
-            num_uploads_in_chunk = len(ind_uploads_df_chunk)
-            upload_tasks = ind_uploads_df_chunk.iterrows()
-            ind_upload_futures = []
+                if ind_uploads_df_chunk.empty:
+                    print("Chunk is empty, skipping.", flush=True)
+                    continue
 
-            # Submit initial batch of tasks
-            for _ in range(min(n_workers, num_uploads_in_chunk)):
-                try:
-                    _, row = next(upload_tasks)
-                    future = client.submit(
-                        upload_files_from_series,
-                        row,
-                        s3=None,  # Let the worker create the connection
-                        bucket_name=bucket_name,
-                        api=api,
-                        local_dir=local_dir,
-                        dryrun=dryrun,
-                        processing_start=processing_start,
-                        file_count=1,
-                        total_size_uploaded=total_size_uploaded,
-                        total_files_uploaded=total_files_uploaded,
-                        mem_per_worker=mem_per_worker,
-                        log=log,
-                        retries=0,
-                    )
-                    ind_upload_futures.append(future)
-                except StopIteration:
-                    break
+                num_uploads_in_chunk = len(ind_uploads_df_chunk)
+                upload_tasks = ind_uploads_df_chunk.iterrows()
+                ind_upload_futures = []
 
-            # Process futures as they complete
-            with tqdm(total=num_uploads_in_chunk, desc=f"Uploading individual files chunk {i+1}") as pbar:
-                for future in as_completed(ind_upload_futures):
-                    assert isinstance(future, dask.distributed.Future)
-                    try:
-                        result = future.result()
-                        all_ind_upload_results.append(result)
-                    except Exception as e:
-                        dprint(f"Individual file upload task failed: {e}", flush=True)
-                        all_ind_upload_results.append(False)
-                    finally:
-                        future.release()
-                        pbar.update(1)
-
+                # Submit initial batch of tasks
+                for _ in range(min(n_workers, num_uploads_in_chunk)):
                     try:
                         _, row = next(upload_tasks)
-                        new_future = client.submit(
+                        future = client.submit(
                             upload_files_from_series,
                             row,
                             s3=None,  # Let the worker create the connection
@@ -1809,16 +1784,52 @@ def process_files(
                             total_files_uploaded=total_files_uploaded,
                             mem_per_worker=mem_per_worker,
                             log=log,
+                            retries=0,
                         )
-                        ind_upload_futures.append(new_future)
+                        ind_upload_futures.append(future)
                     except StopIteration:
-                        # No more tasks to submit
-                        pass
+                        break
 
-            print(f"--- Finished processing individual file chunk {i+1} ---", flush=True)
-            gc.collect()
+                # Process futures as they complete
+                with tqdm(total=num_uploads_in_chunk, desc=f"Uploading individual files chunk {i+1}") as pbar:
+                    for future in as_completed(ind_upload_futures):
+                        assert isinstance(future, dask.distributed.Future)
+                        try:
+                            result = future.result()
+                            all_ind_upload_results.append(result)
+                        except Exception as e:
+                            dprint(f"Individual file upload task failed: {e}", flush=True)
+                            all_ind_upload_results.append(False)
+                        finally:
+                            future.release()
+                            pbar.update(1)
 
-        ind_successful = all(all_ind_upload_results)
+                        try:
+                            _, row = next(upload_tasks)
+                            new_future = client.submit(
+                                upload_files_from_series,
+                                row,
+                                s3=None,  # Let the worker create the connection
+                                bucket_name=bucket_name,
+                                api=api,
+                                local_dir=local_dir,
+                                dryrun=dryrun,
+                                processing_start=processing_start,
+                                file_count=1,
+                                total_size_uploaded=total_size_uploaded,
+                                total_files_uploaded=total_files_uploaded,
+                                mem_per_worker=mem_per_worker,
+                                log=log,
+                            )
+                            ind_upload_futures.append(new_future)
+                        except StopIteration:
+                            # No more tasks to submit
+                            pass
+
+                print(f"--- Finished processing individual file chunk {i+1} ---", flush=True)
+                gc.collect()
+
+            ind_successful = all(all_ind_upload_results)
 
     # Define success based on the results of both uploads
     if num_ind_uploads > 0 and num_zip_uploads > 0:
