@@ -32,6 +32,7 @@ from datetime import datetime
 import hashlib
 import pandas as pd
 from ast import literal_eval
+from swiftclient.service import SwiftUploadObject
 # import numpy as np
 import yaml
 # import io
@@ -745,13 +746,15 @@ def upload_to_bucket(
 
                     # service.upload() returns a generator. We must iterate
                     # over it to trigger the upload and get the results.
+                    # --- FIX: Use SwiftUploadObject to specify source and destination ---
+                    upload_object = SwiftUploadObject(
+                        source=filename,
+                        object_name=object_key,
+                        options={'header': ['Content-Type:application/octet-stream']}
+                    )
                     upload_results_generator = service.upload(
                         container=bucket_name,
-                        objects=[{
-                            'source': filename,
-                            'destination': object_key,
-                            'content_type': 'application/octet-stream',
-                        }]
+                        objects=[upload_object]
                     )
 
                     # Consume the generator to get the result dictionary
@@ -2062,6 +2065,7 @@ if __name__ == '__main__':
     # off - makes flag more intuitive
     global_collate = not args.no_collate
     dryrun = args.dryrun
+
     # internally, flag turns *on* compression, but for user no-compression
     # turns it off - makes flag more intuitive
     use_compression = not args.no_compression
