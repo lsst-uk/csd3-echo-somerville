@@ -46,6 +46,7 @@ from dask.distributed import print as dprint
 import subprocess
 from typing import List
 from tqdm import tqdm
+import io
 warnings.filterwarnings('ignore')
 
 # Define separators for metadata and logging
@@ -481,6 +482,7 @@ def zip_and_upload(
     processing_start: datetime,
     mem_per_worker: int,
     log: str,
+    in_memory_upload: bool = False,
 ) -> bool:
     """
     Zips a list of files and uploads the resulting zip file to an S3 bucket.
@@ -537,7 +539,8 @@ def zip_and_upload(
         id,
         mem_per_worker,
         object_names,
-        temp_dir
+        temp_dir,
+        in_memory_upload
     )
 
     if not temp_zip_path or not namelist:
@@ -570,7 +573,8 @@ def zip_and_upload(
         total_files_uploaded,
         True,
         mem_per_worker,
-        log
+        log,
+        in_memory_upload,
     )
     # The temp file is now cleaned up inside upload_to_bucket_collated
     return uploaded
@@ -584,7 +588,8 @@ def zip_folders(
     id: int,
     mem_per_worker: int,
     object_names: list[str],
-    temp_dir: str
+    temp_dir: str,
+    in_memory_upload: bool = False,
 ) -> tuple[str, list[str]]:
     """
     Collates the specified folders into a temporary zip file on disk.
@@ -597,46 +602,53 @@ def zip_folders(
     if not dryrun:
         # Create a temporary file to write the zip archive to.
         # This avoids holding the entire zip in memory.
-        temp_zip_path = os.path.join(temp_dir, f"collated_{id}_{os.getpid()}.zip")
+        compression = zipfile.ZIP_DEFLATED if use_compression else zipfile.ZIP_STORED
         namelist = []
         try:
-            if use_compression:
-                compression = zipfile.ZIP_DEFLATED
-            else:
-                compression = zipfile.ZIP_STORED
-            with zipfile.ZipFile(temp_zip_path, "w", compression, True) as zip_file:
-                for i, file in enumerate(file_paths):
-                    if not file.startswith('/'):
-                        dprint(f'Path is wrong: {file}', flush=True)
-                        continue
-
-                    arc_name = to_rds_path(object_names[i], local_dir)
-                    dprint(f'Adding {file} as {arc_name} to zip {temp_zip_path}.', flush=True)
-                    try:
-                        file_size = os.path.getsize(file)
-                        zipped_size += file_size
-                        # This writes the file content directly to the zip
-                        # archive on disk
+            if in_memory_upload:
+                # Use BytesIO for in-memory zip creation
+                zip_buffer = io.BytesIO()
+                with zipfile.ZipFile(zip_buffer, "w", compression, True) as zip_file:
+                    for i, file in enumerate(file_paths):
+                        arc_name = to_rds_path(object_names[i], local_dir)
                         zip_file.write(file, arcname=arc_name)
-                    except (PermissionError, OSError, FileNotFoundError) as e:
-                        dprint(f'WARNING: Error reading {file}: {e}. File will not be backed up.', flush=True)
-                        continue
-                namelist = zip_file.namelist()
+                    namelist = zip_file.namelist()
+                zip_buffer.seek(0)
+                return zip_buffer.getvalue(), namelist
+            else:
+                # Create a temporary file on disk
+                temp_zip_path = os.path.join(temp_dir, f"collated_{id}_{os.getpid()}.zip")
+                with zipfile.ZipFile(temp_zip_path, "w", compression, True) as zip_file:
+                    for i, file in enumerate(file_paths):
+                        if not file.startswith('/'):
+                            dprint(f'Path is wrong: {file}', flush=True)
+                            continue
 
-            if zipped_size > mem_per_worker:
-                dprint(f'WARNING: Zipped size of {zipped_size} bytes exceeds memory per core of '
-                       f'{mem_per_worker} bytes.', flush=True)
+                        arc_name = to_rds_path(object_names[i], local_dir)
+                        dprint(f'Adding {file} as {arc_name} to zip {temp_zip_path}.', flush=True)
+                        try:
+                            file_size = os.path.getsize(file)
+                            zipped_size += file_size
+                            # This writes the file content directly to the zip
+                            # archive on disk
+                            zip_file.write(file, arcname=arc_name)
+                        except (PermissionError, OSError, FileNotFoundError) as e:
+                            dprint(f'WARNING: Error reading {file}: {e}. File will not be backed up.', flush=True)
+                            continue
+                    namelist = zip_file.namelist()
 
-            if not namelist:
-                os.remove(temp_zip_path)  # Clean up empty temp file
-                return "", []
+                if zipped_size > mem_per_worker:
+                    dprint(f'WARNING: Zipped size of {zipped_size} bytes exceeds memory per core of '
+                           f'{mem_per_worker} bytes.', flush=True)
 
-            return temp_zip_path, namelist
+                if not namelist:
+                    os.remove(temp_zip_path)  # Clean up empty temp file
+                    return "", []
+
+                return temp_zip_path, namelist
 
         except Exception as e:
-            dprint(f'Error zipping to {temp_zip_path}: {e}', flush=True)
-            if os.path.exists(temp_zip_path):
-                os.remove(temp_zip_path)
+            dprint(f'Error during zipping: {e}', flush=True)
             return "", []
     else:
         return "", []
@@ -651,7 +663,8 @@ def upload_to_bucket(
     filename,
     object_key,
     dryrun,
-    log
+    log,
+    in_memory_upload: bool = False,
 ) -> bool:
     """
     Uploads a file to an S3 bucket.
@@ -703,12 +716,21 @@ def upload_to_bucket(
                 dprint(f'Uploading {filename} to {bucket_name}/{object_key}, {file_size} bytes, '
                        f'checksum = True, dryrun = {dryrun}', flush=True)
 
-                # Calculate checksum for logging purposes ONLY.
-                with open(filename, 'rb') as file_stream:
-                    checksum_hash = hashlib.md5()
-                    while chunk := file_stream.read(8192):
-                        checksum_hash.update(chunk)
-                    checksum_string = checksum_hash.hexdigest()
+                if in_memory_upload:
+                    # In-memory method
+                    with open(filename, 'rb') as f:
+                        file_data = f.read()
+                    checksum_string = hashlib.md5(file_data).hexdigest()
+                    upload_content = file_data
+                else:
+                    # Streaming method
+                    with open(filename, 'rb') as file_stream:
+                        checksum_hash = hashlib.md5()
+                        while chunk := file_stream.read(8192):
+                            checksum_hash.update(chunk)
+                        checksum_string = checksum_hash.hexdigest()
+                        file_stream.seek(0)
+                        upload_content = file_stream
 
                 # Use the SwiftService context manager for robust uploads.
                 # It handles connection setup and teardown.
@@ -718,7 +740,7 @@ def upload_to_bucket(
                     # Create the upload object, specifying source and
                     # object_name.
                     upload_object = SwiftUploadObject(
-                        source=filename,
+                        source=upload_content,
                         object_name=object_key,
                         options={'header': ['Content-Type:application/octet-stream']}
                     )
@@ -792,11 +814,12 @@ def upload_to_bucket_collated(
     bucket_name,
     api,
     folder,
-    temp_zip_path,  # Changed from file_data
+    file_data_or_path,  # Changed from file_data
     zip_contents,
     object_key,
     dryrun,
-    log
+    log,
+    in_memory_upload: bool = False,
 ) -> bool:
     """
     Uploads a file to an S3 bucket.
@@ -812,7 +835,7 @@ def upload_to_bucket_collated(
 
         folder (str): The local folder containing the file to upload.
 
-        temp_zip_path (str): The path to the temporary zip file.
+        file_data_or_path (Union[str, bytes]): The file data or path to the temporary zip file.
 
         zip_contents (list): A list of files included in the zip file
         (file_data).
@@ -844,24 +867,26 @@ def upload_to_bucket_collated(
 
     if not dryrun:
         try:
-            file_data_size = os.path.getsize(temp_zip_path)
+            if in_memory_upload:
+                file_data_size = len(file_data_or_path)
+                file_stream = io.BytesIO(file_data_or_path)
+                checksum_string = hashlib.md5(file_data_or_path).hexdigest()
+            else:
+                file_data_size = os.path.getsize(file_data_or_path)
+                file_stream = open(file_data_or_path, 'rb')
+                # Calculate checksum by streaming
+                checksum_hash = hashlib.md5()
+                while chunk := file_stream.read(8192):
+                    checksum_hash.update(chunk)
+                checksum_string = checksum_hash.hexdigest()
+                file_stream.seek(0)
+
             dprint(
                 f'Uploading zip file "{filename}" from {folder} to {bucket_name}/{object_key}, '
                 f'{file_data_size} bytes, checksum = True, dryrun = {dryrun}', flush=True
             )
 
-            # Open the temp file for reading in binary mode
-            with open(temp_zip_path, 'rb') as file_stream:
-                checksum_hash = hashlib.md5()
-                # Read in chunks to calculate checksum without loading all
-                # to memory
-                while chunk := file_stream.read(8192):
-                    checksum_hash.update(chunk)
-                checksum_string = checksum_hash.hexdigest()
-
-                # Rewind the stream to the beginning for the upload
-                file_stream.seek(0)
-
+            with file_stream:  # Use context manager to ensure file or file-like obj is closed
                 metadata_value = metasep.join(zip_contents)
                 metadata_object_key = object_key + '.metadata'
                 dprint(f'Writing zip contents to {metadata_object_key}.', flush=True)
@@ -889,7 +914,7 @@ def upload_to_bucket_collated(
 
         except Exception as e:
             dprint(
-                f'Error uploading "{filename}" ({temp_zip_path}) to {bucket_name}/{object_key}: {e}',
+                f'Error uploading "{filename}" ({file_data_or_path}) to {bucket_name}/{object_key}: {e}',
                 flush=True
             )
             if 'QuotaExceeded' in str(e):
@@ -897,9 +922,13 @@ def upload_to_bucket_collated(
                 sys.exit(1)
             return False
         finally:
-            # CRITICAL: Clean up the temporary file
-            if os.path.exists(temp_zip_path):
-                os.remove(temp_zip_path)
+            # Clean up temp file if it exists (streaming case)
+            if (
+                not in_memory_upload
+                and isinstance(file_data_or_path, str)
+                and os.path.exists(file_data_or_path)
+            ):
+                os.remove(file_data_or_path)
     else:
         checksum_string = "DRYRUN"
         file_data_size = 0  # Placeholder for dryrun
@@ -945,7 +974,8 @@ def upload_files_from_series(
     total_size_uploaded,
     total_files_uploaded,
     mem_per_worker,
-    log
+    log,
+    in_memory_upload: bool = False,
 ) -> bool:
     """
     Uploads files from a given Pandas Series to an S3 bucket using
@@ -1005,7 +1035,8 @@ def upload_files_from_series(
         total_files_uploaded,
         False,
         mem_per_worker,
-        log
+        log,
+        in_memory_upload,
     )
 
 
@@ -1018,7 +1049,7 @@ def print_stats(
     processing_start,
     total_size_uploaded,
     total_files_uploaded,
-    collated
+    collated,
 ) -> None:
     """
     Prints the statistics of the upload process.
@@ -1079,7 +1110,8 @@ def upload_and_callback(
     total_files_uploaded,
     collated,
     mem_per_worker,
-    log
+    log,
+    in_memory_upload,
 ) -> bool:
     """
     Uploads files to an S3 bucket and logs the output. Supports both collated
@@ -1140,7 +1172,8 @@ def upload_and_callback(
                 zip_contents,
                 object_key,
                 dryrun,
-                log
+                log,
+                in_memory_upload
             )
         except Exception as e:
             dprint(f'Error uploading {folder} to {bucket_name}/{object_key}: {e}')
@@ -1160,7 +1193,8 @@ def upload_and_callback(
                 file_name_or_data,
                 object_key,
                 dryrun,
-                log
+                log,
+                in_memory_upload
             )
         except Exception as e:
             dprint(f'Error uploading {folder} to {bucket_name}/{object_key}: {e}')
@@ -1218,7 +1252,8 @@ def process_files(
     local_list_file,
     save_local_file,
     file_count_stop,
-    n_workers
+    n_workers,
+    in_memory_upload,
 ) -> bool:
     """
     Uploads files from a local directory to an S3 bucket in parallel.
@@ -1637,6 +1672,7 @@ def process_files(
                         processing_start=processing_start,
                         mem_per_worker=mem_per_worker,
                         log=log,
+                        in_memory_upload=in_memory_upload,
                         retries=0,
                     )
                     zip_upload_futures.append(future)
@@ -1677,6 +1713,8 @@ def process_files(
                             processing_start=processing_start,
                             mem_per_worker=mem_per_worker,
                             log=log,
+                            in_memory_upload=in_memory_upload,
+                            retries=0,
                         )
                         zip_upload_futures.append(new_future)
                     except StopIteration:
@@ -1784,6 +1822,7 @@ def process_files(
                             total_files_uploaded=total_files_uploaded,
                             mem_per_worker=mem_per_worker,
                             log=log,
+                            in_memory_upload=in_memory_upload,
                             retries=0,
                         )
                         ind_upload_futures.append(future)
@@ -1820,6 +1859,8 @@ def process_files(
                                 total_files_uploaded=total_files_uploaded,
                                 mem_per_worker=mem_per_worker,
                                 log=log,
+                                in_memory_upload=in_memory_upload,
+                                retries=0,
                             )
                             ind_upload_futures.append(new_future)
                         except StopIteration:
@@ -1953,6 +1994,12 @@ if __name__ == '__main__':
         action='store_true',
         help='Do not stop if count of local files equals count of S3 objects.'
     )
+    parser.add_argument(
+        '--in-memory-upload',
+        default=False,
+        action='store_true',
+        help='Load files into memory before uploading. Faster for small datasets, but may cause memory errors for large ones.'
+    )
     args = parser.parse_args()
 
     if not args.config_file and not (args.bucket_name and args.local_path and args.S3_prefix):
@@ -1973,6 +2020,7 @@ if __name__ == '__main__':
         args.no_compression,
         args.save_config,
         args.no_file_count_stop,
+        args.in_memory_upload,
     ]
     if args.config_file and any(clopts):
         print(f'WARNING: Any Options provide on command line override options in {args.config_file}.')
@@ -2018,6 +2066,8 @@ if __name__ == '__main__':
                     args.no_compression = config['no_compression']
                 if 'no_file_count_stop' in config.keys() and not args.no_file_count_stop:
                     args.no_file_count_stop = config['no_file_count_stop']
+                if 'in_memory_upload' in config.keys() and not args.in_memory_upload:
+                    args.in_memory_upload = config['in_memory_upload']
                 if 'api' in config.keys() and not args.api:
                     args.api = config['api']
                 if 'api' not in config.keys() and not args.api:
@@ -2056,6 +2106,11 @@ if __name__ == '__main__':
     # no-file-count-stop turns it off - makes flag more intuitive
     file_count_stop = not args.no_file_count_stop
 
+    # use in-memory upload
+    # intended for smaller datasets
+    # may cause memory issues for large datasets
+    in_memory_upload = args.in_memory_upload
+
     if args.exclude:
         exclude = pd.Series(args.exclude)
     else:
@@ -2078,6 +2133,7 @@ if __name__ == '__main__':
                     'dryrun': dryrun,
                     'no_compression': not use_compression,
                     'no_file_count_stop': not file_count_stop,
+                    'in_memory_upload': in_memory_upload,
                     'exclude': exclude.to_list(),
                 },
                 f)
