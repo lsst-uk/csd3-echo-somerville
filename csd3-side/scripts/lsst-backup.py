@@ -2385,7 +2385,8 @@ if __name__ == '__main__':
                     local_list_file,
                     save_local_list,
                     file_count_stop,
-                    n_workers
+                    n_workers,
+                    in_memory_upload,
                 )
             # if os.path.exists(local_list_file):
             #     with open(local_list_file, 'r') as clf:
