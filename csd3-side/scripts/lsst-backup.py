@@ -590,7 +590,7 @@ def zip_folders(
     object_names: list[str],
     temp_dir: str,
     in_memory_upload: bool = False,
-) -> tuple[str, list[str]]:
+) -> tuple[str | bytes, list[str]]:
     """
     Collates the specified folders into a temporary zip file on disk.
 
@@ -633,7 +633,10 @@ def zip_folders(
                             # archive on disk
                             zip_file.write(file, arcname=arc_name)
                         except (PermissionError, OSError, FileNotFoundError) as e:
-                            dprint(f'WARNING: Error reading {file}: {e}. File will not be backed up.', flush=True)
+                            dprint(
+                                f'WARNING: Error reading {file}: {e}. File will not be backed up.',
+                                flush=True
+                            )
                             continue
                     namelist = zip_file.namelist()
 
@@ -835,7 +838,8 @@ def upload_to_bucket_collated(
 
         folder (str): The local folder containing the file to upload.
 
-        file_data_or_path (Union[str, bytes]): The file data or path to the temporary zip file.
+        file_data_or_path (Union[str, bytes]): The file data or path to the
+        temporary zip file.
 
         zip_contents (list): A list of files included in the zip file
         (file_data).
@@ -1998,7 +2002,8 @@ if __name__ == '__main__':
         '--in-memory-upload',
         default=False,
         action='store_true',
-        help='Load files into memory before uploading. Faster for small datasets, but may cause memory errors for large ones.'
+        help='Load files into memory before uploading. Faster for small datasets, '
+             'but may cause memory errors for large ones.'
     )
     args = parser.parse_args()
 
