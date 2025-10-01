@@ -546,8 +546,10 @@ def zip_and_upload(
     if not temp_zip_path or not namelist:
         dprint('No files to upload in zip file or zip creation failed.', flush=True)
         return False
-
-    dprint(f'Created temporary zipFile at {temp_zip_path}', flush=True)
+    if isinstance(temp_zip_path, bytes) and in_memory_upload:
+        dprint(f'Created in-memory zipFile for id {id}', flush=True)
+    else:
+        dprint(f'Created temporary zipFile at {temp_zip_path}', flush=True)
     ###############
     # upload part #
     ###############
@@ -1219,20 +1221,6 @@ def upload_and_callback(
         total_files_uploaded,
         collated
     )
-    # try:
-    #     refs = dict(gc.get_referrers(file_name_or_data)[-1])
-    #     file_name_or_data_refs = [
-    #         k for k, v in refs.items() if v is file_name_or_data
-    #     ]
-    #     num_refs = len(file_name_or_data_refs)
-    #     dprint(
-    #         f'in zip_and_upload {num_refs} references to filename, '
-    #         f'only 1 will be deleted'
-    #         f'\n References: {file_name_or_data_refs}'
-    #     )
-    #     del refs, file_name_or_data_refs
-    # except Exception as e:
-    #     dprint(f'Error getting references for {file_name_or_data}: {e}')
     del file_name_or_data
 
     return result
@@ -1538,45 +1526,6 @@ def process_files(
             ).reset_index()
             zips_uploads_ddf['type'] = 'zip'
             del zip_files_ddf
-
-            # zip_files_ddf = zip_files_ddf.sort_values(
-            #   by='paths'
-            # ).reset_index(drop=True)  # type: ignore
-            # zip_files_ddf_chunks = zip_files_ddf.to_delayed()
-            # batch_assignments = []
-            # for i, chunk in enumerate(zip_files_ddf_chunks):
-            #     cumulative_size = 0
-            #     batch_id = 1
-            #     files_in_zip_count = 0
-            #     for i, row in tqdm(
-            #         chunk.iterrows(),
-            #         total=len(chunk),
-            #         desc="Deciding on zip files."
-            #     ):
-            #         if (
-            #             cumulative_size + row['size'] > max_zip_batch_size \
-            #             and \
-            #             cumulative_size > 0
-            #         ) or \
-            #            (files_in_zip_count >= max_zip_batch_count):
-            #             batch_id += 1
-            #             cumulative_size = 0
-            #             files_in_zip_count = 0
-            #         batch_assignments.append(batch_id)
-            #         cumulative_size += row['size']
-            #         files_in_zip_count += 1
-            # zip_batches = pd.Series(batch_assignments, name='id')
-            # del batch_assignments
-            # zip_files_ddf['id'] = zip_batches.values
-            # del zip_batches
-            # # 5. Aggregate zip files into batches
-
-            # zips_uploads_ddf = zip_files_ddf.groupby('id').agg(
-            #     paths=('paths', lambda s: '|'.join(s)),
-            #     object_names=('object_names', lambda s: '|'.join(s)),
-            #     size=('size', 'sum')
-            # ).reset_index()
-            # zips_uploads_ddf['type'] = 'zip'
 
             zips_uploads_ddf['zip_names'] = zips_uploads_ddf.map_partitions(
                 lambda partition: partition.apply(
