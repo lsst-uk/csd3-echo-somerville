@@ -55,13 +55,11 @@ def download_and_extract(row: pd.Series, conn: swiftclient.Connection, bucket_na
             else:
                 raise
         with zipfile.ZipFile(zipfile_data) as zf:
-            num_files = len(zf.namelist())
             for content_file in zf.namelist():
-                # logger.debug(content_file)
+                logger.info(f'Extracting {content_file}...')
                 content_file_data = zf.open(content_file)
                 with open('./' + os.path.join(path_stub, content_file), 'wb') as f:
                     shutil.copyfileobj(content_file_data, f)
-                # logger.debug(f'Uploaded {content_file} to {key}')
         return True
     else:
         logger.info(f'Downloading {key}...')
@@ -164,11 +162,6 @@ def main():
     )
 
     args = parser.parse_args()
-
-    # Set up logging
-    debug = args.debug
-    debug_level = logging.DEBUG if debug else logging.INFO
-    logger.setLevel(debug_level)
 
     logging.basicConfig(
         level=logging.INFO,
