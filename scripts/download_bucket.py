@@ -32,8 +32,6 @@ logger = logging.getLogger('download_bucket')
 
 
 def download_and_extract(row: pd.Series, conn: swiftclient.Connection, bucket_name: str) -> bool:
-    if not row['extract']:
-        return False
     if not row['download']:
         return False
     key = row['key']
