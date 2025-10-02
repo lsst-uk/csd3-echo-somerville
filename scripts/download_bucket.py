@@ -56,8 +56,10 @@ def download_and_extract(row: pd.Series, conn: swiftclient.Connection, bucket_na
             for content_file in zf.namelist():
                 logger.info(f'Extracting {content_file}...')
                 content_file_data = zf.open(content_file)
-                os.makedirs('./' + path_stub + os.sep.join(content_file.split(os.sep)[:-1]), exist_ok=True)
-                with open('./' + os.path.join(path_stub, content_file), 'wb') as f:
+                dest = './' + os.path.join(path_stub, content_file)
+                # make parent dirs if they don't exist
+                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                with open(dest, 'wb') as f:
                     shutil.copyfileobj(content_file_data, f)
         return True
     else:
