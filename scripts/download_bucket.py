@@ -214,20 +214,14 @@ def main():
         logger.info(f'Dashboard: {client.dashboard_link}')
         logger.info(f'Using {dask_workers} workers, each with {num_threads} threads.')
 
-        def exists(row: pd.Series) -> bool:
-            """Check if a file doesn't exist."""
-            path = './' + row['key'].strip()
-            return not os.path.exists(path)
-
         # Dask Dataframe of all keys
         # high chunksize allows enough mem for parquet to be written
-        keys_df = dd.from_pandas(keys, chunksize=1000000)
-        keys_df['download'] = keys_df.map_partitions(
-            lambda partition: partition.apply(
-                exists,
-                axis=1,
+        keys_df = dd.from_pandas(keys, chunksize=10000)
+        keys_df['download'] = keys_df['key'].map_partitions(
+            lambda series: series.apply(
+                lambda key: not os.path.exists('./' + key.strip())
             ),
-            meta={'download': bool}
+            meta=pd.Series(dtype=bool)
         )
         del keys
         logger.info(f'Partitions: {keys_df.npartitions}')
