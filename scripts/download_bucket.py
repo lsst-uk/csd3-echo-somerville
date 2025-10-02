@@ -234,7 +234,7 @@ def main():
                 conn=conn,
                 bucket_name=bucket_name
             ),
-            meta={'downloaded': bool}
+            meta=pd.Series(dtype=bool)
         )
 
     result = keys_df.compute()
