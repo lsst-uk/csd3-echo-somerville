@@ -158,6 +158,12 @@ def main():
         help='Number of threads per worker to use for parallel upload. Default is 4.',
         default=4
     )
+    parser.add_argument(
+        '--dask-port',
+        type=int,
+        help='Port for Dask dashboard. Default is 8787.',
+        default=8787
+    )
 
     args = parser.parse_args()
 
@@ -204,10 +210,16 @@ def main():
     num_threads = args.nthreads
     # large number as each worker may need to extract multiple files
     total_memory = mem().total
+    dask_port = args.dask_port
 
     mem_limit = int(total_memory * 0.8) // dask_workers  # Limit memory to 0.8 total memory
 
-    with Client(n_workers=dask_workers, threads_per_worker=num_threads, memory_limit=mem_limit) as client:
+    with Client(
+        n_workers=dask_workers,
+        threads_per_worker=num_threads,
+        memory_limit=mem_limit,
+        dashboard_address=f':{dask_port}'
+    ) as client:
         logger.info(f'Dask Client: {client}')
         logger.info(f'Dashboard: {client.dashboard_link}')
         logger.info(f'Using {dask_workers} workers, each with {num_threads} threads.')
