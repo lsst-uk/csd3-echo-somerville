@@ -229,7 +229,7 @@ def main():
 
         # Dask Dataframe of all keys
         # high chunksize allows enough mem for parquet to be written
-        keys_df = dd.from_pandas(keys, chunksize=10000)
+        keys_df = dd.from_pandas(keys, npartitions=dask_workers * 4)
         keys_df['download'] = keys_df['key'].map_partitions(
             lambda series: series.apply(
                 lambda key: not os.path.exists('./' + key.strip())
