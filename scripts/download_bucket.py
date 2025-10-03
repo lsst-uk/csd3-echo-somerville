@@ -66,7 +66,8 @@ def download_and_extract(row: pd.Series, conn: swiftclient.Connection, bucket_na
         logger.info(f'Downloading {key}...')
         try:
             object_data = conn.get_object(bucket_name, key)[1]
-            with open('./' + key, 'wb') as f:
+            dest = './' + os.path.join(path_stub, key.split('/')[-1])
+            with open(dest, 'wb') as f:
                 f.write(object_data)
         except swiftclient.exceptions.ClientException as e:
             if e.http_status == 404:
