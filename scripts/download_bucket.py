@@ -37,7 +37,7 @@ def download_and_extract(row: pd.Series, conn: swiftclient.Connection, bucket_na
     key = row['key']
 
     is_zip = False
-    if key.lower().endswith('.zip'):
+    if key.lower().endswith('.zip') and '/'.split(key)[-1].startswith('collated_'):
         is_zip = True
     if is_zip:
         logger.info(f'Downloading and extracting {key}...')
