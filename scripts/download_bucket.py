@@ -66,7 +66,7 @@ def download_and_extract(row: pd.Series, conn: swiftclient.Connection, bucket_na
         logger.info(f'Downloading {key}...')
         try:
             object_data = conn.get_object(bucket_name, key)[1]
-            dest = './' + os.path.join(path_stub, key.split('/')[-1])
+            dest = './' + os.path.dirname(key)
             with open(dest, 'wb') as f:
                 f.write(object_data)
         except swiftclient.exceptions.ClientException as e:
