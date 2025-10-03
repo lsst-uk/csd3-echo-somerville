@@ -250,7 +250,7 @@ def main():
             meta=pd.Series(dtype=bool)
         )
 
-    result = keys_df.compute()
+        result = keys_df.compute()
     if result['downloaded'].all():
         logger.info('All files downloaded successfully.')
     else:
