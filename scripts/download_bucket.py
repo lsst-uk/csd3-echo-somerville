@@ -39,7 +39,6 @@ def download_and_extract(row: pd.Series, conn: swiftclient.Connection, bucket_na
     is_zip = False
     if key.lower().endswith('.zip'):
         is_zip = True
-    path_stub = '/'.join(key.split('/')[:-1])
     if is_zip:
         logger.info(f'Downloading and extracting {key}...')
         try:
@@ -56,7 +55,7 @@ def download_and_extract(row: pd.Series, conn: swiftclient.Connection, bucket_na
             for content_file in zf.namelist():
                 logger.info(f'Extracting {content_file}...')
                 content_file_data = zf.open(content_file)
-                dest = './' + os.path.join(path_stub, content_file)
+                dest = './' + os.path.join(content_file)
                 # make parent dirs if they don't exist
                 os.makedirs(os.path.dirname(dest), exist_ok=True)
                 with open(dest, 'wb') as f:
@@ -67,6 +66,7 @@ def download_and_extract(row: pd.Series, conn: swiftclient.Connection, bucket_na
         try:
             object_data = conn.get_object(bucket_name, key)[1]
             dest = './' + os.path.dirname(key)
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
             with open(dest, 'wb') as f:
                 f.write(object_data)
         except swiftclient.exceptions.ClientException as e:
