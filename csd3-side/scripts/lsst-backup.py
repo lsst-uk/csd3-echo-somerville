@@ -531,7 +531,7 @@ def zip_and_upload(
     #############
     #  zip part #
     #############
-    temp_zip_path, namelist = zip_folders(
+    temp_zip_path_or_data, namelist = zip_folders(
         local_dir,
         file_paths,
         use_compression,
@@ -543,13 +543,17 @@ def zip_and_upload(
         in_memory_upload
     )
 
-    if not temp_zip_path or not namelist:
+    if not temp_zip_path_or_data or not namelist:
         dprint('No files to upload in zip file or zip creation failed.', flush=True)
         return False
-    if isinstance(temp_zip_path, bytes) and in_memory_upload:
+
+    if isinstance(temp_zip_path_or_data, bytes) and in_memory_upload:
         dprint(f'Created in-memory zipFile for id {id}', flush=True)
+        zip_size = len(temp_zip_path_or_data)
     else:
-        dprint(f'Created temporary zipFile at {temp_zip_path}', flush=True)
+        dprint(f'Created temporary zipFile at {temp_zip_path_or_data}', flush=True)
+        zip_size = os.path.getsize(temp_zip_path_or_data)
+
     ###############
     # upload part #
     ###############
@@ -558,27 +562,34 @@ def zip_and_upload(
         os.path.relpath(f'{local_dir}/collated_{id}.zip', local_dir)
     ])
 
-    uploaded = upload_and_callback(
-        s3,
-        bucket_name,
-        api,
-        local_dir,
-        destination_dir,
-        temp_zip_path,  # Pass the path, not the data
-        namelist,
-        zip_object_key,
-        dryrun,
-        processing_start,
-        1,  # i.e., 1 zip file
-        os.path.getsize(temp_zip_path) if not dryrun and os.path.exists(temp_zip_path) else 0,
-        total_size_uploaded,
-        total_files_uploaded,
-        True,
-        mem_per_worker,
-        log,
-        in_memory_upload,
-    )
-    # The temp file is now cleaned up inside upload_to_bucket_collated
+    uploaded = False
+    try:
+        uploaded = upload_and_callback(
+            s3,
+            bucket_name,
+            api,
+            local_dir,
+            destination_dir,
+            temp_zip_path_or_data,
+            namelist,
+            zip_object_key,
+            dryrun,
+            processing_start,
+            len(namelist),  # Pass the actual number of files in the zip
+            zip_size,
+            total_size_uploaded,
+            total_files_uploaded,
+            True,
+            mem_per_worker,
+            log,
+            in_memory_upload,
+        )
+    finally:
+        # --- FIX: Ensure temporary file is always cleaned up ---
+        if not in_memory_upload and isinstance(temp_zip_path_or_data, str) and os.path.exists(temp_zip_path_or_data):
+            os.remove(temp_zip_path_or_data)
+            dprint(f'Cleaned up temporary zip file: {temp_zip_path_or_data}', flush=True)
+
     return uploaded
 
 
@@ -927,14 +938,6 @@ def upload_to_bucket_collated(
                 dprint('Quota exceeded, stopping uploads.')
                 sys.exit(1)
             return False
-        finally:
-            # Clean up temp file if it exists (streaming case)
-            if (
-                not in_memory_upload
-                and isinstance(file_data_or_path, str)
-                and os.path.exists(file_data_or_path)
-            ):
-                os.remove(file_data_or_path)
     else:
         checksum_string = "DRYRUN"
         file_data_size = 0  # Placeholder for dryrun
