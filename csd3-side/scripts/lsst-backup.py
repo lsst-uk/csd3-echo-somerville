@@ -1604,8 +1604,9 @@ def process_files(
 
             upload_tasks = zips_uploads_df_chunk.iterrows()
 
-            # This list will only hold futures for the current chunk
-            zip_upload_futures = []
+            # This list will hold futures for the current chunk
+            # --- FIX: Use a set for efficient management of futures ---
+            active_futures = set()
 
             # Submit initial set of tasks for this chunk, up to the
             # number of workers
@@ -1629,17 +1630,21 @@ def process_files(
                         mem_per_worker=mem_per_worker,
                         log=log,
                         in_memory_upload=in_memory_upload,
-                        retries=0,
                     )
-                    zip_upload_futures.append(future)
+                    active_futures.add(future)
                 except StopIteration:
                     break
 
             # Use as_completed to process futures for the current chunk
             with tqdm(total=num_uploads_in_chunk, desc=f"Uploading chunk {i+1}") as pbar:
-                for future in as_completed(zip_upload_futures):
+                # --- FIX: Loop while there are active futures ---
+                while active_futures:
+                    # Use as_completed on the current set of active futures
+                    completed_iterator = as_completed(active_futures)
+                    future = next(completed_iterator)
+
                     try:
-                        result = future.result()  # type: ignore
+                        result = future.result()
                         all_zip_upload_results.append(result)
                     except dask.distributed.KilledWorker as e:
                         dprint(f"Task in chunk {i+1} failed: Worker killed. Error: {e}", flush=True)
@@ -1648,9 +1653,12 @@ def process_files(
                         dprint(f"Task in chunk {i+1} failed with an exception: {e}", flush=True)
                         all_zip_upload_results.append(False)
                     finally:
-                        future.release()  # type: ignore
+                        # Remove the completed future from the set
+                        active_futures.remove(future)
+                        future.release()
                         pbar.update(1)
 
+                    # Submit a new task to replace the one that just finished
                     try:
                         _, row = next(upload_tasks)
                         new_future = client.submit(
@@ -1670,11 +1678,11 @@ def process_files(
                             mem_per_worker=mem_per_worker,
                             log=log,
                             in_memory_upload=in_memory_upload,
-                            retries=0,
                         )
-                        zip_upload_futures.append(new_future)
+                        # Add the new future to the set being watched
+                        active_futures.add(new_future)
                     except StopIteration:
-                        # No more tasks to submit
+                        # No more tasks to submit, the loop will now drain the remaining active_futures
                         pass
 
             # All futures for this chunk are now complete and released.
@@ -1758,7 +1766,9 @@ def process_files(
 
                 num_uploads_in_chunk = len(ind_uploads_df_chunk)
                 upload_tasks = ind_uploads_df_chunk.iterrows()
-                ind_upload_futures = []
+
+                # --- FIX: Use a set for efficient management of futures ---
+                active_futures = set()
 
                 # Submit initial batch of tasks
                 for _ in range(min(n_workers, num_uploads_in_chunk)):
@@ -1779,26 +1789,34 @@ def process_files(
                             mem_per_worker=mem_per_worker,
                             log=log,
                             in_memory_upload=in_memory_upload,
-                            retries=0,
                         )
-                        ind_upload_futures.append(future)
+                        active_futures.add(future)
                     except StopIteration:
                         break
 
                 # Process futures as they complete
                 with tqdm(total=num_uploads_in_chunk, desc=f"Uploading individual files chunk {i+1}") as pbar:
-                    for future in as_completed(ind_upload_futures):
-                        assert isinstance(future, dask.distributed.Future)
+                    # --- FIX: Loop while there are active futures ---
+                    while active_futures:
+                        completed_iterator = as_completed(active_futures)
+                        future = next(completed_iterator)
+
                         try:
                             result = future.result()
                             all_ind_upload_results.append(result)
+                        except dask.distributed.KilledWorker as e:
+                            dprint(f"Individual file upload task failed: Worker killed. Error: {e}", flush=True)
+                            all_ind_upload_results.append(False)
                         except Exception as e:
                             dprint(f"Individual file upload task failed: {e}", flush=True)
                             all_ind_upload_results.append(False)
                         finally:
+                            # Remove the completed future from the set
+                            active_futures.remove(future)
                             future.release()
                             pbar.update(1)
 
+                        # Submit a new task to replace the one that just finished
                         try:
                             _, row = next(upload_tasks)
                             new_future = client.submit(
@@ -1816,11 +1834,11 @@ def process_files(
                                 mem_per_worker=mem_per_worker,
                                 log=log,
                                 in_memory_upload=in_memory_upload,
-                                retries=0,
                             )
-                            ind_upload_futures.append(new_future)
+                            # Add the new future to the set being watched
+                            active_futures.add(new_future)
                         except StopIteration:
-                            # No more tasks to submit
+                            # No more tasks to submit, the loop will now drain the remaining active_futures
                             pass
 
                 print(f"--- Finished processing individual file chunk {i+1} ---", flush=True)
@@ -2072,6 +2090,8 @@ if __name__ == '__main__':
         exclude = pd.Series(args.exclude)
     else:
         exclude = pd.Series([])
+
+
 
     print(f'Config: {args}')
 
