@@ -41,7 +41,7 @@ import argparse
 from dask import dataframe as dd
 # from dask import compute
 import dask.distributed
-from dask.distributed import Client, get_client, as_completed, wait
+from dask.distributed import Client, get_client, as_completed
 from dask.distributed import print as dprint
 import subprocess
 from typing import List
@@ -1676,7 +1676,7 @@ def process_files(
                     except StopIteration:
                         # No more tasks to submit
                         pass
-            wait(zip_upload_futures)  # Ensure all futures are done
+
             # All futures for this chunk are now complete and released.
             print(f"--- Finished processing chunk {i+1} ---", flush=True)
             gc.collect()  # Explicitly ask for garbage collection
