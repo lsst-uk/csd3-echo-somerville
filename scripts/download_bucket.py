@@ -3,6 +3,7 @@
 # D.McKay Jun 2024
 
 from datetime import datetime
+import re
 import sys
 import os
 
@@ -37,8 +38,10 @@ def download_and_extract(row: pd.Series, conn: swiftclient.Connection, bucket_na
     key = row['key']
 
     is_zip = False
-    if key.lower().endswith('.zip') and '/'.split(key)[-1].startswith('collated_'):
+    zipfile_pattern = re.compile(r'collated_.*\.zip$', re.IGNORECASE)
+    if zipfile_pattern.search(key):
         is_zip = True
+
     if is_zip:
         logger.info(f'Downloading and extracting {key}...')
         try:
