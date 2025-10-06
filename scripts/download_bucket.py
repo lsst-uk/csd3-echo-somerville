@@ -32,7 +32,12 @@ warnings.filterwarnings('ignore')
 logger = logging.getLogger('download_bucket')
 
 
-def download_and_extract(row: pd.Series, conn: swiftclient.Connection, bucket_name: str) -> bool:
+def download_and_extract(
+    row: pd.Series,
+    conn: swiftclient.Connection,
+    bucket_name: str,
+    extract: bool
+) -> bool:
     if not row['download']:
         return False
     key = row['key']
@@ -45,7 +50,7 @@ def download_and_extract(row: pd.Series, conn: swiftclient.Connection, bucket_na
     if is_zip:
         logger.info(f'Downloading and extracting {key}...')
         try:
-            zipfile_data = io.BytesIO(conn.get_object(bucket_name, key)[1])
+            zipfile_data = io.BytesIO(bytes(conn.get_object(bucket_name, key)[1]))
         except swiftclient.exceptions.ClientException as e:
             if e.http_status == 404:
                 logger.info(
@@ -54,20 +59,27 @@ def download_and_extract(row: pd.Series, conn: swiftclient.Connection, bucket_na
                 return False
             else:
                 raise
-        with zipfile.ZipFile(zipfile_data) as zf:
-            for content_file in zf.namelist():
-                logger.info(f'Extracting {content_file}...')
-                content_file_data = zf.open(content_file)
-                dest = './' + os.path.join(content_file)
-                # make parent dirs if they don't exist
-                os.makedirs(os.path.dirname(dest), exist_ok=True)
-                with open(dest, 'wb') as f:
-                    shutil.copyfileobj(content_file_data, f)
-        return True
+        if extract:
+            with zipfile.ZipFile(zipfile_data) as zf:
+                for content_file in zf.namelist():
+                    logger.info(f'Extracting {content_file}...')
+                    content_file_data = zf.open(content_file)
+                    dest = './' + os.path.join(content_file)
+                    # make parent dirs if they don't exist
+                    os.makedirs(os.path.dirname(dest), exist_ok=True)
+                    with open(dest, 'wb') as f:
+                        shutil.copyfileobj(content_file_data, f)
+            return True
+        else:
+            dest = './' + key
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            with open(dest, 'wb') as f:
+                f.write(zipfile_data.getbuffer())
+            return True
     else:
         logger.info(f'Downloading {key}...')
         try:
-            object_data = conn.get_object(bucket_name, key)[1]
+            object_data = bytes(conn.get_object(bucket_name, key)[1])
             dest = './' + key
             os.makedirs(os.path.dirname(dest), exist_ok=True)
             with open(dest, 'wb') as f:
@@ -171,6 +183,13 @@ def main():
         help='Port for Dask dashboard. Default is 8787.',
         default=8787
     )
+    parser.add_argument(
+        '--extract-zips',
+        '-e',
+        action='store_true',
+        help='Whether to extract zip files after downloading, only extracted files will be '
+             'written locally. Default is False.',
+    )
 
     args = parser.parse_args()
 
@@ -188,6 +207,13 @@ def main():
         prefix = args.prefix
     else:
         prefix = ''
+
+    extract = args.extract_zips
+
+    if extract:
+        logger.info('Zip files will be extracted and only extracted files will be written locally.')
+    else:
+        logger.info('Zip files will NOT be extracted after downloading.')
 
     # Setup bucket object
     try:
@@ -233,7 +259,7 @@ def main():
 
         # Dask Dataframe of all keys
         # high chunksize allows enough mem for parquet to be written
-        keys_df = dd.from_pandas(keys, npartitions=dask_workers * 4)
+        keys_df = dd.from_pandas(keys, npartitions=dask_workers * 4)  # type: ignore
         keys_df['download'] = keys_df['key'].map_partitions(
             lambda series: series.apply(
                 lambda key: not os.path.exists('./' + key.strip())
@@ -249,7 +275,8 @@ def main():
                 download_and_extract,
                 axis=1,
                 conn=conn,
-                bucket_name=bucket_name
+                bucket_name=bucket_name,
+                extract=extract,
             ),
             meta=pd.Series(dtype=bool)
         )
