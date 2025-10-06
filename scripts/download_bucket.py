@@ -274,8 +274,8 @@ def main():
         logger.info(f'Partitions: {keys_df.npartitions}')
 
         # Remove metadata files from list
-        metadata_pattern = re.compile(r'collated_.*\.zip.metadata$', re.IGNORECASE)
-        keys_df = keys_df[~keys_df['key'].str.contains(metadata_pattern, regex=True)].persist()
+        metadata_pattern_str = r'collated_.*\.zip\.metadata$'
+        keys_df = keys_df[~keys_df['key'].str.contains(metadata_pattern_str, regex=True, case=False)].persist()
         logger.info(f'Keys to download: {keys_df["download"].sum().compute()}')
 
         # Download and extract
