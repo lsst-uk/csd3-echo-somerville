@@ -273,6 +273,11 @@ def main():
         del keys
         logger.info(f'Partitions: {keys_df.npartitions}')
 
+        # Remove metadata files from list
+        metadata_pattern = re.compile(r'collated_.*\.zip.metadata$', re.IGNORECASE)
+        keys_df = keys_df[~keys_df['key'].str.contains(metadata_pattern, regex=True)].persist()
+        logger.info(f'Keys to download: {keys_df["download"].sum().compute()}')
+
         # Download and extract
         keys_df['downloaded'] = keys_df.map_partitions(
             lambda partition: partition.apply(
@@ -294,7 +299,7 @@ def main():
     logger.info(f'Done. Runtime: {datetime.now() - all_start}.')
     logger.info(f'Keys downloaded: {result["key"].count()}')
     logger.info(f'Total size: {result["size"].sum()} bytes')
-    logger.info(f'Average download speed: {(result["size"].mean()*8)/1024**3} Gbps')
+    logger.info(f'Average download speed: {(result["size"].mean()*8)/1024**3:.2f} Gbps')
 
 
 if __name__ == '__main__':
