@@ -41,12 +41,13 @@ def download_and_extract(
     if not row['download']:
         return False
     key = row['key']
+    size = row['size']
 
     is_zip = False
     zipfile_pattern = re.compile(r'collated_.*\.zip$', re.IGNORECASE)
     if zipfile_pattern.search(key):
         is_zip = True
-
+    logger.info(f'{key} - size: {size} bytes')
     if is_zip:
         logger.info(f'Downloading and extracting {key}...')
         try:
@@ -101,7 +102,7 @@ def object_list_swift(
     prefix: str = '',
     full_listing: bool = True,
     count: bool = False
-) -> list[str]:
+) -> dict:
     """List objects in a Swift container.
 
         Args:
@@ -121,16 +122,19 @@ def object_list_swift(
             A list of object names in the container.
         """
     keys = []
+    sizes = []
     if count:
         o = 0
     for obj in conn.get_container(container_name, prefix=prefix, full_listing=full_listing)[1]:
-        keys.append(obj['name'])
+        str(keys.append(obj['name']))
+        if isinstance(obj['bytes'], int):
+            sizes.append(obj['bytes'])
         if count:
             o += 1
             if o % 10000 == 0:
-                logger.info(f'Existing objects: {o}', end='\r')
+                logger.info(f'Existing objects: {o}')
     print()
-    return keys
+    return {'key': keys, 'size': sizes}
 
 
 def main():
@@ -232,7 +236,7 @@ def main():
     print(f'Using bucket {bucket_name}.')
 
     print('Getting key list...')
-    keys = pd.DataFrame.from_dict({'key': object_list_swift(conn, bucket_name, prefix, count=True)})
+    keys = pd.DataFrame.from_dict(object_list_swift(conn, bucket_name, prefix, count=True))
 
     print(keys.head())
 
@@ -288,6 +292,9 @@ def main():
         logger.warning('Some files failed to download.')
 
     logger.info(f'Done. Runtime: {datetime.now() - all_start}.')
+    logger.info(f'Keys downloaded: {result["key"].count()}')
+    logger.info(f'Total size: {result["size"].sum()} bytes')
+    logger.info(f'Average download speed: {(result["size"].mean()*8)/1024**3} Gbps')
 
 
 if __name__ == '__main__':
