@@ -1552,7 +1552,7 @@ def process_files(
         if os.path.isdir(zip_batch_list_file):
             # If a directory (from a wildcard read), read all CSVs in it
             zips_uploads_ddf = dd.read_csv(  # type: ignore
-                os.path.join(zip_batch_list_file, '*.csv')
+                os.path.join(zip_batch_list_file, '*')
             ).persist()
         else:
             zips_uploads_ddf = dd.read_csv(zip_batch_list_file).persist()  # type: ignore
