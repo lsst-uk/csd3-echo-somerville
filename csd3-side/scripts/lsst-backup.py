@@ -2033,7 +2033,7 @@ if __name__ == '__main__':
                     args.nprocs = 4
                 if 'threads_per_worker' in config.keys() and not args.threads_per_worker:
                     args.threads_per_worker = config['threads_per_worker']
-                # required to allow default value of 4 as this overrides
+                # required to allow default value of 2 as this overrides
                 # "default" in add_argument
                 if 'threads_per_worker' not in config.keys() and not args.threads_per_worker:
                     args.threads_per_worker = 2
@@ -2096,8 +2096,6 @@ if __name__ == '__main__':
         exclude = pd.Series(args.exclude)
     else:
         exclude = pd.Series([])
-
-
 
     print(f'Config: {args}')
 
