@@ -1549,7 +1549,13 @@ def process_files(
 
     else:
         print(f'Reading zip batch list from {zip_batch_list_file}.', flush=True)
-        zips_uploads_ddf = dd.read_csv(zip_batch_list_file).persist()  # type: ignore
+        if os.path.isdir(zip_batch_list_file):
+            # If a directory (from a wildcard read), read all CSVs in it
+            zips_uploads_ddf = dd.read_csv(  # type: ignore
+                os.path.join(zip_batch_list_file, '*.csv')
+            ).persist()
+        else:
+            zips_uploads_ddf = dd.read_csv(zip_batch_list_file).persist()  # type: ignore
         num_zip_uploads = len(zips_uploads_ddf.index)
         update = True
 
