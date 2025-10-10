@@ -2109,7 +2109,7 @@ if __name__ == '__main__':
                     'S3_prefix': prefix,
                     'S3_folder': sub_dirs,
                     'nprocs': nprocs,
-                    'threads_per_process': threads_per_worker,
+                    'threads_per_worker': threads_per_worker,
                     'no_collate': not global_collate,
                     'dryrun': dryrun,
                     'no_compression': not use_compression,
