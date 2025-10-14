@@ -1264,7 +1264,10 @@ def process_files(
         raise ValueError('api must be "swift".')
 
     # Define a temporary directory on the (assumed) large data volume
-    temp_dir = os.path.join(local_dir, '.lsst-backup-tmp')
+    if subprocess.getoutput(['uname', '-n']) is 'dtn-p-167':
+        temp_dir = '/rds/project/rds-rPTGgs6He74/davem/temp/.lsst-backup-tmp'
+    else:
+        temp_dir = os.path.join(local_dir, '.lsst-backup-tmp')
     try:
         os.makedirs(temp_dir, exist_ok=True)
     except Exception as e:
