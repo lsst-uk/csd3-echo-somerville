@@ -739,57 +739,45 @@ def upload_to_bucket(
                         file_data = f.read()
                     checksum_string = hashlib.md5(file_data).hexdigest()
                     upload_content = file_data
+                    with bm.get_service_swift() as service:
+                        upload_start = datetime.now()
+                        upload_object = SwiftUploadObject(
+                            source=upload_content,
+                            object_name=object_key,
+                            options={'header': ['Content-Type:application/octet-stream']}
+                        )
+                        upload_options = {'segment_size': 1024**3, 'use_slo': True} if file_size > 1024**3 else {}
+                        upload_results = list(service.upload(container=bucket_name, objects=[upload_object], options=upload_options))
+                        for result in upload_results:
+                            if not result['success']:
+                                dprint(f"Upload failed for {object_key}: {result.get('error')}", flush=True)
+                                return False
+                        upload_end = datetime.now()
+                        upload_time = upload_end - upload_start
                 else:
                     # Streaming method
-                    with open(filename, 'rb') as file_stream:
+                    with open(filename, 'rb') as file_stream, bm.get_service_swift() as service:
+                        # Calculate checksum
                         checksum_hash = hashlib.md5()
                         while chunk := file_stream.read(8192):
                             checksum_hash.update(chunk)
                         checksum_string = checksum_hash.hexdigest()
-                        file_stream.seek(0)
-                        upload_content = file_stream
+                        file_stream.seek(0) # Rewind file for upload
 
-                # Use the SwiftService context manager for robust uploads.
-                # It handles connection setup and teardown.
-                with bm.get_service_swift() as service:
-                    upload_start = datetime.now()
-
-                    # Create the upload object, specifying source and
-                    # object_name.
-                    upload_object = SwiftUploadObject(
-                        source=upload_content,
-                        object_name=object_key,
-                        options={'header': ['Content-Type:application/octet-stream']}
-                    )
-                    if file_size > 1024**3:
-                        # Explicitly set segment_size to force multipart upload
-                        # (SLO).
-                        upload_options = {
-                            'segment_size': 1024**3,
-                            'use_slo': True
-                        }  # 1 GiB
-                    else:
-                        upload_options = {}
-
-                    # service.upload handles streaming from disk, segmentation
-                    # (SLO),
-                    # and manifest creation automatically for large files.
-                    # We must iterate over the generator to trigger the upload.
-                    upload_results_generator = service.upload(
-                        container=bucket_name,
-                        objects=[upload_object],
-                        options=upload_options
-                    )
-                    upload_results = [result for result in upload_results_generator]
-                    # Consume the generator to get the result.
-                    for result in upload_results:
-                        if not result['success']:
-                            error = result.get('error')
-                            dprint(f"Upload failed for {object_key}: {error}", flush=True)
-                            return False
-
-                    upload_end = datetime.now()
-                    upload_time = upload_end - upload_start
+                        upload_start = datetime.now()
+                        upload_object = SwiftUploadObject(
+                            source=file_stream, # Use the open file stream
+                            object_name=object_key,
+                            options={'header': ['Content-Type:application/octet-stream']}
+                        )
+                        upload_options = {'segment_size': 1024**3, 'use_slo': True} if file_size > 1024**3 else {}
+                        upload_results = list(service.upload(container=bucket_name, objects=[upload_object], options=upload_options))
+                        for result in upload_results:
+                            if not result['success']:
+                                dprint(f"Upload failed for {object_key}: {result.get('error')}", flush=True)
+                                return False
+                        upload_end = datetime.now()
+                        upload_time = upload_end - upload_start
 
             except Exception as e:
                 dprint(f'Error uploading {filename} to {bucket_name}/{object_key}: {e}')
