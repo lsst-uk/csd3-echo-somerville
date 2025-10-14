@@ -43,6 +43,7 @@ from dask import dataframe as dd
 import dask.distributed
 from dask.distributed import Client, get_client, as_completed
 from dask.distributed import print as dprint
+import socket
 import subprocess
 from typing import List
 from tqdm import tqdm
@@ -1264,7 +1265,8 @@ def process_files(
         raise ValueError('api must be "swift".')
 
     # Define a temporary directory on the (assumed) large data volume
-    if subprocess.getoutput(['uname', '-n']) == 'dtn-p-167':
+    hostname = socket.gethostname()
+    if hostname == 'dtn-p-167':
         temp_dir = '/rds/project/rds-rPTGgs6He74/davem/temp/.lsst-backup-tmp'
     else:
         temp_dir = os.path.join(local_dir, '.lsst-backup-tmp')
