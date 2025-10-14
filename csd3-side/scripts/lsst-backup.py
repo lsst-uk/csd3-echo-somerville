@@ -1453,12 +1453,17 @@ def process_files(
             print(f'Found {len_files_to_upload} files to upload.', flush=True)
 
             # 3. Decide which files to zip and which to upload individually
-            files_to_upload_ddf['type'] = files_to_upload_ddf.map_partitions(
-                lambda partition: partition.apply(
-                    lambda row: 'zip' if row['size'] <= max_zip_batch_size / 2 else 'file',
-                    axis=1
-                )
-            ).reset_index(drop=True)
+            if global_collate:
+                print("Collating small files into zip archives.", flush=True)
+                files_to_upload_ddf['type'] = files_to_upload_ddf.map_partitions(
+                    lambda partition: partition.apply(
+                        lambda row: 'zip' if row['size'] <= max_zip_batch_size / 2 else 'file',
+                        axis=1
+                    )
+                ).reset_index(drop=True)
+            else:
+                print("Skipping collation. All files will be uploaded individually.", flush=True)
+                files_to_upload_ddf['type'] = 'file'
         else:
             print('No new files to upload.', flush=True)
             return True
