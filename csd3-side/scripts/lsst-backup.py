@@ -762,11 +762,11 @@ def upload_to_bucket(
                         while chunk := file_stream.read(8192):
                             checksum_hash.update(chunk)
                         checksum_string = checksum_hash.hexdigest()
-                        file_stream.seek(0) # Rewind file for upload
+                        file_stream.seek(0)  # Rewind file for upload
 
                         upload_start = datetime.now()
                         upload_object = SwiftUploadObject(
-                            source=file_stream, # Use the open file stream
+                            source=file_stream,  # Use the open file stream
                             object_name=object_key,
                             options={'header': ['Content-Type:application/octet-stream']}
                         )
