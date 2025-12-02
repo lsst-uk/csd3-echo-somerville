@@ -1566,20 +1566,20 @@ def process_files(
         #   zips_uploads_df,
         #   chunksize=1000
         # )
-        if update:
-            #  Drop any files now in current_objects ( for a retry )
-            zips_uploads_ddf = zips_uploads_ddf.merge(  # type: ignore
-                current_objects[['CURRENT_OBJECTS']],
-                left_on='zip_names',
-                right_on='CURRENT_OBJECTS',
-                how='left',
-                indicator=True
-            )
-            zips_uploads_ddf = zips_uploads_ddf[zips_uploads_ddf['_merge'] == 'left_only']
-            zips_uploads_ddf = zips_uploads_ddf.drop(columns=['_merge', 'CURRENT_OBJECTS'])
+        # if update:
+        #  Drop any files now in current_objects ( for a retry )
+        zips_uploads_ddf = zips_uploads_ddf.merge(  # type: ignore
+            current_objects[['CURRENT_OBJECTS']],
+            left_on='zip_names',
+            right_on='CURRENT_OBJECTS',
+            how='left',
+            indicator=True
+        )
+        zips_uploads_ddf = zips_uploads_ddf[zips_uploads_ddf['_merge'] == 'left_only']
+        zips_uploads_ddf = zips_uploads_ddf.drop(columns=['_merge', 'CURRENT_OBJECTS'])
 
-            # Update (rewrite) CSV file
-            zips_uploads_ddf.to_csv('updated_' + zip_batch_list_file, single_file=True)
+        # Update (rewrite) CSV file
+        zips_uploads_ddf.to_csv('updated_' + zip_batch_list_file, single_file=True)
 
         zips_uploads_delayed = zips_uploads_ddf.to_delayed()  # type: ignore
 
