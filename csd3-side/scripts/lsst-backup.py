@@ -1256,6 +1256,8 @@ def process_files(
     hostname = socket.gethostname()
     if hostname == 'dtn-p-167':
         temp_dir = '/rds/project/rds-rPTGgs6He74/davem/temp/.lsst-backup-tmp'
+    elif 'cs-n' in hostname:
+        temp_dir = '.lsst-backup-tmp'
     else:
         temp_dir = os.path.join(local_dir, '.lsst-backup-tmp')
     try:
